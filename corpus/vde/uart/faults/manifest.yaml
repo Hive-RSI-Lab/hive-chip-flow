@@ -1,0 +1,40 @@
+# faults manifest (docs/design.md section 3, "### M2."): see corpus/vde/
+# counter8/faults/manifest.yaml for the format.
+version: 1
+faults:
+  - name: spec_lint_requirement_no_check
+    gate: spec_lint
+    plant: plant_spec_lint.py
+    expect: {status: fail, kind: requirement_no_check}
+  - name: lint_latch
+    gate: lint
+    plant: plant_lint.py
+    expect: {status: fail, kind: LATCH}
+  - name: sim_start_bit_one_clock_too_long
+    gate: sim
+    plant: plant_sim.py
+    expect: {status: fail, kind: test_failed}
+  - name: holdout_parity_inverted
+    gate: holdout
+    plant: plant_holdout.py
+    expect: {status: fail, kind: holdout_failed}
+  # --- M3 (docs/design.md "### M3.") --------------------------------------
+  - name: formal_register_with_no_reset
+    gate: formal
+    plant: plant_formal.py
+    expect: {status: fail, kind: property_failed}
+  - name: cover_unreachable_state
+    gate: cover
+    plant: plant_cover.py
+    expect: {status: fail, kind: line_coverage_below_threshold}
+  - name: synth_combinational_loop
+    gate: synth
+    plant: plant_synth.py
+    expect: {status: fail, kind: combinational_loop}
+
+# `mutate` is NOT exercised on this rung: counter8/faults/manifest.yaml's
+# `mutate_asserts_nothing` entry already exercises that gate for real. The
+# untouched reference clears the 0.9 floor (0.95 at the default seed and
+# size) since tb/ checks the parity bit for bytes with data[7] == 0; before
+# that every survivor was a parity mutant. The M7 optimise loop's `finish`
+# runs mutate on this design's winner, so it has to stay above the floor.

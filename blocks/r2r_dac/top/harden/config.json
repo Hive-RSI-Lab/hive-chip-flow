@@ -1,0 +1,102 @@
+{
+  "PL_TARGET_DENSITY_PCT": 60,
+  "CLOCK_PERIOD": 20.0,
+  "PL_RESIZER_HOLD_SLACK_MARGIN": 0.1,
+  "GRT_RESIZER_HOLD_SLACK_MARGIN": 0.05,
+  "RUN_LINTER": 1,
+  "LINTER_INCLUDE_PDK_MODELS": 1,
+  "CLOCK_PORT": "clk",
+  "RUN_KLAYOUT_XOR": 0,
+  "RUN_KLAYOUT_DRC": 0,
+  "DESIGN_REPAIR_BUFFER_OUTPUT_PORTS": 0,
+  "TOP_MARGIN_MULT": 1,
+  "BOTTOM_MARGIN_MULT": 1,
+  "LEFT_MARGIN_MULT": 6,
+  "RIGHT_MARGIN_MULT": 6,
+  "FP_SIZING": "absolute",
+  "GRT_ALLOW_CONGESTION": 1,
+  "FP_IO_HLENGTH": 2,
+  "FP_IO_VLENGTH": 2,
+  "FP_PDN_VPITCH": 38.87,
+  "RUN_CTS": 1,
+  "FP_PDN_MULTILAYER": 0,
+  "MAGIC_DEF_LABELS": 0,
+  "MAGIC_WRITE_LEF_PINONLY": 1,
+  "DESIGN_NAME": "tt_um_r2r_dac_digital",
+  "VERILOG_FILES": [
+    "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/top/rtl/r2r_dac_digital.v",
+    "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/top/harden/tt_um_r2r_dac_digital.v"
+  ],
+  "DIE_AREA": "0 0 346.64 325.36",
+  "FP_DEF_TEMPLATE": "/home/ihsan/.claude/skills/chip-flow/engine/reference/tt/tt-support-tools/tech/gf180mcuD/def/analog/tt_analog_1x2.def",
+  "VDD_PIN": "VPWR",
+  "GND_PIN": "VGND",
+  "RT_MAX_LAYER": "Metal4",
+  "PDK_ROOT": "/home/ihsan/.cc/toolchains/iic-osic-tools-2026.09/foss/pdks",
+  "TIMING_VIOLATION_CORNERS": [
+    ""
+  ],
+  "VDD_PIN_VOLTAGE": 3.3,
+  "LIB_SYNTH": "pdk_dir::libs.ref/gf180mcu_fd_sc_mcu7t5v0/lib/gf180mcu_fd_sc_mcu7t5v0__tt_025C_3v30.lib",
+  "LIB_FASTEST": "pdk_dir::libs.ref/gf180mcu_fd_sc_mcu7t5v0/lib/gf180mcu_fd_sc_mcu7t5v0__ff_n40C_3v60.lib",
+  "LIB_SLOWEST": "pdk_dir::libs.ref/gf180mcu_fd_sc_mcu7t5v0/lib/gf180mcu_fd_sc_mcu7t5v0__ss_125C_3v00.lib",
+  "DEFAULT_CORNER": "nom_tt_025C_3v30",
+  "STA_CORNERS": [
+    "nom_tt_025C_3v30",
+    "nom_ss_125C_3v00",
+    "nom_ff_n40C_3v60",
+    "min_tt_025C_3v30",
+    "min_ss_125C_3v00",
+    "min_ff_n40C_3v60",
+    "max_tt_025C_3v30",
+    "max_ss_125C_3v00",
+    "max_ff_n40C_3v60"
+  ],
+  "LIB": {
+    "*_tt_025C_3v30": [
+      "pdk_dir::libs.ref/gf180mcu_fd_sc_mcu7t5v0/lib/gf180mcu_fd_sc_mcu7t5v0__tt_025C_3v30.lib"
+    ],
+    "*_ss_125C_3v00": [
+      "pdk_dir::libs.ref/gf180mcu_fd_sc_mcu7t5v0/lib/gf180mcu_fd_sc_mcu7t5v0__ss_125C_3v00.lib"
+    ],
+    "*_ff_n40C_3v60": [
+      "pdk_dir::libs.ref/gf180mcu_fd_sc_mcu7t5v0/lib/gf180mcu_fd_sc_mcu7t5v0__ff_n40C_3v60.lib"
+    ]
+  },
+  "CTS_ROOT_BUFFER": "gf180mcu_fd_sc_mcu7t5v0__clkbuf_8",
+  "RUN_POST_GRT_DESIGN_REPAIR": true,
+  "MACROS": {
+    "r2r_dac_analog": {
+      "gds": [
+        "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/top/macros/r2r_dac_analog.gds"
+      ],
+      "lef": [
+        "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/top/macros/r2r_dac_analog.lef"
+      ],
+      "vh": [
+        "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/top/macros/r2r_dac_analog.v"
+      ],
+      "spice": [
+        "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/top/macros/r2r_dac_analog.spice"
+      ],
+      "instances": {
+        "u_analog": {
+          "location": [
+            68.32,
+            94.08
+          ],
+          "orientation": "N"
+        }
+      }
+    }
+  },
+  "PDN_MACRO_CONNECTIONS": [
+    "u_analog VPWR VGND vdd vss"
+  ],
+  "PDN_CFG": "/home/ihsan/.claude/skills/chip-flow/engine/lib/macro_pdn.tcl",
+  "MAGIC_EXT_USE_GDS": true,
+  "EXTRA_SPICE_MODELS": [
+    "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/top/macros/r2r_dac_analog.spice"
+  ],
+  "RSZ_DONT_TOUCH_RX": "^ua\\[\\d+\\]$"
+}

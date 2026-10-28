@@ -1,0 +1,65 @@
+* r2r_dac.cir - r2r_dac_analog, 8-bit R-2R ladder macro (P4 NETLIST MODE).
+* A .subckt library, never run directly: tb/*.cir instantiate it.
+* Topology: spec/topology.md (standard R-2R, vout at the MSB rung, 2R
+* termination to vss at the LSB end, bit k -> buf_20 -> 2R branch -> rung k).
+*
+* Every resistor is one gf180mcu_fd_pr ppolyf_u unit of the same width.
+*   ru_w  unit width (m)            ru_l  unit length (m)
+*   rb_l  length of the 'b' (trim) unit of every driven 2R branch (m):
+*         shorter than ru_l by the length whose body resistance equals the
+*         driver's average Ron at tt (spec: 2R branch = 2R - Ron_nom).
+* The termination 2R (xrta/xrtb) has no driver in series, so no trim.
+* Values come from sizing/sizing.yaml via the bench's {{SIZING}} .param line;
+* the defaults below are the same values so the library also stands alone.
+*
+* Drivers: gf180mcu_fd_sc_mcu7t5v0__buf_20 (largest buf), pins
+* I Z VDD VNW VPW VSS. Built from nfet_05v0/pfet_05v0: at 3.3 V its Ron is
+* measured (tt, 27 C, 1 mA) as ~163 ohm pull-down and ~444 ohm pull-up,
+* the pull-up rising toward ~1 kohm at 4 mA (velocity/pinch-off).
+
+.param ru_w=2e-6 ru_l=150e-6 rb_l=148.36e-6
+
+.subckt r2r_dac_analog dac_code[7] dac_code[6] dac_code[5] dac_code[4] dac_code[3] dac_code[2] dac_code[1] dac_code[0] vout vdd vss
+
+* switch drivers, bit 7 = MSB
+xd7 dac_code[7] d7 vdd vdd vss vss gf180mcu_fd_sc_mcu7t5v0__buf_20
+xd6 dac_code[6] d6 vdd vdd vss vss gf180mcu_fd_sc_mcu7t5v0__buf_20
+xd5 dac_code[5] d5 vdd vdd vss vss gf180mcu_fd_sc_mcu7t5v0__buf_20
+xd4 dac_code[4] d4 vdd vdd vss vss gf180mcu_fd_sc_mcu7t5v0__buf_20
+xd3 dac_code[3] d3 vdd vdd vss vss gf180mcu_fd_sc_mcu7t5v0__buf_20
+xd2 dac_code[2] d2 vdd vdd vss vss gf180mcu_fd_sc_mcu7t5v0__buf_20
+xd1 dac_code[1] d1 vdd vdd vss vss gf180mcu_fd_sc_mcu7t5v0__buf_20
+xd0 dac_code[0] d0 vdd vdd vss vss gf180mcu_fd_sc_mcu7t5v0__buf_20
+
+* 2R branches: dk -(a, full unit)- mbk -(b, trimmed unit)- nk ; n7 = vout
+xrb7a d7  mb7 vss ppolyf_u r_width={ru_w} r_length={ru_l}
+xrb7b mb7 vout vss ppolyf_u r_width={ru_w} r_length={rb_l}
+xrb6a d6  mb6 vss ppolyf_u r_width={ru_w} r_length={ru_l}
+xrb6b mb6 n6  vss ppolyf_u r_width={ru_w} r_length={rb_l}
+xrb5a d5  mb5 vss ppolyf_u r_width={ru_w} r_length={ru_l}
+xrb5b mb5 n5  vss ppolyf_u r_width={ru_w} r_length={rb_l}
+xrb4a d4  mb4 vss ppolyf_u r_width={ru_w} r_length={ru_l}
+xrb4b mb4 n4  vss ppolyf_u r_width={ru_w} r_length={rb_l}
+xrb3a d3  mb3 vss ppolyf_u r_width={ru_w} r_length={ru_l}
+xrb3b mb3 n3  vss ppolyf_u r_width={ru_w} r_length={rb_l}
+xrb2a d2  mb2 vss ppolyf_u r_width={ru_w} r_length={ru_l}
+xrb2b mb2 n2  vss ppolyf_u r_width={ru_w} r_length={rb_l}
+xrb1a d1  mb1 vss ppolyf_u r_width={ru_w} r_length={ru_l}
+xrb1b mb1 n1  vss ppolyf_u r_width={ru_w} r_length={rb_l}
+xrb0a d0  mb0 vss ppolyf_u r_width={ru_w} r_length={ru_l}
+xrb0b mb0 n0  vss ppolyf_u r_width={ru_w} r_length={rb_l}
+
+* series R between rungs
+xrs6 vout n6 vss ppolyf_u r_width={ru_w} r_length={ru_l}
+xrs5 n6   n5 vss ppolyf_u r_width={ru_w} r_length={ru_l}
+xrs4 n5   n4 vss ppolyf_u r_width={ru_w} r_length={ru_l}
+xrs3 n4   n3 vss ppolyf_u r_width={ru_w} r_length={ru_l}
+xrs2 n3   n2 vss ppolyf_u r_width={ru_w} r_length={ru_l}
+xrs1 n2   n1 vss ppolyf_u r_width={ru_w} r_length={ru_l}
+xrs0 n1   n0 vss ppolyf_u r_width={ru_w} r_length={ru_l}
+
+* LSB termination 2R to vss (two full units)
+xrta n0 mt  vss ppolyf_u r_width={ru_w} r_length={ru_l}
+xrtb mt vss vss ppolyf_u r_width={ru_w} r_length={ru_l}
+
+.ends r2r_dac_analog

@@ -1,0 +1,74 @@
+#!/usr/bin/env python
+"""check_sim_tt.py - the sim_tt gate (docs/design.md 1.5, "### M8."):
+sim_run.py at the single 'tt' (typical) corner.
+
+    check_sim_tt.py --workspace DIR [--out FILE]
+
+Pass criteria (gates.yaml): "Every .measure inside its bound." Fault this
+gate must catch: "W and L swapped on a mirror's output device". A plain
+wrapper over sim_run.run_workspace_benches(corner_names=["tt"]) - see that
+module (and engine/lib/simlib.py) for how a measure is parsed, why the
+ngspice exit code is never trusted, and the `{{PDK}}`/`{{CORNER}}`/
+`{{TEMP_C}}`/`{{VDD}}`/`{{NETLIST}}`/`{{SIZING}}` deck template contract
+every tb/*.cir bench is written against.
+
+A bound scoped `[tt_27c]` is scored here: it names the tt corner by
+another of its names (corners.names_of). A bench whose bounds are all
+scoped to other corners (say only `[ff_m40c_vp10]`) is not run here and is
+listed in the report's `out_of_scope` with the corners that score it - not
+a failure, and not a pass - so long as some corner of the spec's sweep
+(sim_run.spec_sweep, what sim_pvt runs) scores it; when none does it is a
+`sim_bench_not_run` error, and so is a run where no bench was scored at tt.
+"""
+from __future__ import annotations
+
+import argparse
+import sys
+from pathlib import Path
+
+SCRIPTS = Path(__file__).resolve().parent
+ENGINE = SCRIPTS.parent
+sys.path.insert(0, str(SCRIPTS))
+sys.path.insert(0, str(ENGINE / "lib"))
+import checklib  # noqa: E402
+import sim_run  # noqa: E402
+import speclib  # noqa: E402
+
+SCRIPT = "check_sim_tt"
+DEFAULT_TIMEOUT = 60.0
+
+
+def run(argv=None):
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("--workspace", required=True, help="block workspace")
+    ap.add_argument("--timeout", type=float, default=None,
+                    help="ngspice limit per run, s (default: the spec's "
+                    f"sim_timeout_s.sim_tt, else {DEFAULT_TIMEOUT:g} s)")
+    ap.add_argument("--out", help="write result JSON here instead of stdout")
+    args = ap.parse_args(argv)
+
+    ws = Path(args.workspace)
+    timeout = speclib.sim_timeout(
+        speclib.load_spec(ws / "spec" / "spec.yaml"), "sim_tt", args.timeout,
+        DEFAULT_TIMEOUT)
+    result = sim_run.run_workspace_benches(
+        ws, corner_names=["tt"], timeout=timeout, check="sim_tt",
+        scope_corners=sim_run.spec_sweep(ws)[0])
+
+    # stamp() hashes exactly this path as input_digest; gate.py's own
+    # record_gate cross-checks that against invalidation.yaml's gate_inputs
+    # kinds[0] for this gate ("netlist" for sim_tt).
+    payload = checklib.report(SCRIPT, ws / "netlist", result["violations"],
+                              top=result["top"], corners=result["corners"],
+                              results=result["results"],
+                              not_scored=result["not_scored"],
+                              out_of_scope=result["out_of_scope"])
+    return payload, args.out
+
+
+def main(argv=None) -> int:
+    return checklib.cli_wrap(SCRIPT, lambda: run(argv))
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

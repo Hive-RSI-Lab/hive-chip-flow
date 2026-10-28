@@ -1,0 +1,360 @@
+# gates.yaml - pipeline gates, machine pass/fail criteria evaluated by
+# engine/scripts/gate.py (docs/design.md 1.5).
+#
+# M1 (docs/design.md, "### M1."): every gate from section 1.5's three tables
+# is registered here now, so the registry validates and task_router.py /
+# invalidation.yaml can reference real gate names - but every `tool` is the
+# stub (engine/scripts/check_stub.py), which always exits 2 "not built".
+# Later milestones replace a row's `tool` with its real check_<gate>.py stem
+# (e.g. `tool: lint` -> engine/scripts/check_lint.py) as that gate is built;
+# `future_tool` and `description` already carry the real tool and pass
+# criteria from the design doc so nothing is lost in the meantime. M3
+# (docs/design.md, "### M3.") built vde's formal/cover/synth/release - each
+# row below drops `future_tool` once its `tool` is real, same as M2's rows.
+#
+# gate.py resolves which skill's row a bare `--gate <name>` means from the
+# workspace's state.json (`skill`), or from an explicit `--skill` override
+# for a corpus/scratch input with no workspace.
+#
+# Gate fields:
+#   skill            vde | ade | msde
+#   phase            pipeline phase this gate guards (docs/design.md 1.4)
+#   tool             check_<tool>.py under engine/scripts/ to run. `stub`
+#                    (check_stub.py) for every M1 row.
+#   future_tool      the real tool this gate will run once built (doc only)
+#   fail_severities  finding severities that count toward failure
+#   max_count        max counted findings still allowed to pass (default 0)
+#   strict           release-context coverage mode: every applicable check
+#                    must RUN - a missing input is a coverage failure and the
+#                    gate refuses (exit 2), never a pass. M1: registered on
+#                    the three `release` rows; enforced starting M3.
+#   job              true when the gate runs detached via jobs.py (1.7).
+#                    Only `harden` (LibreLane) is a job.
+#   fault            the corpus fault this gate must catch (1.5's third
+#                    column; consumed by faults.py, M2+).
+#   description      the real gate's pass criteria (1.5's second column).
+#
+# Evaluation (gate.py): a gate FAILS when the count of findings whose
+# severity is in fail_severities exceeds max_count. A gate whose tool could
+# not run (missing script, non-JSON output, or the M1 stub) is exit 2 -
+# never recorded as a pass.
+
+version: 1
+
+gates:
+  vde:
+    spec_lint:
+      phase: P1
+      tool: spec_lint
+      fail_severities: [error]
+      max_count: 0
+      fault: "a requirement with no way to check it"
+      description: >-
+        Every requirement has an id, a check kind and, for `measure`,
+        bounds; tt_pins fit the tile.
+    lint:
+      phase: P4
+      tool: lint
+      fail_severities: [error]
+      max_count: 0
+      fault: "an always @* missing an else (latch)"
+      description: "No errors; warnings only from an allowlist with reasons."
+    sim:
+      phase: P4
+      tool: sim
+      fail_severities: [error]
+      max_count: 0
+      fault: "counter wraps one early"
+      description: >-
+        Every test passes and every requirement id has a test tagged with it.
+    holdout:
+      phase: P4
+      tool: holdout
+      fail_severities: [error]
+      max_count: 0
+      fault: "UART parity inverted where the visible tests do not look"
+      description: >-
+        Every held-out test passes; the result names requirement ids only.
+    mutate:
+      phase: P4
+      tool: mutate
+      fail_severities: [error]
+      max_count: 0
+      fault: "a testbench that asserts nothing"
+      description: >-
+        Kill rate at or above 0.9; no survivor in the must-kill classes.
+    formal:
+      phase: P4
+      tool: formal
+      fail_severities: [error]
+      max_count: 0
+      fault: "a register with no reset: sim passes, formal fails"
+      description: >-
+        Every property proven, or bounded to at least the depth the spec
+        asks; every cover point reached.
+    cover:
+      phase: P4
+      tool: cover
+      fail_severities: [error]
+      max_count: 0
+      fault: "an unreachable state"
+      description: >-
+        Line at or above 95%, toggle at or above 90% on the DUT; exclusions
+        carry reasons.
+    synth:
+      phase: P5
+      tool: synth
+      fail_severities: [error]
+      max_count: 0
+      fault: "a combinational loop"
+      description: "No latches, unmapped cells or combinational loops."
+    harden:
+      phase: P6
+      tool: harden
+      job: true
+      fail_severities: [error]
+      max_count: 0
+      fault: "a design too large for the tile"
+      description: >-
+        The flow finishes with no failing step and produces GDS, LEF,
+        netlist, SDF, metrics.
+    timing:
+      phase: P6
+      tool: timing
+      fail_severities: [error]
+      max_count: 0
+      fault: "a chain that misses the spec's clock"
+      description: >-
+        Setup and hold slack at or above 0 at every corner; no fanout or
+        slew violations.
+    drc:
+      phase: P6
+      tool: drc
+      fail_severities: [error]
+      max_count: 0
+      fault: "a metal spacing violation planted in the GDS"
+      description: "0 violations from both."
+    lvs:
+      phase: P6
+      tool: lvs
+      fail_severities: [error]
+      max_count: 0
+      fault: >-
+        one net split in two in the extracted layout netlist, the electrical
+        effect of a missing via
+      description: "Match."
+    glsim:
+      phase: P6
+      tool: glsim
+      fail_severities: [error]
+      max_count: 0
+      fault: >-
+        a register read before it is written, which only X-propagation
+        exposes
+      description: "Every test passes both ways."
+    precheck:
+      phase: P6
+      tool: precheck
+      fail_severities: [error]
+      max_count: 0
+      fault: "a wrong top module name in info.yaml"
+      description: "Passes."
+    release:
+      phase: P8
+      tool: release
+      strict: true
+      fail_severities: [error]
+      max_count: 0
+      fault: "an RTL edit after harden, which must refuse"
+      description: >-
+        Every applicable gate has a fresh recorded pass on the current
+        inputs; waivers carry reason, approval and durability.
+
+  ade:
+    # M8 (docs/design.md, "### M8."): spec_lint, netlist_lint, sim_tt,
+    # sim_pvt, bench_strength and mc go from stub to real tools here, same
+    # as M2/M3 did for vde's own rows - `future_tool` drops once `tool` is
+    # real. spec_lint's tool is a DEDICATED script (check_spec_lint_ade.py),
+    # not vde's check_spec_lint.py: that script requires a non-empty
+    # `requirements` list and validates `tt_pins`, neither of which this
+    # row's own criteria ask for.
+    spec_lint:
+      phase: P1
+      tool: spec_lint_ade
+      fail_severities: [error]
+      max_count: 0
+      fault: "a measure without bounds"
+      description: >-
+        Every measure has bounds and a corner set; supply and devices
+        declared.
+    netlist_lint:
+      phase: P4
+      tool: netlist_lint
+      fail_severities: [error]
+      max_count: 0
+      fault: "a model not in the PDK"
+      description: >-
+        Every device uses a gf180mcu_fd_pr model, no floating node,
+        subcircuit pins match the spec.
+    sim_tt:
+      phase: P4
+      tool: sim_tt
+      fail_severities: [error]
+      max_count: 0
+      fault: "W and L swapped on a mirror's output device"
+      description: "Every .measure inside its bound."
+    sim_pvt:
+      phase: P4
+      tool: sim_pvt
+      fail_severities: [error]
+      max_count: 0
+      fault: "meets at typical, loses headroom at slow and hot"
+      description: "Every measure inside its bound at every corner."
+    bench_strength:
+      phase: P4
+      tool: bench_strength
+      fail_severities: [error]
+      max_count: 0
+      fault: "bounds wide enough to pass anything"
+      description: "Every mutant pushes a measure out of bounds."
+    mc:
+      phase: P4
+      tool: mc
+      fail_severities: [error]
+      max_count: 0
+      # Not applicable when spec.yaml asks for no MC (check_mc.py); the
+      # corpus mirror rung asks, and plants this fault.
+      fault: "a window typical meets but mismatch misses"
+      description: "Yield at or above the spec."
+    drc:
+      # M9 (docs/design.md, "### M9."): klayout's real GF180 signoff deck
+      # only, with the PDK's own signoff deck selection (every FEOL, metal,
+      # via and guard-ring rule; density, antenna and dummy fill off, each
+      # with its reason in the report, see layoutlib.DRC_SKIPPED). docs/spikes/glayout.md found magic re-snaps a
+      # GDS to the manufacturing grid on load, hiding off-grid shapes
+      # klayout reports, so magic is not run here. `analog_drc`, not
+      # `drc`, so this row's tool never collides with vde's drc row above,
+      # still a stub whose future_tool is magic+klayout on a hardened
+      # digital GDS (M4, "### M4.") - a different check entirely.
+      phase: P5
+      tool: analog_drc
+      fail_severities: [error]
+      max_count: 0
+      fault: "a planted spacing violation (also: an off-grid shape, a missing guard ring)"
+      description: "0, from klayout's GF180 signoff deck."
+    lvs:
+      # M9: netgen under the PDK's own setup (<pdk>_setup.tcl) against
+      # M8's own netlist/<block>.cir at the block's sizing
+      # (docs/spikes/glayout.md: the spike's own LVS only compared
+      # gLayout's output with itself). A PDK std cell is compared flat on
+      # both sides; a cell netgen can only black-box is a refusal.
+      # `analog_lvs`, not `lvs` - see drc's own note above.
+      phase: P5
+      tool: analog_lvs
+      fail_severities: [error]
+      max_count: 0
+      fault: "a device sized differently in the generator than in the netlist (also: a swapped net)"
+      description: "Match."
+    pex_sim:
+      # M9: magic's extraction with every capacitor and extresist's wire
+      # resistance (a netlist with neither is refused), then the block's
+      # post-layout bench at typical, measuring what parasitics move (the
+      # mirror's output pole). klayout_pex as a second extractor and the
+      # worst-corner sweep are not wired up yet - out of scope until the
+      # /ade skill session (docs/design.md 1.9) lands on this.
+      phase: P5
+      tool: pex_sim
+      fail_severities: [error]
+      max_count: 0
+      fault: "an output routed on a long minimum-width metal1 line"
+      description: "Every measure inside post_layout_bounds."
+    release:
+      # Real now, the same tool as vde's row (check_release.py ->
+      # attest.build()): every ade gate above needs a fresh recorded pass or
+      # a durable waiver. `mc` is the one declared exception: when the
+      # block's current spec.yaml asks for no Monte Carlo, attest records it
+      # in checks.json as ok, not run, with the reason and spec.yaml's hash
+      # (attest._mc_not_applicable) - never silently dropped, and never an
+      # old recorded "not applicable" pass that could outlive the spec.
+      phase: P6
+      tool: release
+      strict: true
+      fail_severities: [error]
+      max_count: 0
+      fault: "as digital"
+      description: "As digital."
+
+  msde:
+    # M10 (docs/design.md "### M10."): split and cosim are real. cosim's
+    # `future_tool` read "ngspice d_cosim running the Icarus-compiled
+    # digital side inside the analog bench" at M1 - docs/spikes/dcosim.md
+    # found that bridge's ivlng backend broken in this image (a hardcoded
+    # /foss/... dlopen baked into a compiled .so, not fixable without
+    # writing into the read-only toolchain tree) and recorded the decision
+    # design.md section 5 asks for: build on the first working fallback,
+    # cocotbext-ams, which turns out to itself cover the second fallback
+    # too (a lock-step driver of ngspice's shared library), so there was
+    # only one fallback to pick. The rest landed with M10's second half:
+    # top_harden assembles the chip top from the nested digital/ and
+    # analog/ workspaces and hardens it with M4's harden job, the analog
+    # GDS as a LibreLane macro; top_drc and top_lvs read that GDS; release
+    # also needs both nested runs released.
+    split:
+      phase: P1
+      tool: split
+      fail_severities: [error]
+      max_count: 0
+      fault: "a control word width that differs between the two"
+      description: >-
+        Every crossing signal appears in both specs with matching
+        direction, level and domain.
+    cosim:
+      phase: P3
+      tool: cosim
+      fail_severities: [error]
+      max_count: 0
+      fault: "control word polarity inverted"
+      description: "Every top-level measure inside its bound."
+    top_harden:
+      phase: P3
+      tool: top_harden
+      job: true
+      fail_severities: [error]
+      max_count: 0
+      fault: "an analog macro too large for the tile"
+      description: >-
+        The digital side hardens in the TT tile with the analog GDS as a
+        macro: the flow finishes with no failing step and produces GDS,
+        LEF, netlist, SDF, metrics.
+    top_drc:
+      phase: P3
+      tool: top_drc
+      fail_severities: [error]
+      max_count: 0
+      fault: "a planted spacing violation"
+      description: "0."
+    top_lvs:
+      phase: P3
+      tool: top_lvs
+      fail_severities: [error]
+      max_count: 0
+      fault: "a macro pin left unconnected"
+      description: "Match."
+    precheck:
+      # the shuttle's own signoff (check_precheck.py) on the chip top at
+      # top/; an analog tile is checked against the analog pin template and
+      # for metal on exactly the ua pads its info.yaml claims.
+      phase: P3
+      tool: precheck
+      fail_severities: [error]
+      max_count: 0
+      fault: "an analog pad info.yaml claims with nothing wired to it"
+      description: "Passes."
+    release:
+      phase: P4
+      tool: release
+      strict: true
+      fail_severities: [error]
+      max_count: 0
+      fault: "a stale nested release"
+      description: "Both nested runs released, top gates fresh."

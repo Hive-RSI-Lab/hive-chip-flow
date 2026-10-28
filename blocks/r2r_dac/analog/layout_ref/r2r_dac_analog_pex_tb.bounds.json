@@ -1,0 +1,12 @@
+{
+  "measures": {
+    "t_settle_rise": {"max": 1.5e-6},
+    "t_settle_fall": {"max": 1.5e-6},
+    "t_rise_10_90": {"max": 0.5e-6},
+    "t_fall_10_90": {"max": 0.5e-6},
+    "glitch_energy_up": {"max": 0.26e-9},
+    "glitch_energy_down": {"max": 0.26e-9},
+    "glitch_peak_up": {"max": 52e-3},
+    "glitch_peak_down": {"max": 52e-3}
+  }
+}

@@ -1,0 +1,34 @@
+{
+ "script": "gate",
+ "gate": "lint",
+ "phase": "P4",
+ "tool": "lint",
+ "input_digest": "dir_text:08d2e63a30253fb8dcb71be29ca5aa7209711132e317fcb0e4bc99f0e226a305",
+ "status": "pass",
+ "criteria": {
+  "fail_severities": [
+   "error"
+  ],
+  "max_count": 0
+ },
+ "counts": {
+  "total": 0,
+  "by_severity": {},
+  "by_source": {}
+ },
+ "failing_count": 0,
+ "failing": [],
+ "violations": [],
+ "facts": {
+  "top": "r2r_dac_digital",
+  "files": [
+   "rtl/r2r_dac_digital.v"
+  ]
+ },
+ "inputs_at_start": {
+  "rtl": "dir_text:08d2e63a30253fb8dcb71be29ca5aa7209711132e317fcb0e4bc99f0e226a305",
+  "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119"
+ },
+ "recorded_ts": "2026-10-13T04:16:58",
+ "attempts": 4
+}

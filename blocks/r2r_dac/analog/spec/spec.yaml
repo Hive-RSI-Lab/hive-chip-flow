@@ -1,0 +1,191 @@
+# spec.yaml - r2r_dac_analog, the 8-bit R-2R ladder macro of the /msde block
+# r2r_dac (brief: ../brief/spec.md). Machine-readable half; spec.md is the
+# prose. `top` matches ../../analog_spec.yaml (the crossing-signal contract
+# there - dac_code, d2a, cmos_3v3, clk_sys, width 8 - is untouched).
+#
+# Values the brief fixes (P2 revises with measured numbers, never silently):
+#   VDD = 3.3 V, 1 LSB = VDD/256 = 12.89 mV, ideal full scale 255/256*VDD.
+#   R = 250 ohm, 2R = 500 ohm, PDK poly resistor ppolyf_u (rsh 350 ohm/sq
+#   typical, 420 ss, 280 ff in sm141064.spice res_typical/res_ss/res_ff),
+#   unit W ~ 2 um, every R one unit, every 2R two units in series, the 2R
+#   branch trimmed by Ron_nom of the driver.
+#   Pad load ASSUMED (not documented in this repo): R_pad = 100 ohm in
+#   series with C_load = 7 pF to vss - one bench parameter.
+#   Drivers: eight identical gf180mcu_fd_sc_mcu7t5v0 buffer cells, the
+#   only active devices; Ron_pu/Ron_pd at tt/25 C to be stated by P2.
+#
+# Corners: round 2 uses the brief's nine fixed-VDD corners (see the
+# `corners:` key). Every bound stays in LSB units, seconds or amperes.
+#
+# Monte Carlo: OFF, deliberately. The GF180 ngspice models carry NO
+# per-instance mismatch for ppolyf_u: sm141064.spice's `.subckt ppolyf_u`
+# scales its body by (1+mis_r*sw_stat_mismatch) with mis_r=0 as a subckt
+# default and no agauss() ever assigned to it (contrast `.lib fets_mm`,
+# which draws mis_vth/mis_k per FET instance). `.lib res_statistical` only
+# gives GLOBAL rsh/dw/rt variation (mc_rsh_ppolyf_u_temp = agauss(0,
+# 18.116, 3) on rsh 350, i.e. ~1.7 % 1-sigma, gated by sw_stat_global) -
+# one draw shared by every unit, which moves every rung together and
+# cannot change a ratio, so it cannot move DNL/INL. Turning check_mc.py on
+# would sample the driver FETs' mismatch only and report a yield that says
+# nothing about resistor matching. The brief's fallback applies instead:
+# the deterministic +/-1 % single-unit sensitivity (inl_sens_1pct_max).
+mc:
+  enabled: false
+
+top: r2r_dac_analog
+supply:
+  vdd: 3.3
+
+# P2 (spec/topology.md): every unit resistor is its own refdes. xrbKa/b =
+# the two units of bit K's 2R branch (b is the Ron trim unit), xrta/b = the
+# LSB 2R termination. Drivers are gf180mcu_fd_sc_mcu7t5v0__buf_20.
+# Original P2 brief - the brief names
+# the topology explicitly. xd7..xd0: the eight driver cells (bit 7 = MSB).
+# xrb7..xrb0: the eight 2R branches (each two units in series, trimmed by
+# Ron_nom). xrs6..xrs0: the seven series R between rung k and k+1.
+# xrt: the 2R termination to vss at the LSB end. If P2 splits a 2R into two
+# refdes (unit elements), list every unit here - bench_strength mutates
+# each entry, and an unlisted resistor is one a broken bench never sees.
+devices: [xd7, xd6, xd5, xd4, xd3, xd2, xd1, xd0,
+          xrb7a, xrb7b, xrb6a, xrb6b, xrb5a, xrb5b, xrb4a, xrb4b,
+          xrb3a, xrb3b, xrb2a, xrb2b, xrb1a, xrb1b, xrb0a, xrb0b,
+          xrs6, xrs5, xrs4, xrs3, xrs2, xrs1, xrs0,
+          xrta, xrtb]
+
+# Corners (owner round 2, chip-flow #19 fixed-VDD grid): the brief's nine,
+# tt/ff/ss x -40/25/125 C, all at the nominal 3.3 V. Replaces the engine's
+# default five, whose +/-10 % VDD points the brief never asked for.
+corners: {grid: {process: [typical, ff, ss], temp_c: [-40, 25, 125]}}
+
+# Bound source: [brief] = a number the brief states as a target;
+# [derived] = the brief asks only to REPORT this quantity and gives no
+# number, so the bound is derived from the brief's own physics/accuracy
+# target and carried at severity warning - spec.md "Measures" says how each
+# was derived, and every [derived] bound is in the spec-writer's OPEN for
+# the owner to confirm or replace. Never widen a [brief] bound to pass.
+measures:
+  # 1. DNL, 256-code sweep, end-point LSB, max |DNL| in LSB. [brief]
+  - name: dnl_max_abs
+    bounds: {max: 0.5}
+    severity: error
+  # 2. INL, same sweep, end-point fit, max |INL| in LSB. [brief]
+  - name: inl_max_abs
+    bounds: {max: 0.5}
+    severity: error
+  # 3. Monotonicity: 1 when v(k) > v(k-1) for every k = 1..255, else 0.
+  #    [brief] pass/fail per corner
+  - name: monotonic
+    bounds: {min: 1}
+    severity: error
+  # 4a. Zero-code offset v(0) from vss, volts (all branches to vss through
+  #     Ron, so this is a distance from ground, not a fraction of VDD).
+  #     Bound = 0.5 LSB at nominal VDD. [derived]
+  - name: v_zero_offset
+    bounds: {max: 6.45e-3}
+    severity: warning
+  # 4b. Full-scale gain error in LSB: ((v(255) - v(0)) - 255/256*VDD) /
+  #     (VDD/256), with VDD the corner's own rail. The brief compares
+  #     v(255)-v(0) with the ideal 255/256*VDD and calls the residual the
+  #     gain error; +/-0.5 LSB is the brief's accuracy target. [derived]
+  - name: fs_gain_err_lsb
+    bounds: {min: -0.5, max: 0.5}
+    severity: warning
+  # 5. Full-scale settling to within 0.5 LSB (VDD/512) of the final
+  #    value, from the code edge, seconds. The brief asked < 20 ns; the
+  #    owner (2026-09-25 round 2) kept the accurate 27k unit R and accepted
+  #    ~1.2 us as a known spec trade-off. Bound from topology: tau = R_out
+  #    x C_load = 27k x 7 pF = 189 ns, 0.5 LSB of 8 bits = 9 ln2 tau =
+  #    1.18 us at tt; ss rsh (+20 %) -> 1.42 us; bound 1.5 us. [owner]
+  - name: t_settle_rise
+    bounds: {max: 1.5e-6}
+    severity: error
+  - name: t_settle_fall
+    bounds: {max: 1.5e-6}
+    severity: error
+  #    10-90 % rise/fall time, seconds: 2.2 tau = 0.42 us at tt, 0.5 us
+  #    at ss. [derived, owner trade-off above]
+  - name: t_rise_10_90
+    bounds: {max: 0.5e-6}
+    severity: warning
+  - name: t_fall_10_90
+    bounds: {max: 0.5e-6}
+    severity: warning
+  # 6. Mid-code glitch, 127 <-> 128, all eight drivers switching at the
+  #    same instant. Energy = integral of |vout - v_final| dt outside the
+  #    band between v_initial and v_final, V.s; peak = max excursion
+  #    beyond that band, V. No target in the brief; the aligned bounds are
+  #    a 1-LSB-band excursion (12.9 mV) for one 20 ns period = 0.26 nV.s
+  #    and a 4-LSB peak (52 mV). [derived]
+  - name: glitch_energy_up
+    bounds: {max: 0.26e-9}
+    severity: warning
+  - name: glitch_energy_down
+    bounds: {max: 0.26e-9}
+    severity: warning
+  - name: glitch_peak_up
+    bounds: {max: 52e-3}
+    severity: warning
+  - name: glitch_peak_down
+    bounds: {max: 52e-3}
+    severity: warning
+  #    Same transitions with the MSB driver input skewed +200 ps (late)
+  #    and -200 ps (early) against the other seven. While the MSB lags the
+  #    output heads for a half-scale code, so the energy is about
+  #    (VDD/2) x 200 ps = 0.33 nV.s independent of tau, and the peak about
+  #    (VDD/2)(1 - exp(-200 ps / tau)) ~ 0.12 V for tau = 2.7 ns. Bounds
+  #    are 1.5x those: 0.5 nV.s and 0.2 V. [derived]
+  - name: glitch_energy_up_skew_p200p
+    bounds: {max: 0.5e-9}
+    severity: warning
+  - name: glitch_energy_up_skew_m200p
+    bounds: {max: 0.5e-9}
+    severity: warning
+  - name: glitch_energy_down_skew_p200p
+    bounds: {max: 0.5e-9}
+    severity: warning
+  - name: glitch_energy_down_skew_m200p
+    bounds: {max: 0.5e-9}
+    severity: warning
+  - name: glitch_peak_skew_max
+    bounds: {max: 0.2}
+    severity: warning
+  # 7. Resistor-mismatch sensitivity (the brief's fallback, the PDK having
+  #    no per-instance resistor mismatch - see the mc comment above): each
+  #    unit resistor perturbed +1 % and -1 % one at a time, all others
+  #    nominal, the 256-code INL sweep re-run, worst max |INL| in LSB over
+  #    every perturbation. Bound = the brief's INL target. [derived]
+  - name: inl_sens_1pct_max
+    bounds: {max: 0.5}
+    severity: warning
+  # 8. Supply current over the full-code sweep, amperes. The brief budgets
+  #    "a few to ~15 mA" average (its own R = 250 ohm estimate); the peak
+  #    bound adds the 7 pF load's slew current through ~380 ohm (~9 mA) to
+  #    the 15 mA static, rounded to 30 mA. [derived]
+  - name: i_vdd_avg
+    bounds: {max: 15e-3}
+    severity: warning
+  - name: i_vdd_peak
+    bounds: {max: 30e-3}
+    severity: warning
+
+# Post-layout (convention only - SKILL.md "Known limits": nothing cross-
+# checks this against layout_ref/*_pex_tb.bounds.json; the H2 reviewer
+# compares by hand). The brief: the PEX bench re-runs measures 5 and 6 at
+# tt/25 C at least, same bounds.
+post_layout_bounds:
+  t_settle_rise: {max: 1.5e-6}
+  t_settle_fall: {max: 1.5e-6}
+  glitch_energy_up: {max: 0.26e-9}
+  glitch_energy_down: {max: 0.26e-9}
+  glitch_peak_up: {max: 52e-3}
+  glitch_peak_down: {max: 52e-3}
+  glitch_energy_up_skew_p200p: {max: 0.5e-9}
+  glitch_energy_up_skew_m200p: {max: 0.5e-9}
+  glitch_energy_down_skew_p200p: {max: 0.5e-9}
+  glitch_energy_down_skew_m200p: {max: 0.5e-9}
+  glitch_peak_skew_max: {max: 0.2}
+
+# ngspice time limit per gate (engine 84ea5df, breakage 34). The pex bench
+# runs the 5.5k-line magic RC extraction and needs ~5.6 min, past pex_sim's
+# 120 s default. A run past this limit is still a failure.
+sim_timeout_s: {pex_sim: 600}

@@ -1,0 +1,91 @@
+{
+ "script": "gate",
+ "gate": "mutate",
+ "phase": "P4",
+ "tool": "mutate",
+ "input_digest": "dir_text:08d2e63a30253fb8dcb71be29ca5aa7209711132e317fcb0e4bc99f0e226a305",
+ "status": "pass",
+ "criteria": {
+  "fail_severities": [
+   "error"
+  ],
+  "max_count": 0
+ },
+ "counts": {
+  "total": 2,
+  "by_severity": {
+   "info": 2
+  },
+  "by_source": {
+   "yosys": 2
+  }
+ },
+ "failing_count": 0,
+ "failing": [],
+ "violations": [
+  {
+   "check": "mutate",
+   "severity": "info",
+   "file": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:22.5-280.12",
+   "module": null,
+   "line": null,
+   "kind": "equivalent_stuck_other",
+   "refs": [],
+   "msg": "mutant 3 (stuck_other) is proven equivalent to the design and left out of the kill rate: mutate -mode const1 -module r2r_dac_digital -cell $auto$mem.cc:351:emit$14 -port DATA -portbit 163 -src /home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:22.5-280.12",
+   "source": "yosys",
+   "items": [
+    {
+     "msg": "mutant 3 (stuck_other) is proven equivalent to the design and left out of the kill rate: mutate -mode const1 -module r2r_dac_digital -cell $auto$mem.cc:351:emit$14 -port DATA -portbit 163 -src /home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:22.5-280.12",
+     "file": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:22.5-280.12",
+     "line": null
+    }
+   ]
+  },
+  {
+   "check": "mutate",
+   "severity": "info",
+   "file": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:322.19-322.32",
+   "module": null,
+   "line": null,
+   "kind": "equivalent_stuck_other",
+   "refs": [],
+   "msg": "mutant 23 (stuck_other) is proven equivalent to the design and left out of the kill rate: mutate -mode const0 -module r2r_dac_digital -cell $add$/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:322$10 -port B -portbit 2 -src /home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:322.19-322.32",
+   "source": "yosys",
+   "items": [
+    {
+     "msg": "mutant 23 (stuck_other) is proven equivalent to the design and left out of the kill rate: mutate -mode const0 -module r2r_dac_digital -cell $add$/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:322$10 -port B -portbit 2 -src /home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:322.19-322.32",
+     "file": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:322.19-322.32",
+     "line": null
+    }
+   ]
+  }
+ ],
+ "facts": {
+  "top": "r2r_dac_digital",
+  "total_mutants": 23,
+  "equivalent": 2,
+  "equivalent_ids": [
+   3,
+   23
+  ],
+  "scored_mutants": 21,
+  "killed": 21,
+  "survived": 0,
+  "kill_rate": 1.0,
+  "survivors_by_class": {},
+  "equivalent_by": {
+   "3": "signal induction",
+   "23": "signal induction"
+  },
+  "unproven_survivors": {},
+  "wall_s": 6.25
+ },
+ "inputs_at_start": {
+  "rtl": "dir_text:08d2e63a30253fb8dcb71be29ca5aa7209711132e317fcb0e4bc99f0e226a305",
+  "tb": "dir_text:3d7769f785322e639d37580c2e85e19fdd9b82876af0927410c75ad81d11554b",
+  "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119",
+  "mutant_rulings": null
+ },
+ "recorded_ts": "2026-10-13T04:21:08",
+ "attempts": 5
+}

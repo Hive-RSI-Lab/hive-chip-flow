@@ -1,0 +1,1587 @@
+{
+ "script": "gate",
+ "gate": "sim_pvt",
+ "phase": "P4",
+ "tool": "sim_pvt",
+ "input_digest": "dir_text:13970a2f19f36bd8aa49baa3a94132821e16917455715ba77b23b074b4551548",
+ "status": "pass",
+ "criteria": {
+  "fail_severities": [
+   "error"
+  ],
+  "max_count": 0
+ },
+ "counts": {
+  "total": 17,
+  "by_severity": {
+   "warning": 17
+  },
+  "by_source": {
+   "ngspice": 17
+  }
+ },
+ "failing_count": 0,
+ "failing": [],
+ "violations": [
+  {
+   "check": "sim_pvt",
+   "severity": "warning",
+   "file": "r2r_dac_step_tb.cir",
+   "module": null,
+   "line": null,
+   "kind": "sim_bound_fail",
+   "refs": [
+    "ss_m40c",
+    "t_rise_10_90"
+   ],
+   "msg": "t_rise_10_90 @ ss_m40c = 5.0625e-07 outside bound [-inf, 5e-07] (derived, owner trade-off: 2.2 tau = 0.42 us at tt, 0.5 us at ss)",
+   "source": "ngspice",
+   "items": [
+    {
+     "msg": "t_rise_10_90 @ ss_m40c = 5.0625e-07 outside bound [-inf, 5e-07] (derived, owner trade-off: 2.2 tau = 0.42 us at tt, 0.5 us at ss)",
+     "file": "r2r_dac_step_tb.cir",
+     "line": null
+    }
+   ]
+  },
+  {
+   "check": "sim_pvt",
+   "severity": "warning",
+   "file": "r2r_dac_step_tb.cir",
+   "module": null,
+   "line": null,
+   "kind": "sim_bound_fail",
+   "refs": [
+    "ss_m40c",
+    "t_fall_10_90"
+   ],
+   "msg": "t_fall_10_90 @ ss_m40c = 5.0625e-07 outside bound [-inf, 5e-07] (derived, owner trade-off: 2.2 tau = 0.42 us at tt, 0.5 us at ss)",
+   "source": "ngspice",
+   "items": [
+    {
+     "msg": "t_fall_10_90 @ ss_m40c = 5.0625e-07 outside bound [-inf, 5e-07] (derived, owner trade-off: 2.2 tau = 0.42 us at tt, 0.5 us at ss)",
+     "file": "r2r_dac_step_tb.cir",
+     "line": null
+    }
+   ]
+  },
+  {
+   "check": "sim_pvt",
+   "severity": "warning",
+   "file": "r2r_dac_step_tb.cir",
+   "module": null,
+   "line": null,
+   "kind": "sim_bound_fail",
+   "refs": [
+    "ss_25c",
+    "t_rise_10_90"
+   ],
+   "msg": "t_rise_10_90 @ ss_25c = 5.025e-07 outside bound [-inf, 5e-07] (derived, owner trade-off: 2.2 tau = 0.42 us at tt, 0.5 us at ss)",
+   "source": "ngspice",
+   "items": [
+    {
+     "msg": "t_rise_10_90 @ ss_25c = 5.025e-07 outside bound [-inf, 5e-07] (derived, owner trade-off: 2.2 tau = 0.42 us at tt, 0.5 us at ss)",
+     "file": "r2r_dac_step_tb.cir",
+     "line": null
+    }
+   ]
+  },
+  {
+   "check": "sim_pvt",
+   "severity": "warning",
+   "file": "r2r_dac_step_tb.cir",
+   "module": null,
+   "line": null,
+   "kind": "sim_bound_fail",
+   "refs": [
+    "ss_125c",
+    "t_rise_10_90"
+   ],
+   "msg": "t_rise_10_90 @ ss_125c = 5.0625e-07 outside bound [-inf, 5e-07] (derived, owner trade-off: 2.2 tau = 0.42 us at tt, 0.5 us at ss)",
+   "source": "ngspice",
+   "items": [
+    {
+     "msg": "t_rise_10_90 @ ss_125c = 5.0625e-07 outside bound [-inf, 5e-07] (derived, owner trade-off: 2.2 tau = 0.42 us at tt, 0.5 us at ss)",
+     "file": "r2r_dac_step_tb.cir",
+     "line": null
+    }
+   ]
+  },
+  {
+   "check": "sim_pvt",
+   "severity": "warning",
+   "file": "r2r_dac_step_tb.cir",
+   "module": null,
+   "line": null,
+   "kind": "sim_bound_fail",
+   "refs": [
+    "ss_125c",
+    "t_fall_10_90"
+   ],
+   "msg": "t_fall_10_90 @ ss_125c = 5.025e-07 outside bound [-inf, 5e-07] (derived, owner trade-off: 2.2 tau = 0.42 us at tt, 0.5 us at ss)",
+   "source": "ngspice",
+   "items": [
+    {
+     "msg": "t_fall_10_90 @ ss_125c = 5.025e-07 outside bound [-inf, 5e-07] (derived, owner trade-off: 2.2 tau = 0.42 us at tt, 0.5 us at ss)",
+     "file": "r2r_dac_step_tb.cir",
+     "line": null
+    }
+   ]
+  },
+  {
+   "check": "sim_pvt",
+   "severity": "warning",
+   "file": "r2r_dac_step_tb.cir",
+   "module": null,
+   "line": null,
+   "kind": "sim_bound_fail",
+   "refs": [
+    "t_rise_10_90",
+    "tt_pss"
+   ],
+   "msg": "t_rise_10_90 @ tt_pss = 5.025e-07 outside bound [-inf, 5e-07] (derived, owner trade-off: 2.2 tau = 0.42 us at tt, 0.5 us at ss)",
+   "source": "ngspice",
+   "items": [
+    {
+     "msg": "t_rise_10_90 @ tt_pss = 5.025e-07 outside bound [-inf, 5e-07] (derived, owner trade-off: 2.2 tau = 0.42 us at tt, 0.5 us at ss)",
+     "file": "r2r_dac_step_tb.cir",
+     "line": null
+    }
+   ]
+  },
+  {
+   "check": "sim_pvt",
+   "severity": "warning",
+   "file": "r2r_dac_tb.cir",
+   "module": null,
+   "line": null,
+   "kind": "sim_bound_fail",
+   "refs": [
+    "inl_sens_1pct_max",
+    "tt_m40c"
+   ],
+   "msg": "inl_sens_1pct_max @ tt_m40c = 0.526289 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
+   "source": "ngspice",
+   "items": [
+    {
+     "msg": "inl_sens_1pct_max @ tt_m40c = 0.526289 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
+     "file": "r2r_dac_tb.cir",
+     "line": null
+    }
+   ]
+  },
+  {
+   "check": "sim_pvt",
+   "severity": "warning",
+   "file": "r2r_dac_tb.cir",
+   "module": null,
+   "line": null,
+   "kind": "sim_bound_fail",
+   "refs": [
+    "inl_sens_1pct_max",
+    "tt_25c"
+   ],
+   "msg": "inl_sens_1pct_max @ tt_25c = 0.52629 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
+   "source": "ngspice",
+   "items": [
+    {
+     "msg": "inl_sens_1pct_max @ tt_25c = 0.52629 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
+     "file": "r2r_dac_tb.cir",
+     "line": null
+    }
+   ]
+  },
+  {
+   "check": "sim_pvt",
+   "severity": "warning",
+   "file": "r2r_dac_tb.cir",
+   "module": null,
+   "line": null,
+   "kind": "sim_bound_fail",
+   "refs": [
+    "inl_sens_1pct_max",
+    "tt_125c"
+   ],
+   "msg": "inl_sens_1pct_max @ tt_125c = 0.601916 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
+   "source": "ngspice",
+   "items": [
+    {
+     "msg": "inl_sens_1pct_max @ tt_125c = 0.601916 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
+     "file": "r2r_dac_tb.cir",
+     "line": null
+    }
+   ]
+  },
+  {
+   "check": "sim_pvt",
+   "severity": "warning",
+   "file": "r2r_dac_tb.cir",
+   "module": null,
+   "line": null,
+   "kind": "sim_bound_fail",
+   "refs": [
+    "ff_m40c",
+    "inl_sens_1pct_max"
+   ],
+   "msg": "inl_sens_1pct_max @ ff_m40c = 0.522163 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
+   "source": "ngspice",
+   "items": [
+    {
+     "msg": "inl_sens_1pct_max @ ff_m40c = 0.522163 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
+     "file": "r2r_dac_tb.cir",
+     "line": null
+    }
+   ]
+  },
+  {
+   "check": "sim_pvt",
+   "severity": "warning",
+   "file": "r2r_dac_tb.cir",
+   "module": null,
+   "line": null,
+   "kind": "sim_bound_fail",
+   "refs": [
+    "ff_25c",
+    "inl_sens_1pct_max"
+   ],
+   "msg": "inl_sens_1pct_max @ ff_25c = 0.522695 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
+   "source": "ngspice",
+   "items": [
+    {
+     "msg": "inl_sens_1pct_max @ ff_25c = 0.522695 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
+     "file": "r2r_dac_tb.cir",
+     "line": null
+    }
+   ]
+  },
+  {
+   "check": "sim_pvt",
+   "severity": "warning",
+   "file": "r2r_dac_tb.cir",
+   "module": null,
+   "line": null,
+   "kind": "sim_bound_fail",
+   "refs": [
+    "ff_125c",
+    "inl_sens_1pct_max"
+   ],
+   "msg": "inl_sens_1pct_max @ ff_125c = 0.595019 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
+   "source": "ngspice",
+   "items": [
+    {
+     "msg": "inl_sens_1pct_max @ ff_125c = 0.595019 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
+     "file": "r2r_dac_tb.cir",
+     "line": null
+    }
+   ]
+  },
+  {
+   "check": "sim_pvt",
+   "severity": "warning",
+   "file": "r2r_dac_tb.cir",
+   "module": null,
+   "line": null,
+   "kind": "sim_bound_fail",
+   "refs": [
+    "inl_sens_1pct_max",
+    "ss_m40c"
+   ],
+   "msg": "inl_sens_1pct_max @ ss_m40c = 0.528484 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
+   "source": "ngspice",
+   "items": [
+    {
+     "msg": "inl_sens_1pct_max @ ss_m40c = 0.528484 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
+     "file": "r2r_dac_tb.cir",
+     "line": null
+    }
+   ]
+  },
+  {
+   "check": "sim_pvt",
+   "severity": "warning",
+   "file": "r2r_dac_tb.cir",
+   "module": null,
+   "line": null,
+   "kind": "sim_bound_fail",
+   "refs": [
+    "inl_sens_1pct_max",
+    "ss_25c"
+   ],
+   "msg": "inl_sens_1pct_max @ ss_25c = 0.530141 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
+   "source": "ngspice",
+   "items": [
+    {
+     "msg": "inl_sens_1pct_max @ ss_25c = 0.530141 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
+     "file": "r2r_dac_tb.cir",
+     "line": null
+    }
+   ]
+  },
+  {
+   "check": "sim_pvt",
+   "severity": "warning",
+   "file": "r2r_dac_tb.cir",
+   "module": null,
+   "line": null,
+   "kind": "sim_bound_fail",
+   "refs": [
+    "inl_sens_1pct_max",
+    "ss_125c"
+   ],
+   "msg": "inl_sens_1pct_max @ ss_125c = 0.649495 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
+   "source": "ngspice",
+   "items": [
+    {
+     "msg": "inl_sens_1pct_max @ ss_125c = 0.649495 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
+     "file": "r2r_dac_tb.cir",
+     "line": null
+    }
+   ]
+  },
+  {
+   "check": "sim_pvt",
+   "severity": "warning",
+   "file": "r2r_dac_tb.cir",
+   "module": null,
+   "line": null,
+   "kind": "sim_bound_fail",
+   "refs": [
+    "inl_sens_1pct_max",
+    "tt_pss"
+   ],
+   "msg": "inl_sens_1pct_max @ tt_pss = 0.529508 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
+   "source": "ngspice",
+   "items": [
+    {
+     "msg": "inl_sens_1pct_max @ tt_pss = 0.529508 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
+     "file": "r2r_dac_tb.cir",
+     "line": null
+    }
+   ]
+  },
+  {
+   "check": "sim_pvt",
+   "severity": "warning",
+   "file": "r2r_dac_tb.cir",
+   "module": null,
+   "line": null,
+   "kind": "sim_bound_fail",
+   "refs": [
+    "inl_sens_1pct_max",
+    "tt_pff"
+   ],
+   "msg": "inl_sens_1pct_max @ tt_pff = 0.579392 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
+   "source": "ngspice",
+   "items": [
+    {
+     "msg": "inl_sens_1pct_max @ tt_pff = 0.579392 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
+     "file": "r2r_dac_tb.cir",
+     "line": null
+    }
+   ]
+  }
+ ],
+ "facts": {
+  "top": "r2r_dac_analog",
+  "corners": [
+   "tt_m40c",
+   "tt_25c",
+   "tt_125c",
+   "ff_m40c",
+   "ff_25c",
+   "ff_125c",
+   "ss_m40c",
+   "ss_25c",
+   "ss_125c",
+   "tt_pss",
+   "tt_pff"
+  ],
+  "results": [
+   {
+    "bench": "r2r_dac_glitch_tb.cir",
+    "corner": "tt_m40c",
+    "names": [
+     "tt_m40c"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": -40,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "glitch_energy_up": 8.46948e-16,
+     "glitch_energy_down": 1.74171e-15,
+     "glitch_peak_up": 1.86347e-05,
+     "glitch_peak_down": 2.90718e-05,
+     "glitch_energy_up_skew_p200p": 1.37401e-14,
+     "glitch_energy_up_skew_m200p": 8.60994e-12,
+     "glitch_energy_down_skew_p200p": 1.32344e-13,
+     "glitch_energy_down_skew_m200p": 6.37874e-17,
+     "glitch_peak_skew_max": 0.000320609,
+     "i_vdd_peak": 0.0174447
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_glitch_tb__tt_m40c.cir"
+   },
+   {
+    "bench": "r2r_dac_glitch_tb.cir",
+    "corner": "tt_25c",
+    "names": [
+     "tt_25c"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": 25,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "glitch_energy_up": 1.6203e-12,
+     "glitch_energy_down": 2.30148e-15,
+     "glitch_peak_up": 6.02663e-05,
+     "glitch_peak_down": 3.1529e-05,
+     "glitch_energy_up_skew_p200p": 1.28509e-14,
+     "glitch_energy_up_skew_m200p": 1.39794e-11,
+     "glitch_energy_down_skew_p200p": 2.86827e-14,
+     "glitch_energy_down_skew_m200p": 1.59321e-16,
+     "glitch_peak_skew_max": 0.00050767,
+     "i_vdd_peak": 0.014919
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_glitch_tb__tt_25c.cir"
+   },
+   {
+    "bench": "r2r_dac_glitch_tb.cir",
+    "corner": "tt_125c",
+    "names": [
+     "tt_125c"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": 125,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "glitch_energy_up": 1.16525e-11,
+     "glitch_energy_down": 9.8719e-13,
+     "glitch_peak_up": 0.000405972,
+     "glitch_peak_down": 3.73999e-05,
+     "glitch_energy_up_skew_p200p": 8.36327e-13,
+     "glitch_energy_up_skew_m200p": 2.16493e-11,
+     "glitch_energy_down_skew_p200p": 2.67797e-14,
+     "glitch_energy_down_skew_m200p": 2.86492e-12,
+     "glitch_peak_skew_max": 0.000765537,
+     "i_vdd_peak": 0.0122152
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_glitch_tb__tt_125c.cir"
+   },
+   {
+    "bench": "r2r_dac_glitch_tb.cir",
+    "corner": "ff_m40c",
+    "names": [
+     "ff_m40c"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": -40,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "glitch_energy_up": 4.91216e-16,
+     "glitch_energy_down": 1.0688e-15,
+     "glitch_peak_up": 1.21323e-05,
+     "glitch_peak_down": 2.53206e-05,
+     "glitch_energy_up_skew_p200p": 2.73326e-14,
+     "glitch_energy_up_skew_m200p": 2.07315e-11,
+     "glitch_energy_down_skew_p200p": 5.07613e-12,
+     "glitch_energy_down_skew_m200p": 9.89386e-17,
+     "glitch_peak_skew_max": 0.000662419,
+     "i_vdd_peak": 0.0218473
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_glitch_tb__ff_m40c.cir"
+   },
+   {
+    "bench": "r2r_dac_glitch_tb.cir",
+    "corner": "ff_25c",
+    "names": [
+     "ff_25c"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": 25,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "glitch_energy_up": 2.02402e-12,
+     "glitch_energy_down": 1.5557e-15,
+     "glitch_peak_up": 7.42546e-05,
+     "glitch_peak_down": 2.84488e-05,
+     "glitch_energy_up_skew_p200p": 2.61238e-14,
+     "glitch_energy_up_skew_m200p": 2.36686e-11,
+     "glitch_energy_down_skew_p200p": 2.27582e-12,
+     "glitch_energy_down_skew_m200p": 1.51211e-14,
+     "glitch_peak_skew_max": 0.000810728,
+     "i_vdd_peak": 0.0194945
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_glitch_tb__ff_25c.cir"
+   },
+   {
+    "bench": "r2r_dac_glitch_tb.cir",
+    "corner": "ff_125c",
+    "names": [
+     "ff_125c"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": 125,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "glitch_energy_up": 1.42941e-11,
+     "glitch_energy_down": 2.35047e-12,
+     "glitch_peak_up": 0.000496529,
+     "glitch_peak_down": 8.58775e-05,
+     "glitch_energy_up_skew_p200p": 2.50587e-14,
+     "glitch_energy_up_skew_m200p": 3.1807e-11,
+     "glitch_energy_down_skew_p200p": 8.92386e-13,
+     "glitch_energy_down_skew_m200p": 6.58177e-12,
+     "glitch_peak_skew_max": 0.00109967,
+     "i_vdd_peak": 0.015815
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_glitch_tb__ff_125c.cir"
+   },
+   {
+    "bench": "r2r_dac_glitch_tb.cir",
+    "corner": "ss_m40c",
+    "names": [
+     "ss_m40c"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": -40,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "glitch_energy_up": 9.08009e-16,
+     "glitch_energy_down": 2.24686e-15,
+     "glitch_peak_up": 1.87403e-05,
+     "glitch_peak_down": 3.18202e-05,
+     "glitch_energy_up_skew_p200p": 5.59762e-15,
+     "glitch_energy_up_skew_m200p": 6.67868e-12,
+     "glitch_energy_down_skew_p200p": 1.91768e-14,
+     "glitch_energy_down_skew_m200p": 6.4861e-17,
+     "glitch_peak_skew_max": 0.000254616,
+     "i_vdd_peak": 0.0123923
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_glitch_tb__ss_m40c.cir"
+   },
+   {
+    "bench": "r2r_dac_glitch_tb.cir",
+    "corner": "ss_25c",
+    "names": [
+     "ss_25c"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": 25,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "glitch_energy_up": 3.44477e-12,
+     "glitch_energy_down": 2.53134e-15,
+     "glitch_peak_up": 0.000126241,
+     "glitch_peak_down": 3.56133e-05,
+     "glitch_energy_up_skew_p200p": 5.33117e-15,
+     "glitch_energy_up_skew_m200p": 1.24919e-11,
+     "glitch_energy_down_skew_p200p": 2.04588e-14,
+     "glitch_energy_down_skew_m200p": 1.19663e-17,
+     "glitch_peak_skew_max": 0.000450869,
+     "i_vdd_peak": 0.0103022
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_glitch_tb__ss_25c.cir"
+   },
+   {
+    "bench": "r2r_dac_glitch_tb.cir",
+    "corner": "ss_125c",
+    "names": [
+     "ss_125c"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": 125,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "glitch_energy_up": 1.27062e-11,
+     "glitch_energy_down": 6.27722e-13,
+     "glitch_peak_up": 0.000442457,
+     "glitch_peak_down": 3.71998e-05,
+     "glitch_energy_up_skew_p200p": 5.03389e-12,
+     "glitch_energy_up_skew_m200p": 2.00233e-11,
+     "glitch_energy_down_skew_p200p": 2.14987e-14,
+     "glitch_energy_down_skew_m200p": 1.40222e-12,
+     "glitch_peak_skew_max": 0.000698483,
+     "i_vdd_peak": 0.00854865
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_glitch_tb__ss_125c.cir"
+   },
+   {
+    "bench": "r2r_dac_glitch_tb.cir",
+    "corner": "tt_pss",
+    "names": [
+     "tt_pss"
+    ],
+    "process": "typical",
+    "passive": "ss",
+    "temp_c": 27,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "glitch_energy_up": 8.81042e-16,
+     "glitch_energy_down": 1.62915e-15,
+     "glitch_peak_up": 1.46712e-05,
+     "glitch_peak_down": 2.30844e-05,
+     "glitch_energy_up_skew_p200p": 7.58965e-15,
+     "glitch_energy_up_skew_m200p": 6.259e-12,
+     "glitch_energy_down_skew_p200p": 1.77392e-14,
+     "glitch_energy_down_skew_m200p": 3.24664e-17,
+     "glitch_peak_skew_max": 0.000239163,
+     "i_vdd_peak": 0.0148336
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_glitch_tb__tt_pss.cir"
+   },
+   {
+    "bench": "r2r_dac_glitch_tb.cir",
+    "corner": "tt_pff",
+    "names": [
+     "tt_pff"
+    ],
+    "process": "typical",
+    "passive": "ff",
+    "temp_c": 27,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "glitch_energy_up": 1.23749e-11,
+     "glitch_energy_down": 7.81573e-13,
+     "glitch_peak_up": 0.00043112,
+     "glitch_peak_down": 4.72064e-05,
+     "glitch_energy_up_skew_p200p": 2.4053e-14,
+     "glitch_energy_up_skew_m200p": 2.97645e-11,
+     "glitch_energy_down_skew_p200p": 5.10714e-14,
+     "glitch_energy_down_skew_m200p": 4.11044e-12,
+     "glitch_peak_skew_max": 0.00105463,
+     "i_vdd_peak": 0.0148825
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_glitch_tb__tt_pff.cir"
+   },
+   {
+    "bench": "r2r_dac_step_tb.cir",
+    "corner": "tt_m40c",
+    "names": [
+     "tt_m40c"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": -40,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "t_settle_rise": 1.19846e-06,
+     "t_settle_fall": 1.19709e-06,
+     "t_rise_10_90": 4.2375e-07,
+     "t_fall_10_90": 4.2e-07,
+     "i_vdd_peak": 0.0181399
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_step_tb__tt_m40c.cir"
+   },
+   {
+    "bench": "r2r_dac_step_tb.cir",
+    "corner": "tt_25c",
+    "names": [
+     "tt_25c"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": 25,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "t_settle_rise": 1.18917e-06,
+     "t_settle_fall": 1.1862e-06,
+     "t_rise_10_90": 4.2e-07,
+     "t_fall_10_90": 4.1625e-07,
+     "i_vdd_peak": 0.0154522
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_step_tb__tt_25c.cir"
+   },
+   {
+    "bench": "r2r_dac_step_tb.cir",
+    "corner": "tt_125c",
+    "names": [
+     "tt_125c"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": 125,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "t_settle_rise": 1.18777e-06,
+     "t_settle_fall": 1.18685e-06,
+     "t_rise_10_90": 4.2e-07,
+     "t_fall_10_90": 4.1625e-07,
+     "i_vdd_peak": 0.0125672
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_step_tb__tt_125c.cir"
+   },
+   {
+    "bench": "r2r_dac_step_tb.cir",
+    "corner": "ff_m40c",
+    "names": [
+     "ff_m40c"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": -40,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "t_settle_rise": 9.6053e-07,
+     "t_settle_fall": 9.58991e-07,
+     "t_rise_10_90": 3.375e-07,
+     "t_fall_10_90": 3.375e-07,
+     "i_vdd_peak": 0.0227635
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_step_tb__ff_m40c.cir"
+   },
+   {
+    "bench": "r2r_dac_step_tb.cir",
+    "corner": "ff_25c",
+    "names": [
+     "ff_25c"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": 25,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "t_settle_rise": 9.54449e-07,
+     "t_settle_fall": 9.48896e-07,
+     "t_rise_10_90": 3.375e-07,
+     "t_fall_10_90": 3.3375e-07,
+     "i_vdd_peak": 0.020275
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_step_tb__ff_25c.cir"
+   },
+   {
+    "bench": "r2r_dac_step_tb.cir",
+    "corner": "ff_125c",
+    "names": [
+     "ff_125c"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": 125,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "t_settle_rise": 9.51175e-07,
+     "t_settle_fall": 9.48397e-07,
+     "t_rise_10_90": 3.375e-07,
+     "t_fall_10_90": 3.3375e-07,
+     "i_vdd_peak": 0.016538
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_step_tb__ff_125c.cir"
+   },
+   {
+    "bench": "r2r_dac_step_tb.cir",
+    "corner": "ss_m40c",
+    "names": [
+     "ss_m40c"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": -40,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "t_settle_rise": 1.44066e-06,
+     "t_settle_fall": 1.43558e-06,
+     "t_rise_10_90": 5.0625e-07,
+     "t_fall_10_90": 5.0625e-07,
+     "i_vdd_peak": 0.0133913
+    },
+    "engine_errors": [],
+    "violations": [
+     {
+      "check": "sim_pvt",
+      "severity": "warning",
+      "file": "r2r_dac_step_tb.cir",
+      "module": null,
+      "line": null,
+      "kind": "sim_bound_fail",
+      "refs": [
+       "ss_m40c",
+       "t_rise_10_90"
+      ],
+      "msg": "t_rise_10_90 @ ss_m40c = 5.0625e-07 outside bound [-inf, 5e-07] (derived, owner trade-off: 2.2 tau = 0.42 us at tt, 0.5 us at ss)",
+      "source": "ngspice",
+      "items": [
+       {
+        "msg": "t_rise_10_90 @ ss_m40c = 5.0625e-07 outside bound [-inf, 5e-07] (derived, owner trade-off: 2.2 tau = 0.42 us at tt, 0.5 us at ss)",
+        "file": "r2r_dac_step_tb.cir",
+        "line": null
+       }
+      ]
+     },
+     {
+      "check": "sim_pvt",
+      "severity": "warning",
+      "file": "r2r_dac_step_tb.cir",
+      "module": null,
+      "line": null,
+      "kind": "sim_bound_fail",
+      "refs": [
+       "ss_m40c",
+       "t_fall_10_90"
+      ],
+      "msg": "t_fall_10_90 @ ss_m40c = 5.0625e-07 outside bound [-inf, 5e-07] (derived, owner trade-off: 2.2 tau = 0.42 us at tt, 0.5 us at ss)",
+      "source": "ngspice",
+      "items": [
+       {
+        "msg": "t_fall_10_90 @ ss_m40c = 5.0625e-07 outside bound [-inf, 5e-07] (derived, owner trade-off: 2.2 tau = 0.42 us at tt, 0.5 us at ss)",
+        "file": "r2r_dac_step_tb.cir",
+        "line": null
+       }
+      ]
+     }
+    ],
+    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_step_tb__ss_m40c.cir"
+   },
+   {
+    "bench": "r2r_dac_step_tb.cir",
+    "corner": "ss_25c",
+    "names": [
+     "ss_25c"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": 25,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "t_settle_rise": 1.42952e-06,
+     "t_settle_fall": 1.42371e-06,
+     "t_rise_10_90": 5.025e-07,
+     "t_fall_10_90": 4.9875e-07,
+     "i_vdd_peak": 0.0105999
+    },
+    "engine_errors": [],
+    "violations": [
+     {
+      "check": "sim_pvt",
+      "severity": "warning",
+      "file": "r2r_dac_step_tb.cir",
+      "module": null,
+      "line": null,
+      "kind": "sim_bound_fail",
+      "refs": [
+       "ss_25c",
+       "t_rise_10_90"
+      ],
+      "msg": "t_rise_10_90 @ ss_25c = 5.025e-07 outside bound [-inf, 5e-07] (derived, owner trade-off: 2.2 tau = 0.42 us at tt, 0.5 us at ss)",
+      "source": "ngspice",
+      "items": [
+       {
+        "msg": "t_rise_10_90 @ ss_25c = 5.025e-07 outside bound [-inf, 5e-07] (derived, owner trade-off: 2.2 tau = 0.42 us at tt, 0.5 us at ss)",
+        "file": "r2r_dac_step_tb.cir",
+        "line": null
+       }
+      ]
+     }
+    ],
+    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_step_tb__ss_25c.cir"
+   },
+   {
+    "bench": "r2r_dac_step_tb.cir",
+    "corner": "ss_125c",
+    "names": [
+     "ss_125c"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": 125,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "t_settle_rise": 1.42759e-06,
+     "t_settle_fall": 1.42048e-06,
+     "t_rise_10_90": 5.0625e-07,
+     "t_fall_10_90": 5.025e-07,
+     "i_vdd_peak": 0.00857986
+    },
+    "engine_errors": [],
+    "violations": [
+     {
+      "check": "sim_pvt",
+      "severity": "warning",
+      "file": "r2r_dac_step_tb.cir",
+      "module": null,
+      "line": null,
+      "kind": "sim_bound_fail",
+      "refs": [
+       "ss_125c",
+       "t_rise_10_90"
+      ],
+      "msg": "t_rise_10_90 @ ss_125c = 5.0625e-07 outside bound [-inf, 5e-07] (derived, owner trade-off: 2.2 tau = 0.42 us at tt, 0.5 us at ss)",
+      "source": "ngspice",
+      "items": [
+       {
+        "msg": "t_rise_10_90 @ ss_125c = 5.0625e-07 outside bound [-inf, 5e-07] (derived, owner trade-off: 2.2 tau = 0.42 us at tt, 0.5 us at ss)",
+        "file": "r2r_dac_step_tb.cir",
+        "line": null
+       }
+      ]
+     },
+     {
+      "check": "sim_pvt",
+      "severity": "warning",
+      "file": "r2r_dac_step_tb.cir",
+      "module": null,
+      "line": null,
+      "kind": "sim_bound_fail",
+      "refs": [
+       "ss_125c",
+       "t_fall_10_90"
+      ],
+      "msg": "t_fall_10_90 @ ss_125c = 5.025e-07 outside bound [-inf, 5e-07] (derived, owner trade-off: 2.2 tau = 0.42 us at tt, 0.5 us at ss)",
+      "source": "ngspice",
+      "items": [
+       {
+        "msg": "t_fall_10_90 @ ss_125c = 5.025e-07 outside bound [-inf, 5e-07] (derived, owner trade-off: 2.2 tau = 0.42 us at tt, 0.5 us at ss)",
+        "file": "r2r_dac_step_tb.cir",
+        "line": null
+       }
+      ]
+     }
+    ],
+    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_step_tb__ss_125c.cir"
+   },
+   {
+    "bench": "r2r_dac_step_tb.cir",
+    "corner": "tt_pss",
+    "names": [
+     "tt_pss"
+    ],
+    "process": "typical",
+    "passive": "ss",
+    "temp_c": 27,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "t_settle_rise": 1.42572e-06,
+     "t_settle_fall": 1.42337e-06,
+     "t_rise_10_90": 5.025e-07,
+     "t_fall_10_90": 4.9875e-07,
+     "i_vdd_peak": 0.0153608
+    },
+    "engine_errors": [],
+    "violations": [
+     {
+      "check": "sim_pvt",
+      "severity": "warning",
+      "file": "r2r_dac_step_tb.cir",
+      "module": null,
+      "line": null,
+      "kind": "sim_bound_fail",
+      "refs": [
+       "t_rise_10_90",
+       "tt_pss"
+      ],
+      "msg": "t_rise_10_90 @ tt_pss = 5.025e-07 outside bound [-inf, 5e-07] (derived, owner trade-off: 2.2 tau = 0.42 us at tt, 0.5 us at ss)",
+      "source": "ngspice",
+      "items": [
+       {
+        "msg": "t_rise_10_90 @ tt_pss = 5.025e-07 outside bound [-inf, 5e-07] (derived, owner trade-off: 2.2 tau = 0.42 us at tt, 0.5 us at ss)",
+        "file": "r2r_dac_step_tb.cir",
+        "line": null
+       }
+      ]
+     }
+    ],
+    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_step_tb__tt_pss.cir"
+   },
+   {
+    "bench": "r2r_dac_step_tb.cir",
+    "corner": "tt_pff",
+    "names": [
+     "tt_pff"
+    ],
+    "process": "typical",
+    "passive": "ff",
+    "temp_c": 27,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "t_settle_rise": 9.55197e-07,
+     "t_settle_fall": 9.5249e-07,
+     "t_rise_10_90": 3.375e-07,
+     "t_fall_10_90": 3.3375e-07,
+     "i_vdd_peak": 0.0154112
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_step_tb__tt_pff.cir"
+   },
+   {
+    "bench": "r2r_dac_tb.cir",
+    "corner": "tt_m40c",
+    "names": [
+     "tt_m40c"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": -40,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "dnl_max_abs": 0.141439,
+     "inl_max_abs": 0.20985,
+     "monotonic": 1.0,
+     "v_zero_offset": 8.22799e-09,
+     "fs_gain_err_lsb": 0.000273791,
+     "inl_sens_1pct_max": 0.526289,
+     "i_vdd_avg": 8.75705e-05
+    },
+    "engine_errors": [],
+    "violations": [
+     {
+      "check": "sim_pvt",
+      "severity": "warning",
+      "file": "r2r_dac_tb.cir",
+      "module": null,
+      "line": null,
+      "kind": "sim_bound_fail",
+      "refs": [
+       "inl_sens_1pct_max",
+       "tt_m40c"
+      ],
+      "msg": "inl_sens_1pct_max @ tt_m40c = 0.526289 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
+      "source": "ngspice",
+      "items": [
+       {
+        "msg": "inl_sens_1pct_max @ tt_m40c = 0.526289 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
+        "file": "r2r_dac_tb.cir",
+        "line": null
+       }
+      ]
+     }
+    ],
+    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_tb__tt_m40c.cir"
+   },
+   {
+    "bench": "r2r_dac_tb.cir",
+    "corner": "tt_25c",
+    "names": [
+     "tt_25c"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": 25,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "dnl_max_abs": 0.0492754,
+     "inl_max_abs": 0.232036,
+     "monotonic": 1.0,
+     "v_zero_offset": 1.0358e-08,
+     "fs_gain_err_lsb": -0.00457049,
+     "inl_sens_1pct_max": 0.52629,
+     "i_vdd_avg": 8.82822e-05
+    },
+    "engine_errors": [],
+    "violations": [
+     {
+      "check": "sim_pvt",
+      "severity": "warning",
+      "file": "r2r_dac_tb.cir",
+      "module": null,
+      "line": null,
+      "kind": "sim_bound_fail",
+      "refs": [
+       "inl_sens_1pct_max",
+       "tt_25c"
+      ],
+      "msg": "inl_sens_1pct_max @ tt_25c = 0.52629 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
+      "source": "ngspice",
+      "items": [
+       {
+        "msg": "inl_sens_1pct_max @ tt_25c = 0.52629 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
+        "file": "r2r_dac_tb.cir",
+        "line": null
+       }
+      ]
+     }
+    ],
+    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_tb__tt_25c.cir"
+   },
+   {
+    "bench": "r2r_dac_tb.cir",
+    "corner": "tt_125c",
+    "names": [
+     "tt_125c"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": 125,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "dnl_max_abs": 0.0843429,
+     "inl_max_abs": 0.310313,
+     "monotonic": 1.0,
+     "v_zero_offset": 1.65062e-08,
+     "fs_gain_err_lsb": -0.0112266,
+     "inl_sens_1pct_max": 0.601916,
+     "i_vdd_avg": 8.83801e-05
+    },
+    "engine_errors": [],
+    "violations": [
+     {
+      "check": "sim_pvt",
+      "severity": "warning",
+      "file": "r2r_dac_tb.cir",
+      "module": null,
+      "line": null,
+      "kind": "sim_bound_fail",
+      "refs": [
+       "inl_sens_1pct_max",
+       "tt_125c"
+      ],
+      "msg": "inl_sens_1pct_max @ tt_125c = 0.601916 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
+      "source": "ngspice",
+      "items": [
+       {
+        "msg": "inl_sens_1pct_max @ tt_125c = 0.601916 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
+        "file": "r2r_dac_tb.cir",
+        "line": null
+       }
+      ]
+     }
+    ],
+    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_tb__tt_125c.cir"
+   },
+   {
+    "bench": "r2r_dac_tb.cir",
+    "corner": "ff_m40c",
+    "names": [
+     "ff_m40c"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": -40,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "dnl_max_abs": 0.139954,
+     "inl_max_abs": 0.205416,
+     "monotonic": 1.0,
+     "v_zero_offset": 6.80884e-09,
+     "fs_gain_err_lsb": 0.000337216,
+     "inl_sens_1pct_max": 0.522163,
+     "i_vdd_avg": 0.000109394
+    },
+    "engine_errors": [],
+    "violations": [
+     {
+      "check": "sim_pvt",
+      "severity": "warning",
+      "file": "r2r_dac_tb.cir",
+      "module": null,
+      "line": null,
+      "kind": "sim_bound_fail",
+      "refs": [
+       "ff_m40c",
+       "inl_sens_1pct_max"
+      ],
+      "msg": "inl_sens_1pct_max @ ff_m40c = 0.522163 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
+      "source": "ngspice",
+      "items": [
+       {
+        "msg": "inl_sens_1pct_max @ ff_m40c = 0.522163 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
+        "file": "r2r_dac_tb.cir",
+        "line": null
+       }
+      ]
+     }
+    ],
+    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_tb__ff_m40c.cir"
+   },
+   {
+    "bench": "r2r_dac_tb.cir",
+    "corner": "ff_25c",
+    "names": [
+     "ff_25c"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": 25,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "dnl_max_abs": 0.0489686,
+     "inl_max_abs": 0.227887,
+     "monotonic": 1.0,
+     "v_zero_offset": 8.49375e-09,
+     "fs_gain_err_lsb": -0.0044459,
+     "inl_sens_1pct_max": 0.522695,
+     "i_vdd_avg": 0.000110291
+    },
+    "engine_errors": [],
+    "violations": [
+     {
+      "check": "sim_pvt",
+      "severity": "warning",
+      "file": "r2r_dac_tb.cir",
+      "module": null,
+      "line": null,
+      "kind": "sim_bound_fail",
+      "refs": [
+       "ff_25c",
+       "inl_sens_1pct_max"
+      ],
+      "msg": "inl_sens_1pct_max @ ff_25c = 0.522695 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
+      "source": "ngspice",
+      "items": [
+       {
+        "msg": "inl_sens_1pct_max @ ff_25c = 0.522695 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
+        "file": "r2r_dac_tb.cir",
+        "line": null
+       }
+      ]
+     }
+    ],
+    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_tb__ff_25c.cir"
+   },
+   {
+    "bench": "r2r_dac_tb.cir",
+    "corner": "ff_125c",
+    "names": [
+     "ff_125c"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": 125,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "dnl_max_abs": 0.0804643,
+     "inl_max_abs": 0.303231,
+     "monotonic": 1.0,
+     "v_zero_offset": 4.25612e-08,
+     "fs_gain_err_lsb": -0.0111492,
+     "inl_sens_1pct_max": 0.595019,
+     "i_vdd_avg": 0.00011047
+    },
+    "engine_errors": [],
+    "violations": [
+     {
+      "check": "sim_pvt",
+      "severity": "warning",
+      "file": "r2r_dac_tb.cir",
+      "module": null,
+      "line": null,
+      "kind": "sim_bound_fail",
+      "refs": [
+       "ff_125c",
+       "inl_sens_1pct_max"
+      ],
+      "msg": "inl_sens_1pct_max @ ff_125c = 0.595019 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
+      "source": "ngspice",
+      "items": [
+       {
+        "msg": "inl_sens_1pct_max @ ff_125c = 0.595019 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
+        "file": "r2r_dac_tb.cir",
+        "line": null
+       }
+      ]
+     }
+    ],
+    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_tb__ff_125c.cir"
+   },
+   {
+    "bench": "r2r_dac_tb.cir",
+    "corner": "ss_m40c",
+    "names": [
+     "ss_m40c"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": -40,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "dnl_max_abs": 0.116765,
+     "inl_max_abs": 0.217669,
+     "monotonic": 1.0,
+     "v_zero_offset": 1.03791e-08,
+     "fs_gain_err_lsb": -0.00108823,
+     "inl_sens_1pct_max": 0.528484,
+     "i_vdd_avg": 7.29884e-05
+    },
+    "engine_errors": [],
+    "violations": [
+     {
+      "check": "sim_pvt",
+      "severity": "warning",
+      "file": "r2r_dac_tb.cir",
+      "module": null,
+      "line": null,
+      "kind": "sim_bound_fail",
+      "refs": [
+       "inl_sens_1pct_max",
+       "ss_m40c"
+      ],
+      "msg": "inl_sens_1pct_max @ ss_m40c = 0.528484 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
+      "source": "ngspice",
+      "items": [
+       {
+        "msg": "inl_sens_1pct_max @ ss_m40c = 0.528484 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
+        "file": "r2r_dac_tb.cir",
+        "line": null
+       }
+      ]
+     }
+    ],
+    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_tb__ss_m40c.cir"
+   },
+   {
+    "bench": "r2r_dac_tb.cir",
+    "corner": "ss_25c",
+    "names": [
+     "ss_25c"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": 25,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "dnl_max_abs": 0.035281,
+     "inl_max_abs": 0.243246,
+     "monotonic": 1.0,
+     "v_zero_offset": 1.3241e-08,
+     "fs_gain_err_lsb": -0.00639607,
+     "inl_sens_1pct_max": 0.530141,
+     "i_vdd_avg": 7.35725e-05
+    },
+    "engine_errors": [],
+    "violations": [
+     {
+      "check": "sim_pvt",
+      "severity": "warning",
+      "file": "r2r_dac_tb.cir",
+      "module": null,
+      "line": null,
+      "kind": "sim_bound_fail",
+      "refs": [
+       "inl_sens_1pct_max",
+       "ss_25c"
+      ],
+      "msg": "inl_sens_1pct_max @ ss_25c = 0.530141 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
+      "source": "ngspice",
+      "items": [
+       {
+        "msg": "inl_sens_1pct_max @ ss_25c = 0.530141 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
+        "file": "r2r_dac_tb.cir",
+        "line": null
+       }
+      ]
+     }
+    ],
+    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_tb__ss_25c.cir"
+   },
+   {
+    "bench": "r2r_dac_tb.cir",
+    "corner": "ss_125c",
+    "names": [
+     "ss_125c"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": 125,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "dnl_max_abs": 0.134109,
+     "inl_max_abs": 0.35474,
+     "monotonic": 1.0,
+     "v_zero_offset": 1.82907e-08,
+     "fs_gain_err_lsb": -0.0137765,
+     "inl_sens_1pct_max": 0.649495,
+     "i_vdd_avg": 7.36372e-05
+    },
+    "engine_errors": [],
+    "violations": [
+     {
+      "check": "sim_pvt",
+      "severity": "warning",
+      "file": "r2r_dac_tb.cir",
+      "module": null,
+      "line": null,
+      "kind": "sim_bound_fail",
+      "refs": [
+       "inl_sens_1pct_max",
+       "ss_125c"
+      ],
+      "msg": "inl_sens_1pct_max @ ss_125c = 0.649495 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
+      "source": "ngspice",
+      "items": [
+       {
+        "msg": "inl_sens_1pct_max @ ss_125c = 0.649495 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
+        "file": "r2r_dac_tb.cir",
+        "line": null
+       }
+      ]
+     }
+    ],
+    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_tb__ss_125c.cir"
+   },
+   {
+    "bench": "r2r_dac_tb.cir",
+    "corner": "tt_pss",
+    "names": [
+     "tt_pss"
+    ],
+    "process": "typical",
+    "passive": "ss",
+    "temp_c": 27,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "dnl_max_abs": 0.113617,
+     "inl_max_abs": 0.219454,
+     "monotonic": 1.0,
+     "v_zero_offset": 1.04265e-08,
+     "fs_gain_err_lsb": -0.00129783,
+     "inl_sens_1pct_max": 0.529508,
+     "i_vdd_avg": 7.36548e-05
+    },
+    "engine_errors": [],
+    "violations": [
+     {
+      "check": "sim_pvt",
+      "severity": "warning",
+      "file": "r2r_dac_tb.cir",
+      "module": null,
+      "line": null,
+      "kind": "sim_bound_fail",
+      "refs": [
+       "inl_sens_1pct_max",
+       "tt_pss"
+      ],
+      "msg": "inl_sens_1pct_max @ tt_pss = 0.529508 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
+      "source": "ngspice",
+      "items": [
+       {
+        "msg": "inl_sens_1pct_max @ tt_pss = 0.529508 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
+        "file": "r2r_dac_tb.cir",
+        "line": null
+       }
+      ]
+     }
+    ],
+    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_tb__tt_pss.cir"
+   },
+   {
+    "bench": "r2r_dac_tb.cir",
+    "corner": "tt_pff",
+    "names": [
+     "tt_pff"
+    ],
+    "process": "typical",
+    "passive": "ff",
+    "temp_c": 27,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "dnl_max_abs": 0.0553457,
+     "inl_max_abs": 0.290692,
+     "monotonic": 1.0,
+     "v_zero_offset": 1.04264e-08,
+     "fs_gain_err_lsb": -0.00984757,
+     "inl_sens_1pct_max": 0.579392,
+     "i_vdd_avg": 0.000110202
+    },
+    "engine_errors": [],
+    "violations": [
+     {
+      "check": "sim_pvt",
+      "severity": "warning",
+      "file": "r2r_dac_tb.cir",
+      "module": null,
+      "line": null,
+      "kind": "sim_bound_fail",
+      "refs": [
+       "inl_sens_1pct_max",
+       "tt_pff"
+      ],
+      "msg": "inl_sens_1pct_max @ tt_pff = 0.579392 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
+      "source": "ngspice",
+      "items": [
+       {
+        "msg": "inl_sens_1pct_max @ tt_pff = 0.579392 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
+        "file": "r2r_dac_tb.cir",
+        "line": null
+       }
+      ]
+     }
+    ],
+    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_tb__tt_pff.cir"
+   }
+  ],
+  "not_scored": [],
+  "scoped_out": []
+ },
+ "inputs_at_start": {
+  "netlist": "dir_text:13970a2f19f36bd8aa49baa3a94132821e16917455715ba77b23b074b4551548",
+  "tb": "dir_text:bd1a8539e7092bb573bd6811f95fc170b4fce78f2829463999ce0bfe4f4a0609",
+  "spec_yaml": "json_canonical:99047ed51c88b1767b136d48e2c3832967daa1e22eec34905494620acacea45d",
+  "sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df"
+ },
+ "recorded_ts": "2026-10-13T06:12:32",
+ "attempts": 6
+}

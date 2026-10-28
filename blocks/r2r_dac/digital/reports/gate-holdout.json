@@ -1,0 +1,43 @@
+{
+  "script": "gate",
+  "gate": "holdout",
+  "phase": "P4",
+  "tool": "holdout",
+  "input_digest": "dir_text:2a2b1ae7e895ad5405f5ae367ab80ae45039df70315e07a67867027fa4bbdf15",
+  "status": "pass",
+  "criteria": {
+    "fail_severities": [
+      "error"
+    ],
+    "max_count": 0
+  },
+  "counts": {
+    "total": 0,
+    "by_severity": {},
+    "by_source": {}
+  },
+  "failing_count": 0,
+  "failing": [],
+  "violations": [],
+  "facts": {
+    "top": "r2r_dac_digital",
+    "tests_run": [
+      "test_hold_after_excursion_from_ff",
+      "test_one_clock_reset_clears_prescaler"
+    ],
+    "tests_passed": 2
+  },
+  "record_result": {
+    "ok": true,
+    "recorded": true,
+    "workspace": "blocks/r2r_dac/digital",
+    "gate": "holdout",
+    "status": "pass",
+    "attempts": 2,
+    "inputs": {
+      "rtl": "dir_text:2a2b1ae7e895ad5405f5ae367ab80ae45039df70315e07a67867027fa4bbdf15",
+      "holdout": "dir_text:323dd5f5d42ea1ed5e8a148ab193810c06ff30e60dfc38673be3c7b6debf69c9",
+      "spec_yaml": "json_canonical:cee93f343d721dc9797350155b3f0e85133a766eb1f1963c30aacd1d23e5d2f4"
+    }
+  }
+}

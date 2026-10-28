@@ -1,0 +1,935 @@
+{
+ "version": 3,
+ "skill": "msde",
+ "block": "r2r_dac",
+ "workspace": "blocks/r2r_dac",
+ "created": "2026-09-25T05:42:01",
+ "updated": "2026-10-14T11:43:22",
+ "phase": "P4",
+ "toolchain": null,
+ "gates": {
+  "split": {
+   "phase": "P1",
+   "status": "pass",
+   "attempts": 2,
+   "last": {
+    "ts": "2026-09-25T08:49:02",
+    "status": "pass",
+    "failing_count": 0,
+    "total": 0,
+    "inputs": {
+     "interface": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440"
+    },
+    "job": null
+   },
+   "history": [
+    {
+     "ts": "2026-09-25T05:45:57",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "interface": "json_canonical:0264be9adb7ef8a932e05c9a834a698949080311628757850f1688217c914be0"
+     },
+     "job": null
+    },
+    {
+     "ts": "2026-09-25T08:49:02",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "interface": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440"
+     },
+     "job": null
+    }
+   ]
+  },
+  "top_harden": {
+   "phase": "P3",
+   "status": "pass",
+   "attempts": 7,
+   "last": {
+    "ts": "2026-10-13T08:52:29",
+    "status": "pass",
+    "failing_count": 0,
+    "total": 0,
+    "inputs": {
+     "digital_rtl": "dir_text:08d2e63a30253fb8dcb71be29ca5aa7209711132e317fcb0e4bc99f0e226a305",
+     "analog_layout": "dir_text:7a954c277f279e0a8b3d75e97ed6833bf445cf7e04f4ec0eefae35be290d869d"
+    },
+    "job": null,
+    "facts": {
+     "wall_s": 71.71
+    }
+   },
+   "history": [
+    {
+     "ts": "2026-09-25T09:42:09",
+     "status": "fail",
+     "failing_count": 1,
+     "total": 1,
+     "inputs": {
+      "digital_rtl": "dir_text:2a2b1ae7e895ad5405f5ae367ab80ae45039df70315e07a67867027fa4bbdf15",
+      "analog_layout": "dir_text:f78a94124a00ffd93d5afc43316b74aa05535a0851cbd2ce6f3985831b140e0c"
+     },
+     "job": null,
+     "facts": {
+      "wall_s": 47.54
+     }
+    },
+    {
+     "ts": "2026-10-13T04:22:53",
+     "status": "fail",
+     "failing_count": 2,
+     "total": 2,
+     "inputs": {
+      "digital_rtl": "dir_text:08d2e63a30253fb8dcb71be29ca5aa7209711132e317fcb0e4bc99f0e226a305",
+      "analog_layout": "dir_text:4e5f62c475eb67f28922569e722fa411c4ed4a44149990be8907cfd87892af0f"
+     },
+     "job": null
+    },
+    {
+     "ts": "2026-10-13T04:46:54",
+     "status": "fail",
+     "failing_count": 1,
+     "total": 1,
+     "inputs": {
+      "digital_rtl": "dir_text:08d2e63a30253fb8dcb71be29ca5aa7209711132e317fcb0e4bc99f0e226a305",
+      "analog_layout": "dir_text:9e0c0412097973353e7b7d784d6f6f985ba2822918b154445f66466be6fdcae7"
+     },
+     "job": null,
+     "facts": {
+      "wall_s": 1261.53
+     }
+    },
+    {
+     "ts": "2026-10-13T04:55:01",
+     "status": "fail",
+     "failing_count": 1,
+     "total": 1,
+     "inputs": {
+      "digital_rtl": "dir_text:08d2e63a30253fb8dcb71be29ca5aa7209711132e317fcb0e4bc99f0e226a305",
+      "analog_layout": "dir_text:7a954c277f279e0a8b3d75e97ed6833bf445cf7e04f4ec0eefae35be290d869d"
+     },
+     "job": null,
+     "facts": {
+      "wall_s": 72.27
+     }
+    },
+    {
+     "ts": "2026-10-13T06:32:26",
+     "status": "fail",
+     "failing_count": 1,
+     "total": 1,
+     "inputs": {
+      "digital_rtl": "dir_text:08d2e63a30253fb8dcb71be29ca5aa7209711132e317fcb0e4bc99f0e226a305",
+      "analog_layout": "dir_text:7a954c277f279e0a8b3d75e97ed6833bf445cf7e04f4ec0eefae35be290d869d"
+     },
+     "job": null,
+     "facts": {
+      "wall_s": 72.01
+     }
+    },
+    {
+     "ts": "2026-10-13T07:10:54",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "digital_rtl": "dir_text:08d2e63a30253fb8dcb71be29ca5aa7209711132e317fcb0e4bc99f0e226a305",
+      "analog_layout": "dir_text:7a954c277f279e0a8b3d75e97ed6833bf445cf7e04f4ec0eefae35be290d869d"
+     },
+     "job": null,
+     "facts": {
+      "wall_s": 78.47
+     }
+    },
+    {
+     "ts": "2026-10-13T08:52:29",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "digital_rtl": "dir_text:08d2e63a30253fb8dcb71be29ca5aa7209711132e317fcb0e4bc99f0e226a305",
+      "analog_layout": "dir_text:7a954c277f279e0a8b3d75e97ed6833bf445cf7e04f4ec0eefae35be290d869d"
+     },
+     "job": null,
+     "facts": {
+      "wall_s": 71.71
+     }
+    }
+   ]
+  },
+  "cosim": {
+   "phase": "P3",
+   "status": "pass",
+   "attempts": 3,
+   "last": {
+    "ts": "2026-10-13T06:23:32",
+    "status": "pass",
+    "failing_count": 0,
+    "total": 0,
+    "inputs": {
+     "interface": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
+     "tb": "dir_text:6d268ee04c3897081fd652d35a7650f962dbe6629ba0d6155c28e2b335149a8d",
+     "digital_rtl": "dir_text:08d2e63a30253fb8dcb71be29ca5aa7209711132e317fcb0e4bc99f0e226a305",
+     "analog_netlist": "dir_text:13970a2f19f36bd8aa49baa3a94132821e16917455715ba77b23b074b4551548",
+     "analog_sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df"
+    },
+    "job": null
+   },
+   "history": [
+    {
+     "ts": "2026-10-13T06:23:04",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "interface": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
+      "tb": "dir_text:56a6aa9f06926bfe30d3ca81341f3f5d6600cd9685c35d83e73a94086a03dd19",
+      "digital_rtl": "dir_text:08d2e63a30253fb8dcb71be29ca5aa7209711132e317fcb0e4bc99f0e226a305",
+      "analog_netlist": "dir_text:13970a2f19f36bd8aa49baa3a94132821e16917455715ba77b23b074b4551548",
+      "analog_sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df"
+     },
+     "job": null
+    },
+    {
+     "ts": "2026-10-13T06:23:20",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "interface": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
+      "tb": "dir_text:6d268ee04c3897081fd652d35a7650f962dbe6629ba0d6155c28e2b335149a8d",
+      "digital_rtl": "dir_text:08d2e63a30253fb8dcb71be29ca5aa7209711132e317fcb0e4bc99f0e226a305",
+      "analog_netlist": "dir_text:13970a2f19f36bd8aa49baa3a94132821e16917455715ba77b23b074b4551548",
+      "analog_sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df"
+     },
+     "job": null
+    },
+    {
+     "ts": "2026-10-13T06:23:32",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "interface": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
+      "tb": "dir_text:6d268ee04c3897081fd652d35a7650f962dbe6629ba0d6155c28e2b335149a8d",
+      "digital_rtl": "dir_text:08d2e63a30253fb8dcb71be29ca5aa7209711132e317fcb0e4bc99f0e226a305",
+      "analog_netlist": "dir_text:13970a2f19f36bd8aa49baa3a94132821e16917455715ba77b23b074b4551548",
+      "analog_sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df"
+     },
+     "job": null
+    }
+   ]
+  },
+  "top_drc": {
+   "phase": "P3",
+   "status": "pass",
+   "attempts": 2,
+   "last": {
+    "ts": "2026-10-13T08:53:08",
+    "status": "pass",
+    "failing_count": 0,
+    "total": 0,
+    "inputs": {
+     "top_gds": "dir_text:0905acb9d74b569267319ec4a715fa4e5d5ec532738e6ebae11026f5a3528035"
+    },
+    "job": null,
+    "facts": {
+     "magic_count": 0,
+     "klayout_count": 0
+    }
+   },
+   "history": [
+    {
+     "ts": "2026-10-13T07:11:47",
+     "status": "fail",
+     "failing_count": 1,
+     "total": 1,
+     "inputs": {
+      "top_gds": "dir_text:08ecca8a736efe4672d50b8b756b5dc6a6843dcbdab79b605294d5e8f117ab39"
+     },
+     "job": null,
+     "facts": {
+      "magic_count": 0,
+      "klayout_count": 2
+     }
+    },
+    {
+     "ts": "2026-10-13T08:53:08",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "top_gds": "dir_text:0905acb9d74b569267319ec4a715fa4e5d5ec532738e6ebae11026f5a3528035"
+     },
+     "job": null,
+     "facts": {
+      "magic_count": 0,
+      "klayout_count": 0
+     }
+    }
+   ]
+  },
+  "precheck": {
+   "phase": "P3",
+   "status": "pass",
+   "attempts": 2,
+   "last": {
+    "ts": "2026-10-13T08:53:47",
+    "status": "pass",
+    "failing_count": 0,
+    "total": 0,
+    "inputs": {
+     "top_gds": "dir_text:0905acb9d74b569267319ec4a715fa4e5d5ec532738e6ebae11026f5a3528035",
+     "interface": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440"
+    },
+    "job": null,
+    "facts": {
+     "checks_run": 12
+    }
+   },
+   "history": [
+    {
+     "ts": "2026-10-13T07:13:27",
+     "status": "fail",
+     "failing_count": 1,
+     "total": 1,
+     "inputs": {
+      "top_gds": "dir_text:08ecca8a736efe4672d50b8b756b5dc6a6843dcbdab79b605294d5e8f117ab39",
+      "interface": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440"
+     },
+     "job": null,
+     "facts": {
+      "checks_run": 12
+     }
+    },
+    {
+     "ts": "2026-10-13T08:53:47",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "top_gds": "dir_text:0905acb9d74b569267319ec4a715fa4e5d5ec532738e6ebae11026f5a3528035",
+      "interface": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440"
+     },
+     "job": null,
+     "facts": {
+      "checks_run": 12
+     }
+    }
+   ]
+  },
+  "top_lvs": {
+   "phase": "P3",
+   "status": "pass",
+   "attempts": 2,
+   "last": {
+    "ts": "2026-10-13T08:53:10",
+    "status": "pass",
+    "failing_count": 0,
+    "total": 0,
+    "inputs": {
+     "top_gds": "dir_text:0905acb9d74b569267319ec4a715fa4e5d5ec532738e6ebae11026f5a3528035",
+     "analog_layout": "dir_text:7a954c277f279e0a8b3d75e97ed6833bf445cf7e04f4ec0eefae35be290d869d"
+    },
+    "job": null
+   },
+   "history": [
+    {
+     "ts": "2026-10-13T07:51:26",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "top_gds": "dir_text:08ecca8a736efe4672d50b8b756b5dc6a6843dcbdab79b605294d5e8f117ab39",
+      "analog_layout": "dir_text:7a954c277f279e0a8b3d75e97ed6833bf445cf7e04f4ec0eefae35be290d869d"
+     },
+     "job": null
+    },
+    {
+     "ts": "2026-10-13T08:53:10",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "top_gds": "dir_text:0905acb9d74b569267319ec4a715fa4e5d5ec532738e6ebae11026f5a3528035",
+      "analog_layout": "dir_text:7a954c277f279e0a8b3d75e97ed6833bf445cf7e04f4ec0eefae35be290d869d"
+     },
+     "job": null
+    }
+   ]
+  },
+  "release": {
+   "phase": "P4",
+   "status": "pass",
+   "attempts": 2,
+   "last": {
+    "ts": "2026-10-13T08:54:17",
+    "status": "pass",
+    "failing_count": 0,
+    "total": 0,
+    "inputs": {
+     "interface": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
+     "digital_rtl": "dir_text:08d2e63a30253fb8dcb71be29ca5aa7209711132e317fcb0e4bc99f0e226a305",
+     "analog_layout": "dir_text:7a954c277f279e0a8b3d75e97ed6833bf445cf7e04f4ec0eefae35be290d869d"
+    },
+    "job": null
+   },
+   "history": [
+    {
+     "ts": "2026-10-13T08:53:57",
+     "status": "fail",
+     "failing_count": 1,
+     "total": 1,
+     "inputs": {
+      "interface": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
+      "digital_rtl": "dir_text:08d2e63a30253fb8dcb71be29ca5aa7209711132e317fcb0e4bc99f0e226a305",
+      "analog_layout": "dir_text:7a954c277f279e0a8b3d75e97ed6833bf445cf7e04f4ec0eefae35be290d869d"
+     },
+     "job": null
+    },
+    {
+     "ts": "2026-10-13T08:54:17",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "interface": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
+      "digital_rtl": "dir_text:08d2e63a30253fb8dcb71be29ca5aa7209711132e317fcb0e4bc99f0e226a305",
+      "analog_layout": "dir_text:7a954c277f279e0a8b3d75e97ed6833bf445cf7e04f4ec0eefae35be290d869d"
+     },
+     "job": null
+    }
+   ]
+  }
+ },
+ "jobs": {
+  "1": {
+   "gate": "top_harden",
+   "pid": 123132,
+   "started": "2026-09-25T09:41:09",
+   "finished": "2026-09-25T09:42:14",
+   "status": "done",
+   "log": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/log/jobs/job-1.log",
+   "result": {
+    "exit_code": 1
+   }
+  },
+  "2": {
+   "gate": "top_harden",
+   "pid": 46633,
+   "started": "2026-10-13T04:22:51",
+   "finished": "2026-10-13T04:53:16",
+   "status": "done",
+   "log": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/log/jobs/job-2.log",
+   "result": {
+    "exit_code": 1
+   }
+  },
+  "3": {
+   "gate": "top_harden",
+   "pid": 64309,
+   "started": "2026-10-13T04:25:51",
+   "finished": "2026-10-13T04:53:16",
+   "status": "done",
+   "log": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/log/jobs/job-3.log",
+   "result": {
+    "exit_code": 1
+   }
+  },
+  "4": {
+   "gate": "top_harden",
+   "pid": 94165,
+   "started": "2026-10-13T04:52:27",
+   "finished": "2026-10-13T04:53:16",
+   "status": "dead",
+   "log": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/log/jobs/job-4.log",
+   "result": null
+  },
+  "5": {
+   "gate": "top_harden",
+   "pid": 2617,
+   "started": "2026-10-13T04:53:46",
+   "finished": "2026-10-13T04:55:01",
+   "status": "done",
+   "log": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/log/jobs/job-5.log",
+   "result": {
+    "exit_code": 1
+   }
+  }
+ },
+ "holdout": null,
+ "optimise": null,
+ "human": {
+  "H2": {
+   "status": "approved",
+   "challenge": "H2-1452e6",
+   "digest": "b7b420cc730085563da85ec07264f9808a2ca4a4328b47a98b7009934ea3be34",
+   "presented": "2026-10-13T08:54:57",
+   "phase": "P4",
+   "ts": "2026-10-14T11:43:22",
+   "answer": "approve H2-1452e6 H2-4da295 H2-a7bfe1",
+   "note": "The owner, top-level in #ece298a-dac-asks, slack:C0C96C5EUTT/1791992460.038239 (2026-10-14)."
+  }
+ },
+ "artifacts": {
+  "interface": {
+   "path": "interface.yaml",
+   "kind": "interface",
+   "sha256": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
+   "hashed": "2026-10-13T08:54:17"
+  },
+  "digital_rtl": {
+   "path": "digital/rtl",
+   "kind": "digital_rtl",
+   "sha256": "dir_text:08d2e63a30253fb8dcb71be29ca5aa7209711132e317fcb0e4bc99f0e226a305",
+   "hashed": "2026-10-13T08:54:17"
+  },
+  "analog_layout": {
+   "path": "analog/layout",
+   "kind": "analog_layout",
+   "sha256": "dir_text:7a954c277f279e0a8b3d75e97ed6833bf445cf7e04f4ec0eefae35be290d869d",
+   "hashed": "2026-10-13T08:54:17"
+  },
+  "tb": {
+   "path": "tb",
+   "kind": "tb",
+   "sha256": "dir_text:6d268ee04c3897081fd652d35a7650f962dbe6629ba0d6155c28e2b335149a8d",
+   "hashed": "2026-10-13T06:23:32"
+  },
+  "analog_netlist": {
+   "path": "analog/netlist",
+   "kind": "analog_netlist",
+   "sha256": "dir_text:13970a2f19f36bd8aa49baa3a94132821e16917455715ba77b23b074b4551548",
+   "hashed": "2026-10-13T06:23:32"
+  },
+  "analog_sizing": {
+   "path": "analog/sizing/sizing.yaml",
+   "kind": "analog_sizing",
+   "sha256": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
+   "hashed": "2026-10-13T06:23:32"
+  },
+  "top_gds": {
+   "path": "top/harden/runs/run/final/gds",
+   "kind": "top_gds",
+   "sha256": "dir_text:0905acb9d74b569267319ec4a715fa4e5d5ec532738e6ebae11026f5a3528035",
+   "hashed": "2026-10-13T08:53:47"
+  }
+ },
+ "open_issues": [
+  {
+   "id": 1,
+   "status": "fixed",
+   "agent": null,
+   "attempts": 0,
+   "opened": "2026-10-13T04:23:28",
+   "closed": "2026-10-13T04:25:51",
+   "gate": "top_harden",
+   "phase": "P3",
+   "fixer": "review",
+   "kinds": [
+    "macro_power_unreachable"
+   ],
+   "severity": "error",
+   "count": 2,
+   "work_order": "log/workorders/wo-1.json"
+  },
+  {
+   "id": 2,
+   "status": "fixed",
+   "agent": null,
+   "attempts": 0,
+   "opened": "2026-10-13T04:47:33",
+   "closed": "2026-10-13T08:54:11",
+   "gate": "top_harden",
+   "phase": "P3",
+   "fixer": "harden",
+   "kinds": [
+    "flow_step_failed"
+   ],
+   "severity": "error",
+   "count": 1,
+   "work_order": "log/workorders/wo-2.json"
+  }
+ ],
+ "next_issue_id": 3,
+ "next_job_id": 6,
+ "budgets": {
+  "fix_loops": {
+   "top_harden": 1
+  }
+ },
+ "decisions": [],
+ "edits": [
+  {
+   "ts": "2026-09-25T08:49:01",
+   "class": "interface_edit",
+   "refs": [],
+   "note": "round 2: ua_pins vout->ua[0]",
+   "human_hold": 2,
+   "gates": [
+    "split",
+    "cosim",
+    "top_harden",
+    "top_drc",
+    "top_lvs",
+    "precheck",
+    "release"
+   ],
+   "gates_marked": [
+    "split"
+   ],
+   "stale_artifacts": []
+  }
+ ],
+ "spawns": [
+  {
+   "ts": "2026-09-25T05:42:22",
+   "role": "splitter",
+   "model": "claude-fable-5-1",
+   "phase": "P1"
+  }
+ ],
+ "history": [
+  {
+   "ts": "2026-09-25T05:42:01",
+   "event": "init",
+   "skill": "msde",
+   "block": "r2r_dac",
+   "phase": "P0"
+  },
+  {
+   "ts": "2026-09-25T05:42:16",
+   "event": "phase",
+   "phase": "P1",
+   "prev": "P0"
+  },
+  {
+   "ts": "2026-09-25T05:42:22",
+   "event": "spawn",
+   "role": "splitter",
+   "model": "claude-fable-5-1"
+  },
+  {
+   "ts": "2026-09-25T05:45:57",
+   "event": "gate",
+   "gate": "split",
+   "status": "pass",
+   "attempt": 1,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-09-25T05:46:41",
+   "event": "phase",
+   "phase": "P2",
+   "prev": "P1"
+  },
+  {
+   "ts": "2026-09-25T08:49:01",
+   "event": "edit",
+   "edit_class": "interface_edit",
+   "refs": [],
+   "human_hold": 2
+  },
+  {
+   "ts": "2026-09-25T08:49:02",
+   "event": "gate",
+   "gate": "split",
+   "status": "pass",
+   "attempt": 2,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-09-25T09:41:09",
+   "event": "job_start",
+   "job": "1",
+   "gate": "top_harden",
+   "pid": 123132
+  },
+  {
+   "ts": "2026-09-25T09:42:09",
+   "event": "gate",
+   "gate": "top_harden",
+   "status": "fail",
+   "attempt": 1,
+   "failing_count": 1
+  },
+  {
+   "ts": "2026-09-25T09:42:14",
+   "event": "job_update",
+   "job": "1",
+   "status": "done"
+  },
+  {
+   "ts": "2026-10-13T04:22:51",
+   "event": "job_start",
+   "job": "2",
+   "gate": "top_harden",
+   "pid": 46633
+  },
+  {
+   "ts": "2026-10-13T04:22:53",
+   "event": "gate",
+   "gate": "top_harden",
+   "status": "fail",
+   "attempt": 2,
+   "failing_count": 2
+  },
+  {
+   "ts": "2026-10-13T04:23:28",
+   "event": "budget_defaulted",
+   "path": "fix_loops.top_harden",
+   "value": 3
+  },
+  {
+   "ts": "2026-10-13T04:23:28",
+   "event": "budget",
+   "path": "fix_loops.top_harden",
+   "remaining": 2
+  },
+  {
+   "ts": "2026-10-13T04:23:28",
+   "event": "issue_open",
+   "id": 1,
+   "gate": "top_harden",
+   "fixer": "review",
+   "kinds": [
+    "macro_power_unreachable"
+   ]
+  },
+  {
+   "ts": "2026-10-13T04:25:51",
+   "event": "issue",
+   "id": 1,
+   "status": "fixed",
+   "agent": null,
+   "attempts": 0
+  },
+  {
+   "ts": "2026-10-13T04:25:51",
+   "event": "job_start",
+   "job": "3",
+   "gate": "top_harden",
+   "pid": 64309
+  },
+  {
+   "ts": "2026-10-13T04:46:54",
+   "event": "gate",
+   "gate": "top_harden",
+   "status": "fail",
+   "attempt": 3,
+   "failing_count": 1
+  },
+  {
+   "ts": "2026-10-13T04:47:32",
+   "event": "budget",
+   "path": "fix_loops.top_harden",
+   "remaining": 1
+  },
+  {
+   "ts": "2026-10-13T04:47:33",
+   "event": "issue_open",
+   "id": 2,
+   "gate": "top_harden",
+   "fixer": "harden",
+   "kinds": [
+    "flow_step_failed"
+   ]
+  },
+  {
+   "ts": "2026-10-13T04:52:27",
+   "event": "job_start",
+   "job": "4",
+   "gate": "top_harden",
+   "pid": 94165
+  },
+  {
+   "ts": "2026-10-13T04:53:16",
+   "event": "job_update",
+   "job": "2",
+   "status": "done"
+  },
+  {
+   "ts": "2026-10-13T04:53:16",
+   "event": "job_update",
+   "job": "3",
+   "status": "done"
+  },
+  {
+   "ts": "2026-10-13T04:53:16",
+   "event": "job_update",
+   "job": "4",
+   "status": "dead"
+  },
+  {
+   "ts": "2026-10-13T04:53:46",
+   "event": "job_start",
+   "job": "5",
+   "gate": "top_harden",
+   "pid": 2617
+  },
+  {
+   "ts": "2026-10-13T04:55:01",
+   "event": "gate",
+   "gate": "top_harden",
+   "status": "fail",
+   "attempt": 4,
+   "failing_count": 1
+  },
+  {
+   "ts": "2026-10-13T04:55:01",
+   "event": "job_update",
+   "job": "5",
+   "status": "done"
+  },
+  {
+   "ts": "2026-10-13T06:23:04",
+   "event": "gate",
+   "gate": "cosim",
+   "status": "pass",
+   "attempt": 1,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-13T06:23:20",
+   "event": "gate",
+   "gate": "cosim",
+   "status": "pass",
+   "attempt": 2,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-13T06:23:32",
+   "event": "gate",
+   "gate": "cosim",
+   "status": "pass",
+   "attempt": 3,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-13T06:32:26",
+   "event": "gate",
+   "gate": "top_harden",
+   "status": "fail",
+   "attempt": 5,
+   "failing_count": 1
+  },
+  {
+   "ts": "2026-10-13T07:10:54",
+   "event": "gate",
+   "gate": "top_harden",
+   "status": "pass",
+   "attempt": 6,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-13T07:11:47",
+   "event": "gate",
+   "gate": "top_drc",
+   "status": "fail",
+   "attempt": 1,
+   "failing_count": 1
+  },
+  {
+   "ts": "2026-10-13T07:13:27",
+   "event": "gate",
+   "gate": "precheck",
+   "status": "fail",
+   "attempt": 1,
+   "failing_count": 1
+  },
+  {
+   "ts": "2026-10-13T07:51:26",
+   "event": "gate",
+   "gate": "top_lvs",
+   "status": "pass",
+   "attempt": 1,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-13T08:52:29",
+   "event": "gate",
+   "gate": "top_harden",
+   "status": "pass",
+   "attempt": 7,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-13T08:53:08",
+   "event": "gate",
+   "gate": "top_drc",
+   "status": "pass",
+   "attempt": 2,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-13T08:53:10",
+   "event": "gate",
+   "gate": "top_lvs",
+   "status": "pass",
+   "attempt": 2,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-13T08:53:47",
+   "event": "gate",
+   "gate": "precheck",
+   "status": "pass",
+   "attempt": 2,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-13T08:53:57",
+   "event": "gate",
+   "gate": "release",
+   "status": "fail",
+   "attempt": 1,
+   "failing_count": 1
+  },
+  {
+   "ts": "2026-10-13T08:54:11",
+   "event": "issue",
+   "id": 2,
+   "status": "fixed",
+   "agent": null,
+   "attempts": 0
+  },
+  {
+   "ts": "2026-10-13T08:54:17",
+   "event": "gate",
+   "gate": "release",
+   "status": "pass",
+   "attempt": 2,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-13T08:54:50",
+   "event": "phase",
+   "phase": "P3",
+   "prev": "P2"
+  },
+  {
+   "ts": "2026-10-13T08:54:50",
+   "event": "phase",
+   "phase": "P4",
+   "prev": "P3"
+  },
+  {
+   "ts": "2026-10-13T08:54:57",
+   "event": "human_presented",
+   "checkpoint": "H2",
+   "challenge": "H2-1452e6",
+   "digest": "b7b420cc730085563da85ec07264f9808a2ca4a4328b47a98b7009934ea3be34"
+  },
+  {
+   "ts": "2026-10-14T11:43:22",
+   "event": "human",
+   "checkpoint": "H2",
+   "status": "approved",
+   "challenge": "H2-1452e6"
+  }
+ ]
+}

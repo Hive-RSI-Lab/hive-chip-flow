@@ -1,0 +1,45 @@
+{
+ "script": "gate",
+ "gate": "lvs",
+ "phase": "P5",
+ "tool": "analog_lvs",
+ "input_digest": "dir_text:7a954c277f279e0a8b3d75e97ed6833bf445cf7e04f4ec0eefae35be290d869d",
+ "status": "pass",
+ "criteria": {
+  "fail_severities": [
+   "error"
+  ],
+  "max_count": 0
+ },
+ "counts": {
+  "total": 0,
+  "by_severity": {},
+  "by_source": {}
+ },
+ "failing_count": 0,
+ "failing": [],
+ "violations": [],
+ "facts": {
+  "topcell": "r2r_dac_analog",
+  "gds": "layout/r2r_dac_analog.gds",
+  "reference": "netlist/r2r_dac_analog.cir",
+  "reference_cell": "r2r_dac_analog",
+  "sizing_applied": {
+   "ru_w": 2e-06,
+   "ru_l": 0.00015,
+   "rb_l": 0.00014836
+  },
+  "std_cells_flattened": [
+   "gf180mcu_fd_sc_mcu7t5v0__buf_20"
+  ],
+  "log": "log/lvs/netgen_lvs.log"
+ },
+ "inputs_at_start": {
+  "layout": "dir_text:7a954c277f279e0a8b3d75e97ed6833bf445cf7e04f4ec0eefae35be290d869d",
+  "netlist": "dir_text:13970a2f19f36bd8aa49baa3a94132821e16917455715ba77b23b074b4551548",
+  "spec_yaml": "json_canonical:99047ed51c88b1767b136d48e2c3832967daa1e22eec34905494620acacea45d",
+  "sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df"
+ },
+ "recorded_ts": "2026-10-13T06:13:11",
+ "attempts": 6
+}

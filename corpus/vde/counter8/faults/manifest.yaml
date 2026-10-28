@@ -1,0 +1,78 @@
+# faults manifest (docs/design.md section 3, "### M2."): one entry per gate
+# this rung demonstrates. faults.py copies the rung into a scratch
+# workspace, imports plant.py's `plant(ws)` and runs it, then runs `gate`
+# and checks the result against `expect` - `status` is gate.py's own
+# pass|fail vocabulary, `kind` is a kind from the failing findings list.
+version: 1
+faults:
+  - name: spec_lint_requirement_no_check
+    gate: spec_lint
+    plant: plant_spec_lint.py
+    expect: {status: fail, kind: requirement_no_check}
+  - name: lint_latch
+    gate: lint
+    plant: plant_lint.py
+    expect: {status: fail, kind: LATCH}
+  - name: sim_wraps_one_early
+    gate: sim
+    plant: plant_sim.py
+    expect: {status: fail, kind: test_failed}
+  - name: holdout_delayed_reset
+    gate: holdout
+    plant: plant_holdout.py
+    expect: {status: fail, kind: holdout_failed}
+  - name: mutate_asserts_nothing
+    gate: mutate
+    plant: plant_mutate.py
+    expect: {status: fail, kind: kill_rate_below_threshold}
+  # --- M3 (docs/design.md "### M3.") --------------------------------------
+  - name: formal_register_with_no_reset
+    gate: formal
+    plant: plant_formal.py
+    expect: {status: fail, kind: property_failed}
+  - name: cover_unreachable_state
+    gate: cover
+    plant: plant_cover.py
+    expect: {status: fail, kind: line_coverage_below_threshold}
+  - name: synth_combinational_loop
+    gate: synth
+    plant: plant_synth.py
+    expect: {status: fail, kind: combinational_loop}
+  - name: release_rtl_changed_after_sim
+    gate: release
+    plant: plant_release.py
+    expect: {status: fail, kind: gate_not_ready}
+  # --- M4 (docs/design.md "### M4.") --------------------------------------
+  # harden/timing/drc/lvs/glsim/precheck's own faults, all on this rung
+  # (the fastest to harden of the three) - each plant() below runs
+  # check_harden.run() itself (these gates read
+  # harden's own output on disk, not anything faults.py records) before the
+  # named gate is asked to evaluate it; see each plant_<gate>.py for why.
+  - name: harden_design_too_large_for_tile
+    gate: harden
+    plant: plant_harden.py
+    expect: {status: fail, kind: flow_step_failed}
+  - name: timing_chain_misses_clock
+    gate: timing
+    plant: plant_timing.py
+    expect: {status: fail, kind: setup_violation}
+  - name: drc_metal_spacing_violation
+    gate: drc
+    plant: plant_drc.py
+    expect: {status: fail, kind: magic_drc_violation}
+  - name: lvs_extracted_net_split
+    gate: lvs
+    plant: plant_lvs.py
+    expect: {status: fail, kind: netlist_mismatch}
+  - name: glsim_functional_bug_through_gate_level
+    gate: glsim
+    plant: plant_glsim.py
+    expect: {status: fail, kind: test_failed}
+  - name: glsim_slow_clock_to_q_only_in_sdf
+    gate: glsim
+    plant: plant_glsim_sdf.py
+    expect: {status: fail, kind: test_failed}
+  - name: precheck_wrong_top_module_name
+    gate: precheck
+    plant: plant_precheck.py
+    expect: {status: fail, kind: precheck_failed}

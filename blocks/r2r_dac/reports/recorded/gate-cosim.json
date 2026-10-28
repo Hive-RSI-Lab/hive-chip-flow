@@ -1,0 +1,64 @@
+{
+ "script": "gate",
+ "gate": "cosim",
+ "phase": "P3",
+ "tool": "cosim",
+ "input_digest": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
+ "status": "pass",
+ "criteria": {
+  "fail_severities": [
+   "error"
+  ],
+  "max_count": 0
+ },
+ "counts": {
+  "total": 0,
+  "by_severity": {},
+  "by_source": {}
+ },
+ "failing_count": 0,
+ "failing": [],
+ "violations": [],
+ "facts": {
+  "top": "r2r_dac_cosim_top",
+  "analog_netlist": "r2r_ideal.sp",
+  "analog_kind": "ideal",
+  "measures": {
+   "dnl_max_abs": 0.005710884825676943,
+   "inl_max_abs": 0.005717054271624683,
+   "monotonic": 1,
+   "v_zero": 0.0,
+   "v_full_scale": 3.2870425813057462,
+   "fs_gain_err_lsb": -0.005181571433020123,
+   "t_settle_rise": 1.19082412904565e-06,
+   "t_settle_fall": 1.1868241290488513e-06,
+   "dac_code_mismatches": 0,
+   "codes_sampled": 256,
+   "digital_toggles": 6,
+   "edge_times_ns": [
+    133280.0,
+    263920.0,
+    266440.0,
+    268960.0,
+    271480.0,
+    274000.0
+   ],
+   "spice_time_reached_ns": 276324.8241290439,
+   "analog_model": "r2r_ideal.sp (ideal drivers, nominal 27k ladder, 100 ohm + 7 pF pad)"
+  },
+  "tests_run": [
+   "test_r2r_dac_cosim"
+  ],
+  "ngspice_signatures": [],
+  "ic_ignored_nodes": []
+ },
+ "inputs_at_start": {
+  "interface": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
+  "tb": "dir_text:6d268ee04c3897081fd652d35a7650f962dbe6629ba0d6155c28e2b335149a8d",
+  "digital_rtl": "dir_text:08d2e63a30253fb8dcb71be29ca5aa7209711132e317fcb0e4bc99f0e226a305",
+  "analog_netlist": "dir_text:13970a2f19f36bd8aa49baa3a94132821e16917455715ba77b23b074b4551548",
+  "analog_sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df"
+ },
+ "recorded_ts": "2026-10-13T06:23:32",
+ "attempts": 3
+}

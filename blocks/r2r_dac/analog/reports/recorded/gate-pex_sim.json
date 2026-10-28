@@ -1,0 +1,50 @@
+{
+ "script": "gate",
+ "gate": "pex_sim",
+ "phase": "P5",
+ "tool": "pex_sim",
+ "input_digest": "dir_text:7a954c277f279e0a8b3d75e97ed6833bf445cf7e04f4ec0eefae35be290d869d",
+ "status": "pass",
+ "criteria": {
+  "fail_severities": [
+   "error"
+  ],
+  "max_count": 0
+ },
+ "counts": {
+  "total": 0,
+  "by_severity": {},
+  "by_source": {}
+ },
+ "failing_count": 0,
+ "failing": [],
+ "violations": [],
+ "facts": {
+  "topcell": "r2r_dac_analog",
+  "gds": "layout/r2r_dac_analog.gds",
+  "extracted": "log/pex_sim/r2r_dac_analog.pex.ordered.spice",
+  "parasitics": {
+   "r": 2910,
+   "c": 2084
+  },
+  "measured": {
+   "t_settle_rise": 1.20185e-06,
+   "t_settle_fall": 1.19719e-06,
+   "t_rise_10_90": 4.235e-07,
+   "t_fall_10_90": 4.215e-07,
+   "glitch_energy_up": 2.37538e-11,
+   "glitch_energy_down": 1.48797e-11,
+   "glitch_peak_up": 0.0218317,
+   "glitch_peak_down": 0.0224801
+  }
+ },
+ "inputs_at_start": {
+  "layout": "dir_text:7a954c277f279e0a8b3d75e97ed6833bf445cf7e04f4ec0eefae35be290d869d",
+  "tb": "dir_text:bd1a8539e7092bb573bd6811f95fc170b4fce78f2829463999ce0bfe4f4a0609",
+  "layout_ref": "dir_text:5d154f2a5ad18af4700b7c34b6bcdf6cc30b8e4429b27e5057c69d507921ac60",
+  "netlist": "dir_text:13970a2f19f36bd8aa49baa3a94132821e16917455715ba77b23b074b4551548",
+  "spec_yaml": "json_canonical:99047ed51c88b1767b136d48e2c3832967daa1e22eec34905494620acacea45d"
+ },
+ "recorded_ts": "2026-10-13T06:18:12",
+ "attempts": 1
+}

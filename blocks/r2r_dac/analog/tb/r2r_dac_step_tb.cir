@@ -1,0 +1,137 @@
+* r2r_dac_step_tb.cir - full-scale step bench for r2r_dac_analog (P3
+* spec bench, round 2 revision onto templates/step_settle_tb.cir; written
+* from spec/spec.md, spec/spec.yaml, spec/topology.md only). Siblings:
+* r2r_dac_tb.cir (static: DNL/INL/offset/gain/sensitivity/i_vdd_avg) and
+* r2r_dac_glitch_tb.cir (mid-code glitches).
+*
+* sim_timeout_s: 600
+*
+* Measures (spec.yaml names): t_settle_rise, t_settle_fall, t_rise_10_90,
+* t_fall_10_90, i_vdd_peak (also scored by the glitch bench: the peak
+* over the two benches is the peak over every transition the spec names).
+*
+* WINDOW (template rule): t_win = max(5 x t_bound, 20 x tau_exp) with
+* t_bound = 1.5 us (spec.yaml t_settle_rise/fall) and tau_exp = 230 ns
+* (spec.md round 2: 27k x 7 pF = 189 ns at tt, +20 % rsh at ss) ->
+* t_win = 7.5 us per edge. Never a fixed 100 ns window.
+*
+* Stimulus (edge = centre of a 100 ps input edge; all eight dac_code bits
+* switch together, ideal 0/VDD sources per spec.md Interface):
+*   0..t_r            code 0 (operating point first, no uic)
+*   t_r = 20 ns       0 -> 255, window t_r .. t_f       (rise measures)
+*   t_f = t_r+t_win   255 -> 0, window t_f .. t_stop    (fall measures)
+*
+* Definitions (spec.md Measures):
+*   settle: from the code edge until vout last lies outside final +-
+*           VDD/512 (0.5 LSB of the corner's own rail); final = vout at the
+*           window end.
+*   VERDICT (template): an edge counts as settled only when vout stays in
+*           the band for the last 20 % of its window AND moved at least half
+*           the ideal 255/256*VDD step; otherwise the bench prints
+*           `t_settle_<dir> = not_settled` (a sim_not_settled finding), never
+*           a number clamped to the window.
+*   10-90:  first time vout passes v0 + 10 % and + 90 % of (vfinal - v0),
+*           v0 = vout just before the edge. From masked vectors: a waveform
+*           that never gets there scores ~1 s (fails its bound).
+*
+* Pad load ASSUMED (spec.md): R_pad = 100 ohm in series with C_load = 7 pF,
+* one parameter each. Corners: {{CORNER}} FET section + {{RES_CORNER}}
+* resistor section (sim_run.RES_LIB_SECTION).
+
+.include '{{PDK}}/libs.tech/ngspice/design.ngspice'
+.lib '{{PDK}}/libs.tech/ngspice/sm141064.spice' {{CORNER}}
+.lib '{{PDK}}/libs.tech/ngspice/sm141064.spice' {{RES_CORNER}}
+.include '{{PDK}}/libs.ref/gf180mcu_fd_sc_mcu7t5v0/spice/gf180mcu_fd_sc_mcu7t5v0.spice'
+.include '{{NETLIST}}'
+{{SIZING}}
+
+.temp {{TEMP_C}}
+.param vddp={{VDD}}
+.param r_pad=100 c_load=7p
+.param t_bound=1.5u tau_exp=230n nbits=8 dv_ideal='255/256*vddp'
+.param t_r=20n t_win='max(5*t_bound, 20*tau_exp)'
+.param t_f='t_r+t_win'
+.csparam t_r={t_r}
+.csparam t_f={t_f}
+.csparam t_pre_r={t_r-0.1n}
+.csparam t_pre_f={t_f-0.1n}
+.csparam t_stop={t_f+t_win}
+.csparam t_end_f={t_f+t_win-0.1n}
+.csparam t_tail_r={t_r+0.8*t_win}
+.csparam t_tail_f={t_f+0.8*t_win}
+.csparam band={vddp/2**(nbits+1)}
+.csparam dv_ideal={dv_ideal}
+.csparam t_max={t_win/2000}
+
+vdd vdd 0 {vddp}
+vss vss 0 0
+
+* --- DUT BEGIN
+* dac_code[k] = b<k>, ideal 0/VDD PWL, 100 ps edges at t_r (up) and t_f (down)
+vb7 b7 0 pwl(0 0 {t_r-0.05n} 0 {t_r+0.05n} {vddp} {t_f-0.05n} {vddp} {t_f+0.05n} 0)
+vb6 b6 0 pwl(0 0 {t_r-0.05n} 0 {t_r+0.05n} {vddp} {t_f-0.05n} {vddp} {t_f+0.05n} 0)
+vb5 b5 0 pwl(0 0 {t_r-0.05n} 0 {t_r+0.05n} {vddp} {t_f-0.05n} {vddp} {t_f+0.05n} 0)
+vb4 b4 0 pwl(0 0 {t_r-0.05n} 0 {t_r+0.05n} {vddp} {t_f-0.05n} {vddp} {t_f+0.05n} 0)
+vb3 b3 0 pwl(0 0 {t_r-0.05n} 0 {t_r+0.05n} {vddp} {t_f-0.05n} {vddp} {t_f+0.05n} 0)
+vb2 b2 0 pwl(0 0 {t_r-0.05n} 0 {t_r+0.05n} {vddp} {t_f-0.05n} {vddp} {t_f+0.05n} 0)
+vb1 b1 0 pwl(0 0 {t_r-0.05n} 0 {t_r+0.05n} {vddp} {t_f-0.05n} {vddp} {t_f+0.05n} 0)
+vb0 b0 0 pwl(0 0 {t_r-0.05n} 0 {t_r+0.05n} {vddp} {t_f-0.05n} {vddp} {t_f+0.05n} 0)
+
+* DUT, pins in topology.md order: dac_code[7..0] vout vdd vss
+xdut b7 b6 b5 b4 b3 b2 b1 b0 vout vdd vss r2r_dac_analog
+
+rpad vout vpad {r_pad}
+cload vpad 0 {c_load}
+* --- DUT END
+
+.control
+set noaskquit
+save v(vout) v(vdd) i(vdd)
+tran 10p $&t_stop 0 $&t_max
+let vo = v(vout)
+let tt = time
+let ivdd = -i(vdd)
+
+* rise: edge t_r, window t_r .. t_f
+meas tran v0r find v(vout) at=$&t_pre_r
+meas tran vfr find v(vout) at=$&t_pre_f
+let win = (tt gt t_r) * (tt lt t_pre_f)
+let outb = (abs(vo - vfr) gt band) * win
+let t_last_r = vecmax(outb*tt)
+let t_settle_rise = t_last_r - t_r
+let c10 = (vo gt (v0r + 0.1*(vfr-v0r))) * win
+let c90 = (vo gt (v0r + 0.9*(vfr-v0r))) * win
+let t_rise_10_90 = vecmin(c90*tt + (1-c90)) - vecmin(c10*tt + (1-c10))
+
+* fall: edge t_f, window t_f .. t_stop
+meas tran v0f find v(vout) at=$&t_pre_f
+meas tran vff find v(vout) at=$&t_end_f
+let win = (tt gt t_f) * (tt le t_stop)
+let outb = (abs(vo - vff) gt band) * win
+let t_last_f = vecmax(outb*tt)
+let t_settle_fall = t_last_f - t_f
+let c10 = (vo lt (v0f - 0.1*(v0f-vff))) * win
+let c90 = (vo lt (v0f - 0.9*(v0f-vff))) * win
+let t_fall_10_90 = vecmin(c90*tt + (1-c90)) - vecmin(c10*tt + (1-c10))
+
+let i_vdd_peak = vecmax(ivdd)
+
+echo
+echo "  Measurements for Transient Analysis (r2r_dac_step_tb, computed in .control)"
+if (t_last_r gt t_tail_r) | (abs(vfr - v0r) lt 0.5*dv_ideal)
+  echo "t_settle_rise = not_settled"
+else
+  echo "t_settle_rise = $&t_settle_rise"
+end
+if (t_last_f gt t_tail_f) | (abs(vff - v0f) lt 0.5*dv_ideal)
+  echo "t_settle_fall = not_settled"
+else
+  echo "t_settle_fall = $&t_settle_fall"
+end
+echo "t_rise_10_90 = $&t_rise_10_90"
+echo "t_fall_10_90 = $&t_fall_10_90"
+echo "i_vdd_peak = $&i_vdd_peak"
+echo
+.endc
+
+.end

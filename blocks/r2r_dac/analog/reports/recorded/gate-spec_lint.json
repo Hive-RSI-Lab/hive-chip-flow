@@ -1,0 +1,27 @@
+{
+ "script": "gate",
+ "gate": "spec_lint",
+ "phase": "P1",
+ "tool": "spec_lint_ade",
+ "input_digest": "json_canonical:99047ed51c88b1767b136d48e2c3832967daa1e22eec34905494620acacea45d",
+ "status": "pass",
+ "criteria": {
+  "fail_severities": [
+   "error"
+  ],
+  "max_count": 0
+ },
+ "counts": {
+  "total": 0,
+  "by_severity": {},
+  "by_source": {}
+ },
+ "failing_count": 0,
+ "failing": [],
+ "violations": [],
+ "inputs_at_start": {
+  "spec_yaml": "json_canonical:99047ed51c88b1767b136d48e2c3832967daa1e22eec34905494620acacea45d"
+ },
+ "recorded_ts": "2026-10-13T06:11:08",
+ "attempts": 9
+}

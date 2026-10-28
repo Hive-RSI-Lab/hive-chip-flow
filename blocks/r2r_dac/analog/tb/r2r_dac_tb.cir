@@ -1,0 +1,161 @@
+* r2r_dac_tb.cir - static (DC) bench for r2r_dac_analog (P3 spec bench,
+* written from spec/spec.md, spec/spec.yaml and spec/topology.md only).
+*
+* sim_timeout_s: 600  (256-code sweep plus 66 one-unit +-1 % re-sweeps: timed out at 60 s at ff/125 C on a loaded host)
+*
+* Measures (spec.yaml names): dnl_max_abs, inl_max_abs, monotonic,
+* v_zero_offset, fs_gain_err_lsb, inl_sens_1pct_max, i_vdd_avg.
+* Siblings: r2r_dac_step_tb.cir (settling, 10-90, i_vdd_peak) and
+* r2r_dac_glitch_tb.cir (mid-code glitches, i_vdd_peak).
+*
+* i_vdd_avg: mean vdd current over the 256 codes - the average over spec.md's
+* full-code sweep with each code held until settled (200 ns), where the
+* static ladder current dominates; the switching charge per code edge
+* (7 pF x ~1 LSB plus the driver nodes) adds well under 1 % at 200 ns/code.
+*
+* Method: a DC sweep of an integer "code" source 0..255 step 1; eight
+* behavioural sources decode it to the eight dac_code bits at 0 / VDD
+* (ideal CMOS levels, as spec.md's Interface says the bench drives them).
+* A DC point is the fully-settled limit of spec.md's "hold each code long
+* enough to settle (e.g. 200 ns)": it reads the same end-of-step value
+* without a 51 us transient. vout drives the assumed pad load (R_pad in
+* series with C_load; C is open at DC). LSB_meas = (v(255)-v(0))/255,
+* end-point fit, exactly spec.md's Measures table.
+*
+* inl_sens_1pct_max: each unit resistor +1 % and -1 %, one at a time, INL
+* re-evaluated over all 256 codes. Re-sweeping 50 times costs 2-3 min per
+* corner (past sim_run's 60 s timeout), so the perturbed transfer curve is
+* computed from two sweeps by reciprocity, exact to first order in dR:
+*   dv_out(code) = dR_j * I_j(code) * dI_j(code) / d_inj
+* I_j = unit j's current in the nominal sweep; dI_j = the change of that
+* current when a small test current d_inj (iinj, 10 uA) is injected into
+* vout in a second sweep - the small-signal transfer from a series EMF in
+* unit j to vout, at every code's own driver operating point (the driver
+* Ron nonlinearity and the pull-up/pull-down asymmetry are included; only
+* the dR^2 term, ~1 % of the change, is dropped). dR_j = 0.01 * R_unit,
+* R_unit = rt1 + rt2 + body, read from the sweep (the PDK's ppolyf_u body
+* is a behavioural element, so its R is V(body)/I). The unit list is
+* spec.yaml's `devices` resistor refdes (topology.md): a unit missing from
+* the netlist is a `no such device`/vector error, never a silent skip.
+*
+* Corners: {{CORNER}} selects the FET section, {{RES_CORNER}} the matching
+* resistor section (sim_run.RES_LIB_SECTION: typical/ss/ff -> res_typical/
+* res_ss/res_ff; sf/fs -> res_typical, the PDK has no res_sf/res_fs).
+
+.include '{{PDK}}/libs.tech/ngspice/design.ngspice'
+.lib '{{PDK}}/libs.tech/ngspice/sm141064.spice' {{CORNER}}
+.lib '{{PDK}}/libs.tech/ngspice/sm141064.spice' {{RES_CORNER}}
+.include '{{PDK}}/libs.ref/gf180mcu_fd_sc_mcu7t5v0/spice/gf180mcu_fd_sc_mcu7t5v0.spice'
+.include '{{NETLIST}}'
+{{SIZING}}
+
+* tight tolerances: INL is read to 0.01 LSB (0.13 mV); the default
+* reltol=1e-3 leaves up to ~1 mV of solver noise on a 1.6 V node
+.options reltol=1e-6 vntol=1e-9 abstol=1e-13
+.temp {{TEMP_C}}
+.param vddp={{VDD}}
+* assumed TT ua[0] pad load (spec.md "Values chosen"), one parameter each
+.param r_pad=100 c_load=7p
+
+vdd vdd 0 {vddp}
+vss vss 0 0
+
+* integer code, swept 0..255 by the .control block below
+vcode code 0 0
+* bit k of the code at ideal CMOS levels (0.25 guards the floor at integers)
+bc7 b7 0 v={vddp*(floor((v(code)+0.25)/128) - 2*floor((v(code)+0.25)/256))}
+bc6 b6 0 v={vddp*(floor((v(code)+0.25)/64)  - 2*floor((v(code)+0.25)/128))}
+bc5 b5 0 v={vddp*(floor((v(code)+0.25)/32)  - 2*floor((v(code)+0.25)/64))}
+bc4 b4 0 v={vddp*(floor((v(code)+0.25)/16)  - 2*floor((v(code)+0.25)/32))}
+bc3 b3 0 v={vddp*(floor((v(code)+0.25)/8)   - 2*floor((v(code)+0.25)/16))}
+bc2 b2 0 v={vddp*(floor((v(code)+0.25)/4)   - 2*floor((v(code)+0.25)/8))}
+bc1 b1 0 v={vddp*(floor((v(code)+0.25)/2)   - 2*floor((v(code)+0.25)/4))}
+bc0 b0 0 v={vddp*(floor((v(code)+0.25)/1)   - 2*floor((v(code)+0.25)/2))}
+
+* DUT, pins in topology.md order:
+* dac_code[7..0] vout vdd vss
+xdut b7 b6 b5 b4 b3 b2 b1 b0 vout vdd vss r2r_dac_analog
+
+* pad load
+rpad vout vpad {r_pad}
+cload vpad 0 {c_load}
+* test current for inl_sens_1pct_max (0 except in the reciprocity sweep)
+iinj 0 vout 0
+
+.control
+set noaskquit
+save v(vout) v(vdd) i(vdd)
+save @r.xdut.xrb7a.rt1[i] @r.xdut.xrb7a.rt1[resistance] @r.xdut.xrb7a.rt2[resistance] v(xdut.xrb7a.11) v(xdut.xrb7a.21)
+save @r.xdut.xrb7b.rt1[i] @r.xdut.xrb7b.rt1[resistance] @r.xdut.xrb7b.rt2[resistance] v(xdut.xrb7b.11) v(xdut.xrb7b.21)
+save @r.xdut.xrb6a.rt1[i] @r.xdut.xrb6a.rt1[resistance] @r.xdut.xrb6a.rt2[resistance] v(xdut.xrb6a.11) v(xdut.xrb6a.21)
+save @r.xdut.xrb6b.rt1[i] @r.xdut.xrb6b.rt1[resistance] @r.xdut.xrb6b.rt2[resistance] v(xdut.xrb6b.11) v(xdut.xrb6b.21)
+save @r.xdut.xrb5a.rt1[i] @r.xdut.xrb5a.rt1[resistance] @r.xdut.xrb5a.rt2[resistance] v(xdut.xrb5a.11) v(xdut.xrb5a.21)
+save @r.xdut.xrb5b.rt1[i] @r.xdut.xrb5b.rt1[resistance] @r.xdut.xrb5b.rt2[resistance] v(xdut.xrb5b.11) v(xdut.xrb5b.21)
+save @r.xdut.xrb4a.rt1[i] @r.xdut.xrb4a.rt1[resistance] @r.xdut.xrb4a.rt2[resistance] v(xdut.xrb4a.11) v(xdut.xrb4a.21)
+save @r.xdut.xrb4b.rt1[i] @r.xdut.xrb4b.rt1[resistance] @r.xdut.xrb4b.rt2[resistance] v(xdut.xrb4b.11) v(xdut.xrb4b.21)
+save @r.xdut.xrb3a.rt1[i] @r.xdut.xrb3a.rt1[resistance] @r.xdut.xrb3a.rt2[resistance] v(xdut.xrb3a.11) v(xdut.xrb3a.21)
+save @r.xdut.xrb3b.rt1[i] @r.xdut.xrb3b.rt1[resistance] @r.xdut.xrb3b.rt2[resistance] v(xdut.xrb3b.11) v(xdut.xrb3b.21)
+save @r.xdut.xrb2a.rt1[i] @r.xdut.xrb2a.rt1[resistance] @r.xdut.xrb2a.rt2[resistance] v(xdut.xrb2a.11) v(xdut.xrb2a.21)
+save @r.xdut.xrb2b.rt1[i] @r.xdut.xrb2b.rt1[resistance] @r.xdut.xrb2b.rt2[resistance] v(xdut.xrb2b.11) v(xdut.xrb2b.21)
+save @r.xdut.xrb1a.rt1[i] @r.xdut.xrb1a.rt1[resistance] @r.xdut.xrb1a.rt2[resistance] v(xdut.xrb1a.11) v(xdut.xrb1a.21)
+save @r.xdut.xrb1b.rt1[i] @r.xdut.xrb1b.rt1[resistance] @r.xdut.xrb1b.rt2[resistance] v(xdut.xrb1b.11) v(xdut.xrb1b.21)
+save @r.xdut.xrb0a.rt1[i] @r.xdut.xrb0a.rt1[resistance] @r.xdut.xrb0a.rt2[resistance] v(xdut.xrb0a.11) v(xdut.xrb0a.21)
+save @r.xdut.xrb0b.rt1[i] @r.xdut.xrb0b.rt1[resistance] @r.xdut.xrb0b.rt2[resistance] v(xdut.xrb0b.11) v(xdut.xrb0b.21)
+save @r.xdut.xrs6.rt1[i] @r.xdut.xrs6.rt1[resistance] @r.xdut.xrs6.rt2[resistance] v(xdut.xrs6.11) v(xdut.xrs6.21)
+save @r.xdut.xrs5.rt1[i] @r.xdut.xrs5.rt1[resistance] @r.xdut.xrs5.rt2[resistance] v(xdut.xrs5.11) v(xdut.xrs5.21)
+save @r.xdut.xrs4.rt1[i] @r.xdut.xrs4.rt1[resistance] @r.xdut.xrs4.rt2[resistance] v(xdut.xrs4.11) v(xdut.xrs4.21)
+save @r.xdut.xrs3.rt1[i] @r.xdut.xrs3.rt1[resistance] @r.xdut.xrs3.rt2[resistance] v(xdut.xrs3.11) v(xdut.xrs3.21)
+save @r.xdut.xrs2.rt1[i] @r.xdut.xrs2.rt1[resistance] @r.xdut.xrs2.rt2[resistance] v(xdut.xrs2.11) v(xdut.xrs2.21)
+save @r.xdut.xrs1.rt1[i] @r.xdut.xrs1.rt1[resistance] @r.xdut.xrs1.rt2[resistance] v(xdut.xrs1.11) v(xdut.xrs1.21)
+save @r.xdut.xrs0.rt1[i] @r.xdut.xrs0.rt1[resistance] @r.xdut.xrs0.rt2[resistance] v(xdut.xrs0.11) v(xdut.xrs0.21)
+save @r.xdut.xrta.rt1[i] @r.xdut.xrta.rt1[resistance] @r.xdut.xrta.rt2[resistance] v(xdut.xrta.11) v(xdut.xrta.21)
+save @r.xdut.xrtb.rt1[i] @r.xdut.xrtb.rt1[resistance] @r.xdut.xrtb.rt2[resistance] v(xdut.xrtb.11) v(xdut.xrtb.21)
+
+* ---- nominal 256-code sweep -> dc1 ------------------------------------
+dc vcode 0 255 1
+let vo = v(vout)
+let vs = v(vdd)[0]
+let lsb = (vo[255] - vo[0]) / 255
+let kk = vector(256)
+let inl = (vo - (vo[0] + kk*lsb)) / lsb
+let dv = vo[1,255] - vo[0,254]
+let dnl = dv/lsb - 1
+let inl_max_abs = vecmax(abs(inl))
+let dnl_max_abs = vecmax(abs(dnl))
+let monotonic = vecmin(dv) gt 0
+let v_zero_offset = vo[0]
+let fs_gain_err_lsb = ((vo[255] - vo[0]) - 255/256*vs) / (vs/256)
+let i_vdd_avg = mean(-i(vdd))
+
+* ---- same sweep with d_inj = 10 uA into vout -> dc2 -------------------
+alter iinj dc = 10u
+dc vcode 0 255 1
+alter iinj dc = 0
+setplot dc1
+let sens_worst = 0
+foreach u xrb7a xrb7b xrb6a xrb6b xrb5a xrb5b xrb4a xrb4b xrb3a xrb3b xrb2a xrb2b xrb1a xrb1b xrb0a xrb0b xrs6 xrs5 xrs4 xrs3 xrs2 xrs1 xrs0 xrta xrtb
+  let ij = @r.xdut.{$u}.rt1[i]
+  let runit = @r.xdut.{$u}.rt1[resistance][255] + @r.xdut.{$u}.rt2[resistance][255] + (v(xdut.{$u}.11)[255] - v(xdut.{$u}.21)[255]) / ij[255]
+  let dij = dc2.@r.xdut.{$u}.rt1[i] - ij
+  let dvu = 0.01*runit * ij * dij / 10u
+  foreach sgn 1 -1
+    let vop = vo + $sgn*dvu
+    let lsbp = (vop[255] - vop[0]) / 255
+    let inls = vecmax(abs((vop - (vop[0] + kk*lsbp)) / lsbp))
+    let sens_worst = (inls gt sens_worst)*inls + (inls le sens_worst)*sens_worst
+  end
+end
+
+echo
+echo "  Measurements for DC Analysis (r2r_dac_tb, computed in .control)"
+echo "dnl_max_abs = $&dnl_max_abs"
+echo "inl_max_abs = $&inl_max_abs"
+echo "monotonic = $&monotonic"
+echo "v_zero_offset = $&v_zero_offset"
+echo "fs_gain_err_lsb = $&fs_gain_err_lsb"
+echo "inl_sens_1pct_max = $&sens_worst"
+echo "i_vdd_avg = $&i_vdd_avg"
+echo
+.endc
+
+.end

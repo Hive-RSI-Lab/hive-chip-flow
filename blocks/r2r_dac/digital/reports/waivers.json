@@ -1,0 +1,9 @@
+[
+ {
+  "gate": "timing",
+  "reason": "Setup misses at ss/125C/3.0V only: worst -0.87 ns (max parasitics), -0.55 nom, -0.29 min at 50 MHz; about 47 MHz met there (TT 20% input delay; estimate from the reported path). tt +7.4 ns, ff +11.0 ns, hold met at every corner. Four fix attempts made (last: rst_n registered). Owner: 'If it still misses at ss/125C after that, accept it and stop.'",
+  "approved_by": "owner, #ece298a 1791879206.573569 (2026-10-13)",
+  "inputs_sha256": "f759f67ed356f18a04cd63465dcaec1c470566eb178d9d02093be5fb5c93523d",
+  "checker_version": 1
+ }
+]

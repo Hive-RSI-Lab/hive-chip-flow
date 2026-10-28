@@ -1,0 +1,91 @@
+{
+ "script": "gate",
+ "gate": "top_harden",
+ "phase": "P3",
+ "tool": "top_harden",
+ "input_digest": "dir_text:08d2e63a30253fb8dcb71be29ca5aa7209711132e317fcb0e4bc99f0e226a305",
+ "status": "pass",
+ "criteria": {
+  "fail_severities": [
+   "error"
+  ],
+  "max_count": 0
+ },
+ "counts": {
+  "total": 0,
+  "by_severity": {},
+  "by_source": {}
+ },
+ "failing_count": 0,
+ "failing": [],
+ "violations": [],
+ "facts": {
+  "macros": [
+   {
+    "cell": "r2r_dac_analog",
+    "instance": "u_analog",
+    "location": [
+     68.32,
+     94.08
+    ],
+    "size_um": [
+     210.52,
+     139.56
+    ],
+    "pins": {
+     "dac_code": "dac_code"
+    },
+    "ua": {
+     "vout": 0
+    }
+   }
+  ],
+  "top": "r2r_dac_digital",
+  "run_tag": "run",
+  "resumed": false,
+  "wall_s": 71.71,
+  "run_dir": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/top/harden/runs/run",
+  "metrics": {
+   "design__instance__count": 2557,
+   "design__instance__area": 99325.8,
+   "design__instance_unmapped__count": 0,
+   "timing__hold__ws": 0.41090743082283404,
+   "timing__setup__ws": 0.2935749504368672,
+   "timing__hold__tns": 0,
+   "timing__setup__tns": 0,
+   "timing__hold__wns": 0,
+   "timing__setup__wns": 0,
+   "timing__hold_vio__count": 0,
+   "timing__hold_r2r__ws": 0.410907,
+   "timing__hold_r2r_vio__count": 0,
+   "timing__setup_vio__count": 0,
+   "timing__setup_r2r__ws": 5.629682,
+   "timing__setup_r2r_vio__count": 0,
+   "design__die__bbox": "0.0 0.0 346.64 325.36",
+   "design__core__bbox": "3.36 3.92 343.28 321.44",
+   "design__die__area": 112783,
+   "design__core__area": 107931,
+   "design__instance__count__stdcell": 1128,
+   "design__instance__area__stdcell": 16437.7,
+   "design__instance__count__macros": 1,
+   "design__instance__area__macros": 29380.2,
+   "design__instance__count__padcells": 0,
+   "design__instance__area__padcells": 0,
+   "design__instance__count__cover": 0,
+   "design__instance__area__cover": 0,
+   "design__instance__utilization": 0.424509,
+   "design__instance__utilization__stdcell": 0.20926,
+   "design__instance__displacement__total": 40.88,
+   "design__instance__displacement__mean": 0.036,
+   "design__instance__displacement__max": 8.4,
+   "design__instance__count__setup_buffer": 3,
+   "design__instance__count__hold_buffer": 0
+  }
+ },
+ "inputs_at_start": {
+  "digital_rtl": "dir_text:08d2e63a30253fb8dcb71be29ca5aa7209711132e317fcb0e4bc99f0e226a305",
+  "analog_layout": "dir_text:7a954c277f279e0a8b3d75e97ed6833bf445cf7e04f4ec0eefae35be290d869d"
+ },
+ "recorded_ts": "2026-10-13T08:52:29",
+ "attempts": 7
+}

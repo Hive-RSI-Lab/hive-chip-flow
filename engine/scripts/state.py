@@ -1,0 +1,1533 @@
+"""state.py - state.json read/write helpers for the chip-flow engine.
+
+Ported from /hwde's scripts/state.py (docs/design.md 1.3-1.4), schema v3:
+`board` becomes `skill` (vde|ade|msde) + `block`, the build-mode concept
+(modeslib, PCB-only) is dropped, gate ordering is DERIVED from gates.yaml
+instead of a hardcoded pipeline spine (three skills, three different
+pipelines - docs/design.md 1.5), and three sections are new: `toolchain`
+(the eda image + PDK this run's gates ran against), `jobs` (detached gate
+runs, 1.7) and `holdout` (the corpus/testbench holdout hash pinned at
+creation, section 2). state.json is still the single source of truth for one
+block's run: the orchestrator NEVER carries pipeline state in its context, it
+reads the resume summary, acts, and records every transition here. Every
+mutating subcommand appends a timestamped event to `history`.
+
+Schema (version 3):
+    {
+      "version": 3, "skill": "vde|ade|msde", "block": str,
+      "workspace": str, "created": ts, "updated": ts,
+      "phase": "P0".."P8" | "done",
+      "toolchain": {"image", "versions_sha", "pdk", "pdk_sha"} | null,
+      "gates": {gate_name: {phase, status: pass|fail, attempts: int,
+                            last: {ts, status, failing_count, total,
+                                   inputs: {kind: "<norm>:<sha>"|null},
+                                   inputs_changed_during_run?: [kind],
+                                   job: id|null, facts?: {name: number}},
+                            history: [same shape as last, oldest first],
+                            stale: [mark]?}},
+      "jobs": {id: {gate, pid, started, finished?, status: running|done|dead,
+                    log, result?}},
+      "holdout": {"sha", "written_by", "ts", "edits_at_pin",
+                  "replaced_sha"?} | null,
+      "optimise": {"trials", "evaluator_sha", "best": {trial, score}} | null,
+      "human": {checkpoint_id: {status: presented|approved|rejected|skipped,
+                                challenge, digest, presented, ts?, answer?,
+                                note?, scope_out?: [{dimension, quote,
+                                pinned, ts}] (H1 only)}},
+      "artifacts": {name: {path, kind|null, sha256|null, hashed: ts,
+                           stale: [mark]?}},
+      "open_issues": [{id, gate, phase, fixer, kinds[], severity, count,
+                       work_order, status: open|fixing|fixed|escalated|
+                       waived|superseded, agent, attempts, opened, closed,
+                       note?, approved_by?, superseded_by?}],
+      "next_issue_id": int, "next_job_id": int,
+      "budgets": {"fix_loops": {gate_name: remaining}, ...},
+      "decisions": [{what, why, phase, ts}],
+      "edits": [{ts, class, refs, note, human_hold, gates, gates_marked,
+                 stale_artifacts}],
+      "spawns": [{ts, role, model, effort?, phase?, tokens?, cost_usd?,
+                  note?}],
+      "history": [{ts, event, ...detail}]
+    }
+    mark = {ts, edit_class, refs, human_hold} - stamped by `edit` from
+    reference/invalidation.yaml, or on a gate by a run of it that ended in
+    error (edit_class "gate_error", + error; gate.py), cleared by
+    record-gate (gates) / re-register (artifacts). A gate is FRESH iff its recorded input hashes all match the
+    current normalized hashes AND it carries no mark (engine/lib/statelib.py).
+    The recorded hashes are the ones the run READ: a result carrying
+    `inputs_at_start` (gate.py hashes the inputs before its check runs) is
+    recorded against those, so an input edited while a long gate ran leaves
+    the result stale, never fresh against a file the gate did not read; the
+    kinds that moved go in last.inputs_changed_during_run.
+
+CLI (docs/design.md 1.1 script contract: argparse, JSON to stdout, exit 0 ok
+/ 2 error; state.py has no violation concept so exit 1 is unused):
+    state.py init --workspace DIR --skill vde --block NAME [--phase P0] [--force]
+    state.py show|resume|freshness [--workspace DIR | --state FILE]
+    state.py set-phase --phase P5 [--force] ...
+    state.py record-gate --gate NAME --result gate_result.json [--phase PN] ...
+    state.py artifact --name rtl --path rtl ...
+    state.py edit --class rtl_edit [--refs U1 U2] [--note TEXT] ...
+    state.py edit --class holdout_stimulus_edit --baseline LABEL ...
+        (refused unless check_holdout_edit.py finds holdout/ still judges
+        exactly as state_snapshots/LABEL/holdout did - stimulus only)
+    state.py rehash [--names rtl tb] ...
+    state.py spawn --role fixer --model opus [--effort high] [--tokens N] ...
+    state.py toolchain --image PATH [--versions-sha SHA] [--pdk NAME] [--pdk-sha SHA]
+    state.py job-start --gate NAME --pid N --log PATH ...
+    state.py job-update --job ID --status done|dead [--result FILE] ...
+    state.py holdout --written-by tb-writer ...   (pins holdout/'s hash; a
+        later change must be declared with `edit --class holdout_edit` (or
+        spec_edit) before rehash, a re-pin or record-gate --gate holdout
+        will run over it - resume reports it as holdout_drift)
+    state.py decision --what W --why Y ...
+    state.py present --checkpoint H1 ...
+    state.py human --checkpoint H1 --status approved --answer TEXT [--note N] ...
+    state.py scope-out --dimension mim_cap --quote TEXT ...
+        (a passive corner dimension the person ruled out of scope in their
+        approved H1 answer; refused unless TEXT is verbatim in that
+        answer or note, names the dimension and rules it out - corners.py,
+        "Scoped-out dimensions". check_sim_pvt.py pins it at typical)
+    state.py issue --id 3 --status fixed [--agent fixer-1] [--bump-attempts] ...
+    state.py issue --id 3 --status waived --note TEXT --approved-by WHO ...
+    state.py issue --id 3 --status superseded --by 4 [--note TEXT] ...
+        (the same finding went through again as issue 4 - a re-dispatched
+        work order - and issue 4 is `fixed`. Refused unless 4 is another
+        issue of the same gate and is itself `fixed`; issue 3 counts as
+        closed only while that stays true - statelib.issue_unresolved)
+    state.py budget --path fix_loops.lint [--consume] ...
+    state.py log --event name [--data JSON] ...
+    state.py snapshot --label L [--files F ...] / restore --label L ...
+
+`set-phase` REFUSES to advance past a gate phase whose gate has no recorded
+result or whose last recorded result is a FAIL. `gate.py --workspace <ws>`
+records the result itself, so the normal flow never sees the refusal;
+`--force` is the escape hatch for gate evidence only and logs `phase_forced`
+with the missing and failed gates.
+
+Human checkpoints need an answer given AT the checkpoint, never a note
+written beforehand (a brief that says "H1 is approved" is not an answer).
+`present` records the checkpoint with a digest of what is being shown (phase,
+every gate's last result, every artifact hash, the phase digest file) and
+prints a fresh random challenge, e.g. `H1-3fa9c2`, that the presentation
+shows the person. `human` then REFUSES unless the checkpoint was presented and
+not yet answered, the `--answer` text (the person's reply, verbatim) contains
+that challenge, and the digest still matches - so nothing written before the
+presentation can satisfy it however it is worded, and a state that moved after
+the presentation must be presented again. `set-phase` REFUSES to advance past
+a phase whose checkpoint (CHECKPOINTS below) is not approved, `--force` or not.
+
+CLI `log` event names are machine keys: ^[a-z][a-z0-9_-]{0,31}$ - prose
+belongs in --data {"msg": ...}. `log --event spawn --data {...}`
+additionally appends the data to the first-class `spawns` ledger.
+
+Writes are atomic (unique temp + fsync + os.replace, same directory;
+engine/lib/safelib.py). Writer safety: every CLI mutation holds the
+OS-exclusive writer lock <state.json>.lock across load->mutate->save, and
+State.save() is a base-digest compare-and-swap - a State loaded from bytes X
+refuses to overwrite a file that is no longer X (StaleWriteError, exit 2).
+`--if-digest SHA` lets a caller pin its own read (show/resume report
+`digest`). Snapshot/restore are CONTAINED (no absolute/traversal/symlink
+entries, in either direction) and restore is transactional.
+"""
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import os
+import re
+import secrets
+import shutil
+import sys
+import time
+from pathlib import Path
+
+# engine/scripts/state.py -> parent=engine/scripts, parent.parent=engine
+ENGINE = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(ENGINE / "lib"))
+import checklib  # noqa: E402
+import safelib  # noqa: E402
+import statelib  # noqa: E402
+from checklib import CheckError  # noqa: E402
+
+SCRIPT = "state"
+VERSION = 3
+SKILLS = statelib.SKILLS
+# CLI log event names are machine keys: short, greppable, no prose.
+EVENT_RE = re.compile(r"[a-z][a-z0-9_-]{0,31}\Z")
+JOB_ID_RE = re.compile(r"[a-z][a-z0-9_-]{0,31}\Z")
+PHASES = ["P0", "P1", "P2", "P3", "P4", "P5", "P6", "P7", "P8", "done"]
+# Human checkpoint ids: free-form "H<n>" markers a skill's phase sequence
+# names (docs/design.md 1.4: digital H1/H2, analog H1/H2, msde H2) - never a
+# fixed phase->checkpoint table, because that table differs per skill.
+CHECKPOINT_RE = re.compile(r"H[1-9][0-9]?\Z")
+# Which checkpoint closes which phase, per skill (the skills' phase machines:
+# vde H1 after P4 and H2 at P8 release, ade H1 after P4 and H2 after P5, msde
+# H2 at P4 release). set-phase refuses to move past the phase until the
+# checkpoint is approved. A recipe's own `human:` hold (tasks.yaml) is not in
+# this table - it is presented and answered the same way, but holds no phase.
+CHECKPOINTS = {"vde": {"P4": "H1", "P8": "H2"},
+               "ade": {"P4": "H1", "P5": "H2"},
+               "msde": {"P4": "H2"}}
+GATES_YAML = ENGINE / "reference" / "gates.yaml"
+DEFAULT_BUDGETS = {
+    "fix_loops": {},   # populated per gate on first budget touch, see budget()
+}
+SNAP_DIR = "state_snapshots"
+STIMULUS_EDIT_CLASS = "holdout_stimulus_edit"
+# Standard workspace layout (docs/design.md 1.4): init owns the scaffold so
+# every block starts with the full set regardless of skill (rtl/ for /vde,
+# netlist/ for /ade, both harmless if unused).
+SUBDIRS = ("brief", "spec", "rtl", "netlist", "tb", "holdout", "formal",
+           "synth", "harden", "layout", "sizing", "optimise", "reports",
+           "log", SNAP_DIR)
+DIGEST_LINE_CAP = 15
+
+
+def now() -> str:
+    return time.strftime("%Y-%m-%dT%H:%M:%S")
+
+
+def load_gates_yaml(path: Path | None = None) -> dict:
+    import yaml
+    p = path or GATES_YAML
+    data = yaml.safe_load(p.read_text(encoding="utf-8"))
+    gates = data.get("gates") or {}
+    if not gates:
+        raise CheckError(f"{p}: no gates defined")
+    return gates
+
+
+def applicable_gate_order(skill: str, gates: dict | None = None) -> list[tuple[str, str]]:
+    """The gates a block of this skill owes, in pipeline order: every row
+    gates.yaml registers for `skill`, sorted by phase then declaration
+    order. Single definition of the owed set: set_phase gates advancement on
+    it, and resume_summary reports gates_passed/next_gate against it."""
+    gates = gates if gates is not None else load_gates_yaml()
+    rows = gates.get(skill) or {}
+    order = list(rows)
+    return [(rows[g].get("phase", "P9"), g)
+            for g in sorted(order, key=lambda g: (str(rows[g].get("phase", "P9")),
+                                                   order.index(g)))]
+
+
+def _atomic_write(path: Path, text: str) -> None:
+    safelib.atomic_write_text(path, text)
+
+
+LABEL_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,79}")
+
+
+def _check_label(label) -> str:
+    if not isinstance(label, str) or not LABEL_RE.fullmatch(label) \
+            or ".." in label:
+        raise safelib.ContainmentError(
+            f"snapshot label {label!r} refused: labels are a single path "
+            "component [A-Za-z0-9][A-Za-z0-9._-]*")
+    return label
+
+
+def _check_snapshot_entry(rel_norm: str, what: str) -> None:
+    """state.json and writer-lock files are never snapshot content: a
+    restore would roll the state file back under its own writer and replace
+    a lock file other writers hold open."""
+    name = rel_norm.rsplit("/", 1)[-1]
+    if name == "state.json" or name.endswith(".lock"):
+        raise safelib.ContainmentError(
+            f"{what} {rel_norm!r} refused: state.json and *.lock files are "
+            "never snapshotted or restored")
+
+
+def _snapshot_dir(ws: Path, label: str) -> Path:
+    """ws/state_snapshots/<label>, proven inside the workspace: a symlinked
+    state_snapshots/ or <label> dir is refused, not followed."""
+    return safelib.contained_rel(ws, f"{SNAP_DIR}/{label}",
+                                 what="snapshot dir")
+
+
+class State:
+    """In-memory view of one state.json. Mutators record history themselves;
+    call save() (atomic) after a batch of mutations."""
+
+    def __init__(self, path: Path, data: dict,
+                 base_digest: str | None = None):
+        self.path = Path(path)
+        self.data = data
+        # sha256 of the exact bytes this view was loaded from (None for a
+        # fresh init); save() refuses when the file no longer matches (CAS)
+        self.base_digest = base_digest
+
+    # ---- lifecycle -------------------------------------------------------
+    @classmethod
+    def init(cls, workspace: Path, skill: str, block: str, phase: str = "P0",
+             force: bool = False) -> "State":
+        workspace = Path(workspace)
+        path = workspace / "state.json"
+        if path.exists() and not force:
+            raise CheckError(f"{path} already exists (use --force to recreate)")
+        if skill not in SKILLS:
+            raise CheckError(f"unknown skill {skill!r} (known: {', '.join(SKILLS)})")
+        if phase not in PHASES:
+            raise CheckError(f"unknown phase {phase!r}")
+        split_name = statelib.split_block_name(workspace)
+        if split_name and block != split_name:
+            raise CheckError(
+                f"{workspace} is the msde split's {workspace.name} side, so its "
+                f"block is {split_name!r}, not {block!r} (skills/msde/SKILL.md, "
+                "Run start): give --block " + split_name)
+        workspace.mkdir(parents=True, exist_ok=True)
+        for d in SUBDIRS:  # idempotent scaffold; pre-existing content survives
+            (workspace / d).mkdir(exist_ok=True)
+        ts = now()
+        data = {
+            "version": VERSION, "skill": skill, "block": block,
+            "workspace": str(workspace).replace("\\", "/"),
+            "created": ts, "updated": ts, "phase": phase,
+            "toolchain": None,
+            "gates": {}, "jobs": {}, "holdout": None, "optimise": None,
+            "human": {}, "artifacts": {}, "open_issues": [],
+            "next_issue_id": 1, "next_job_id": 1,
+            "budgets": json.loads(json.dumps(DEFAULT_BUDGETS)),
+            "decisions": [], "edits": [], "spawns": [],
+            "history": [{"ts": ts, "event": "init", "skill": skill,
+                         "block": block, "phase": phase}],
+        }
+        st = cls(path, data)
+        st.save()
+        return st
+
+    @classmethod
+    def load(cls, path: Path) -> "State":
+        path = Path(path)
+        try:
+            raw = path.read_bytes()
+        except OSError as exc:
+            raise CheckError(f"cannot read state file {path}: {exc}") from exc
+        try:
+            data = json.loads(raw.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise CheckError(f"state file {path} is not valid JSON: {exc}") \
+                from exc
+        if not isinstance(data, dict):
+            raise CheckError(f"state file {path} is not a JSON object")
+        if data.get("version") != VERSION:
+            raise CheckError(
+                f"{path}: state version {data.get('version')!r} unsupported "
+                f"(this build reads v{VERSION})")
+        return cls(path, data, base_digest=safelib.sha256_bytes(raw))
+
+    def current_digest(self) -> str | None:
+        try:
+            return safelib.sha256_file(self.path)
+        except OSError:
+            return None
+
+    def save(self) -> None:
+        """Atomic + compare-and-swap: under the writer lock, refuse when the
+        on-disk bytes no longer match the bytes this view was loaded from
+        (another writer landed in between). Never merges, never retries -
+        the caller reloads and redoes its mutation on the fresh state."""
+        with safelib.writer_lock(self.path, what="state.json"):
+            if self.base_digest is not None:
+                cur = self.current_digest()
+                if cur != self.base_digest:
+                    raise safelib.StaleWriteError(
+                        f"{self.path} changed since it was loaded (base "
+                        f"{self.base_digest[:12]}, now "
+                        f"{(cur or 'missing')[:12]}) - another writer landed; "
+                        "reload and redo the mutation, nothing was written")
+            self.data["updated"] = now()
+            text = json.dumps(self.data, indent=1)
+            _atomic_write(self.path, text)
+            self.base_digest = safelib.sha256_bytes(text.encode("utf-8"))
+
+    def _log(self, event: str, **detail) -> None:
+        self.data["history"].append({"ts": now(), "event": event, **detail})
+
+    def _skill(self) -> str:
+        return self.data.get("skill") or ""
+
+    # ---- mutators --------------------------------------------------------
+    def gate_coverage(self, phase: str) -> tuple[list[str], list[str]]:
+        """(gates owed BEFORE `phase` with no recorded result, gates whose
+        last recorded result is a fail). A gate at phase P is owed once the
+        run moves past P - unless the block's own spec declares it not
+        applicable (attest.NOT_APPLICABLE, re-read from spec.yaml here as
+        release does; a missing or unreadable spec leaves it owed)."""
+        import attest   # lazy: attest imports gate, which imports this
+        idx = PHASES.index(phase)
+        skill, ws = self._skill(), self.path.parent
+        owed = [(ph, g) for ph, g in applicable_gate_order(skill)
+                if ph in PHASES and PHASES.index(ph) < idx
+                and not attest.not_applicable_reason(ws, skill, g)]
+        gates = self.data["gates"]
+        missing = [f"{g} ({ph})" for ph, g in owed
+                   if not (gates.get(g) or {}).get("status")]
+        failed = [g for _, g in owed
+                  if (gates.get(g) or {}).get("status") == "fail"]
+        return missing, failed
+
+    def set_phase(self, phase: str, require_gates: bool = True) -> list[dict]:
+        """Record the phase; return warn-only digest-discipline findings for
+        the phase just left (drift becomes recorded fact, exit 0).
+
+        Advancing past a gate phase whose gate has no recorded result is
+        REFUSED (CheckError): you cannot leave a gate phase without evidence
+        in state.json. `require_gates=False` (CLI --force) is the deliberate
+        escape hatch and records itself in history.
+        """
+        if phase not in PHASES:
+            raise CheckError(f"unknown phase {phase!r}")
+        prev = self.data["phase"]
+        warnings: list[dict] = []
+        advancing = (prev in PHASES
+                     and PHASES.index(phase) > PHASES.index(prev))
+        if advancing:
+            missing, failed = self.gate_coverage(phase)
+            if missing and require_gates:
+                raise CheckError(
+                    f"cannot advance {prev} -> {phase}: no recorded gate "
+                    f"result for {', '.join(missing)}. Run the gate with "
+                    "gate.py --workspace <ws> (it records the result itself) "
+                    "or state.py record-gate --gate <g> --result <file>; "
+                    "--force advances anyway and says so in history")
+            if missing:
+                warnings.append({
+                    "kind": "gate_coverage",
+                    "msg": f"advanced to {phase} with no recorded result for "
+                           f"{', '.join(missing)} (--force)"})
+            if failed and require_gates:
+                raise CheckError(
+                    f"cannot advance {prev} -> {phase}: {', '.join(failed)} "
+                    "recorded FAIL. The fix loop re-records a pass before the "
+                    "run moves on; --force advances anyway and says so in "
+                    "history")
+            if missing or failed:
+                self._log("phase_forced", phase=phase, prev=prev,
+                          missing=missing, failed=failed)
+            if failed:
+                warnings.append({
+                    "kind": "gate_coverage",
+                    "msg": f"advanced to {phase} with {', '.join(failed)} "
+                           "recorded FAIL (--force)"})
+            # never waived by --force: a human checkpoint is the person's
+            unanswered = self.unapproved_checkpoints(prev, phase)
+            if unanswered:
+                raise CheckError(
+                    f"cannot advance {prev} -> {phase}: human checkpoint "
+                    f"{', '.join(unanswered)} not approved. Present it "
+                    "(state.py present --checkpoint <H>), then record the "
+                    "person's reply with state.py human --status approved "
+                    "--answer '<reply quoting the challenge>'. --force does "
+                    "not waive a checkpoint")
+        self.data["phase"] = phase
+        self._log("phase", phase=phase, prev=prev)
+        if prev != phase and re.fullmatch(r"P\d+", prev or ""):
+            digest = self.path.parent / "log" / f"{prev}-digest.md"
+            if not digest.is_file():
+                warnings.append({
+                    "kind": "digest_discipline",
+                    "msg": f"log/{prev}-digest.md missing for the phase just "
+                           "left"})
+            else:
+                n = len(digest.read_text(encoding="utf-8",
+                                         errors="replace").splitlines())
+                if n > DIGEST_LINE_CAP:
+                    warnings.append({
+                        "kind": "digest_discipline",
+                        "msg": f"log/{prev}-digest.md is {n} lines "
+                               f"(cap {DIGEST_LINE_CAP})"})
+        return warnings
+
+    def record_gate(self, gate: str, result: dict, phase: str | None = None) -> dict:
+        status = result.get("status")
+        if status not in ("pass", "fail"):
+            raise CheckError(f"gate result status must be pass|fail, "
+                             f"got {status!r}")
+        # when the result carries the report's stamped input digest, it must
+        # match the CURRENT primary input - otherwise the result describes a
+        # different or stale artifact and recording it would mark the gate
+        # fresh-pass falsely.
+        digest = result.get("input_digest")
+        if digest:
+            imap = self._imap()
+            kinds = (imap["gate_inputs"].get(self._skill()) or {}).get(gate) or []
+            if kinds:
+                rel, cur = statelib.hash_kind(
+                    self.path.parent, kinds[0], imap, self.data["artifacts"])
+                if cur != digest:
+                    raise CheckError(
+                        f"gate result input_digest does not match the "
+                        f"current {kinds[0]} ({rel}) - the result describes "
+                        "a different or stale artifact; re-run the gate "
+                        "against the current file")
+        if gate == "holdout":
+            self._refuse_holdout_drift("record the holdout gate")
+        inputs, moved = self._hash_gate_inputs(
+            gate, result.get("inputs_at_start"))
+        entry = {"ts": now(), "status": status,
+                 "failing_count": result.get("failing_count", 0),
+                 "total": (result.get("counts") or {}).get("total", 0),
+                 "inputs": inputs,
+                 "job": result.get("job")}
+        if moved:
+            entry["inputs_changed_during_run"] = moved
+        # M6: keep the scalar facts a check reported (kill_rate, area,
+        # line_pct ...) and timing's per-corner slack, so evals/ladder.py can
+        # score a finished run from state.json without re-running its gates.
+        facts = {k: v for k, v in (result.get("facts") or {}).items()
+                 if (isinstance(v, (int, float)) and not isinstance(v, bool))
+                 or k == "corners"}
+        if facts:
+            entry["facts"] = facts
+        g = self.data["gates"].setdefault(
+            gate, {"phase": phase or result.get("phase"), "status": None,
+                   "attempts": 0, "last": None, "history": []})
+        if phase:
+            g["phase"] = phase
+        g["attempts"] += 1
+        g["status"] = status
+        g["last"] = entry
+        g["history"].append(entry)
+        # the gate just ran: whatever edit marks it carried are resolved
+        # (pass or fail - the result is current either way). An input that
+        # moved during the run needs no mark: the recorded start hash no
+        # longer matches it, so freshness already reports the gate stale.
+        g.pop("stale", None)
+        self._log("gate", gate=gate, status=status, attempt=g["attempts"],
+                  failing_count=entry["failing_count"],
+                  **({"inputs_changed_during_run": moved} if moved else {}))
+        return g
+
+    def mark_gate_error(self, gate: str, error: str) -> dict | None:
+        """A run of `gate` ended in error (its check refused or crashed):
+        stamp a stale mark (edit_class "gate_error") on the gate's recorded
+        result so an earlier pass stops counting as a fresh pass - a gate
+        that did not run is a refusal, never a pass. The error itself is not
+        recorded as a result (status stays pass|fail, attempts unchanged);
+        the next recorded run clears the mark like any other. None when the
+        gate has no recorded result (nothing to distrust)."""
+        g = self.data["gates"].get(gate)
+        if g is None:
+            return None
+        mark = {"ts": now(), "edit_class": "gate_error", "refs": [],
+                "human_hold": 0, "error": str(error)[:2000]}
+        g.setdefault("stale", []).append(mark)
+        self._log("gate_error", gate=gate, error=mark["error"][:200])
+        return mark
+
+    def _imap(self) -> dict:
+        return statelib.load_map()
+
+    def _hash_gate_inputs(self, gate: str, at_start: dict | None = None
+                          ) -> tuple[dict, list[str]]:
+        """({kind: hash}, [kinds that moved during the run]) for every
+        artifact the gate reads (statelib), resolved against the state
+        file's own directory - the freshness key the result stays valid
+        under. `at_start` is the run's own hashes taken before its check
+        read anything (gate.py, result["inputs_at_start"]): a kind it names
+        is recorded at that hash, because that is the file the gate read,
+        and is listed as moved when the file now hashes differently. A kind
+        it does not name is hashed now. Hashed kinds are silently
+        auto-registered in the artifacts registry, at the recorded hash."""
+        imap = self._imap()
+        ws = self.path.parent
+        registry = self.data["artifacts"]
+        if not isinstance(at_start, dict):
+            at_start = {}
+        inputs: dict[str, str | None] = {}
+        moved: list[str] = []
+        for kind in (imap["gate_inputs"].get(self._skill()) or {}).get(gate, []):
+            rel, sha = statelib.hash_kind(ws, kind, imap, registry)
+            seen = at_start.get(kind, sha)
+            if seen is not None and not isinstance(seen, str):
+                raise CheckError(f"gate result inputs_at_start[{kind!r}] "
+                                 f"is {seen!r}, not a hash string or null")
+            if seen != sha:
+                moved.append(kind)
+                sha = seen
+            inputs[kind] = sha
+            entry = registry.get(kind)
+            if not isinstance(entry, dict):
+                entry = {}
+            entry.update({"path": rel, "kind": kind, "sha256": sha,
+                          "hashed": now()})
+            registry[kind] = entry          # stale marks (if any) survive
+        return inputs, moved
+
+    def set_artifact(self, name: str, path: str) -> None:
+        """Register/refresh an artifact by name. Explicit registration means
+        "this file was (re)produced": the entry is re-hashed and any stale
+        marks on it are cleared."""
+        rel = str(path).replace("\\", "/")
+        imap = self._imap()
+        kind = name if name in imap["artifact_kinds"] else None
+        norm = (imap["artifact_kinds"][kind]["norm"] if kind
+                else statelib.norm_for_path(self.path.parent / rel))
+        sha = statelib.hash_artifact(self.path.parent / rel, norm)
+        self.data["artifacts"][name] = {"path": rel, "kind": kind,
+                                        "sha256": sha, "hashed": now()}
+        self._log("artifact", name=name, path=rel)
+
+    def apply_edit(self, edit_class: str, refs: list[str] | None = None,
+                   note: str | None = None,
+                   baseline: str | None = None) -> dict:
+        """Record a declared edit: stamp the invalidation map's stale set.
+        Marks land on RECORDED gates (an unrun gate has no result to
+        distrust) and on the mapped derived artifacts (registry entries are
+        created at their current hash when absent, so later regeneration is
+        detectable). Returns the full mapped sets + the ceremony weight."""
+        imap = self._imap()
+        skill_classes = imap["edit_classes"].get(self._skill()) or {}
+        ec = skill_classes.get(edit_class)
+        if ec is None:
+            raise CheckError(
+                f"unknown edit class {edit_class!r} for skill "
+                f"{self._skill()!r} (known: {', '.join(sorted(skill_classes))})")
+        if edit_class == STIMULUS_EDIT_CLASS:
+            self._check_stimulus_edit(baseline)
+        elif baseline is not None:
+            raise CheckError(f"--baseline is for {STIMULUS_EDIT_CLASS} only")
+        ts = now()
+        mark = {"ts": ts, "edit_class": edit_class, "refs": refs or [],
+                "human_hold": ec["human_hold"]}
+        marked_gates = []
+        for gname in ec["gates"]:
+            g = self.data["gates"].get(gname)
+            if g is not None:
+                g.setdefault("stale", []).append(mark)
+                marked_gates.append(gname)
+        ws = self.path.parent
+        registry = self.data["artifacts"]
+        for kind in ec["stale_artifacts"]:
+            entry = registry.get(kind)
+            if not isinstance(entry, dict):
+                rel, sha = statelib.hash_kind(ws, kind, imap, registry)
+                entry = {"path": rel, "kind": kind, "sha256": sha,
+                         "hashed": ts}
+                registry[kind] = entry
+            entry.setdefault("stale", []).append(mark)
+        rec = {"ts": ts, "class": edit_class, "refs": refs or [],
+               "note": note, "human_hold": ec["human_hold"],
+               "gates": list(ec["gates"]), "gates_marked": marked_gates,
+               "stale_artifacts": list(ec["stale_artifacts"])}
+        if baseline is not None:
+            rec["baseline"] = baseline
+        self.data["edits"].append(rec)
+        self._log("edit", edit_class=edit_class, refs=refs or [],
+                  human_hold=ec["human_hold"])
+        return rec
+
+    def _check_stimulus_edit(self, baseline: str | None) -> None:
+        """holdout_stimulus_edit may only move stimulus: refuse it unless
+        holdout/ still judges exactly as the pre-fix snapshot did."""
+        if not baseline:
+            raise CheckError(
+                f"{STIMULUS_EDIT_CLASS} needs --baseline <the pre-fix "
+                "snapshot label>: it is declared only after "
+                "check_holdout_edit.py proves no assert, bound or expected "
+                "value moved")
+        import check_holdout_edit
+        found = check_holdout_edit.check(self.path.parent, baseline)
+        if found:
+            raise CheckError(
+                f"{STIMULUS_EDIT_CLASS} refused - the edit changes what the "
+                "held-out tests judge, not only their stimulus: "
+                + "; ".join(f"{v['kind']}: {v['msg']}" for v in found[:5]))
+
+    def rehash(self, names: list[str] | None = None) -> dict:
+        """Re-hash artifacts. Explicit --names = "I regenerated these": their
+        stale marks are force-cleared. A bare rehash refreshes every
+        registered entry plus every standard kind whose file exists, clearing
+        marks only where the hash actually CHANGED."""
+        imap = self._imap()
+        ws = self.path.parent
+        registry = self.data["artifacts"]
+        explicit = names is not None
+        if names is None or "holdout" in names:
+            # a bare rehash is what resume runs; it must not absorb an
+            # undeclared holdout/ change into the registry
+            self._refuse_holdout_drift("rehash")
+        if names is None:
+            names = sorted(set(registry) | {
+                k for k in imap["artifact_kinds"]
+                if (ws / statelib.kind_path(k, imap, registry)).exists()})
+        out = {}
+        for name in names:
+            entry = registry.get(name)
+            if not isinstance(entry, dict):
+                if name not in imap["artifact_kinds"]:
+                    raise CheckError(f"unknown artifact {name!r} (not "
+                                     "registered, not a standard kind)")
+                entry = {"kind": name}
+            kind = entry.get("kind")
+            if kind not in imap["artifact_kinds"]:
+                kind = None
+            rel = entry.get("path") or statelib.kind_path(kind or name, imap,
+                                                           registry)
+            norm = (imap["artifact_kinds"][kind]["norm"] if kind
+                    else statelib.norm_for_path(ws / rel))
+            old = entry.get("sha256")
+            sha = statelib.hash_artifact(ws / rel, norm)
+            entry.update({"path": rel, "kind": kind, "sha256": sha,
+                          "hashed": now()})
+            if entry.get("stale") and (explicit or sha != old):
+                entry.pop("stale", None)
+            registry[name] = entry
+            out[name] = {"path": rel, "sha256": sha, "changed": sha != old,
+                         "stale_marks": len(entry.get("stale") or [])}
+        self._log("rehash", names=sorted(out))
+        return out
+
+    def record_spawn(self, record: dict) -> dict:
+        """Append a subagent spawn to the first-class ledger."""
+        rec = {"ts": now(), **{k: v for k, v in record.items()
+                               if v is not None}}
+        self.data["spawns"].append(rec)
+        self._log("spawn", role=rec.get("role"), model=rec.get("model"))
+        return rec
+
+    def set_toolchain(self, image: str, versions_sha: str | None = None,
+                      pdk: str | None = None, pdk_sha: str | None = None) -> dict:
+        rec = {"image": image, "versions_sha": versions_sha, "pdk": pdk,
+               "pdk_sha": pdk_sha, "ts": now()}
+        self.data["toolchain"] = rec
+        self._log("toolchain", image=image, pdk=pdk)
+        return rec
+
+    def record_holdout(self, written_by: str) -> dict:
+        """Hash holdout/ into state.holdout at creation (section 2): a
+        held-out test's own hash, pinned once, so a run can tell whether
+        the tb-writer's holdout set has changed under it."""
+        drift = self._refuse_holdout_drift("re-pin holdout/")
+        imap = self._imap()
+        rel, sha = statelib.hash_kind(self.path.parent, "holdout", imap,
+                                      self.data["artifacts"])
+        # the pin remembers how many edits existed when it was taken, so a
+        # later drift is answered only by an edit declared AFTER it (list
+        # order, not the second-resolution timestamps)
+        rec = {"sha": sha, "written_by": written_by, "ts": now(),
+               "edits_at_pin": len(self.data["edits"])}
+        if drift:
+            rec["replaced_sha"] = drift["pinned"]
+        self.data["holdout"] = rec
+        self._log("holdout", written_by=written_by, sha=sha,
+                  **({"replaced_sha": drift["pinned"]} if drift else {}))
+        return rec
+
+    def _holdout_edit_classes(self) -> set[str]:
+        """Edit classes of this skill that declare a holdout/ change: the
+        ones that rewrite it (holdout_edit) or mark it stale (spec_edit)."""
+        classes = self._imap()["edit_classes"].get(self._skill()) or {}
+        return {name for name, ec in classes.items()
+                if "holdout" in (ec.get("mutates") or [])
+                or "holdout" in (ec.get("stale_artifacts") or [])}
+
+    def holdout_drift(self) -> dict | None:
+        """holdout/'s current hash against the state.holdout pin. None when
+        nothing is pinned or nothing changed; otherwise {pinned, current,
+        declared} where declared names the edit that owns the change (an
+        edit of a holdout-declaring class made after the pin) or is None."""
+        pin = self.data.get("holdout")
+        if not isinstance(pin, dict) or not pin.get("sha"):
+            return None
+        _, cur = statelib.hash_kind(self.path.parent, "holdout", self._imap(),
+                                    self.data["artifacts"])
+        if cur == pin["sha"]:
+            return None
+        edits = self.data["edits"]
+        start = pin.get("edits_at_pin")
+        after = (edits[start:] if isinstance(start, int)
+                 else [e for e in edits if e.get("ts", "") >= pin.get("ts", "")])
+        classes = self._holdout_edit_classes()
+        declared = next((e for e in reversed(after)
+                         if e.get("class") in classes), None)
+        return {"pinned": pin["sha"], "current": cur,
+                "declared": ({"class": declared["class"], "ts": declared["ts"]}
+                             if declared else None)}
+
+    def _refuse_holdout_drift(self, action: str) -> dict | None:
+        """Breakage 12: an undeclared change to holdout/ is refused, never
+        re-hashed over. Returns the (declared) drift, or None."""
+        drift = self.holdout_drift()
+        if drift and not drift["declared"]:
+            raise CheckError(
+                f"holdout/ changed since state.holdout was pinned "
+                f"({drift['pinned']} -> {drift['current']}) and no edit "
+                f"declares it, so state.py will not {action}. Declare it: "
+                "`state.py edit --class holdout_edit --note WHY`, then "
+                "re-pin with `state.py holdout --written-by <who>`; or "
+                "restore holdout/ to the pinned files")
+        return drift
+
+    # ---- jobs (docs/design.md 1.7) ---------------------------------------
+    def start_job(self, gate: str, pid: int, log: str) -> tuple[str, dict]:
+        jid = str(self.data.get("next_job_id", 1))
+        self.data["next_job_id"] = int(jid) + 1
+        rec = {"gate": gate, "pid": pid, "started": now(), "finished": None,
+               "status": "running", "log": log, "result": None}
+        self.data["jobs"][jid] = rec
+        self._log("job_start", job=jid, gate=gate, pid=pid)
+        return jid, rec
+
+    def update_job(self, job_id: str, status: str | None = None,
+                   result: dict | None = None) -> dict:
+        job = self.data["jobs"].get(job_id)
+        if job is None:
+            raise CheckError(f"no job {job_id!r}")
+        if status:
+            if status not in ("running", "done", "dead"):
+                raise CheckError(f"bad job status {status!r}")
+            job["status"] = status
+            if status in ("done", "dead"):
+                job["finished"] = now()
+        if result is not None:
+            job["result"] = result
+        self._log("job_update", job=job_id, status=job["status"])
+        return job
+
+    def set_mode(self, *a, **kw):  # pragma: no cover - explicit removal
+        raise CheckError(
+            "state.py mode was /hwde's build-mode concept (PCB geometry "
+            "relaxation) and does not port; chip-flow has no equivalent")
+
+    def add_decision(self, what: str, why: str, phase: str | None = None) -> None:
+        self.data["decisions"].append(
+            {"what": what, "why": why, "phase": phase or self.data["phase"],
+             "ts": now()})
+        self._log("decision", what=what)
+
+    def unapproved_checkpoints(self, prev: str, phase: str) -> list[str]:
+        """Checkpoints closing a phase in [prev, phase) that are not
+        approved - the ones set-phase prev -> phase would walk past."""
+        lo, hi = PHASES.index(prev), PHASES.index(phase)
+        table = CHECKPOINTS.get(self._skill(), {})
+        return [cp for ph, cp in table.items()
+                if lo <= PHASES.index(ph) < hi
+                and (self.data["human"].get(cp) or {}).get("status")
+                != "approved"]
+
+    def checkpoint_digest(self) -> str:
+        """Digest of what a checkpoint shows the person: the phase, every
+        gate's last result, every artifact hash and the current phase's
+        digest file. An approval binds to it, so it approves this state."""
+        ws = self.path.parent
+        ph = self.data["phase"]
+        dig = ws / "log" / f"{ph}-digest.md"
+        view = {"phase": ph,
+                "gates": {g: rec.get("last") for g, rec
+                          in sorted(self.data["gates"].items())},
+                "artifacts": {n: a.get("sha256") for n, a
+                              in sorted(self.data["artifacts"].items())},
+                "digest_md": (safelib.sha256_bytes(dig.read_bytes())
+                              if dig.is_file() else None)}
+        return safelib.sha256_bytes(
+            json.dumps(view, sort_keys=True).encode("utf-8"))
+
+    def present_checkpoint(self, checkpoint: str) -> dict:
+        """Record that `checkpoint` is being shown to the person now, with a
+        fresh challenge only this presentation knows. A re-presentation
+        replaces the last one (and its challenge)."""
+        if not CHECKPOINT_RE.fullmatch(checkpoint or ""):
+            raise CheckError(f"checkpoint must match H<n>, got {checkpoint!r}")
+        rec = {"status": "presented",
+               "challenge": f"{checkpoint}-{secrets.token_hex(3)}",
+               "digest": self.checkpoint_digest(), "presented": now(),
+               "phase": self.data["phase"]}
+        self.data["human"][checkpoint] = rec
+        self._log("human_presented", checkpoint=checkpoint,
+                  challenge=rec["challenge"], digest=rec["digest"])
+        return rec
+
+    def record_human(self, checkpoint: str, status: str, answer: str | None,
+                     note: str | None = None) -> dict:
+        """Record the person's verdict on a presented checkpoint. The answer
+        must be given after the presentation: it has to quote the challenge
+        `present` printed, which did not exist before it, so no brief or
+        earlier note can stand in for it."""
+        if not CHECKPOINT_RE.fullmatch(checkpoint or ""):
+            raise CheckError(f"checkpoint must match H<n>, got {checkpoint!r}")
+        if status not in ("approved", "rejected", "skipped"):
+            raise CheckError("human status must be approved|rejected|skipped")
+        rec = self.data["human"].get(checkpoint) or {}
+        if rec.get("status") != "presented":
+            raise CheckError(
+                f"{checkpoint} has no open presentation"
+                + (f" (last verdict: {rec['status']})" if rec else "")
+                + ": run state.py present --checkpoint "
+                f"{checkpoint}, show the person the digest and the challenge "
+                "it prints, and record their reply. A note written before "
+                "the checkpoint is not an answer to it")
+        chal = rec["challenge"]
+        if not re.search(rf"(?<![0-9A-Za-z]){re.escape(chal)}(?![0-9A-Za-z])",
+                         answer or "", re.IGNORECASE):
+            raise CheckError(
+                f"--answer does not quote {checkpoint}'s challenge {chal}: "
+                "record the person's reply verbatim, and ask them to include "
+                "the challenge. An answer that does not quote it was not "
+                "given at this presentation")
+        if self.checkpoint_digest() != rec["digest"]:
+            raise CheckError(
+                f"the workspace changed since {checkpoint} was presented "
+                "(a gate, an artifact, the phase or its digest file): the "
+                "answer is to a state that is gone. Present it again")
+        rec.update(status=status, ts=now(), answer=answer, note=note)
+        self._log("human", checkpoint=checkpoint, status=status,
+                  challenge=chal)
+        return rec
+
+    def record_scope_out(self, dimension: str, quote: str) -> dict:
+        """Carry a scope-out the person's approved H1 answer makes onto
+        that answer's own record (human.H1.scope_out). Only their words
+        can: corners.scope_out_problem refuses a quote that is not in the
+        recorded answer or note, does not name `dimension`, or does not
+        rule it out. A re-presentation of H1 replaces the record, and the
+        scope-out with it - the new answer has to make it again."""
+        import corners as corners_mod
+        cp = corners_mod.SCOPE_CHECKPOINT
+        rec = self.data["human"].get(cp)
+        problem = corners_mod.scope_out_problem(rec, dimension, quote)
+        if problem:
+            raise CheckError(f"scope-out {dimension!r} refused: {problem}")
+        entry = {"dimension": dimension, "quote": quote,
+                 "pinned": "typical", "ts": now()}
+        rec["scope_out"] = [s for s in rec.get("scope_out") or []
+                            if s.get("dimension") != dimension] + [entry]
+        self._log("scope_out", checkpoint=cp, dimension=dimension)
+        return entry
+
+    def open_issue(self, issue: dict) -> dict:
+        iid = self.data["next_issue_id"]
+        self.data["next_issue_id"] = iid + 1
+        rec = {"id": iid, "status": "open", "agent": None, "attempts": 0,
+               "opened": now(), "closed": None, **issue}
+        self.data["open_issues"].append(rec)
+        self._log("issue_open", id=iid, gate=rec.get("gate"),
+                  fixer=rec.get("fixer"), kinds=rec.get("kinds"))
+        return rec
+
+    def update_issue(self, iid: int, status: str | None = None,
+                     agent: str | None = None, bump: bool = False,
+                     note: str | None = None,
+                     approved_by: str | None = None,
+                     by: int | None = None) -> dict:
+        if by is not None and status != "superseded":
+            raise CheckError("issue --by names the replacement of a "
+                             "superseded issue; it goes only with "
+                             "--status superseded")
+        for rec in self.data["open_issues"]:
+            if rec["id"] == iid:
+                if status:
+                    if status not in statelib.ISSUE_STATUSES:
+                        raise CheckError(f"bad issue status {status!r}")
+                    if status == "superseded":
+                        self._check_superseded_by(rec, by)
+                        rec["superseded_by"] = by
+                    else:
+                        rec.pop("superseded_by", None)
+                    if status == "waived" and not (
+                            (note or rec.get("note"))
+                            and (approved_by or rec.get("approved_by"))):
+                        raise CheckError(
+                            "issue --status waived requires --note and "
+                            "--approved-by: a waiver that closes an issue "
+                            "with no recorded reason and no recorded "
+                            "approver is exactly the silent-waive this "
+                            "field pair exists to refuse")
+                    rec["status"] = status
+                    if status in ("fixed", "waived", "superseded"):
+                        rec["closed"] = now()
+                if agent:
+                    rec["agent"] = agent
+                if note is not None:
+                    rec["note"] = note
+                if approved_by is not None:
+                    rec["approved_by"] = approved_by
+                if bump:
+                    rec["attempts"] += 1
+                self._log("issue", id=iid, status=rec["status"],
+                          agent=rec["agent"], attempts=rec["attempts"])
+                return rec
+        raise CheckError(f"no issue with id {iid}")
+
+    def _check_superseded_by(self, rec: dict, by: int | None) -> None:
+        """Refuse `superseded` unless `by` names another issue of the same
+        gate that is itself fixed: the only route that closes an issue with
+        neither a fix of its own nor a waiver is pointing at the fix that
+        replaced it."""
+        if by is None:
+            raise CheckError("issue --status superseded requires --by <id>: "
+                             "the issue whose fix replaced this one")
+        if by == rec["id"]:
+            raise CheckError("an issue cannot be superseded by itself")
+        other = next((o for o in self.data["open_issues"]
+                      if o["id"] == by), None)
+        if other is None:
+            raise CheckError(f"issue --by {by}: no issue with id {by}")
+        if other.get("gate") != rec.get("gate"):
+            raise CheckError(
+                f"issue --by {by}: it is an issue of gate "
+                f"{other.get('gate')!r}, not {rec.get('gate')!r} - only a "
+                "fix of the same gate's finding can supersede it")
+        if other.get("status") != "fixed":
+            raise CheckError(
+                f"issue --by {by}: its status is {other.get('status')!r}, "
+                "not 'fixed' - an issue is superseded only by one whose "
+                "fix went through")
+
+    def budget(self, dotted: str, consume: bool = False, default: int = 3) -> int:
+        node = self.data["budgets"]
+        keys = dotted.split(".")
+        for i, k in enumerate(keys[:-1]):
+            if not isinstance(node, dict):
+                raise CheckError(f"unknown budget path {dotted!r}")
+            if k not in node:
+                node[k] = {}
+                self._log("budget_defaulted", path=".".join(keys[:i + 1]))
+            node = node[k]
+        leaf = keys[-1]
+        if leaf not in node:
+            node[leaf] = default
+            self._log("budget_defaulted", path=dotted, value=default)
+        if consume:
+            if node[leaf] <= 0:
+                raise CheckError(f"budget {dotted} exhausted")
+            node[leaf] -= 1
+            self._log("budget", path=dotted, remaining=node[leaf])
+        return node[leaf]
+
+    # ---- snapshots (fix-loop safety net) ----------------------------------
+    def _workspace(self) -> Path:
+        """The directory state.json lives in - never the recorded
+        `workspace` string, which is relative to whatever directory ran
+        `init` and goes stale when a workspace moves (the spi_fifo /vde run,
+        2026-09-25: a snapshot taken from another cwd landed, empty, in a
+        stray blocks/ tree outside the workspace)."""
+        return self.path.parent
+
+    def _default_snapshot_rels(self, ws: Path) -> list[str]:
+        """Every registered artifact's own file(s) - a FILE artifact as
+        itself, a DIRECTORY artifact (rtl/, tb/, formal/, holdout/, ...)
+        expanded to every file it actually contains.
+
+        M5, found by actually running the fix loop for real: this used to
+        be `is_file()`-only, which is true for exactly ZERO of /vde's own
+        design artifacts (rtl/tb/formal/holdout/harden/layout are all
+        directory-kind, docs/design.md 1.4/1.6) - a `state.py snapshot`
+        with no explicit --files silently protected NOTHING for precisely
+        the artifact classes (rtl_edit/tb_edit/formal_edit) the fix loop's
+        own rollback step exists to protect. Same __pycache__/.pyc/.pyo
+        exclusion as statelib's own dir_text hashing (a cocotb import's
+        bytecode cache is not part of the design and must never count as
+        something a restore should bring back)."""
+        rels: list[str] = []
+        for a in self.data["artifacts"].values():
+            if not isinstance(a, dict) or not a.get("path"):
+                continue
+            p = ws / a["path"]
+            if p.is_file():
+                rels.append(a["path"])
+            elif p.is_dir():
+                rels.extend(
+                    f.relative_to(ws).as_posix()
+                    for f in sorted(p.rglob("*"))
+                    if f.is_file() and "__pycache__" not in f.parts
+                    and f.suffix not in (".pyc", ".pyo"))
+        return rels
+
+    def snapshot(self, label: str, files: list[str] | None = None) -> dict:
+        """Contained copy of workspace files into state_snapshots/<label>.
+        Every entry is proven inside the workspace (no absolute/traversal/
+        symlink entries) before a byte is copied."""
+        ws = self._workspace()
+        label = _check_label(label)
+        dest = _snapshot_dir(ws, label)
+        rels = files or self._default_snapshot_rels(ws)
+        plan = []
+        for rel in rels:
+            rel_norm = str(rel).replace("\\", "/")
+            src = safelib.contained_rel(ws, rel_norm, what="snapshot entry")
+            if src.is_symlink() or not src.is_file():
+                raise CheckError(
+                    f"snapshot source missing or not a regular file: {src}")
+            if rel_norm.split("/")[0] == SNAP_DIR:
+                raise safelib.ContainmentError(
+                    f"snapshot entry {rel_norm!r} lies inside {SNAP_DIR}/")
+            _check_snapshot_entry(rel_norm, "snapshot entry")
+            plan.append((rel_norm, src))
+        if dest.exists():
+            shutil.rmtree(dest)
+        manifest = []
+        for rel_norm, src in plan:
+            out = safelib.contained_rel(dest, rel_norm, what="snapshot copy")
+            out.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src, out)
+            manifest.append({"path": rel_norm,
+                             "sha256": safelib.sha256_file(out)})
+        safelib.atomic_write_json(
+            dest / "manifest.json",
+            {"label": label, "ts": now(), "files": manifest})
+        self._log("snapshot", label=label, files=len(manifest))
+        return {"label": label, "files": manifest}
+
+    def restore(self, label: str) -> dict:
+        """Transactional restore: validate + stage + verify EVERY file
+        beside its target, then swap each into place with os.replace. Any
+        failure before the swap phase leaves the workspace byte-for-byte
+        untouched."""
+        ws = self._workspace()
+        label = _check_label(label)
+        dest = _snapshot_dir(ws, label)
+        man = checklib.load_json(dest / "manifest.json",
+                                 f"snapshot {label} manifest")
+        files = man.get("files") if isinstance(man, dict) else None
+        if not isinstance(files, list):
+            raise CheckError(f"snapshot {label} manifest has no files list")
+        plan = []
+        for f in files:
+            if not isinstance(f, dict) or not isinstance(f.get("path"), str) \
+                    or not isinstance(f.get("sha256"), str):
+                raise CheckError(f"snapshot {label} manifest entry malformed: "
+                                 f"{f!r}")
+            rel = f["path"]
+            _check_snapshot_entry(rel.replace("\\", "/"), "snapshot file")
+            src = safelib.contained_rel(dest, rel, what="snapshot file")
+            if src.is_symlink() or not src.is_file():
+                raise CheckError(f"snapshot file missing or not a regular "
+                                 f"file: {src}")
+            target = safelib.contained_rel(ws, rel, what="restore target")
+            if target.exists() and (target.is_symlink()
+                                    or not target.is_file()):
+                raise safelib.ContainmentError(
+                    f"restore target {target} is not a regular file")
+            safelib.sweep_stale_stage_temps(target)
+            plan.append((rel, src, target, f["sha256"]))
+        staged: list[tuple[Path, Path, str, str]] = []
+        restored = []
+        try:
+            for rel, src, target, sha in plan:
+                tmp = safelib.stage_copy(src, target)
+                staged.append((tmp, target, sha, rel))
+                safelib.fault("restore.staged", rel=rel, n=len(staged))
+            for tmp, target, sha, rel in staged:
+                got = safelib.sha256_file(tmp)
+                if got != sha:
+                    raise CheckError(
+                        f"restore hash mismatch for {rel} (snapshot {label} "
+                        f"is corrupt: {got[:12]} != {sha[:12]}) - nothing "
+                        "restored")
+            safelib.fault("restore.verified", label=label)
+            for tmp, target, sha, rel in staged:
+                if target.is_symlink():
+                    raise safelib.ContainmentError(
+                        f"restore target {target} became a symlink")
+                os.replace(tmp, target)
+                restored.append(rel)
+        finally:
+            for tmp, _t, _s, _r in staged:
+                try:
+                    if tmp.exists():
+                        tmp.unlink()
+                except OSError:
+                    pass
+        self._log("restore", label=label, files=len(restored))
+        return {"label": label, "restored": restored}
+
+    # ---- freshness -------------------------------------------------------
+    def freshness(self) -> dict:
+        """Read-only two-layer freshness report (statelib): per recorded gate
+        hash validity + stale marks, per artifact registered-vs-current."""
+        return statelib.freshness_report(self.data, self.path.parent,
+                                         self._imap())
+
+    # ---- resume ----------------------------------------------------------
+    def resume_summary(self) -> dict:
+        gates = self.data["gates"]
+        skill = self._skill()
+        order = applicable_gate_order(skill)
+        passed = [g for _, g in order
+                  if gates.get(g, {}).get("status") == "pass"]
+        next_gate = None
+        import attest   # lazy, as in gate_coverage
+        ws = self.path.parent
+        for ph, g in order:
+            # a gate the block's own spec declares not applicable is not
+            # owed (gate_coverage's rule), so it is never the next gate
+            if gates.get(g, {}).get("status") != "pass" \
+                    and not attest.not_applicable_reason(ws, skill, g):
+                next_gate = {"phase": ph, "gate": g}
+                break
+        # "escalated" belongs here too (M5, found running the fix loop for
+        # real): it is the fix loop's OWN outcome for a finding that cannot
+        # be closed by looping again (docs/design.md, "Escalate: ... a
+        # human decides") - the single most important thing for a resumed
+        # session to see, not less. Only "fixed"/"waived" are genuinely
+        # closed and belong out of this list, and "superseded" only while
+        # its replacement is fixed (statelib.issue_unresolved).
+        issues = self.data["open_issues"]
+        open_issues = [i for i in issues
+                       if statelib.issue_unresolved(i, issues)]
+        running_jobs = [jid for jid, j in self.data["jobs"].items()
+                        if j.get("status") == "running"]
+        last = self.data["history"][-1] if self.data["history"] else None
+        fresh = self.freshness()
+        # phase is workflow position, never a release certificate: resume
+        # surfaces the DERIVED disposition beside it. Advisory here: any
+        # attest failure degrades to null, never breaks resume.
+        disposition_error = None
+        try:
+            import attest  # noqa: E402  (sibling script, scripts/ on sys.path)
+            disposition = attest.disposition(self.path.parent)["disposition"]
+        except Exception as exc:  # noqa: BLE001
+            disposition = None
+            disposition_error = f"{type(exc).__name__}: {exc}"
+        return {
+            "script": SCRIPT, "skill": self.data["skill"],
+            "block": self.data["block"],
+            "release_disposition": disposition,
+            **({"release_disposition_error": disposition_error}
+               if disposition_error else {}),
+            "workspace": self.data["workspace"], "phase": self.data["phase"],
+            "gates_passed": passed, "next_gate": next_gate,
+            "gates_passed_fresh": [g for g in passed
+                                   if fresh["gates"][g]["fresh"]],
+            "gates_stale": fresh["summary"]["stale"],
+            "gates_freshness_unknown": fresh["summary"]["unknown"],
+            "human_hold_pending": fresh["summary"]["human_hold_pending"],
+            "holdout_drift": self.holdout_drift(),
+            "open_issues": open_issues, "running_jobs": running_jobs,
+            "budgets": self.data["budgets"],
+            "artifacts": self.data["artifacts"], "last_event": last,
+        }
+
+
+# ---- CLI ----------------------------------------------------------------
+def _find_state(args) -> Path:
+    if getattr(args, "state", None):
+        return Path(args.state)
+    ws = getattr(args, "workspace", None)
+    if ws:
+        return Path(ws) / "state.json"
+    p = Path("state.json")
+    if p.exists():
+        return p
+    raise CheckError("give --state FILE or --workspace DIR (no ./state.json)")
+
+
+def run(argv=None):
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    sub = ap.add_subparsers(dest="cmd", required=True)
+
+    def common(p):
+        p.add_argument("--state", help="path to state.json")
+        p.add_argument("--workspace", help="workspace dir (state.json inside)")
+        p.add_argument("--out", help="write result JSON here instead of stdout")
+        p.add_argument("--if-digest",
+                       help="compare-and-swap pin: refuse unless the current "
+                            "state.json sha256 equals this (show/resume "
+                            "report `digest`)")
+
+    p = sub.add_parser("init", help="create a new state.json")
+    p.add_argument("--workspace", required=True)
+    p.add_argument("--skill", required=True, choices=SKILLS)
+    p.add_argument("--block", required=True)
+    p.add_argument("--phase", default="P0")
+    p.add_argument("--force", action="store_true")
+    p.add_argument("--out")
+
+    for name in ("show", "resume", "freshness"):
+        common(sub.add_parser(name))
+
+    p = sub.add_parser("set-phase")
+    common(p)
+    p.add_argument("--phase", required=True)
+    p.add_argument("--force", action="store_true",
+                   help="advance even when an owed gate has no recorded "
+                        "result (logged as phase_forced with the list)")
+
+    p = sub.add_parser("record-gate")
+    common(p)
+    p.add_argument("--gate", required=True)
+    p.add_argument("--result", required=True,
+                   help="gate.py result JSON (has status/failing_count; "
+                        "its inputs_at_start, when present, are the hashes "
+                        "recorded)")
+    p.add_argument("--phase")
+
+    p = sub.add_parser("artifact")
+    common(p)
+    p.add_argument("--name", required=True)
+    p.add_argument("--path", required=True)
+
+    p = sub.add_parser("edit", help="record a declared edit; stamps the "
+                       "invalidation.yaml stale set")
+    common(p)
+    p.add_argument("--class", dest="edit_class", required=True,
+                   help="edit class from reference/invalidation.yaml")
+    p.add_argument("--refs", nargs="*", default=None,
+                   help="module/file names the edit touches (for the record)")
+    p.add_argument("--note")
+    p.add_argument("--baseline", help="holdout_stimulus_edit only: the "
+                   "pre-fix snapshot label its holdout/ is checked against")
+
+    p = sub.add_parser("rehash", help="re-hash artifacts; --names = "
+                       "force-clear their stale marks (regenerated)")
+    common(p)
+    p.add_argument("--names", nargs="*", default=None)
+
+    p = sub.add_parser("spawn", help="record a subagent spawn in the ledger")
+    common(p)
+    p.add_argument("--role", required=True)
+    p.add_argument("--model", required=True)
+    p.add_argument("--effort")
+    p.add_argument("--phase")
+    p.add_argument("--tokens", type=int)
+    p.add_argument("--cost-usd", type=float, dest="cost_usd")
+    p.add_argument("--note")
+
+    p = sub.add_parser("toolchain", help="record the eda image + PDK this "
+                       "run's gates ran against")
+    common(p)
+    p.add_argument("--image", required=True)
+    p.add_argument("--versions-sha")
+    p.add_argument("--pdk")
+    p.add_argument("--pdk-sha")
+
+    p = sub.add_parser("job-start", help="record a detached gate job "
+                       "(jobs.py calls this)")
+    common(p)
+    p.add_argument("--gate", required=True)
+    p.add_argument("--pid", type=int, required=True)
+    p.add_argument("--log", required=True)
+
+    p = sub.add_parser("job-update")
+    common(p)
+    p.add_argument("--job", required=True)
+    p.add_argument("--status", choices=("running", "done", "dead"))
+    p.add_argument("--result", help="job result JSON file")
+
+    p = sub.add_parser("holdout", help="hash holdout/ into state.holdout")
+    common(p)
+    p.add_argument("--written-by", required=True)
+
+    p = sub.add_parser("decision")
+    common(p)
+    p.add_argument("--what", required=True)
+    p.add_argument("--why", required=True)
+    p.add_argument("--phase")
+
+    p = sub.add_parser("present", help="record a human checkpoint as shown "
+                       "now; prints the challenge the answer must quote")
+    common(p)
+    p.add_argument("--checkpoint", required=True)
+
+    p = sub.add_parser("human")
+    common(p)
+    p.add_argument("--checkpoint", required=True)
+    p.add_argument("--status", required=True)
+    p.add_argument("--answer", required=True,
+                   help="the person's reply, verbatim; must quote the "
+                        "challenge `present` printed")
+    p.add_argument("--note")
+
+    p = sub.add_parser("scope-out", help="record a passive corner "
+                       "dimension the approved H1 answer rules out of scope")
+    common(p)
+    p.add_argument("--dimension", required=True,
+                   help="mim_cap or resistor (corners.SCOPE_DIMENSIONS)")
+    p.add_argument("--quote", required=True,
+                   help="the person's words that rule it out, verbatim "
+                        "from the recorded H1 answer or note")
+
+    p = sub.add_parser("issue")
+    common(p)
+    p.add_argument("--id", type=int, required=True)
+    p.add_argument("--status")
+    p.add_argument("--agent")
+    p.add_argument("--bump-attempts", action="store_true")
+    p.add_argument("--note", help="required with --status waived: why")
+    p.add_argument("--approved-by", dest="approved_by",
+                   help="required with --status waived: who")
+    p.add_argument("--by", type=int,
+                   help="required with --status superseded: the id of the "
+                        "fixed issue of the same gate that replaced it")
+
+    p = sub.add_parser("budget")
+    common(p)
+    p.add_argument("--path", required=True, dest="bpath",
+                   help="dotted path, e.g. fix_loops.lint")
+    p.add_argument("--consume", action="store_true")
+
+    p = sub.add_parser("log")
+    common(p)
+    p.add_argument("--event", required=True)
+    p.add_argument("--data", help="extra JSON object merged into the event")
+
+    p = sub.add_parser("snapshot")
+    common(p)
+    p.add_argument("--label", required=True)
+    p.add_argument("--files", nargs="*",
+                   help="workspace-relative files (default: file artifacts)")
+
+    p = sub.add_parser("restore")
+    common(p)
+    p.add_argument("--label", required=True)
+
+    args = ap.parse_args(argv)
+
+    if args.cmd == "init":
+        st = State.init(Path(args.workspace), args.skill, args.block,
+                        args.phase, args.force)
+        return {"script": SCRIPT, "cmd": "init", "state": str(st.path),
+                "skill": args.skill, "block": args.block,
+                "phase": args.phase, "subdirs": list(SUBDIRS)}, args.out
+
+    state_path = _find_state(args)
+    result: dict = {"script": SCRIPT, "cmd": args.cmd}
+
+    if args.cmd in ("show", "resume", "freshness"):  # read-only: never saves
+        st = State.load(state_path)
+        _check_pin(st, args)
+        if args.cmd == "show":
+            return {**result, **st.data, "digest": st.base_digest}, args.out
+        if args.cmd == "resume":
+            return {**result, **st.resume_summary(),
+                    "digest": st.base_digest}, args.out
+        return {**result, **st.freshness()}, args.out
+
+    # one OS-exclusive hold across load -> mutate -> save, so two CLI writers
+    # on one workspace serialize instead of losing an update - and never on
+    # a state file that is not there: writer_lock would mkdir a typo'd
+    # --workspace and leave a stray .lock behind
+    if not state_path.is_file():
+        raise CheckError(f"no state file at {state_path} (wrong --workspace/"
+                         "--state? run `state.py init` for a new workspace)")
+    with safelib.writer_lock(state_path, what="state.json"):
+        st = State.load(state_path)
+        _check_pin(st, args)
+        return _mutate(st, args, result)
+
+
+def _check_pin(st: "State", args) -> None:
+    want = getattr(args, "if_digest", None)
+    if want and want != st.base_digest:
+        raise safelib.StaleWriteError(
+            f"{st.path} digest {(st.base_digest or '')[:12]} != --if-digest "
+            f"{want[:12]} - the state changed since that read; nothing "
+            "written")
+
+
+def _mutate(st: "State", args, result: dict):
+
+    if args.cmd == "set-phase":
+        warnings = st.set_phase(args.phase, require_gates=not args.force)
+        result["phase"] = args.phase
+        if warnings:
+            result["warnings"] = warnings
+    elif args.cmd == "record-gate":
+        gres = checklib.load_json(args.result, "gate result")
+        g = st.record_gate(args.gate, gres, args.phase)
+        result.update(gate=args.gate, status=g["status"],
+                      attempts=g["attempts"])
+    elif args.cmd == "artifact":
+        st.set_artifact(args.name, args.path)
+        result.update(name=args.name, path=args.path,
+                      sha256=st.data["artifacts"][args.name]["sha256"])
+    elif args.cmd == "edit":
+        rec = st.apply_edit(args.edit_class, args.refs, args.note,
+                            args.baseline)
+        result.update(edit=rec)
+    elif args.cmd == "rehash":
+        result.update(artifacts=st.rehash(args.names))
+    elif args.cmd == "spawn":
+        rec = st.record_spawn({
+            "role": args.role, "model": args.model, "effort": args.effort,
+            "phase": args.phase, "tokens": args.tokens,
+            "cost_usd": args.cost_usd, "note": args.note})
+        result.update(spawn=rec)
+    elif args.cmd == "toolchain":
+        rec = st.set_toolchain(args.image, args.versions_sha, args.pdk,
+                               args.pdk_sha)
+        result.update(toolchain=rec)
+    elif args.cmd == "job-start":
+        jid, rec = st.start_job(args.gate, args.pid, args.log)
+        result.update(job=jid, **rec)
+    elif args.cmd == "job-update":
+        res = checklib.load_json(args.result, "job result") if args.result \
+            else None
+        rec = st.update_job(args.job, args.status, res)
+        result.update(job=args.job, **rec)
+    elif args.cmd == "holdout":
+        result.update(holdout=st.record_holdout(args.written_by))
+    elif args.cmd == "decision":
+        st.add_decision(args.what, args.why, args.phase)
+        result.update(what=args.what)
+    elif args.cmd == "present":
+        rec = st.present_checkpoint(args.checkpoint)
+        result.update(checkpoint=args.checkpoint, challenge=rec["challenge"],
+                      checkpoint_digest=rec["digest"],
+                      ask=f"Reply quoting {rec['challenge']} with approve or "
+                          "reject and any notes")
+    elif args.cmd == "human":
+        st.record_human(args.checkpoint, args.status, args.answer, args.note)
+        result.update(checkpoint=args.checkpoint, status=args.status)
+    elif args.cmd == "scope-out":
+        result.update(scope_out=st.record_scope_out(args.dimension,
+                                                    args.quote))
+    elif args.cmd == "issue":
+        rec = st.update_issue(args.id, args.status, args.agent,
+                              args.bump_attempts, args.note,
+                              args.approved_by, args.by)
+        result.update(issue=rec)
+    elif args.cmd == "budget":
+        remaining = st.budget(args.bpath, args.consume)
+        result.update(path=args.bpath, remaining=remaining)
+    elif args.cmd == "log":
+        if not EVENT_RE.fullmatch(args.event or ""):
+            raise CheckError(
+                f"bad event name {args.event!r}: event names are machine "
+                "keys matching [a-z][a-z0-9_-]{0,31} - put prose in "
+                '--data {"msg": ...}')
+        extra = json.loads(args.data) if args.data else {}
+        if not isinstance(extra, dict):
+            raise CheckError("--data must be a JSON object")
+        if args.event == "spawn":
+            result.update(spawn=st.record_spawn(extra))
+        else:
+            st._log(args.event, **extra)
+        result.update(event=args.event)
+    elif args.cmd == "snapshot":
+        result.update(st.snapshot(args.label, args.files))
+    elif args.cmd == "restore":
+        result.update(st.restore(args.label))
+
+    st.save()
+    result["phase"] = st.data["phase"]
+    result["digest"] = st.base_digest
+    return result, args.out
+
+
+def main(argv=None) -> int:
+    checklib.utf8_stdout()
+    try:
+        payload, out = run(argv)
+    except SystemExit:
+        raise
+    except Exception as exc:  # noqa: BLE001  (any error -> exit 2)
+        print(json.dumps({"script": SCRIPT, "status": "error",
+                          "error": f"{type(exc).__name__}: {exc}",
+                          "remediation": str(exc)}))
+        return 2
+    text = json.dumps(payload, indent=1)
+    if out:
+        Path(out).parent.mkdir(parents=True, exist_ok=True)
+        Path(out).write_text(text, encoding="utf-8")
+    else:
+        print(text)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

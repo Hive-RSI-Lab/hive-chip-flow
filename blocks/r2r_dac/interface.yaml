@@ -1,0 +1,23 @@
+# interface.yaml - the splitter's output for r2r_dac: every signal that
+# crosses between the digital front end and the analog R-2R macro, with
+# direction, level, domain, width and load. digital_spec.yaml and
+# analog_spec.yaml carry the same entries field for field; `split`
+# (engine/scripts/check_split.py) checks they agree.
+#
+# direction is a2d (analog drives digital) or d2a (digital drives analog).
+#
+# Only one signal crosses. The DAC's analog output (vout) does NOT cross to
+# the digital side - it leaves the tile on Tiny Tapeout analog pad ua[0],
+# declared under ua_pins below (chip-flow #20's analog-tile path).
+version: 1
+signals:
+  - name: dac_code
+    direction: d2a
+    level: cmos_3v3
+    domain: clk_sys
+    width: 8
+    load: "gate inputs of the 8 ladder switch driver cells inside the analog macro, one gf180mcu_fd_sc_mcu7t5v0 buffer input per bit"
+# Analog-cell pins brought out to the Tiny Tapeout analog pads ua[k], read
+# by check_top_harden. One analog pin, the brief's minimum.
+ua_pins:
+  vout: 0

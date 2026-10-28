@@ -1,0 +1,55 @@
+{
+ "script": "gate",
+ "gate": "formal",
+ "phase": "P4",
+ "tool": "formal",
+ "input_digest": "dir_text:08d2e63a30253fb8dcb71be29ca5aa7209711132e317fcb0e4bc99f0e226a305",
+ "status": "pass",
+ "criteria": {
+  "fail_severities": [
+   "error"
+  ],
+  "max_count": 0
+ },
+ "counts": {
+  "total": 0,
+  "by_severity": {},
+  "by_source": {}
+ },
+ "failing_count": 0,
+ "failing": [],
+ "violations": [],
+ "facts": {
+  "top": "r2r_dac_digital",
+  "formal_top": "r2r_dac_digital_formal",
+  "depth": 12,
+  "cover_depth": 12,
+  "frontend": "native",
+  "frontend_why": null,
+  "multiclock": false,
+  "multiclock_why": null,
+  "proven": [
+   "REQ-ECHO",
+   "REQ-HOLD",
+   "REQ-RESET"
+  ],
+  "bounded": [],
+  "failed": [],
+  "vacuous": [],
+  "smt_status": "PASS",
+  "pdr_status": "PASS",
+  "cover_points": [
+   "COVER_FULL",
+   "COVER_HOLD"
+  ],
+  "async_reset_cuts": [],
+  "async_reset_cuts_note": null
+ },
+ "inputs_at_start": {
+  "rtl": "dir_text:08d2e63a30253fb8dcb71be29ca5aa7209711132e317fcb0e4bc99f0e226a305",
+  "formal": "dir_text:08afbef661d005669823e3e3ad631918a42bfd611bd5042ac8b6ed3fe5e6ce46",
+  "spec_yaml": "json_canonical:316aabe3e699eb67a766fb42296b9a90d765394b6deefb2d5178cc8865c08bbf"
+ },
+ "recorded_ts": "2026-10-13T04:17:06",
+ "attempts": 3
+}

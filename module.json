@@ -1,0 +1,6 @@
+{
+  "name": "chip-flow",
+  "description": "Chip design with open tools: ihsan-sa/chip-flow's /vde (digital blocks in Verilog), /ade (analog blocks) and /msde (a mixed-signal task that drives the other two) and their engine (state and checkpoints, gates, the fix loop, planted-fault corpus, evals) as a Hive module. An agent takes a block from a written spec through lint, simulation, formal proof, hardening, timing, DRC, LVS and SPICE at every corner to a GF180 Tiny Tapeout tile, with the person's sign-offs between stages. It runs no program of its own: bin/chip-flow runs the engine's scripts and the tools (ngspice, xschem, magic, netgen, klayout, yosys, openroad, iverilog, LibreLane, the GF180 PDK) from the Hive's read-only IIC-OSIC-TOOLS tree in the agent's own sandbox, through upstream's bin/eda, with its shims under the agent's HOME. It never submits: a Tiny Tapeout submission, a shuttle slot or any purchase stays the person's.",
+  "provides": {"procedures": ["docs/README.md"], "skills": ["skills/vde/SKILL.md", "skills/ade/SKILL.md", "skills/msde/SKILL.md"]},
+  "projects": ["*"]
+}

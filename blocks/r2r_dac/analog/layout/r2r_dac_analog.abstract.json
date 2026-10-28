@@ -1,0 +1,65 @@
+{
+ "cell": "r2r_dac_analog",
+ "bbox_um": [
+  -2.04,
+  -3.2,
+  208.48,
+  136.36
+ ],
+ "pins": [
+  {
+   "name": "dac_code[0]",
+   "layer": "metal2",
+   "x": 208.23,
+   "y": 1.945
+  },
+  {
+   "name": "dac_code[1]",
+   "layer": "metal2",
+   "x": 208.23,
+   "y": 5.895
+  },
+  {
+   "name": "dac_code[2]",
+   "layer": "metal2",
+   "x": 208.23,
+   "y": 9.785
+  },
+  {
+   "name": "dac_code[3]",
+   "layer": "metal2",
+   "x": 208.23,
+   "y": 13.735
+  },
+  {
+   "name": "dac_code[4]",
+   "layer": "metal2",
+   "x": 208.23,
+   "y": 17.625
+  },
+  {
+   "name": "dac_code[5]",
+   "layer": "metal2",
+   "x": 208.23,
+   "y": 21.575
+  },
+  {
+   "name": "dac_code[6]",
+   "layer": "metal2",
+   "x": 208.23,
+   "y": 25.465
+  },
+  {
+   "name": "dac_code[7]",
+   "layer": "metal2",
+   "x": 208.23,
+   "y": 29.415
+  },
+  {
+   "name": "vout",
+   "layer": "metal2",
+   "x": 208.23,
+   "y": 129.81
+  }
+ ]
+}

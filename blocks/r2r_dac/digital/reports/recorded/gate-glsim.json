@@ -1,0 +1,67 @@
+{
+ "script": "gate",
+ "gate": "glsim",
+ "phase": "P6",
+ "tool": "glsim",
+ "input_digest": "dir_text:5e0fc600709e3cc97c7324a97c0c78553ef21db49b5a2f1a7ca5465fd7d2b2f2",
+ "status": "pass",
+ "criteria": {
+  "fail_severities": [
+   "error"
+  ],
+  "max_count": 0
+ },
+ "counts": {
+  "total": 0,
+  "by_severity": {},
+  "by_source": {}
+ },
+ "failing_count": 0,
+ "failing": [],
+ "violations": [],
+ "facts": {
+  "top": "r2r_dac_digital",
+  "results": {
+   "functional": {
+    "test_reset_clears": true,
+    "test_register_capture": true,
+    "test_registered_output": true,
+    "test_hold_keeps_captured_code": true,
+    "test_ramp_all_codes_and_wrap": true,
+    "test_slow_prescale": true,
+    "test_sine_table_all_entries": true,
+    "test_random_mode_switching_against_model": true
+   },
+   "sdf": {
+    "test_reset_clears": true,
+    "test_register_capture": true,
+    "test_registered_output": true,
+    "test_hold_keeps_captured_code": true,
+    "test_ramp_all_codes_and_wrap": true,
+    "test_slow_prescale": true,
+    "test_sine_table_all_entries": true,
+    "test_random_mode_switching_against_model": true
+   }
+  },
+  "sdf": {
+   "zero_interconnects_dropped": 538,
+   "sdf_unannotated": [
+    "_355_ (gf180mcu_fd_sc_mcu7t5v0__mux2_4)",
+    "_360_ (gf180mcu_fd_sc_mcu7t5v0__mux2_2)",
+    "_361_ (gf180mcu_fd_sc_mcu7t5v0__mux2_2)",
+    "_424_ (gf180mcu_fd_sc_mcu7t5v0__mux2_2)",
+    "_441_ (gf180mcu_fd_sc_mcu7t5v0__mux2_2)",
+    "_462_ (gf180mcu_fd_sc_mcu7t5v0__mux2_2)",
+    "_568_ (gf180mcu_fd_sc_mcu7t5v0__xor2_1)"
+   ],
+   "instances_renamed": {}
+  }
+ },
+ "inputs_at_start": {
+  "harden": "dir_text:5e0fc600709e3cc97c7324a97c0c78553ef21db49b5a2f1a7ca5465fd7d2b2f2",
+  "tb": "dir_text:3d7769f785322e639d37580c2e85e19fdd9b82876af0927410c75ad81d11554b",
+  "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119"
+ },
+ "recorded_ts": "2026-10-13T04:20:11",
+ "attempts": 2
+}

@@ -1,0 +1,47 @@
+{
+ "script": "gate",
+ "gate": "drc",
+ "phase": "P5",
+ "tool": "analog_drc",
+ "input_digest": "dir_text:7a954c277f279e0a8b3d75e97ed6833bf445cf7e04f4ec0eefae35be290d869d",
+ "status": "pass",
+ "criteria": {
+  "fail_severities": [
+   "error"
+  ],
+  "max_count": 0
+ },
+ "counts": {
+  "total": 0,
+  "by_severity": {},
+  "by_source": {}
+ },
+ "failing_count": 0,
+ "failing": [],
+ "violations": [],
+ "facts": {
+  "topcell": "r2r_dac_analog",
+  "gds": "layout/r2r_dac_analog.gds",
+  "report": "log/analog_drc.lyrdb",
+  "decks_skipped": {
+   "density": "metal and poly density is a whole-chip figure; a lone block has no fill around it",
+   "antenna": "the gate-to-metal ratio depends on the routing the chip puts on the block's pins",
+   "dummy": "the dummy-fill decks (DCF/DPF/DMF, e.g. DCF.1a: the space between COMP must be filled) check fill a lone block does not have yet; the chip's fill step adds it, for the same reason density is off"
+  },
+  "bbox_um": {
+   "x0": -2.04,
+   "y0": -3.2,
+   "x1": 208.48,
+   "y1": 136.36,
+   "width": 210.52,
+   "height": 139.56
+  },
+  "footprint": null
+ },
+ "inputs_at_start": {
+  "layout": "dir_text:7a954c277f279e0a8b3d75e97ed6833bf445cf7e04f4ec0eefae35be290d869d",
+  "spec_yaml": "json_canonical:99047ed51c88b1767b136d48e2c3832967daa1e22eec34905494620acacea45d"
+ },
+ "recorded_ts": "2026-10-13T06:13:09",
+ "attempts": 8
+}

@@ -1,0 +1,265 @@
+"""engine/scripts/check_holdout.py: the holdout gate (docs/design.md 1.5's
+holdout row). Runs REAL cocotb-on-Icarus, same caveats as
+test_check_sim.py."""
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+import pytest
+
+REPO = Path(__file__).resolve().parents[1]
+ENGINE = REPO / "engine"
+SCRIPTS = ENGINE / "scripts"
+sys.path.insert(0, str(SCRIPTS))
+sys.path.insert(0, str(ENGINE / "lib"))
+
+import check_holdout  # noqa: E402
+import cluster_violations  # noqa: E402
+
+RTL_GOOD = """\
+module top (input wire clk, input wire rst, output reg [1:0] count);
+  always @(posedge clk) count <= rst ? 2'd0 : count + 2'd1;
+endmodule
+"""
+
+# a bug the visible tests never look at, only the held-out one does (mirrors
+# gates.yaml's "UART parity inverted where the visible tests do not look"):
+# reset value is 1, not 0.
+RTL_BUGGY_RESET = """\
+module top (input wire clk, input wire rst, output reg [1:0] count);
+  always @(posedge clk) count <= rst ? 2'd1 : count + 2'd1;
+endmodule
+"""
+
+SPEC = """\
+top: top
+requirements:
+  - id: REQ-RESET
+    text: rst clears count to 0
+    check: sim
+"""
+
+HOLDOUT_TB = """\
+import cocotb
+from cocotb.clock import Clock
+from cocotb.triggers import RisingEdge
+
+# req: REQ-RESET
+@cocotb.test()
+async def test_reset_is_zero(dut):
+    cocotb.start_soon(Clock(dut.clk, 10, unit="ns").start())
+    dut.rst.value = 1
+    await RisingEdge(dut.clk)
+    await RisingEdge(dut.clk)
+    assert int(dut.count.value) == 0
+"""
+
+SKIPPED_TB = """\
+import cocotb
+from cocotb.clock import Clock
+from cocotb.triggers import RisingEdge
+
+# req: REQ-RESET
+@cocotb.test(skip=True)
+async def test_reset_is_zero(dut):
+    cocotb.start_soon(Clock(dut.clk, 10, unit="ns").start())
+    assert False, "must never run"
+"""
+
+UNTAGGED_TB = """\
+import cocotb
+from cocotb.clock import Clock
+from cocotb.triggers import RisingEdge
+
+@cocotb.test()
+async def test_untagged(dut):
+    cocotb.start_soon(Clock(dut.clk, 10, unit="ns").start())
+    await RisingEdge(dut.clk)
+"""
+
+
+def make_ws(tmp_path: Path, rtl_text: str, holdout_text: str) -> Path:
+    ws = tmp_path / "ws"
+    (ws / "rtl").mkdir(parents=True)
+    (ws / "spec").mkdir(parents=True)
+    (ws / "holdout").mkdir(parents=True)
+    (ws / "log").mkdir(parents=True)
+    (ws / "rtl" / "top.v").write_text(rtl_text, encoding="utf-8")
+    (ws / "spec" / "spec.yaml").write_text(SPEC, encoding="utf-8")
+    (ws / "holdout" / "test_holdout.py").write_text(holdout_text,
+                                                     encoding="utf-8")
+    return ws
+
+
+@pytest.mark.slow
+def test_clean_design_passes(tmp_path, capsys):
+    ws = make_ws(tmp_path, RTL_GOOD, HOLDOUT_TB)
+    code = check_holdout.main(["--workspace", str(ws)])
+    out = json.loads(capsys.readouterr().out)
+    assert code == 0, out
+    assert out["status"] == "pass"
+    assert out["tests_passed"] == 1
+
+
+@pytest.mark.slow
+def test_held_out_bug_reported_by_requirement_id_only(tmp_path, capsys):
+    ws = make_ws(tmp_path, RTL_BUGGY_RESET, HOLDOUT_TB)
+    code = check_holdout.main(["--workspace", str(ws)])
+    out = json.loads(capsys.readouterr().out)
+    assert code == 1, out
+    v = next(v for v in out["violations"] if v["kind"] == "holdout_failed")
+    assert v["refs"] == ["REQ-RESET"]
+    # the result names the requirement id only - never the test name/file.
+    assert v["file"] is None
+    assert v["module"] is None
+    assert "test_holdout" not in v["msg"]
+    assert "test_reset_is_zero" not in v["msg"]
+
+
+@pytest.mark.slow
+def test_untagged_holdout_test_is_flagged(tmp_path, capsys):
+    ws = make_ws(tmp_path, RTL_GOOD, UNTAGGED_TB)
+    code = check_holdout.main(["--workspace", str(ws)])
+    out = json.loads(capsys.readouterr().out)
+    assert code == 1, out
+    kinds = {v["kind"] for v in out["violations"]}
+    assert "untagged_holdout_test" in kinds
+
+
+@pytest.mark.slow
+def test_skipped_holdout_test_is_not_passed_and_not_named(tmp_path, capsys):
+    ws = make_ws(tmp_path, RTL_GOOD, SKIPPED_TB)
+    code = check_holdout.main(["--workspace", str(ws)])
+    out = json.loads(capsys.readouterr().out)
+    assert code == 1, out
+    assert out["tests_passed"] == 0
+    v = next(v for v in out["violations"] if v["kind"] == "test_skipped")
+    assert v["refs"] == ["REQ-RESET"]
+    # same "never the held-out test" discipline as holdout_failed.
+    assert v["file"] is None
+    assert v["module"] is None
+    assert "test_reset_is_zero" not in v["msg"]
+
+
+def test_no_holdout_modules_is_an_error(tmp_path, capsys):
+    ws = make_ws(tmp_path, RTL_GOOD, HOLDOUT_TB)
+    (ws / "holdout" / "test_holdout.py").unlink()
+    code = check_holdout.main(["--workspace", str(ws)])
+    out = json.loads(capsys.readouterr().out)
+    assert code == 2
+    assert "no test_*.py modules" in out["remediation"]
+
+
+@pytest.mark.slow
+def test_relative_workspace_does_not_pollute_holdout(tmp_path, capsys,
+                                                     monkeypatch):
+    """M5 regression - same root cause as test_check_sim.py's own
+    test_relative_workspace_does_not_pollute_tb: cocotblib.run_cocotb (also
+    used here for holdout/) used to hand cocotb_tools.runner unresolved
+    relative paths that landed doubled under the test dir, this time inside
+    `holdout/` (also a dir_text-hashed gate input)."""
+    ws = make_ws(tmp_path, RTL_GOOD, HOLDOUT_TB)
+    monkeypatch.chdir(tmp_path)
+    code = check_holdout.main(["--workspace", "ws"])
+    out = json.loads(capsys.readouterr().out)
+    assert code == 0, out
+    assert out["status"] == "pass"
+    # __pycache__ is ordinary Python bytecode caching from importing the
+    # test module - present regardless of relative/absolute --workspace,
+    # not the bug this test targets.
+    leftover = [p for p in (ws / "holdout").iterdir()
+               if p.name not in ("test_holdout.py", "__pycache__")]
+    assert leftover == [], \
+        f"a relative --workspace polluted holdout/ with: {leftover}"
+
+
+# ---- a held-out test that dies in its own stimulus code is the test's
+# fault, not the design's: it routes to the test's writer, not the rtl fixer.
+
+HELPERS_PY = """\
+async def setup(dut):
+    # a visible-tb helper that grew a third return value
+    return 1, 2, 3
+"""
+
+STIMULUS_FAULT_TB = """\
+import cocotb
+from helpers import setup
+
+# req: REQ-RESET
+@cocotb.test()
+async def test_reset_is_zero(dut):
+    fb, rises = await setup(dut)
+"""
+
+# X on count (never reset) makes int() raise ValueError inside the assert -
+# cocotb's own code raised it, so that is the design's, not the stimulus's.
+X_IN_ASSERT_TB = """\
+import cocotb
+from cocotb.triggers import Timer
+
+# req: REQ-RESET
+@cocotb.test()
+async def test_reset_is_zero(dut):
+    await Timer(1, unit="ns")
+    assert int(dut.count.value) == 0
+"""
+
+
+@pytest.mark.slow
+def test_stimulus_fault_routes_away_from_the_rtl_fixer(tmp_path, capsys):
+    ws = make_ws(tmp_path, RTL_GOOD, STIMULUS_FAULT_TB)
+    (ws / "holdout" / "helpers.py").write_text(HELPERS_PY, encoding="utf-8")
+    code = check_holdout.main(["--workspace", str(ws)])
+    out = json.loads(capsys.readouterr().out)
+    assert code == 1, out
+    kinds = [v["kind"] for v in out["violations"]]
+    assert kinds == ["holdout_stimulus_fault"], out
+    v = out["violations"][0]
+    assert v["refs"] == ["REQ-RESET"] and v["file"] is None
+    assert "ValueError" in v["msg"] and "test_reset_is_zero" not in v["msg"]
+    assert cluster_violations.FIXER_HINTS[v["kind"]] == "holdout_stimulus"
+
+
+@pytest.mark.slow
+def test_x_inside_an_assert_is_still_the_designs(tmp_path, capsys):
+    ws = make_ws(tmp_path, RTL_GOOD, X_IN_ASSERT_TB)
+    code = check_holdout.main(["--workspace", str(ws)])
+    out = json.loads(capsys.readouterr().out)
+    assert code == 1, out
+    assert [v["kind"] for v in out["violations"]] == ["holdout_failed"]
+
+
+def _tb(path: str, code: str) -> str:
+    return ("Traceback (most recent call last):\n"
+            f'  File "{path}", line 8, in test_x\n    {code}\n'
+            "ValueError: nope\n")
+
+
+def test_stimulus_fault_classifier(tmp_path):
+    ws = tmp_path / "ws"
+    hold = str(ws / "holdout" / "test_h.py")
+    lib = "/usr/lib/python3/cocotb/handle.py"
+    sf = check_holdout.stimulus_fault
+    assert sf({"type": "ValueError",
+               "traceback": _tb(hold, "a, b = setup()")}, ws) == "ValueError"
+    # an AssertionError is a judgement, never a stimulus fault
+    assert sf({"type": "AssertionError",
+               "traceback": _tb(hold, "a, b = setup()")}, ws) is None
+    # raised from an assert line, or from library code: the design's
+    assert sf({"type": "ValueError",
+               "traceback": _tb(hold, "assert int(x) == 1")}, ws) is None
+    assert sf({"type": "AttributeError",
+               "traceback": _tb(hold, "dut.x.value = 1")
+               + _tb(lib, "raise AttributeError()")}, ws) is None
+    # a helper's own raise is a judgement of the design, like an assert
+    helper = str(ws / "tb" / "helpers.py")
+    assert sf({"type": "TimeoutError",
+               "traceback": _tb(hold, "await v.wait_lock(dut)")
+               + _tb(helper, 'raise TimeoutError("no lock")')}, ws) is None
+    assert sf({"type": "TimeoutError",
+               "traceback": _tb(helper, "raise")}, ws) is None
+    assert sf({"type": "ValueError", "traceback": ""}, ws) is None
+    assert sf({"type": None, "traceback": ""}, ws) is None

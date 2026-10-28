@@ -1,0 +1,7 @@
+project:
+  title: r2r_dac_digital
+  top_module: tt_um_r2r_dac_digital
+  tiles: 1x2
+  analog_pins: 1
+pinout:
+  ua[0]: vout

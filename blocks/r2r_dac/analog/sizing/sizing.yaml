@@ -1,0 +1,29 @@
+# sizing.yaml - r2r_dac_analog (P4). Every ppolyf_u unit shares ru_w; every
+# unit is ru_l long except the 'b' (trim) unit of the eight driven 2R
+# branches, which is rb_l = ru_l - Ron_nom * W_eff / rsh
+# (Ron_nom ~ 295 ohm = mean of buf_20 pull-down ~150-163 and pull-up
+# ~420-444 ohm at tt/27 C, small-signal; W_eff = ru_w - 51 nm; rsh 350).
+#
+# Unit R = 2*60*1u/W_eff + 350*(ru_l - 40p)/W_eff = 26.99 kohm at the values
+# below. Chosen for accuracy: INL from the state-dependent driver Ron
+# (pull-up/pull-down differ by ~280 ohm, not trimmable) scales as
+# ~Delta_Ron/R: measured tt max|INL| 41 LSB at R=250 ohm, 3.5 at 1.86 k,
+# 0.35 at 18 k, 0.23 at 27 k, 0.17 at 36 k. Settling into the 100 ohm +
+# 7 pF pad load is then ~6.2*(R+100)*7p ~ 1.2 us, not 20 ns (see OPEN).
+#
+# Bounds: ru_w from the topology's W range (1-4 um); ru_l from the spec's
+# own 250 ohm unit (1.05 um at W=2 um, above the 0.8 um drawn minimum) up to
+# a 250 um (~45 kohm) area ceiling; rb_l from the 0.8 um drawn minimum to the
+# same ceiling (it must stay below ru_l).
+ru_w:
+  value: 2.0e-6
+  min: 1.0e-6
+  max: 4.0e-6
+ru_l:
+  value: 150.0e-6
+  min: 1.05e-6
+  max: 250.0e-6
+rb_l:
+  value: 148.36e-6
+  min: 0.8e-6
+  max: 250.0e-6
