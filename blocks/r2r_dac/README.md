@@ -57,5 +57,10 @@ gates write them again.
   digital release, then top release, refused. The fixes are in
   [docs/upstream.md](../../docs/upstream.md). The re-harden reproduced the
   old box's netlist, LEF and DEF byte for byte.
-- Under the new `harden` hash the waiver has to be approved again once,
-  against the same numbers; that's the person's.
+- With those fixes, from a clean clone (no logs, no LibreLane runs), every
+  gate re-passed again in 19 minutes, timing failing as waived. The waiver
+  in that run was a test value in a scratch clone, bound to the new hash:
+  digital release, then top release, passed under it.
+- Under the new `harden` hash, the person's own waiver has to be approved
+  again once, against the same numbers (`inputs_sha256` d5e263c9…4f55);
+  that's theirs, and until then release refuses as it should.
