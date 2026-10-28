@@ -1,0 +1,467 @@
+"""engine/scripts/check_pex_sim.py: the ade `pex_sim` gate (docs/design.md
+1.5, 5, "### M9."). Real magic parasitic extraction (every capacitor, and
+extresist's wire resistance) then ngspice at typical corner against the
+corpus's own layout_ref/ post-layout bench + .bounds.json."""
+from __future__ import annotations
+
+import importlib.util
+import json
+import shutil
+import sys
+from pathlib import Path
+
+import pytest
+
+REPO = Path(__file__).resolve().parents[1]
+ENGINE = REPO / "engine"
+SCRIPTS = ENGINE / "scripts"
+sys.path.insert(0, str(SCRIPTS))
+sys.path.insert(0, str(ENGINE / "lib"))
+
+import check_pex_sim  # noqa: E402
+import gate  # noqa: E402
+import yaml as _yaml  # noqa: E402
+from checklib import CheckError  # noqa: E402
+
+CORPUS = REPO / "corpus" / "ade"
+GATES_YAML = ENGINE / "reference" / "gates.yaml"
+
+
+def _pex_sim_gate_row():
+    rows = _yaml.safe_load(GATES_YAML.read_text(encoding="utf-8"))["gates"]["ade"]
+    return rows["pex_sim"]
+
+
+def make_ws(tmp_path: Path, block: str) -> Path:
+    """A workspace holding the rung's own generator, M8 netlist, sizing,
+    spec and post-layout bench - what faults.py's scratch copy carries."""
+    ws = tmp_path / "ws"
+    ws.mkdir(parents=True)
+    for sub in ("layout", "netlist", "sizing", "layout_ref"):
+        src = CORPUS / block / sub
+        if src.is_dir():
+            (ws / sub).mkdir()
+            for f in src.iterdir():
+                if f.is_file() and f.suffix != ".gds":
+                    shutil.copy2(f, ws / sub / f.name)
+    (ws / "spec").mkdir()
+    shutil.copy2(CORPUS / block / "spec.yaml", ws / "spec" / "spec.yaml")
+    ws.joinpath("state.json").write_text(
+        json.dumps({"version": 3, "skill": "ade", "block": block}),
+        encoding="utf-8")
+    return ws
+
+
+def test_find_bench_refuses_with_neither_source(tmp_path):
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    try:
+        check_pex_sim.find_bench(ws, "mirror")
+        assert False, "expected CheckError"
+    except CheckError as exc:
+        assert "no pex_sim bench" in str(exc)
+
+
+def test_find_bench_prefers_tb_dir(tmp_path):
+    ws = tmp_path / "ws"
+    (ws / "tb").mkdir(parents=True)
+    (ws / "layout_ref").mkdir(parents=True)
+    canon_cir = ws / "tb" / "mirror_pex_tb.cir"
+    canon_bounds = ws / "tb" / "mirror_pex_tb.bounds.json"
+    canon_cir.write_text("* canonical\n", encoding="utf-8")
+    canon_bounds.write_text("{}", encoding="utf-8")
+    (ws / "layout_ref" / "mirror_pex_tb.cir").write_text("* standin\n",
+                                                         encoding="utf-8")
+    (ws / "layout_ref" / "mirror_pex_tb.bounds.json").write_text("{}",
+                                                                 encoding="utf-8")
+    cir, bounds = check_pex_sim.find_bench(ws, "mirror")
+    assert cir == canon_cir
+    assert bounds == canon_bounds
+
+
+def run_json(args, tmp_path):
+    # --out, not capsys - see test_check_analog_drc.py's own run_json for
+    # why (a vendor GF180 pymacros import prints a stray line the first
+    # time any test in the session imports it).
+    out_path = tmp_path / "result.json"
+    code = check_pex_sim.main([*args, "--out", str(out_path)])
+    return code, json.loads(out_path.read_text(encoding="utf-8"))
+
+def run_err(args, capsys):
+    """An exit-2 refusal goes to stdout, never to --out (checklib.cli_wrap).
+    Only for runs that never import the GF180 pymacros, whose first import
+    prints a stray line."""
+    code = check_pex_sim.main(args)
+    return code, json.loads(capsys.readouterr().out)
+
+
+
+def test_reorder_pins_puts_extracted_pins_in_reference_order():
+    text = (".subckt current_mirror iref_node iout vss vdd\n"
+            "X0 iout iref_node vss vss nfet_03v3 w=8u l=0.5u\n.ends\n")
+    out = check_pex_sim.reorder_pins(
+        text, "current_mirror", ["iref_node", "iout", "vdd", "vss"])
+    assert out.splitlines()[0] == ".subckt current_mirror iref_node iout vdd vss"
+    assert out.splitlines()[1] == text.splitlines()[1]
+
+
+def test_reorder_pins_consumes_continuation_lines():
+    body = "X0 iout iref_node vss vss nfet_03v3 w=8u l=0.5u\n.ends\n"
+    text = (".subckt current_mirror iref_node iout\n"
+            "+ vss vdd\n" + body)
+    out = check_pex_sim.reorder_pins(
+        text, "current_mirror", ["iref_node", "iout", "vdd", "vss"])
+    assert out == (".subckt current_mirror iref_node iout vdd vss\n" + body)
+
+
+def test_reorder_pins_refuses_a_different_pin_set():
+    text = ".subckt blk a b\n.ends\n"
+    with pytest.raises(CheckError, match="pins"):
+        check_pex_sim.reorder_pins(text, "blk", ["a", "c"])
+
+
+def test_pins_of_skips_subckt_parameters():
+    text = ".subckt r2r_dac bmsb blsb vout r_width=2e-6\n.ends\n"
+    assert check_pex_sim.pins_of(text, "r2r_dac") == ["bmsb", "blsb", "vout"]
+
+
+def test_unlaunchable_magic_is_a_refusal(unlaunchable_eda, tmp_path, capsys):
+    code, out = run_err(["--workspace", str(unlaunchable_eda)], capsys)
+    assert code == 2, out
+    assert out["status"] == "error"
+    assert "failed to launch" in out["remediation"]
+
+
+def test_netlist_with_no_parasitics_is_a_refusal(unlaunchable_eda, tmp_path,
+                                                 monkeypatch, capsys):
+    # what the review found: `ext2spice lvs` after the thresholds left the
+    # "parasitic" netlist identical to the LVS one, devices only
+    import layoutlib
+    ws = unlaunchable_eda
+
+    def lvs_only(work_dir, gds, cell, parasitics):
+        p = work_dir / f"{cell}.pex.spice"
+        p.write_text(".subckt blk a b\nX0 a b rm1 r_width=2u r_length=10u\n"
+                     ".ends\n", encoding="utf-8")
+        return p, ""
+
+    monkeypatch.setattr(layoutlib, "run_magic_extract", lvs_only)
+    code, out = run_err(["--workspace", str(ws)], capsys)
+    assert code == 2, out
+    assert "no R and no C" in out["remediation"]
+
+
+def test_measure_never_met_is_a_finding_not_a_refusal(unlaunchable_eda,
+                                                      tmp_path, monkeypatch):
+    # the comparator's pex bench on a layout that decided the wrong way: the
+    # sim ran to the end, but outn never fell, so ngspice's `meas` for the
+    # decision delay reported "out of interval ... failed!". That is the
+    # design failing its bench (exit 1), not a gate that did not run.
+    import layoutlib
+    ws = unlaunchable_eda
+    (ws / "layout_ref" / "blk_pex_tb.bounds.json").write_text(
+        '{"measures": {"x": {"min": 0, "max": 1}, '
+        '"tdelay": {"min": 1e-10, "max": 5e-10}}}', encoding="utf-8")
+
+    def extracted(work_dir, gds, cell, parasitics):
+        p = work_dir / f"{cell}.pex.spice"
+        p.write_text(".subckt blk a b\nR0 a a.t0 12.5\nC0 a b 0.1f\n"
+                     "r1 a.t0 b 1k\n.ends\n", encoding="utf-8")
+        return p, ""
+
+    class Proc:
+        returncode = 0
+        stderr = ""
+        stdout = ("x = 5.0e-01\n"
+                  "Error: measure  tdelay  trig(TARG) : out of interval\n"
+                  " meas tran tdelay trig v(clk) val=1.4 rise=1 targ v(outn)"
+                  " val=1.4 fall=1 failed!\n")
+
+    monkeypatch.setattr(layoutlib, "run_magic_extract", extracted)
+    monkeypatch.setattr(layoutlib, "run_eda", lambda *a, **k: Proc())
+    code, out = run_json(["--workspace", str(ws)], tmp_path)
+    assert code == 1, out
+    assert [(v["kind"], v["refs"][0]) for v in out["violations"]] == [
+        ("measure_missing", "tdelay")]
+    assert "never met" in out["violations"][0]["msg"]
+    assert out["measured"] == {"x": 0.5}
+
+
+# r2r_dac as a real ws hit it: the reference returns the ladder and every
+# poly body to global 0 with no port for it, and magic named the layout's
+# ground w_n352_n240#, so the bench ran with ground floating
+R2R_REF = (".subckt r2r_dac bmsb blsb vout\n"
+           "xrmsb bmsb vout 0 ppolyf_u_1k r_length={r_length} r_width=2e-6\n"
+           "xr2lsb n1 0 0 ppolyf_u_1k r_length={r2_length} r_width=2e-6\n"
+           ".ends r2r_dac\n")
+R2R_EXT_FLOATING = (".subckt r2r_dac bmsb blsb vout\n"
+                    "X0 vout bmsb w_n352_n240# ppolyf_u_1k r_width=2u "
+                    "r_length=20u\n"
+                    "X2 w_n352_n240# a_7214_0# w_n352_n240# ppolyf_u_1k "
+                    "r_width=2u r_length=36u\n"
+                    "C2 vout w_n352_n240# 1.08f\n.ends\n")
+
+
+def test_element_nodes_reads_nodes_not_values_or_models():
+    text = ("* comment 0\n.subckt blk a b\nX1 a 0 b\n+ rm1 w=1u\n"
+            "C1 a b 0\nR2 b gnd 1k\nM1 d g s b nfet l=0\n.ends\n"
+            ".control\nlet v = 0\n.endc\n")
+    assert check_pex_sim.element_nodes(text) == {
+        "a", "b", "0", "gnd", "d", "g", "s"}
+
+
+def test_ground_finding_when_reference_uses_global_0_and_layout_does_not():
+    v = check_pex_sim.ground_finding(
+        R2R_REF, ["bmsb", "blsb", "vout"], R2R_EXT_FLOATING, "r2r_dac",
+        "layout/r2r_dac.gds")
+    assert v["kind"] == "ground_unlabelled"
+    assert v["refs"] == ["0"]
+    assert "label" in v["msg"] and "layout-fixer" in v["msg"]
+
+
+def test_ground_labelled_0_in_the_layout_is_no_finding():
+    ext = R2R_EXT_FLOATING.replace("w_n352_n240#", "0")
+    assert check_pex_sim.ground_finding(
+        R2R_REF, ["bmsb", "blsb", "vout"], ext, "r2r_dac", "g") is None
+
+
+def test_pin_grounded_reference_is_unchanged():
+    # the mirror: ground is the vss pin, so the extraction owes no node 0
+    ref = (".subckt current_mirror iref_node iout vdd vss\n"
+           "xm1 iref_node iref_node vss vss nfet_03v3 w=8u l=0.5u\n.ends\n")
+    ext = (".subckt current_mirror iref_node iout vss vdd\n"
+           "X0 iout iref_node vss vss nfet_03v3 w=8u l=0.5u\n"
+           "C0 iout vss 0.2f\n.ends\n")
+    assert check_pex_sim.ground_finding(
+        ref, ["iref_node", "iout", "vdd", "vss"], ext, "current_mirror",
+        "g") is None
+
+
+def test_floating_ground_is_a_finding_and_no_bench_runs(unlaunchable_eda,
+                                                        tmp_path,
+                                                        monkeypatch):
+    import layoutlib
+    ws = unlaunchable_eda
+    (ws / "netlist" / "blk.cir").write_text(
+        ".subckt blk a b\nr1 a n1 1k\nr2 n1 0 1k\nr3 n1 b 1k\n.ends\n",
+        encoding="utf-8")
+
+    def extracted(work_dir, gds, cell, parasitics):
+        p = work_dir / f"{cell}.pex.spice"
+        p.write_text(".subckt blk a b\nR0 a n1 1k\nR1 n1 a_5_5# 1k\n"
+                     "R2 n1 b 1k\nC0 a b 0.1f\n.ends\n", encoding="utf-8")
+        return p, ""
+
+    def no_sim(*a, **k):
+        raise AssertionError("the bench ran on a floating ground")
+
+    monkeypatch.setattr(layoutlib, "run_magic_extract", extracted)
+    monkeypatch.setattr(layoutlib, "run_eda", no_sim)
+    code, out = run_json(["--workspace", str(ws)], tmp_path)
+    assert code == 1, out
+    assert [(v["kind"], v["refs"]) for v in out["violations"]] == [
+        ("ground_unlabelled", ["0"])]
+    assert out["measured"] == {}
+
+
+# ring_osc_div as #44 found it: the bench reads the stage nets inside the
+# extracted cell, and a stage net with no layout label came back a_..#
+RING_REF = (".subckt blk a b\nr1 a s1 1k\nr2 s1 s2 1k\nr3 s2 b 1k\n"
+            ".ends\n")
+RING_BENCH = ("* {pdk} {extracted}\nv1 in 0 dc 1\nxdut in 0 blk\n"
+              ".control\nop\nprint v(xdut.s1)\n"
+              "meas tran t1 when v(xdut.s2, in)=0.5\n+ rise=1\n"
+              "print vdb(in) v(xdut.xinv.q) v(xother.s9)\n.endc\n.end\n")
+
+
+def test_probed_nets_reads_one_level_inside_the_top_cell_only():
+    assert check_pex_sim.probed_nets(RING_BENCH, "blk") == {"s1", "s2"}
+
+
+def test_probe_finding_names_each_unlabelled_net():
+    ext = ".subckt blk a b\nR0 a s1 1k\nR1 s1 a_5_5# 1k\nR2 a_5_5# b 1k\n.ends\n"
+    found = check_pex_sim.probe_findings(RING_BENCH, RING_REF, ext, "blk",
+                                         "layout/blk.gds")
+    assert [(v["kind"], v["refs"]) for v in found] == [
+        ("probe_unlabelled", ["s2"])]
+    assert "label" in found[0]["msg"] and "layout-fixer" in found[0]["msg"]
+
+
+def test_probe_of_a_net_the_reference_lacks_is_no_finding():
+    # a bench typo is the bench's bug, not the layout's: ngspice refuses it
+    ext = ".subckt blk a b\nR0 a a_1_1# 1k\nR1 a_1_1# b 1k\n.ends\n"
+    bench = RING_BENCH.replace("xdut.s1", "xdut.s7").replace("xdut.s2", "xdut.s8")
+    assert check_pex_sim.probe_findings(bench, RING_REF, ext, "blk", "g") == []
+
+
+def _ring_ws(ws, monkeypatch, ext_text):
+    import layoutlib
+    (ws / "netlist" / "blk.cir").write_text(RING_REF, encoding="utf-8")
+    (ws / "layout_ref" / "blk_pex_tb.cir").write_text(
+        RING_BENCH, encoding="utf-8")
+
+    def extracted(work_dir, gds, cell, parasitics):
+        p = work_dir / f"{cell}.pex.spice"
+        p.write_text(ext_text, encoding="utf-8")
+        return p, ""
+
+    monkeypatch.setattr(layoutlib, "run_magic_extract", extracted)
+
+
+def test_unlabelled_probe_is_a_finding_and_no_bench_runs(unlaunchable_eda,
+                                                         tmp_path,
+                                                         monkeypatch):
+    import layoutlib
+    _ring_ws(unlaunchable_eda, monkeypatch,
+             ".subckt blk a b\nR0 a a_5_5# 1k\nR1 a_5_5# s2 1k\n"
+             "R2 s2 b 1k\nC0 a b 0.1f\n.ends\n")
+
+    def no_sim(*a, **k):
+        raise AssertionError("the bench ran with a probe that is not there")
+
+    monkeypatch.setattr(layoutlib, "run_eda", no_sim)
+    code, out = run_json(["--workspace", str(unlaunchable_eda)], tmp_path)
+    assert code == 1, out
+    assert [(v["kind"], v["refs"]) for v in out["violations"]] == [
+        ("probe_unlabelled", ["s1"])]
+    assert out["measured"] == {}
+
+
+def test_labelled_probes_run_the_bench(unlaunchable_eda, tmp_path,
+                                       monkeypatch):
+    import layoutlib
+    _ring_ws(unlaunchable_eda, monkeypatch,
+             ".subckt blk a b\nR0 a s1 1k\nR1 s1 s2 1k\nR2 s2 b 1k\n"
+             "C0 a b 0.1f\n.ends\n")
+
+    class Proc:
+        returncode = 0
+        stderr = ""
+        stdout = "x = 5.0e-01\n"
+
+    monkeypatch.setattr(layoutlib, "run_eda", lambda *a, **k: Proc())
+    code, out = run_json(["--workspace", str(unlaunchable_eda)], tmp_path)
+    assert code == 0, out
+    assert out["measured"] == {"x": 0.5}
+
+
+@pytest.mark.slow
+def test_clean_mirror_pex_sim_passes(tmp_path):
+    ws = make_ws(tmp_path, "mirror")
+    code, out = run_json(["--workspace", str(ws)], tmp_path)
+    assert code == 0, out
+    assert out["violations"] == []
+    assert out["parasitics"]["r"] > 0 and out["parasitics"]["c"] > 0
+    assert set(out["measured"]) == {"v(iout)", "f3db"}
+    gate_result = gate.evaluate("pex_sim", _pex_sim_gate_row(), out)
+    assert gate_result["status"] == "pass"
+
+
+@pytest.mark.slow
+def test_clean_r2r_dac_pex_sim_passes(tmp_path):
+    ws = make_ws(tmp_path, "r2r_dac")
+    code, out = run_json(["--workspace", str(ws)], tmp_path)
+    assert code == 0, out
+    assert out["parasitics"]["c"] > 0
+    m = out["measured"]
+    # the three codes of a 1:1 ladder, the rung's current sizing
+    assert abs(m["vout_lsb"] - 0.66) < 0.02
+    assert abs(m["vout_msb"] - 1.98) < 0.02
+    assert abs(m["vout_both"] - 2.64) < 0.02
+
+
+@pytest.mark.slow
+def test_long_output_line_fails_pex_sim(tmp_path):
+    ws = make_ws(tmp_path, "mirror")
+    path = CORPUS / "mirror" / "faults" / "plant_pex_long_output_line.py"
+    spec = importlib.util.spec_from_file_location("plant_pex_long", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    mod.plant(ws)
+    code, out = run_json(["--workspace", str(ws)], tmp_path)
+    assert code == 1, out
+    bad = {v["refs"][0] for v in out["violations"]}
+    assert bad == {"f3db"}
+    gate_result = gate.evaluate("pex_sim", _pex_sim_gate_row(), out)
+    assert gate_result["status"] == "fail"
+
+
+def _rc_extract(monkeypatch):
+    import layoutlib
+
+    def extracted(work_dir, gds, cell, parasitics):
+        p = work_dir / f"{cell}.pex.spice"
+        p.write_text(".subckt blk a b\nR0 a b 12.5\nC0 a b 0.1f\n.ends\n",
+                     encoding="utf-8")
+        return p, ""
+
+    monkeypatch.setattr(layoutlib, "run_magic_extract", extracted)
+
+
+# brief: "let a block's spec set the simulation time limit in a place the
+# gate reads ... the CLI --timeout flag overrides it. Keep the current
+# defaults when the spec says nothing."
+@pytest.mark.parametrize("spec, flag, want", [
+    (None, [], 120.0),
+    ("top: blk\n", [], 120.0),
+    ("top: blk\nsim_timeout_s: {pex_sim: 900}\n", [], 900.0),
+    ("top: blk\nsim_timeout_s: {sim_tt: 900}\n", [], 120.0),
+    ("top: blk\nsim_timeout_s: {pex_sim: 900}\n", ["--timeout", "30"], 30.0),
+    (None, ["--timeout", "30"], 30.0),
+])
+def test_pex_sim_timeout_comes_from_spec_then_flag(unlaunchable_eda, tmp_path,
+                                                   monkeypatch, spec, flag,
+                                                   want):
+    import layoutlib
+    ws = unlaunchable_eda
+    if spec is not None:
+        (ws / "spec").mkdir()
+        (ws / "spec" / "spec.yaml").write_text(spec, encoding="utf-8")
+    _rc_extract(monkeypatch)
+    seen = []
+
+    class Proc:
+        returncode = 0
+        stderr = ""
+        stdout = "x = 5.0e-01\n"
+
+    def fake_eda(args, cwd=None, timeout=0.0, stdin_text=None):
+        seen.append(timeout)
+        return Proc()
+
+    monkeypatch.setattr(layoutlib, "run_eda", fake_eda)
+    code, out = run_json(["--workspace", str(ws), *flag], tmp_path)
+    assert code == 0, out
+    assert seen == [want]
+
+
+def test_pex_sim_timeout_is_a_refusal_naming_the_spec_knob(unlaunchable_eda,
+                                                           monkeypatch,
+                                                           capsys):
+    # a synthetic slow bench: a stand-in ngspice that outlives the spec's
+    # limit, run through the real subprocess timeout
+    import layoutlib
+    ws = unlaunchable_eda
+    (ws / "spec").mkdir()
+    (ws / "spec" / "spec.yaml").write_text(
+        "top: blk\nsim_timeout_s: {pex_sim: 0.3}\n", encoding="utf-8")
+    _rc_extract(monkeypatch)
+    slow = ws.parent / "slow_eda"
+    slow.write_text("#!/usr/bin/env bash\nexec sleep 5\n", encoding="utf-8")
+    slow.chmod(0o755)
+    monkeypatch.setattr(layoutlib, "EDA_BIN", slow)
+    code, out = run_err(["--workspace", str(ws)], capsys)
+    assert code == 2, out
+    assert "0.3 s limit" in out["remediation"]
+    assert "sim_timeout_s: {pex_sim: <seconds>}" in out["remediation"]
+
+
+def test_pex_sim_refuses_a_bad_spec_timeout(unlaunchable_eda, monkeypatch,
+                                            capsys):
+    ws = unlaunchable_eda
+    (ws / "spec").mkdir()
+    (ws / "spec" / "spec.yaml").write_text(
+        "top: blk\nsim_timeout_s: {pex_sim: 9000}\n", encoding="utf-8")
+    code, out = run_err(["--workspace", str(ws)], capsys)
+    assert code == 2, out
+    assert "sim_timeout_s" in out["remediation"]

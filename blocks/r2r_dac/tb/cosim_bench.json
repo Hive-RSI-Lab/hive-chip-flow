@@ -1,0 +1,6 @@
+{
+  "top": "r2r_dac_cosim_top",
+  "bounds": "r2r_dac.bounds.json",
+  "analog_netlist": "r2r_ideal.sp",
+  "analog_kind": "ideal"
+}

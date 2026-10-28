@@ -1,0 +1,248 @@
+{
+ "skill": "vde",
+ "block": "r2r_dac",
+ "ts": "2026-10-13T04:21:54",
+ "checks": [
+  {
+   "gate": "cover",
+   "applies": true,
+   "ran": true,
+   "ok": true,
+   "tool": "cover",
+   "version": 1,
+   "status": "pass",
+   "attempts": 3,
+   "ts": "2026-10-13T04:17:10",
+   "inputs": {
+    "rtl": "dir_text:08d2e63a30253fb8dcb71be29ca5aa7209711132e317fcb0e4bc99f0e226a305",
+    "tb": "dir_text:3d7769f785322e639d37580c2e85e19fdd9b82876af0927410c75ad81d11554b",
+    "spec_yaml": "json_canonical:316aabe3e699eb67a766fb42296b9a90d765394b6deefb2d5178cc8865c08bbf"
+   },
+   "reason": null
+  },
+  {
+   "gate": "drc",
+   "applies": true,
+   "ran": true,
+   "ok": true,
+   "tool": "drc",
+   "version": 1,
+   "status": "pass",
+   "attempts": 2,
+   "ts": "2026-10-13T04:20:03",
+   "inputs": {
+    "harden": "dir_text:5e0fc600709e3cc97c7324a97c0c78553ef21db49b5a2f1a7ca5465fd7d2b2f2",
+    "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119"
+   },
+   "reason": null
+  },
+  {
+   "gate": "formal",
+   "applies": true,
+   "ran": true,
+   "ok": true,
+   "tool": "formal",
+   "version": 1,
+   "status": "pass",
+   "attempts": 3,
+   "ts": "2026-10-13T04:17:06",
+   "inputs": {
+    "rtl": "dir_text:08d2e63a30253fb8dcb71be29ca5aa7209711132e317fcb0e4bc99f0e226a305",
+    "formal": "dir_text:08afbef661d005669823e3e3ad631918a42bfd611bd5042ac8b6ed3fe5e6ce46",
+    "spec_yaml": "json_canonical:316aabe3e699eb67a766fb42296b9a90d765394b6deefb2d5178cc8865c08bbf"
+   },
+   "reason": null
+  },
+  {
+   "gate": "glsim",
+   "applies": true,
+   "ran": true,
+   "ok": true,
+   "tool": "glsim",
+   "version": 1,
+   "status": "pass",
+   "attempts": 2,
+   "ts": "2026-10-13T04:20:11",
+   "inputs": {
+    "harden": "dir_text:5e0fc600709e3cc97c7324a97c0c78553ef21db49b5a2f1a7ca5465fd7d2b2f2",
+    "tb": "dir_text:3d7769f785322e639d37580c2e85e19fdd9b82876af0927410c75ad81d11554b",
+    "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119"
+   },
+   "reason": null
+  },
+  {
+   "gate": "harden",
+   "applies": true,
+   "ran": true,
+   "ok": true,
+   "tool": "harden",
+   "version": 1,
+   "status": "pass",
+   "attempts": 6,
+   "ts": "2026-10-13T04:18:31",
+   "inputs": {
+    "rtl": "dir_text:08d2e63a30253fb8dcb71be29ca5aa7209711132e317fcb0e4bc99f0e226a305",
+    "harden_config": "json_canonical:e899bc155ae015131bda920bd8ea413c1fa425763b6c26cce0fa06270324086a",
+    "harden_override": null,
+    "harden_sdc": null,
+    "harden_info": "json_canonical:e722bc7d8de703255711480061816e03c2199ce2ea6dff004d19c5a958436590",
+    "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119"
+   },
+   "reason": null
+  },
+  {
+   "gate": "holdout",
+   "applies": true,
+   "ran": true,
+   "ok": true,
+   "tool": "holdout",
+   "version": 1,
+   "status": "pass",
+   "attempts": 6,
+   "ts": "2026-10-13T04:17:02",
+   "inputs": {
+    "rtl": "dir_text:08d2e63a30253fb8dcb71be29ca5aa7209711132e317fcb0e4bc99f0e226a305",
+    "holdout": "dir_text:aa9c762fe9e91ca2880a2f53fcaaf103fc90182a6b270b17cd0105e26a55067c",
+    "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119"
+   },
+   "reason": null
+  },
+  {
+   "gate": "lint",
+   "applies": true,
+   "ran": true,
+   "ok": true,
+   "tool": "lint",
+   "version": 1,
+   "status": "pass",
+   "attempts": 4,
+   "ts": "2026-10-13T04:16:58",
+   "inputs": {
+    "rtl": "dir_text:08d2e63a30253fb8dcb71be29ca5aa7209711132e317fcb0e4bc99f0e226a305",
+    "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119"
+   },
+   "reason": null
+  },
+  {
+   "gate": "lvs",
+   "applies": true,
+   "ran": true,
+   "ok": true,
+   "tool": "lvs",
+   "version": 1,
+   "status": "pass",
+   "attempts": 2,
+   "ts": "2026-10-13T04:20:06",
+   "inputs": {
+    "harden": "dir_text:5e0fc600709e3cc97c7324a97c0c78553ef21db49b5a2f1a7ca5465fd7d2b2f2",
+    "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119"
+   },
+   "reason": null
+  },
+  {
+   "gate": "mutate",
+   "applies": true,
+   "ran": true,
+   "ok": true,
+   "tool": "mutate",
+   "version": 1,
+   "status": "pass",
+   "attempts": 5,
+   "ts": "2026-10-13T04:21:08",
+   "inputs": {
+    "rtl": "dir_text:08d2e63a30253fb8dcb71be29ca5aa7209711132e317fcb0e4bc99f0e226a305",
+    "tb": "dir_text:3d7769f785322e639d37580c2e85e19fdd9b82876af0927410c75ad81d11554b",
+    "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119",
+    "mutant_rulings": null
+   },
+   "reason": null
+  },
+  {
+   "gate": "precheck",
+   "applies": true,
+   "ran": true,
+   "ok": true,
+   "tool": "precheck",
+   "version": 1,
+   "status": "pass",
+   "attempts": 2,
+   "ts": "2026-10-13T04:21:01",
+   "inputs": {
+    "harden": "dir_text:5e0fc600709e3cc97c7324a97c0c78553ef21db49b5a2f1a7ca5465fd7d2b2f2",
+    "harden_info": "json_canonical:e722bc7d8de703255711480061816e03c2199ce2ea6dff004d19c5a958436590",
+    "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119"
+   },
+   "reason": null
+  },
+  {
+   "gate": "sim",
+   "applies": true,
+   "ran": true,
+   "ok": true,
+   "tool": "sim",
+   "version": 1,
+   "status": "pass",
+   "attempts": 6,
+   "ts": "2026-10-13T04:17:00",
+   "inputs": {
+    "rtl": "dir_text:08d2e63a30253fb8dcb71be29ca5aa7209711132e317fcb0e4bc99f0e226a305",
+    "tb": "dir_text:3d7769f785322e639d37580c2e85e19fdd9b82876af0927410c75ad81d11554b",
+    "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119"
+   },
+   "reason": null
+  },
+  {
+   "gate": "spec_lint",
+   "applies": true,
+   "ran": true,
+   "ok": true,
+   "tool": "spec_lint",
+   "version": 1,
+   "status": "pass",
+   "attempts": 3,
+   "ts": "2026-10-13T04:16:57",
+   "inputs": {
+    "spec_yaml": "json_canonical:316aabe3e699eb67a766fb42296b9a90d765394b6deefb2d5178cc8865c08bbf"
+   },
+   "reason": null
+  },
+  {
+   "gate": "synth",
+   "applies": true,
+   "ran": true,
+   "ok": true,
+   "tool": "synth",
+   "version": 1,
+   "status": "pass",
+   "attempts": 3,
+   "ts": "2026-10-13T04:17:11",
+   "inputs": {
+    "rtl": "dir_text:08d2e63a30253fb8dcb71be29ca5aa7209711132e317fcb0e4bc99f0e226a305",
+    "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119"
+   },
+   "reason": null
+  },
+  {
+   "gate": "timing",
+   "applies": true,
+   "ran": true,
+   "ok": true,
+   "tool": "timing",
+   "version": 1,
+   "status": "fail",
+   "attempts": 5,
+   "ts": "2026-10-13T04:19:08",
+   "inputs": {
+    "harden": "dir_text:5e0fc600709e3cc97c7324a97c0c78553ef21db49b5a2f1a7ca5465fd7d2b2f2",
+    "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119"
+   },
+   "reason": "last recorded result is FAIL",
+   "waived": true,
+   "waiver": {
+    "reason": "Setup misses at ss/125C/3.0V only: worst -0.87 ns (max parasitics), -0.55 nom, -0.29 min at 50 MHz; about 47 MHz met there (TT 20% input delay; estimate from the reported path). tt +7.4 ns, ff +11.0 ns, hold met at every corner. Four fix attempts made (last: rst_n registered). Owner: 'If it still misses at ss/125C after that, accept it and stop.'",
+    "approved_by": "owner, #ece298a 1791879206.573569 (2026-10-13)"
+   }
+  }
+ ],
+ "attestation_sha256": "1ddef500575b5c0a40ae34767ddfd990b4c02367317851f7e9433260ac4ae500"
+}

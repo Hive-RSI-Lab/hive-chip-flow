@@ -1,0 +1,55 @@
+{
+  "script": "gate",
+  "gate": "formal",
+  "phase": "P4",
+  "tool": "formal",
+  "input_digest": "dir_text:2a2b1ae7e895ad5405f5ae367ab80ae45039df70315e07a67867027fa4bbdf15",
+  "status": "pass",
+  "criteria": {
+    "fail_severities": [
+      "error"
+    ],
+    "max_count": 0
+  },
+  "counts": {
+    "total": 0,
+    "by_severity": {},
+    "by_source": {}
+  },
+  "failing_count": 0,
+  "failing": [],
+  "violations": [],
+  "facts": {
+    "top": "r2r_dac_digital",
+    "formal_top": "r2r_dac_digital_formal",
+    "depth": 12,
+    "frontend": "native",
+    "frontend_why": null,
+    "proven": [
+      "REQ-ECHO",
+      "REQ-HOLD",
+      "REQ-RESET"
+    ],
+    "bounded": [],
+    "failed": [],
+    "smt_status": "PASS",
+    "pdr_status": "PASS",
+    "cover_points": [
+      "COVER_FULL",
+      "COVER_HOLD"
+    ]
+  },
+  "record_result": {
+    "ok": true,
+    "recorded": true,
+    "workspace": "blocks/r2r_dac/digital",
+    "gate": "formal",
+    "status": "pass",
+    "attempts": 1,
+    "inputs": {
+      "rtl": "dir_text:2a2b1ae7e895ad5405f5ae367ab80ae45039df70315e07a67867027fa4bbdf15",
+      "formal": "dir_text:0cbdb8e51b0405f12c8713d365734a0cb69f95296c3acbc8c77be015ea156529",
+      "spec_yaml": "json_canonical:cee93f343d721dc9797350155b3f0e85133a766eb1f1963c30aacd1d23e5d2f4"
+    }
+  }
+}

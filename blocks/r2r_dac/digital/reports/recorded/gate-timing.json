@@ -1,0 +1,189 @@
+{
+ "script": "gate",
+ "gate": "timing",
+ "phase": "P6",
+ "tool": "timing",
+ "input_digest": "dir_text:5e0fc600709e3cc97c7324a97c0c78553ef21db49b5a2f1a7ca5465fd7d2b2f2",
+ "status": "fail",
+ "criteria": {
+  "fail_severities": [
+   "error"
+  ],
+  "max_count": 0
+ },
+ "counts": {
+  "total": 3,
+  "by_severity": {
+   "error": 3
+  },
+  "by_source": {
+   "opensta": 3
+  }
+ },
+ "failing_count": 3,
+ "failing": [
+  {
+   "check": "timing",
+   "severity": "error",
+   "file": null,
+   "module": "tt_um_r2r_dac_digital",
+   "line": null,
+   "kind": "setup_violation",
+   "refs": [],
+   "msg": "corner max_ss_125C_3v00: worst setup slack -0.8700ns",
+   "source": "opensta",
+   "items": [
+    {
+     "msg": "corner max_ss_125C_3v00: worst setup slack -0.8700ns",
+     "file": null,
+     "line": null
+    }
+   ],
+   "corner": "max_ss_125C_3v00"
+  },
+  {
+   "check": "timing",
+   "severity": "error",
+   "file": null,
+   "module": "tt_um_r2r_dac_digital",
+   "line": null,
+   "kind": "setup_violation",
+   "refs": [],
+   "msg": "corner min_ss_125C_3v00: worst setup slack -0.2900ns",
+   "source": "opensta",
+   "items": [
+    {
+     "msg": "corner min_ss_125C_3v00: worst setup slack -0.2900ns",
+     "file": null,
+     "line": null
+    }
+   ],
+   "corner": "min_ss_125C_3v00"
+  },
+  {
+   "check": "timing",
+   "severity": "error",
+   "file": null,
+   "module": "tt_um_r2r_dac_digital",
+   "line": null,
+   "kind": "setup_violation",
+   "refs": [],
+   "msg": "corner nom_ss_125C_3v00: worst setup slack -0.5500ns",
+   "source": "opensta",
+   "items": [
+    {
+     "msg": "corner nom_ss_125C_3v00: worst setup slack -0.5500ns",
+     "file": null,
+     "line": null
+    }
+   ],
+   "corner": "nom_ss_125C_3v00"
+  }
+ ],
+ "violations": [
+  {
+   "check": "timing",
+   "severity": "error",
+   "file": null,
+   "module": "tt_um_r2r_dac_digital",
+   "line": null,
+   "kind": "setup_violation",
+   "refs": [],
+   "msg": "corner max_ss_125C_3v00: worst setup slack -0.8700ns",
+   "source": "opensta",
+   "items": [
+    {
+     "msg": "corner max_ss_125C_3v00: worst setup slack -0.8700ns",
+     "file": null,
+     "line": null
+    }
+   ],
+   "corner": "max_ss_125C_3v00"
+  },
+  {
+   "check": "timing",
+   "severity": "error",
+   "file": null,
+   "module": "tt_um_r2r_dac_digital",
+   "line": null,
+   "kind": "setup_violation",
+   "refs": [],
+   "msg": "corner min_ss_125C_3v00: worst setup slack -0.2900ns",
+   "source": "opensta",
+   "items": [
+    {
+     "msg": "corner min_ss_125C_3v00: worst setup slack -0.2900ns",
+     "file": null,
+     "line": null
+    }
+   ],
+   "corner": "min_ss_125C_3v00"
+  },
+  {
+   "check": "timing",
+   "severity": "error",
+   "file": null,
+   "module": "tt_um_r2r_dac_digital",
+   "line": null,
+   "kind": "setup_violation",
+   "refs": [],
+   "msg": "corner nom_ss_125C_3v00: worst setup slack -0.5500ns",
+   "source": "opensta",
+   "items": [
+    {
+     "msg": "corner nom_ss_125C_3v00: worst setup slack -0.5500ns",
+     "file": null,
+     "line": null
+    }
+   ],
+   "corner": "nom_ss_125C_3v00"
+  }
+ ],
+ "facts": {
+  "top": "tt_um_r2r_dac_digital",
+  "corners": {
+   "max_ff_n40C_3v60": {
+    "setup_ws": 10.95,
+    "hold_ws": 0.45
+   },
+   "max_ss_125C_3v00": {
+    "setup_ws": -0.87,
+    "hold_ws": 2.23
+   },
+   "max_tt_025C_3v30": {
+    "setup_ws": 7.43,
+    "hold_ws": 0.98
+   },
+   "min_ff_n40C_3v60": {
+    "setup_ws": 11.13,
+    "hold_ws": 0.44
+   },
+   "min_ss_125C_3v00": {
+    "setup_ws": -0.29,
+    "hold_ws": 2.21
+   },
+   "min_tt_025C_3v30": {
+    "setup_ws": 7.73,
+    "hold_ws": 0.97
+   },
+   "nom_ff_n40C_3v60": {
+    "setup_ws": 11.05,
+    "hold_ws": 0.44
+   },
+   "nom_ss_125C_3v00": {
+    "setup_ws": -0.55,
+    "hold_ws": 2.22
+   },
+   "nom_tt_025C_3v30": {
+    "setup_ws": 7.6,
+    "hold_ws": 0.97
+   }
+  }
+ },
+ "inputs_at_start": {
+  "harden": "dir_text:5e0fc600709e3cc97c7324a97c0c78553ef21db49b5a2f1a7ca5465fd7d2b2f2",
+  "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119"
+ },
+ "recorded_ts": "2026-10-13T04:19:08",
+ "attempts": 5
+}

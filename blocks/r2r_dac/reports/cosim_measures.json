@@ -1,0 +1,23 @@
+{
+  "dnl_max_abs": 0.005710884825676943,
+  "inl_max_abs": 0.005717054271624683,
+  "monotonic": 1,
+  "v_zero": 0.0,
+  "v_full_scale": 3.2870425813057462,
+  "fs_gain_err_lsb": -0.005181571433020123,
+  "t_settle_rise": 1.19082412904565e-06,
+  "t_settle_fall": 1.1868241290488513e-06,
+  "dac_code_mismatches": 0,
+  "codes_sampled": 256,
+  "digital_toggles": 6,
+  "edge_times_ns": [
+    133280.0,
+    263920.0,
+    266440.0,
+    268960.0,
+    271480.0,
+    274000.0
+  ],
+  "spice_time_reached_ns": 276324.8241290439,
+  "analog_model": "r2r_ideal.sp (ideal drivers, nominal 27k ladder, 100 ohm + 7 pF pad)"
+}

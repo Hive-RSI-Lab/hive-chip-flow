@@ -1,0 +1,3768 @@
+{
+  "script": "gate",
+  "gate": "drc",
+  "phase": "P5",
+  "tool": "analog_drc",
+  "input_digest": "dir_text:bfab87baadb7f1206c1c00552b092d698c9148dfc924bb04b9b546f98d7c84f5",
+  "status": "fail",
+  "criteria": {
+    "fail_severities": [
+      "error"
+    ],
+    "max_count": 0
+  },
+  "counts": {
+    "total": 98,
+    "by_severity": {
+      "error": 98
+    },
+    "by_source": {
+      "klayout": 98
+    }
+  },
+  "failing_count": 98,
+  "failing": [
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.16_MV",
+      "refs": [],
+      "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "edge-pair: (201.64,9.12;202.2,9.12)/(202.56,9.6;201.28,9.6)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.16_MV",
+      "refs": [],
+      "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "edge-pair: (165.8,1.28;166.36,1.28)/(166.72,1.76;165.44,1.76)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.16_MV",
+      "refs": [],
+      "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "edge-pair: (202.2,30.08;201.64,30.08)/(201.28,29.6;202.56,29.6)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.16_MV",
+      "refs": [],
+      "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "edge-pair: (201.64,24.8;202.2,24.8)/(202.56,25.28;201.28,25.28)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.16_MV",
+      "refs": [],
+      "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "edge-pair: (165.8,16.96;166.36,16.96)/(166.72,17.44;165.44,17.44)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.16_MV",
+      "refs": [],
+      "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "edge-pair: (202.2,22.24;201.64,22.24)/(201.28,21.76;202.56,21.76)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.16_MV",
+      "refs": [],
+      "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "edge-pair: (166.36,30.08;165.8,30.08)/(165.44,29.6;166.72,29.6)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.16_MV",
+      "refs": [],
+      "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "edge-pair: (202.2,14.4;201.64,14.4)/(201.28,13.92;202.56,13.92)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.16_MV",
+      "refs": [],
+      "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "edge-pair: (165.8,9.12;166.36,9.12)/(166.72,9.6;165.44,9.6)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.16_MV",
+      "refs": [],
+      "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "edge-pair: (201.64,1.28;202.2,1.28)/(202.56,1.76;201.28,1.76)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.16_MV",
+      "refs": [],
+      "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "edge-pair: (202.2,6.56;201.64,6.56)/(201.28,6.08;202.56,6.08)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.16_MV",
+      "refs": [],
+      "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "edge-pair: (166.36,6.56;165.8,6.56)/(165.44,6.08;166.72,6.08)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.16_MV",
+      "refs": [],
+      "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "edge-pair: (165.8,24.8;166.36,24.8)/(166.72,25.28;165.44,25.28)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.16_MV",
+      "refs": [],
+      "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "edge-pair: (166.36,22.24;165.8,22.24)/(165.44,21.76;166.72,21.76)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.16_MV",
+      "refs": [],
+      "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "edge-pair: (201.64,16.96;202.2,16.96)/(202.56,17.44;201.28,17.44)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.16_MV",
+      "refs": [],
+      "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "edge-pair: (166.36,14.4;165.8,14.4)/(165.44,13.92;166.72,13.92)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.3b",
+      "refs": [],
+      "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,0.28;165.8,1.28;166.36,1.28;166.36,0.28)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.3b",
+      "refs": [],
+      "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,0.28;201.64,1.28;202.2,1.28;202.2,0.28)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.3b",
+      "refs": [],
+      "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,6.56;165.8,7.56;166.36,7.56;166.36,6.56)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.3b",
+      "refs": [],
+      "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,6.56;201.64,7.56;202.2,7.56;202.2,6.56)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.3b",
+      "refs": [],
+      "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,8.12;165.8,9.12;166.36,9.12;166.36,8.12)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.3b",
+      "refs": [],
+      "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,8.12;201.64,9.12;202.2,9.12;202.2,8.12)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.3b",
+      "refs": [],
+      "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,14.4;165.8,15.4;166.36,15.4;166.36,14.4)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.3b",
+      "refs": [],
+      "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,14.4;201.64,15.4;202.2,15.4;202.2,14.4)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.3b",
+      "refs": [],
+      "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,15.96;165.8,16.96;166.36,16.96;166.36,15.96)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.3b",
+      "refs": [],
+      "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,15.96;201.64,16.96;202.2,16.96;202.2,15.96)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.3b",
+      "refs": [],
+      "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,22.24;165.8,23.24;166.36,23.24;166.36,22.24)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.3b",
+      "refs": [],
+      "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,22.24;201.64,23.24;202.2,23.24;202.2,22.24)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.3b",
+      "refs": [],
+      "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,23.8;165.8,24.8;166.36,24.8;166.36,23.8)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.3b",
+      "refs": [],
+      "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,23.8;201.64,24.8;202.2,24.8;202.2,23.8)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.3b",
+      "refs": [],
+      "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,30.08;165.8,31.08;166.36,31.08;166.36,30.08)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.3b",
+      "refs": [],
+      "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,30.08;201.64,31.08;202.2,31.08;202.2,30.08)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "unknown",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DCF.1a",
+      "refs": [],
+      "msg": "DCF.1a : All area between active polygons (COMP) (with spacing greater than equal to this rule)must be filled with \"Dummy COMP\" (see exceptions): 20",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DCF.1a : All area between active polygons (COMP) (with spacing greater than equal to this rule)must be filled with \"Dummy COMP\" (see exceptions): 20",
+          "file": "unknown",
+          "line": null
+        }
+      ],
+      "value": "polygon: (7.96,6.8;7.96,36.36;164.09,36.36;164.09,6.8)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "unknown",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DCF.1a",
+      "refs": [],
+      "msg": "DCF.1a : All area between active polygons (COMP) (with spacing greater than equal to this rule)must be filled with \"Dummy COMP\" (see exceptions): 20",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DCF.1a : All area between active polygons (COMP) (with spacing greater than equal to this rule)must be filled with \"Dummy COMP\" (see exceptions): 20",
+          "file": "unknown",
+          "line": null
+        }
+      ],
+      "value": "polygon: (150,32.79;150,126.36;195.78,126.36;195.78,32.79)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3d",
+      "refs": [],
+      "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,0.28;165.8,1.28;166.36,1.28;166.36,0.28)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3d",
+      "refs": [],
+      "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,0.28;201.64,1.28;202.2,1.28;202.2,0.28)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3d",
+      "refs": [],
+      "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,6.56;165.8,7.56;166.36,7.56;166.36,6.56)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3d",
+      "refs": [],
+      "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,6.56;201.64,7.56;202.2,7.56;202.2,6.56)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3d",
+      "refs": [],
+      "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,8.12;165.8,9.12;166.36,9.12;166.36,8.12)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3d",
+      "refs": [],
+      "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,8.12;201.64,9.12;202.2,9.12;202.2,8.12)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3d",
+      "refs": [],
+      "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,14.4;165.8,15.4;166.36,15.4;166.36,14.4)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3d",
+      "refs": [],
+      "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,14.4;201.64,15.4;202.2,15.4;202.2,14.4)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3d",
+      "refs": [],
+      "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,15.96;165.8,16.96;166.36,16.96;166.36,15.96)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3d",
+      "refs": [],
+      "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,15.96;201.64,16.96;202.2,16.96;202.2,15.96)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3d",
+      "refs": [],
+      "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,22.24;165.8,23.24;166.36,23.24;166.36,22.24)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3d",
+      "refs": [],
+      "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,22.24;201.64,23.24;202.2,23.24;202.2,22.24)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3d",
+      "refs": [],
+      "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,23.8;165.8,24.8;166.36,24.8;166.36,23.8)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3d",
+      "refs": [],
+      "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,23.8;201.64,24.8;202.2,24.8;202.2,23.8)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3d",
+      "refs": [],
+      "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,30.08;165.8,31.08;166.36,31.08;166.36,30.08)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3d",
+      "refs": [],
+      "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,30.08;201.64,31.08;202.2,31.08;202.2,30.08)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3e",
+      "refs": [],
+      "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,0.28;165.8,1.28;166.36,1.28;166.36,0.28)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3e",
+      "refs": [],
+      "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,0.28;201.64,1.28;202.2,1.28;202.2,0.28)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3e",
+      "refs": [],
+      "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,6.56;165.8,7.56;166.36,7.56;166.36,6.56)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3e",
+      "refs": [],
+      "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,6.56;201.64,7.56;202.2,7.56;202.2,6.56)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3e",
+      "refs": [],
+      "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,8.12;165.8,9.12;166.36,9.12;166.36,8.12)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3e",
+      "refs": [],
+      "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,8.12;201.64,9.12;202.2,9.12;202.2,8.12)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3e",
+      "refs": [],
+      "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,14.4;165.8,15.4;166.36,15.4;166.36,14.4)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3e",
+      "refs": [],
+      "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,14.4;201.64,15.4;202.2,15.4;202.2,14.4)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3e",
+      "refs": [],
+      "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,15.96;165.8,16.96;166.36,16.96;166.36,15.96)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3e",
+      "refs": [],
+      "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,15.96;201.64,16.96;202.2,16.96;202.2,15.96)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3e",
+      "refs": [],
+      "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,22.24;165.8,23.24;166.36,23.24;166.36,22.24)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3e",
+      "refs": [],
+      "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,22.24;201.64,23.24;202.2,23.24;202.2,22.24)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3e",
+      "refs": [],
+      "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,23.8;165.8,24.8;166.36,24.8;166.36,23.8)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3e",
+      "refs": [],
+      "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,23.8;201.64,24.8;202.2,24.8;202.2,23.8)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3e",
+      "refs": [],
+      "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,30.08;165.8,31.08;166.36,31.08;166.36,30.08)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3e",
+      "refs": [],
+      "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,30.08;201.64,31.08;202.2,31.08;202.2,30.08)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3d",
+      "refs": [],
+      "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,0.28;165.8,1.28;166.36,1.28;166.36,0.28)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3d",
+      "refs": [],
+      "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,0.28;201.64,1.28;202.2,1.28;202.2,0.28)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3d",
+      "refs": [],
+      "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,6.56;165.8,7.56;166.36,7.56;166.36,6.56)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3d",
+      "refs": [],
+      "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,6.56;201.64,7.56;202.2,7.56;202.2,6.56)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3d",
+      "refs": [],
+      "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,8.12;165.8,9.12;166.36,9.12;166.36,8.12)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3d",
+      "refs": [],
+      "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,8.12;201.64,9.12;202.2,9.12;202.2,8.12)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3d",
+      "refs": [],
+      "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,14.4;165.8,15.4;166.36,15.4;166.36,14.4)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3d",
+      "refs": [],
+      "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,14.4;201.64,15.4;202.2,15.4;202.2,14.4)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3d",
+      "refs": [],
+      "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,15.96;165.8,16.96;166.36,16.96;166.36,15.96)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3d",
+      "refs": [],
+      "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,15.96;201.64,16.96;202.2,16.96;202.2,15.96)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3d",
+      "refs": [],
+      "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,22.24;165.8,23.24;166.36,23.24;166.36,22.24)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3d",
+      "refs": [],
+      "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,22.24;201.64,23.24;202.2,23.24;202.2,22.24)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3d",
+      "refs": [],
+      "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,23.8;165.8,24.8;166.36,24.8;166.36,23.8)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3d",
+      "refs": [],
+      "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,23.8;201.64,24.8;202.2,24.8;202.2,23.8)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3d",
+      "refs": [],
+      "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,30.08;165.8,31.08;166.36,31.08;166.36,30.08)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3d",
+      "refs": [],
+      "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,30.08;201.64,31.08;202.2,31.08;202.2,30.08)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3e",
+      "refs": [],
+      "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,0.28;165.8,1.28;166.36,1.28;166.36,0.28)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3e",
+      "refs": [],
+      "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,0.28;201.64,1.28;202.2,1.28;202.2,0.28)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3e",
+      "refs": [],
+      "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,6.56;165.8,7.56;166.36,7.56;166.36,6.56)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3e",
+      "refs": [],
+      "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,6.56;201.64,7.56;202.2,7.56;202.2,6.56)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3e",
+      "refs": [],
+      "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,8.12;165.8,9.12;166.36,9.12;166.36,8.12)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3e",
+      "refs": [],
+      "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,8.12;201.64,9.12;202.2,9.12;202.2,8.12)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3e",
+      "refs": [],
+      "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,14.4;165.8,15.4;166.36,15.4;166.36,14.4)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3e",
+      "refs": [],
+      "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,14.4;201.64,15.4;202.2,15.4;202.2,14.4)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3e",
+      "refs": [],
+      "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,15.96;165.8,16.96;166.36,16.96;166.36,15.96)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3e",
+      "refs": [],
+      "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,15.96;201.64,16.96;202.2,16.96;202.2,15.96)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3e",
+      "refs": [],
+      "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,22.24;165.8,23.24;166.36,23.24;166.36,22.24)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3e",
+      "refs": [],
+      "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,22.24;201.64,23.24;202.2,23.24;202.2,22.24)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3e",
+      "refs": [],
+      "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,23.8;165.8,24.8;166.36,24.8;166.36,23.8)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3e",
+      "refs": [],
+      "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,23.8;201.64,24.8;202.2,24.8;202.2,23.8)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3e",
+      "refs": [],
+      "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,30.08;165.8,31.08;166.36,31.08;166.36,30.08)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3e",
+      "refs": [],
+      "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,30.08;201.64,31.08;202.2,31.08;202.2,30.08)"
+    }
+  ],
+  "violations": [
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.16_MV",
+      "refs": [],
+      "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "edge-pair: (201.64,9.12;202.2,9.12)/(202.56,9.6;201.28,9.6)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.16_MV",
+      "refs": [],
+      "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "edge-pair: (165.8,1.28;166.36,1.28)/(166.72,1.76;165.44,1.76)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.16_MV",
+      "refs": [],
+      "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "edge-pair: (202.2,30.08;201.64,30.08)/(201.28,29.6;202.56,29.6)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.16_MV",
+      "refs": [],
+      "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "edge-pair: (201.64,24.8;202.2,24.8)/(202.56,25.28;201.28,25.28)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.16_MV",
+      "refs": [],
+      "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "edge-pair: (165.8,16.96;166.36,16.96)/(166.72,17.44;165.44,17.44)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.16_MV",
+      "refs": [],
+      "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "edge-pair: (202.2,22.24;201.64,22.24)/(201.28,21.76;202.56,21.76)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.16_MV",
+      "refs": [],
+      "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "edge-pair: (166.36,30.08;165.8,30.08)/(165.44,29.6;166.72,29.6)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.16_MV",
+      "refs": [],
+      "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "edge-pair: (202.2,14.4;201.64,14.4)/(201.28,13.92;202.56,13.92)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.16_MV",
+      "refs": [],
+      "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "edge-pair: (165.8,9.12;166.36,9.12)/(166.72,9.6;165.44,9.6)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.16_MV",
+      "refs": [],
+      "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "edge-pair: (201.64,1.28;202.2,1.28)/(202.56,1.76;201.28,1.76)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.16_MV",
+      "refs": [],
+      "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "edge-pair: (202.2,6.56;201.64,6.56)/(201.28,6.08;202.56,6.08)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.16_MV",
+      "refs": [],
+      "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "edge-pair: (166.36,6.56;165.8,6.56)/(165.44,6.08;166.72,6.08)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.16_MV",
+      "refs": [],
+      "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "edge-pair: (165.8,24.8;166.36,24.8)/(166.72,25.28;165.44,25.28)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.16_MV",
+      "refs": [],
+      "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "edge-pair: (166.36,22.24;165.8,22.24)/(165.44,21.76;166.72,21.76)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.16_MV",
+      "refs": [],
+      "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "edge-pair: (201.64,16.96;202.2,16.96)/(202.56,17.44;201.28,17.44)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.16_MV",
+      "refs": [],
+      "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.16_MV : Min. space from (Nwell outside DNWELL) to (NCOMP outside Nwell and DNWELL). : 0.6\u00b5m",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "edge-pair: (166.36,14.4;165.8,14.4)/(165.44,13.92;166.72,13.92)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.3b",
+      "refs": [],
+      "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,0.28;165.8,1.28;166.36,1.28;166.36,0.28)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.3b",
+      "refs": [],
+      "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,0.28;201.64,1.28;202.2,1.28;202.2,0.28)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.3b",
+      "refs": [],
+      "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,6.56;165.8,7.56;166.36,7.56;166.36,6.56)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.3b",
+      "refs": [],
+      "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,6.56;201.64,7.56;202.2,7.56;202.2,6.56)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.3b",
+      "refs": [],
+      "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,8.12;165.8,9.12;166.36,9.12;166.36,8.12)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.3b",
+      "refs": [],
+      "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,8.12;201.64,9.12;202.2,9.12;202.2,8.12)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.3b",
+      "refs": [],
+      "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,14.4;165.8,15.4;166.36,15.4;166.36,14.4)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.3b",
+      "refs": [],
+      "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,14.4;201.64,15.4;202.2,15.4;202.2,14.4)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.3b",
+      "refs": [],
+      "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,15.96;165.8,16.96;166.36,16.96;166.36,15.96)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.3b",
+      "refs": [],
+      "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,15.96;201.64,16.96;202.2,16.96;202.2,15.96)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.3b",
+      "refs": [],
+      "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,22.24;165.8,23.24;166.36,23.24;166.36,22.24)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.3b",
+      "refs": [],
+      "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,22.24;201.64,23.24;202.2,23.24;202.2,22.24)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.3b",
+      "refs": [],
+      "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,23.8;165.8,24.8;166.36,24.8;166.36,23.8)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.3b",
+      "refs": [],
+      "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,23.8;201.64,24.8;202.2,24.8;202.2,23.8)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.3b",
+      "refs": [],
+      "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,30.08;165.8,31.08;166.36,31.08;166.36,30.08)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "comp",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DF.3b",
+      "refs": [],
+      "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DF.3b : Min./Max. NCOMP Space to PCOMP in the same well for butted COMP\n                  (MOSCAP butting is not allowed): 0 um",
+          "file": "comp",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,30.08;201.64,31.08;202.2,31.08;202.2,30.08)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "unknown",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DCF.1a",
+      "refs": [],
+      "msg": "DCF.1a : All area between active polygons (COMP) (with spacing greater than equal to this rule)must be filled with \"Dummy COMP\" (see exceptions): 20",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DCF.1a : All area between active polygons (COMP) (with spacing greater than equal to this rule)must be filled with \"Dummy COMP\" (see exceptions): 20",
+          "file": "unknown",
+          "line": null
+        }
+      ],
+      "value": "polygon: (7.96,6.8;7.96,36.36;164.09,36.36;164.09,6.8)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "unknown",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "DCF.1a",
+      "refs": [],
+      "msg": "DCF.1a : All area between active polygons (COMP) (with spacing greater than equal to this rule)must be filled with \"Dummy COMP\" (see exceptions): 20",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "DCF.1a : All area between active polygons (COMP) (with spacing greater than equal to this rule)must be filled with \"Dummy COMP\" (see exceptions): 20",
+          "file": "unknown",
+          "line": null
+        }
+      ],
+      "value": "polygon: (150,32.79;150,126.36;195.78,126.36;195.78,32.79)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3d",
+      "refs": [],
+      "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,0.28;165.8,1.28;166.36,1.28;166.36,0.28)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3d",
+      "refs": [],
+      "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,0.28;201.64,1.28;202.2,1.28;202.2,0.28)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3d",
+      "refs": [],
+      "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,6.56;165.8,7.56;166.36,7.56;166.36,6.56)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3d",
+      "refs": [],
+      "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,6.56;201.64,7.56;202.2,7.56;202.2,6.56)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3d",
+      "refs": [],
+      "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,8.12;165.8,9.12;166.36,9.12;166.36,8.12)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3d",
+      "refs": [],
+      "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,8.12;201.64,9.12;202.2,9.12;202.2,8.12)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3d",
+      "refs": [],
+      "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,14.4;165.8,15.4;166.36,15.4;166.36,14.4)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3d",
+      "refs": [],
+      "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,14.4;201.64,15.4;202.2,15.4;202.2,14.4)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3d",
+      "refs": [],
+      "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,15.96;165.8,16.96;166.36,16.96;166.36,15.96)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3d",
+      "refs": [],
+      "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,15.96;201.64,16.96;202.2,16.96;202.2,15.96)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3d",
+      "refs": [],
+      "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,22.24;165.8,23.24;166.36,23.24;166.36,22.24)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3d",
+      "refs": [],
+      "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,22.24;201.64,23.24;202.2,23.24;202.2,22.24)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3d",
+      "refs": [],
+      "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,23.8;165.8,24.8;166.36,24.8;166.36,23.8)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3d",
+      "refs": [],
+      "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,23.8;201.64,24.8;202.2,24.8;202.2,23.8)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3d",
+      "refs": [],
+      "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,30.08;165.8,31.08;166.36,31.08;166.36,30.08)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3d",
+      "refs": [],
+      "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3d : Min/max space to a butted PCOMP: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,30.08;201.64,31.08;202.2,31.08;202.2,30.08)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3e",
+      "refs": [],
+      "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,0.28;165.8,1.28;166.36,1.28;166.36,0.28)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3e",
+      "refs": [],
+      "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,0.28;201.64,1.28;202.2,1.28;202.2,0.28)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3e",
+      "refs": [],
+      "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,6.56;165.8,7.56;166.36,7.56;166.36,6.56)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3e",
+      "refs": [],
+      "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,6.56;201.64,7.56;202.2,7.56;202.2,6.56)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3e",
+      "refs": [],
+      "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,8.12;165.8,9.12;166.36,9.12;166.36,8.12)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3e",
+      "refs": [],
+      "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,8.12;201.64,9.12;202.2,9.12;202.2,8.12)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3e",
+      "refs": [],
+      "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,14.4;165.8,15.4;166.36,15.4;166.36,14.4)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3e",
+      "refs": [],
+      "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,14.4;201.64,15.4;202.2,15.4;202.2,14.4)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3e",
+      "refs": [],
+      "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,15.96;165.8,16.96;166.36,16.96;166.36,15.96)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3e",
+      "refs": [],
+      "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,15.96;201.64,16.96;202.2,16.96;202.2,15.96)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3e",
+      "refs": [],
+      "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,22.24;165.8,23.24;166.36,23.24;166.36,22.24)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3e",
+      "refs": [],
+      "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,22.24;201.64,23.24;202.2,23.24;202.2,22.24)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3e",
+      "refs": [],
+      "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,23.8;165.8,24.8;166.36,24.8;166.36,23.8)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3e",
+      "refs": [],
+      "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,23.8;201.64,24.8;202.2,24.8;202.2,23.8)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3e",
+      "refs": [],
+      "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,30.08;165.8,31.08;166.36,31.08;166.36,30.08)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "nplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "NP.3e",
+      "refs": [],
+      "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "NP.3e : Space to related PCOMP edge adjacent to a butting edge: 0um",
+          "file": "nplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,30.08;201.64,31.08;202.2,31.08;202.2,30.08)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3d",
+      "refs": [],
+      "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,0.28;165.8,1.28;166.36,1.28;166.36,0.28)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3d",
+      "refs": [],
+      "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,0.28;201.64,1.28;202.2,1.28;202.2,0.28)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3d",
+      "refs": [],
+      "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,6.56;165.8,7.56;166.36,7.56;166.36,6.56)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3d",
+      "refs": [],
+      "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,6.56;201.64,7.56;202.2,7.56;202.2,6.56)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3d",
+      "refs": [],
+      "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,8.12;165.8,9.12;166.36,9.12;166.36,8.12)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3d",
+      "refs": [],
+      "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,8.12;201.64,9.12;202.2,9.12;202.2,8.12)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3d",
+      "refs": [],
+      "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,14.4;165.8,15.4;166.36,15.4;166.36,14.4)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3d",
+      "refs": [],
+      "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,14.4;201.64,15.4;202.2,15.4;202.2,14.4)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3d",
+      "refs": [],
+      "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,15.96;165.8,16.96;166.36,16.96;166.36,15.96)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3d",
+      "refs": [],
+      "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,15.96;201.64,16.96;202.2,16.96;202.2,15.96)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3d",
+      "refs": [],
+      "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,22.24;165.8,23.24;166.36,23.24;166.36,22.24)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3d",
+      "refs": [],
+      "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,22.24;201.64,23.24;202.2,23.24;202.2,22.24)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3d",
+      "refs": [],
+      "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,23.8;165.8,24.8;166.36,24.8;166.36,23.8)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3d",
+      "refs": [],
+      "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,23.8;201.64,24.8;202.2,24.8;202.2,23.8)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3d",
+      "refs": [],
+      "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,30.08;165.8,31.08;166.36,31.08;166.36,30.08)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3d",
+      "refs": [],
+      "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3d : Min/max space to a butted NCOMP: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,30.08;201.64,31.08;202.2,31.08;202.2,30.08)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3e",
+      "refs": [],
+      "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,0.28;165.8,1.28;166.36,1.28;166.36,0.28)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3e",
+      "refs": [],
+      "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,0.28;201.64,1.28;202.2,1.28;202.2,0.28)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3e",
+      "refs": [],
+      "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,6.56;165.8,7.56;166.36,7.56;166.36,6.56)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3e",
+      "refs": [],
+      "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,6.56;201.64,7.56;202.2,7.56;202.2,6.56)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3e",
+      "refs": [],
+      "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,8.12;165.8,9.12;166.36,9.12;166.36,8.12)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3e",
+      "refs": [],
+      "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,8.12;201.64,9.12;202.2,9.12;202.2,8.12)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3e",
+      "refs": [],
+      "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,14.4;165.8,15.4;166.36,15.4;166.36,14.4)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3e",
+      "refs": [],
+      "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,14.4;201.64,15.4;202.2,15.4;202.2,14.4)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3e",
+      "refs": [],
+      "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,15.96;165.8,16.96;166.36,16.96;166.36,15.96)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3e",
+      "refs": [],
+      "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,15.96;201.64,16.96;202.2,16.96;202.2,15.96)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3e",
+      "refs": [],
+      "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,22.24;165.8,23.24;166.36,23.24;166.36,22.24)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3e",
+      "refs": [],
+      "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,22.24;201.64,23.24;202.2,23.24;202.2,22.24)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3e",
+      "refs": [],
+      "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,23.8;165.8,24.8;166.36,24.8;166.36,23.8)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3e",
+      "refs": [],
+      "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,23.8;201.64,24.8;202.2,24.8;202.2,23.8)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3e",
+      "refs": [],
+      "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (165.8,30.08;165.8,31.08;166.36,31.08;166.36,30.08)"
+    },
+    {
+      "check": "analog_drc",
+      "severity": "error",
+      "file": "pplus",
+      "module": "r2r_dac_analog",
+      "line": null,
+      "kind": "PP.3e",
+      "refs": [],
+      "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+      "source": "klayout",
+      "items": [
+        {
+          "msg": "PP.3e : Space to NCOMP edge adjacent to a butting edge: 0um",
+          "file": "pplus",
+          "line": null
+        }
+      ],
+      "value": "polygon: (201.64,30.08;201.64,31.08;202.2,31.08;202.2,30.08)"
+    }
+  ],
+  "facts": {
+    "topcell": "r2r_dac_analog",
+    "gds": "layout/analog.gds",
+    "report": "log/analog_drc.lyrdb"
+  },
+  "record_result": {
+    "ok": true,
+    "recorded": true,
+    "workspace": "blocks/r2r_dac/analog",
+    "gate": "drc",
+    "status": "fail",
+    "attempts": 1,
+    "inputs": {
+      "layout": "dir_text:bfab87baadb7f1206c1c00552b092d698c9148dfc924bb04b9b546f98d7c84f5"
+    }
+  }
+}

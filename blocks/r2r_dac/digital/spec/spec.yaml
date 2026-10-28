@@ -1,0 +1,58 @@
+top: r2r_dac_digital
+requirements:
+  - id: REQ-RESET
+    text: rst_n is registered once; on every clk edge after one that sampled rst_n low, dac_code becomes 0 and the counter and prescaler restart from 0
+    check: both
+    property: REQ_RESET
+  - id: REQ-CAPTURE
+    text: in mode 00 dac_code takes the value ui_in had at the previous rising clk edge
+    check: sim
+  - id: REQ-HOLD
+    text: in mode 11 dac_code holds the last code captured in mode 00 and ignores ui_in, and ramp or sine mode in between does not disturb it
+    check: both
+    property: REQ_HOLD
+  - id: REQ-RAMP
+    text: in mode 01 with slow 0 dac_code steps by +1 every clock through all 256 codes and wraps 255 to 0
+    check: sim
+  - id: REQ-SLOW
+    text: with slow 1 the free-running counter advances once every 256 clocks
+    check: sim
+  - id: REQ-SINE
+    text: in mode 10 dac_code equals round(127.5+127.5*sin(2*pi*i/256)) for counter value i, all 256 entries exact
+    check: sim
+  - id: REQ-SWITCH
+    text: on any mode change there is no cycle where dac_code is neither the old source's value nor the new source's value
+    check: sim
+  - id: REQ-REGISTERED
+    text: dac_code changes only on a rising clk edge, a ui_in change between edges is invisible until the next edge
+    check: sim
+  - id: REQ-ECHO
+    text: uo_out equals dac_code at all times
+    check: both
+    property: REQ_ECHO
+ports:
+  clk: {dir: input, width: 1}
+  rst_n: {dir: input, width: 1}
+  ena: {dir: input, width: 1}
+  ui_in: {dir: input, width: 8}
+  mode: {dir: input, width: 2}
+  slow: {dir: input, width: 1}
+  dac_code: {dir: output, width: 8}
+  uo_out: {dir: output, width: 8}
+clock:
+  period_ns: 20
+  domains: [clk]
+mutate:
+  size: 24
+  seed: 1
+formal:
+  depth: 12
+tt_pins:
+  clk: clk
+  rst_n: rst_n
+  ena: ena
+  ui_in: ui_in[7:0]
+  mode: uio_in[1:0]
+  slow: uio_in[2]
+  dac_code: uio_out[7:0]
+  uo_out: uo_out[7:0]

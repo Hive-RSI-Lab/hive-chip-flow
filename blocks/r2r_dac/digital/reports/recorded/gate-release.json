@@ -1,0 +1,36 @@
+{
+ "script": "gate",
+ "gate": "release",
+ "phase": "P8",
+ "tool": "release",
+ "input_digest": "dir_text:08d2e63a30253fb8dcb71be29ca5aa7209711132e317fcb0e4bc99f0e226a305",
+ "status": "pass",
+ "criteria": {
+  "fail_severities": [
+   "error"
+  ],
+  "max_count": 0
+ },
+ "counts": {
+  "total": 0,
+  "by_severity": {},
+  "by_source": {}
+ },
+ "failing_count": 0,
+ "failing": [],
+ "violations": [],
+ "facts": {
+  "attestation": "reports/checks.json",
+  "attestation_sha256": "1ddef500575b5c0a40ae34767ddfd990b4c02367317851f7e9433260ac4ae500",
+  "disposition": "blocked",
+  "waived": [
+   "timing"
+  ]
+ },
+ "inputs_at_start": {
+  "rtl": "dir_text:08d2e63a30253fb8dcb71be29ca5aa7209711132e317fcb0e4bc99f0e226a305",
+  "harden": "dir_text:5e0fc600709e3cc97c7324a97c0c78553ef21db49b5a2f1a7ca5465fd7d2b2f2"
+ },
+ "recorded_ts": "2026-10-13T04:21:56",
+ "attempts": 1
+}

@@ -1,0 +1,120 @@
+* r2r_dac_analog_pex_tb.cir - post-layout bench for the 8-bit R-2R ladder,
+* typical corner, tt/27 C, VDD 3.3 V. check_pex_sim.py fills in {pdk} and
+* {extracted}; no other brace may appear in this file (.format()).
+*
+* The ladder's output pole is R_out x C_load = 27k x 7 pF = 189 ns, and the
+* glitch is set by the driver/ladder RC in the first nanoseconds, so what
+* the extraction moves is the wire C hung on the rungs and 2R midpoints (it
+* adds to the 7 pF pad load and slows tau) and the driver edge into the
+* ladder. One transient measures exactly the spec's parasitic-sensitive
+* measures, same definitions as tb/r2r_dac_step_tb.cir and
+* tb/r2r_dac_glitch_tb.cir (spec.md Measures):
+*   t_settle_rise/fall  0.5 LSB (VDD/512) settling, 0<->255
+*   t_rise_10_90 / t_fall_10_90
+*   glitch_energy_up/down, glitch_peak_up/down   mid-code 127<->128
+*
+* Timeline (ideal 0/3.3 V PWL sources, 100 ps edges, all bits aligned):
+*   0..20n     code 127 (operating point first, no uic)
+*   20n        127 -> 128   (glitch up window 20n..80n)
+*   80n        128 -> 127   (glitch down window 80n..140n)
+*   200n       127 -> 0     (then 3 us to settle)
+*   3.2u       0 -> 255     (rise window 3.2u..7.2u, 4 us > 2.5x the 1.5 us bound)
+*   7.2u       255 -> 0     (fall window 7.2u..11.2u)
+* Pad load ASSUMED as in the spec benches: 100 ohm + 7 pF.
+* Instance in netlist/ pin order: dac_code[7..0] vout vdd vss.
+
+.include '{pdk}/libs.tech/ngspice/design.ngspice'
+.lib '{pdk}/libs.tech/ngspice/sm141064.spice' typical
+.lib '{pdk}/libs.tech/ngspice/sm141064.spice' res_typical
+.include '{pdk}/libs.ref/gf180mcu_fd_sc_mcu7t5v0/spice/gf180mcu_fd_sc_mcu7t5v0.spice'
+.include '{extracted}'
+
+.temp 27
+
+vdd vdd 0 3.3
+vss vss 0 0
+
+vb7 b7 0 pwl(0 0 19.95n 0 20.05n 3.3 79.95n 3.3 80.05n 0 3.1999u 0 3.2001u 3.3 7.1999u 3.3 7.2001u 0)
+vb6 b6 0 pwl(0 3.3 19.95n 3.3 20.05n 0 79.95n 0 80.05n 3.3 199.95n 3.3 200.05n 0 3.1999u 0 3.2001u 3.3 7.1999u 3.3 7.2001u 0)
+vb5 b5 0 pwl(0 3.3 19.95n 3.3 20.05n 0 79.95n 0 80.05n 3.3 199.95n 3.3 200.05n 0 3.1999u 0 3.2001u 3.3 7.1999u 3.3 7.2001u 0)
+vb4 b4 0 pwl(0 3.3 19.95n 3.3 20.05n 0 79.95n 0 80.05n 3.3 199.95n 3.3 200.05n 0 3.1999u 0 3.2001u 3.3 7.1999u 3.3 7.2001u 0)
+vb3 b3 0 pwl(0 3.3 19.95n 3.3 20.05n 0 79.95n 0 80.05n 3.3 199.95n 3.3 200.05n 0 3.1999u 0 3.2001u 3.3 7.1999u 3.3 7.2001u 0)
+vb2 b2 0 pwl(0 3.3 19.95n 3.3 20.05n 0 79.95n 0 80.05n 3.3 199.95n 3.3 200.05n 0 3.1999u 0 3.2001u 3.3 7.1999u 3.3 7.2001u 0)
+vb1 b1 0 pwl(0 3.3 19.95n 3.3 20.05n 0 79.95n 0 80.05n 3.3 199.95n 3.3 200.05n 0 3.1999u 0 3.2001u 3.3 7.1999u 3.3 7.2001u 0)
+vb0 b0 0 pwl(0 3.3 19.95n 3.3 20.05n 0 79.95n 0 80.05n 3.3 199.95n 3.3 200.05n 0 3.1999u 0 3.2001u 3.3 7.1999u 3.3 7.2001u 0)
+
+xdut b7 b6 b5 b4 b3 b2 b1 b0 vout vdd vss r2r_dac_analog
+rpad vout vpad 100
+cload vpad 0 7p
+
+.control
+set noaskquit
+save v(vout)
+tran 10p 11.2u 0 500p
+let vo = v(vout)
+let tt = time
+let band = 3.3/512
+let dv_ideal = 255/256*3.3
+
+* glitch up: 127 -> 128, window 20n..80n
+meas tran gvi1 find v(vout) at=19.9n
+meas tran gvf1 find v(vout) at=79.9n
+let ghi = (gvi1 gt gvf1)*gvi1 + (gvi1 le gvf1)*gvf1
+let glo = (gvi1 gt gvf1)*gvf1 + (gvi1 le gvf1)*gvi1
+let gwin = (tt ge 20n) * (tt le 80n)
+let exc = ((vo - ghi)*(vo gt ghi) + (glo - vo)*(vo lt glo)) * gwin
+meas tran glitch_energy_up integ exc from=20n to=80n
+let glitch_peak_up = vecmax(exc)
+
+* glitch down: 128 -> 127, window 80n..140n
+meas tran gvi2 find v(vout) at=79.9n
+meas tran gvf2 find v(vout) at=139.9n
+let ghi = (gvi2 gt gvf2)*gvi2 + (gvi2 le gvf2)*gvf2
+let glo = (gvi2 gt gvf2)*gvf2 + (gvi2 le gvf2)*gvi2
+let gwin = (tt ge 80n) * (tt le 140n)
+let exc = ((vo - ghi)*(vo gt ghi) + (glo - vo)*(vo lt glo)) * gwin
+meas tran glitch_energy_down integ exc from=80n to=140n
+let glitch_peak_down = vecmax(exc)
+
+* rise 0 -> 255 at 3.2u, window to 7.2u
+meas tran v0r find v(vout) at=3.1999u
+meas tran vfr find v(vout) at=7.1999u
+let win = (tt gt 3.2u) * (tt lt 7.1999u)
+let outb = (abs(vo - vfr) gt band) * win
+let t_last_r = vecmax(outb*tt)
+let t_settle_rise = t_last_r - 3.2u
+let c10 = (vo gt (v0r + 0.1*(vfr-v0r))) * win
+let c90 = (vo gt (v0r + 0.9*(vfr-v0r))) * win
+let t_rise_10_90 = vecmin(c90*tt + (1-c90)) - vecmin(c10*tt + (1-c10))
+
+* fall 255 -> 0 at 7.2u, window to 11.2u
+meas tran v0f find v(vout) at=7.1999u
+meas tran vff find v(vout) at=11.1999u
+let win = (tt gt 7.2u) * (tt le 11.2u)
+let outb = (abs(vo - vff) gt band) * win
+let t_last_f = vecmax(outb*tt)
+let t_settle_fall = t_last_f - 7.2u
+let c10 = (vo lt (v0f - 0.1*(v0f-vff))) * win
+let c90 = (vo lt (v0f - 0.9*(v0f-vff))) * win
+let t_fall_10_90 = vecmin(c90*tt + (1-c90)) - vecmin(c10*tt + (1-c10))
+
+* a window that never reached its final value, or never moved, must fail
+* rather than print a clamped number
+if (t_last_r gt 6.4u) | (abs(vfr - v0r) lt 0.5*dv_ideal)
+  let t_settle_rise = 1
+end
+if (t_last_f gt 10.4u) | (abs(vff - v0f) lt 0.5*dv_ideal)
+  let t_settle_fall = 1
+end
+
+echo "t_settle_rise = $&t_settle_rise"
+echo "t_settle_fall = $&t_settle_fall"
+echo "t_rise_10_90 = $&t_rise_10_90"
+echo "t_fall_10_90 = $&t_fall_10_90"
+echo "glitch_energy_up = $&glitch_energy_up"
+echo "glitch_energy_down = $&glitch_energy_down"
+echo "glitch_peak_up = $&glitch_peak_up"
+echo "glitch_peak_down = $&glitch_peak_down"
+.endc
+
+.end

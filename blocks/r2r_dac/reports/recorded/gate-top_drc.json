@@ -1,0 +1,32 @@
+{
+ "script": "gate",
+ "gate": "top_drc",
+ "phase": "P3",
+ "tool": "top_drc",
+ "input_digest": "dir_text:0905acb9d74b569267319ec4a715fa4e5d5ec532738e6ebae11026f5a3528035",
+ "status": "pass",
+ "criteria": {
+  "fail_severities": [
+   "error"
+  ],
+  "max_count": 0
+ },
+ "counts": {
+  "total": 0,
+  "by_severity": {},
+  "by_source": {}
+ },
+ "failing_count": 0,
+ "failing": [],
+ "violations": [],
+ "facts": {
+  "top": "tt_um_r2r_dac_digital",
+  "magic_count": 0,
+  "klayout_count": 0
+ },
+ "inputs_at_start": {
+  "top_gds": "dir_text:0905acb9d74b569267319ec4a715fa4e5d5ec532738e6ebae11026f5a3528035"
+ },
+ "recorded_ts": "2026-10-13T08:53:08",
+ "attempts": 2
+}

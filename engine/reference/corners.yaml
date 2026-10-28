@@ -1,0 +1,70 @@
+# corners.yaml - PVT corner axes and the default sim_pvt sweep (docs/
+# design.md 1.4, 5, "### M8."). New at M8: no /hwde precedent (a PCB flow
+# has no process corner). Consumed by engine/scripts/corners.py.
+#
+# process/temperature_c/supply_pct are the raw axes design.md 5 names
+# ("process typical, ss, ff, sf, fs; temperature -40, 27 and 125; supply
+# plus and minus 10 percent") - the space a block's own spec.yaml `corners`
+# list is validated against, and add-corner picks a fresh point from.
+#
+# default_corners is the swept set `sim_pvt` runs when a block names no
+# corners of its own ("the default is the four extremes with typical, never
+# fewer" - design.md 5). WHICH temp/supply point pairs with each process
+# extreme is this file's own call, not the design doc's (it leaves the
+# pairing open): ss (slow) is paired with hot + low-supply and ff (fast)
+# with cold + high-supply - the combination that stresses a design's speed/
+# headroom margin hardest in the direction each corner name already
+# suggests, and exactly the pairing gates.yaml's own named fault for
+# sim_pvt describes: "meets at typical, loses headroom at slow and hot" =
+# ss @ 125 C, -10% supply. sf/fs (threshold-skew corners, nfet and pfet
+# shifted in opposite directions) get the same hot-low/cold-high pairing as
+# the half they resemble (sf pairs like ss, fs like ff) for the same
+# reason, absent any canonical third choice - five corners total, matching
+# "the four extremes with typical, never fewer".
+#
+# process names here are ngspice .lib section names in the PDK's own
+# sm141064.spice (`.lib typical`, `.lib ss`, `.lib ff`, `.lib sf`,
+# `.lib fs` - confirmed present, engine/lib/simlib.py's PDK_NGSPICE_LIB
+# points at the same file) - corners.py never invents a section name, it
+# only picks among these five.
+#
+# passive is the PDK's passive-device axis: its separate `.lib res_<p>`
+# (poly/diffusion resistor sheet resistance - ppolyf_u_1k is 1000 ohm/sq
+# at typical, 1200 at ss, 800 at ff) and `.lib mimcap_<p>` (MIM cap, 1.1 to
+# 1.155x at ss, 0.845 to 0.9x at ff) sections. A corner with no `passive`
+# key takes its own process where one of these exists, typical otherwise
+# (corners.py passive_of), so the default five move R and C only together
+# with the transistors. passive_corners are appended to the sweep of a
+# design whose netlist uses a poly/diffusion resistor or a MIM cap
+# (corners.py spec_corners): each RC extreme at typical transistors.
+#
+# passive_skew_corners put each transistor extreme at the OPPOSITE RC
+# extreme - a charge pump's current at ss with the loop filter's R and C at
+# ff, and the reverse. A spec opts in by naming them in its `corners` list;
+# they are not swept by default because two corpus designs whose bounds
+# were set over the default five fail them (measured 2026-09-27: dac_tile
+# vout_00 2.42 V < 2.45 V at ss_pff, bandgap vref_tc_pp 6.5 mV > 6 mV at
+# ss_pff) - a bound change is a spec decision, not this file's.
+
+version: 1
+
+process: [typical, ss, ff, sf, fs]
+temperature_c: [-40, 27, 125]
+supply_pct: [-10, 0, 10]
+
+default_corners:
+  - {name: tt, process: typical, temp_c: 27,  supply_pct: 0}
+  - {name: ss, process: ss,      temp_c: 125, supply_pct: -10}
+  - {name: ff, process: ff,      temp_c: -40, supply_pct: 10}
+  - {name: sf, process: sf,      temp_c: 125, supply_pct: -10}
+  - {name: fs, process: fs,      temp_c: -40, supply_pct: 10}
+
+passive: [typical, ss, ff]
+
+passive_corners:
+  - {name: tt_pss, process: typical, temp_c: 27,  supply_pct: 0,   passive: ss}
+  - {name: tt_pff, process: typical, temp_c: 27,  supply_pct: 0,   passive: ff}
+
+passive_skew_corners:
+  - {name: ss_pff, process: ss,      temp_c: 125, supply_pct: -10, passive: ff}
+  - {name: ff_pss, process: ff,      temp_c: -40, supply_pct: 10,  passive: ss}

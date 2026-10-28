@@ -1,0 +1,36 @@
+{
+ "script": "gate",
+ "gate": "release",
+ "phase": "P6",
+ "tool": "release",
+ "input_digest": "dir_text:13970a2f19f36bd8aa49baa3a94132821e16917455715ba77b23b074b4551548",
+ "status": "pass",
+ "criteria": {
+  "fail_severities": [
+   "error"
+  ],
+  "max_count": 0
+ },
+ "counts": {
+  "total": 0,
+  "by_severity": {},
+  "by_source": {}
+ },
+ "failing_count": 0,
+ "failing": [],
+ "violations": [],
+ "facts": {
+  "attestation": "reports/checks.json",
+  "attestation_sha256": "8e9ff6841b943ddb8349072e66e88c8398125a7ef260469d0c05cdd7058111ea",
+  "disposition": "gates-green",
+  "waived": []
+ },
+ "inputs_at_start": {
+  "netlist": "dir_text:13970a2f19f36bd8aa49baa3a94132821e16917455715ba77b23b074b4551548",
+  "layout": "dir_text:7a954c277f279e0a8b3d75e97ed6833bf445cf7e04f4ec0eefae35be290d869d",
+  "sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
+  "spec_yaml": "json_canonical:99047ed51c88b1767b136d48e2c3832967daa1e22eec34905494620acacea45d"
+ },
+ "recorded_ts": "2026-10-13T06:18:19",
+ "attempts": 1
+}

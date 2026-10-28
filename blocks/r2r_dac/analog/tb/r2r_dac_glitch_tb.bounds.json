@@ -1,0 +1,12 @@
+[
+  {"measure": "glitch_energy_up", "max": 0.26e-9, "severity": "warning", "msg": "derived: 1 LSB x 20 ns"},
+  {"measure": "glitch_energy_down", "max": 0.26e-9, "severity": "warning", "msg": "derived: 1 LSB x 20 ns"},
+  {"measure": "glitch_peak_up", "max": 52e-3, "severity": "warning", "msg": "derived: 4 LSB"},
+  {"measure": "glitch_peak_down", "max": 52e-3, "severity": "warning", "msg": "derived: 4 LSB"},
+  {"measure": "glitch_energy_up_skew_p200p", "max": 0.5e-9, "severity": "warning", "msg": "derived: 1.5 x (VDD/2 x 200 ps)"},
+  {"measure": "glitch_energy_up_skew_m200p", "max": 0.5e-9, "severity": "warning", "msg": "derived: 1.5 x (VDD/2 x 200 ps)"},
+  {"measure": "glitch_energy_down_skew_p200p", "max": 0.5e-9, "severity": "warning", "msg": "derived: 1.5 x (VDD/2 x 200 ps)"},
+  {"measure": "glitch_energy_down_skew_m200p", "max": 0.5e-9, "severity": "warning", "msg": "derived: 1.5 x (VDD/2 x 200 ps)"},
+  {"measure": "glitch_peak_skew_max", "max": 0.2, "severity": "warning", "msg": "derived: 1.5 x the half-scale excursion at tau = 2.7 ns"},
+  {"measure": "i_vdd_peak", "max": 30e-3, "severity": "warning", "msg": "derived: 15 mA static + load slew current, rounded"}
+]

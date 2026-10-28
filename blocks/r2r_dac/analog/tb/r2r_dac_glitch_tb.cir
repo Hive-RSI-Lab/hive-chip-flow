@@ -1,0 +1,114 @@
+* r2r_dac_glitch_tb.cir - mid-code glitch bench for r2r_dac_analog (P3
+* spec bench, written from spec/spec.md, spec/spec.yaml, spec/topology.md
+* only). Siblings: r2r_dac_tb.cir (static), r2r_dac_step_tb.cir (steps).
+*
+* Measures (spec.yaml names): glitch_energy_up, glitch_energy_down,
+* glitch_peak_up, glitch_peak_down, glitch_energy_up_skew_p200p,
+* glitch_energy_up_skew_m200p, glitch_energy_down_skew_p200p,
+* glitch_energy_down_skew_m200p, glitch_peak_skew_max, i_vdd_peak (also
+* in the step bench; see its header).
+*
+* Stimulus (ns; edge = centre of the 100 ps input edge; MSB = dac_code[7]):
+*   0..20  code 127 (operating point first, no uic)
+*   20     127 -> 128  aligned            window 20..80    (*_up)
+*   80     128 -> 127  aligned            window 80..140   (*_down)
+*   140    127 -> 128  MSB 200 ps late    window 140..200  (*_up_skew_p200p)
+*   200    128 -> 127  MSB 200 ps late    window 200..260  (*_down_skew_p200p)
+*   260    127 -> 128  MSB 200 ps early   window 260..320  (*_up_skew_m200p)
+*   320    128 -> 127  MSB 200 ps early   window 320..380  (*_down_skew_m200p)
+* "Late"/"early" is the MSB input edge against the other seven (spec.md:
+* +200 ps = late). Each window is three 20 ns clock periods.
+*
+* Definition (spec.md Measures): vi = vout just before the window's code
+* edge, vf = vout at the window end; band = [min(vi,vf), max(vi,vf)];
+* excursion = distance of vout outside the band (0 inside it);
+* energy = integral of the excursion over the window (V.s), peak = its max
+* (V). glitch_peak_skew_max = max peak over the four skewed windows.
+*
+* Pad load ASSUMED (spec.md): R_pad = 100 ohm in series with C_load = 7 pF.
+* Corners: {{CORNER}} FET section + {{RES_CORNER}} resistor section.
+
+.include '{{PDK}}/libs.tech/ngspice/design.ngspice'
+.lib '{{PDK}}/libs.tech/ngspice/sm141064.spice' {{CORNER}}
+.lib '{{PDK}}/libs.tech/ngspice/sm141064.spice' {{RES_CORNER}}
+.include '{{PDK}}/libs.ref/gf180mcu_fd_sc_mcu7t5v0/spice/gf180mcu_fd_sc_mcu7t5v0.spice'
+.include '{{NETLIST}}'
+{{SIZING}}
+
+.temp {{TEMP_C}}
+.param vddp={{VDD}}
+.param r_pad=100 c_load=7p
+
+vdd vdd 0 {vddp}
+vss vss 0 0
+
+* dac_code[k] = b<k>, ideal 0/VDD PWL, 100 ps edges
+vb7 b7 0 pwl(0 0 19.95n 0 20.05n {vddp} 79.95n {vddp} 80.05n 0 140.15n 0 140.25n {vddp} 200.15n {vddp} 200.25n 0 259.75n 0 259.85n {vddp} 319.75n {vddp} 319.85n 0)
+vb6 b6 0 pwl(0 {vddp} 19.95n {vddp} 20.05n 0 79.95n 0 80.05n {vddp} 139.95n {vddp} 140.05n 0 199.95n 0 200.05n {vddp} 259.95n {vddp} 260.05n 0 319.95n 0 320.05n {vddp})
+vb5 b5 0 pwl(0 {vddp} 19.95n {vddp} 20.05n 0 79.95n 0 80.05n {vddp} 139.95n {vddp} 140.05n 0 199.95n 0 200.05n {vddp} 259.95n {vddp} 260.05n 0 319.95n 0 320.05n {vddp})
+vb4 b4 0 pwl(0 {vddp} 19.95n {vddp} 20.05n 0 79.95n 0 80.05n {vddp} 139.95n {vddp} 140.05n 0 199.95n 0 200.05n {vddp} 259.95n {vddp} 260.05n 0 319.95n 0 320.05n {vddp})
+vb3 b3 0 pwl(0 {vddp} 19.95n {vddp} 20.05n 0 79.95n 0 80.05n {vddp} 139.95n {vddp} 140.05n 0 199.95n 0 200.05n {vddp} 259.95n {vddp} 260.05n 0 319.95n 0 320.05n {vddp})
+vb2 b2 0 pwl(0 {vddp} 19.95n {vddp} 20.05n 0 79.95n 0 80.05n {vddp} 139.95n {vddp} 140.05n 0 199.95n 0 200.05n {vddp} 259.95n {vddp} 260.05n 0 319.95n 0 320.05n {vddp})
+vb1 b1 0 pwl(0 {vddp} 19.95n {vddp} 20.05n 0 79.95n 0 80.05n {vddp} 139.95n {vddp} 140.05n 0 199.95n 0 200.05n {vddp} 259.95n {vddp} 260.05n 0 319.95n 0 320.05n {vddp})
+vb0 b0 0 pwl(0 {vddp} 19.95n {vddp} 20.05n 0 79.95n 0 80.05n {vddp} 139.95n {vddp} 140.05n 0 199.95n 0 200.05n {vddp} 259.95n {vddp} 260.05n 0 319.95n 0 320.05n {vddp})
+
+* DUT, pins in topology.md order: dac_code[7..0] vout vdd vss
+xdut b7 b6 b5 b4 b3 b2 b1 b0 vout vdd vss r2r_dac_analog
+
+rpad vout vpad {r_pad}
+cload vpad 0 {c_load}
+
+.control
+set noaskquit
+save v(vout) v(vdd) i(vdd)
+tran 10p 380n 0 100p
+let vo = v(vout)
+let tt = time
+let ivdd = -i(vdd)
+let gpk = vector(6)
+let gen = vector(6)
+let gi = 0
+foreach e 20 80 140 200 260 320
+  let ts = $e * 1n
+  let te = ts + 60n
+  let tvi = ts - 0.1n
+  let tvf = te - 0.1n
+  meas tran gvi find v(vout) at=$&tvi
+  meas tran gvf find v(vout) at=$&tvf
+  let ghi = (gvi gt gvf)*gvi + (gvi le gvf)*gvf
+  let glo = (gvi gt gvf)*gvf + (gvi le gvf)*gvi
+  let gwin = (tt ge ts) * (tt le te)
+  let exc = ((vo - ghi)*(vo gt ghi) + (glo - vo)*(vo lt glo)) * gwin
+  meas tran gint integ exc from=$&ts to=$&te
+  set gii = "$&gi"
+  let gen[$gii] = gint
+  let gpk[$gii] = vecmax(exc)
+  let gi = gi + 1
+end
+let glitch_energy_up = gen[0]
+let glitch_peak_up = gpk[0]
+let glitch_energy_down = gen[1]
+let glitch_peak_down = gpk[1]
+let glitch_energy_up_skew_p200p = gen[2]
+let glitch_energy_down_skew_p200p = gen[3]
+let glitch_energy_up_skew_m200p = gen[4]
+let glitch_energy_down_skew_m200p = gen[5]
+let glitch_peak_skew_max = vecmax(gpk[2,5])
+let i_vdd_peak = vecmax(ivdd)
+
+echo
+echo "  Measurements for Transient Analysis (r2r_dac_glitch_tb, computed in .control)"
+echo "glitch_energy_up = $&glitch_energy_up"
+echo "glitch_energy_down = $&glitch_energy_down"
+echo "glitch_peak_up = $&glitch_peak_up"
+echo "glitch_peak_down = $&glitch_peak_down"
+echo "glitch_energy_up_skew_p200p = $&glitch_energy_up_skew_p200p"
+echo "glitch_energy_up_skew_m200p = $&glitch_energy_up_skew_m200p"
+echo "glitch_energy_down_skew_p200p = $&glitch_energy_down_skew_p200p"
+echo "glitch_energy_down_skew_m200p = $&glitch_energy_down_skew_m200p"
+echo "glitch_peak_skew_max = $&glitch_peak_skew_max"
+echo "i_vdd_peak = $&i_vdd_peak"
+echo
+.endc
+
+.end

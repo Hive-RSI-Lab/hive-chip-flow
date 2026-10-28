@@ -1,0 +1,61 @@
+{
+ "script": "gate",
+ "gate": "cover",
+ "phase": "P4",
+ "tool": "cover",
+ "input_digest": "dir_text:08d2e63a30253fb8dcb71be29ca5aa7209711132e317fcb0e4bc99f0e226a305",
+ "status": "pass",
+ "criteria": {
+  "fail_severities": [
+   "error"
+  ],
+  "max_count": 0
+ },
+ "counts": {
+  "total": 1,
+  "by_severity": {
+   "info": 1
+  },
+  "by_source": {
+   "verilator": 1
+  }
+ },
+ "failing_count": 0,
+ "failing": [],
+ "violations": [
+  {
+   "check": "cover",
+   "severity": "info",
+   "file": "r2r_dac_digital.v",
+   "module": null,
+   "line": 279,
+   "kind": "line_not_covered",
+   "refs": [],
+   "msg": "r2r_dac_digital.v:279 was never executed by tb/",
+   "source": "verilator",
+   "items": [
+    {
+     "msg": "r2r_dac_digital.v:279 was never executed by tb/",
+     "file": "r2r_dac_digital.v",
+     "line": 279
+    }
+   ]
+  }
+ ],
+ "facts": {
+  "top": "r2r_dac_digital",
+  "line_pct": 99.6644,
+  "toggle_pct": 100.0,
+  "line_covered": 297,
+  "line_total": 298,
+  "toggle_covered": 148,
+  "toggle_total": 148
+ },
+ "inputs_at_start": {
+  "rtl": "dir_text:08d2e63a30253fb8dcb71be29ca5aa7209711132e317fcb0e4bc99f0e226a305",
+  "tb": "dir_text:3d7769f785322e639d37580c2e85e19fdd9b82876af0927410c75ad81d11554b",
+  "spec_yaml": "json_canonical:316aabe3e699eb67a766fb42296b9a90d765394b6deefb2d5178cc8865c08bbf"
+ },
+ "recorded_ts": "2026-10-13T04:17:10",
+ "attempts": 3
+}

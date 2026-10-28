@@ -1,0 +1,9 @@
+[
+  {"measure": "dnl_max_abs", "max": 0.5, "sensitivity": 0.02, "severity": "error", "msg": "brief: |DNL| <= 0.5 LSB, end-point LSB, 256 codes"},
+  {"measure": "inl_max_abs", "max": 0.5, "sensitivity": 0.02, "severity": "error", "msg": "brief: |INL| <= 0.5 LSB, end-point fit, 256 codes"},
+  {"measure": "monotonic", "min": 1, "severity": "error", "msg": "brief: v(k) > v(k-1) for every k"},
+  {"measure": "v_zero_offset", "max": 6.45e-3, "severity": "warning", "msg": "derived: v(0) <= 0.5 LSB at nominal VDD"},
+  {"measure": "fs_gain_err_lsb", "min": -0.5, "max": 0.5, "severity": "warning", "msg": "derived: full-scale gain error +-0.5 LSB of the corner's own VDD"},
+  {"measure": "inl_sens_1pct_max", "max": 0.5, "severity": "warning", "msg": "derived: worst |INL| with any one unit resistor +-1 %"},
+  {"measure": "i_vdd_avg", "max": 15e-3, "severity": "warning", "msg": "derived: brief's ~15 mA average"}
+]

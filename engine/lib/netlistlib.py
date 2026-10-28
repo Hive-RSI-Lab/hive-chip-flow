@@ -1,0 +1,547 @@
+"""netlistlib.py - SPICE netlist device scanning for /ade (docs/design.md
+1.5, "### M8."). New at M8: no /hwde precedent (hwde's netlists are derived
+from a KiCad schematic, never hand/agent-written against a PDK). Backs
+check_netlist_lint.py's static checks (known models, floating nodes) and
+check_bench_strength.py's device-mutant generator (gates.yaml's own words:
+"size doubled, connection removed, type flipped, bias halved").
+
+Device line shape this module understands - every real gf180mcuD PDK
+instantiation seen in this repo's own probes and in docs/spikes/dcosim's
+netlists follows it: `x<ref> <node> [<node> ...] <model_or_subckt> [k=v
+...]`. The model/subckt name is not at a fixed column (a call's node count
+depends on the target `.subckt`'s own pin list), so it is found by scanning
+back from the end of the line past every trailing `k=v` token - the first
+bareword hit that way is the model name, everything between the ref and it
+are nodes. Only `x...` lines are scanned; `.subckt`/`.ends`/`.model`/`.param`
+and comment/control lines are not devices.
+"""
+from __future__ import annotations
+
+import re
+from pathlib import Path
+
+GLOBAL_NETS = {"0", "gnd", "vss"}
+PDK_NGSPICE_FILES = ("sm141064.spice", "sm141064_mim.spice")
+# Standard-cell subckts a mixed-signal macro may instantiate as drivers
+# (msde's drivers-in-macro split). Optional: a PDK tree without them still
+# lints primitives.
+PDK_STDCELL_FILES = tuple(
+    f"libs.ref/{lib}/spice/{lib}.spice"
+    for lib in ("gf180mcu_fd_sc_mcu7t5v0", "gf180mcu_fd_sc_mcu9t5v0"))
+SUBCKT_RE = re.compile(r"^\s*\.subckt\s+(\S+)((?:\s+\S+)*)", re.IGNORECASE)
+DEVICE_RE = re.compile(r"^\s*[xX](\S+)\s+(.*)$")
+
+
+def strip_comment(line: str) -> str:
+    # SPICE line comments start with '*' at column 1 (a whole-line comment)
+    # or '$' / ';' inline - only the whole-line form matters for our
+    # device/subckt scans (every real deck here comments a full line, never
+    # trails an inline '$').
+    return "" if line.lstrip().startswith("*") else line
+
+
+def join_continuations(netlist_text: str) -> list[str]:
+    """netlist_text's lines with every SPICE `+` continuation line folded
+    into the line before it. Comment and blank lines are dropped, so a `*`
+    line between a header and its `+` lines does not break the join."""
+    out: list[str] = []
+    for raw in netlist_text.splitlines():
+        line = strip_comment(raw)
+        if not line.strip():
+            continue
+        if line.lstrip().startswith("+") and out:
+            out[-1] += " " + line.lstrip()[1:].strip()
+        else:
+            out.append(line)
+    return out
+
+
+def known_models(pdk_root: Path) -> set[str]:
+    """Every `.subckt NAME` the PDK's own ngspice model files and its
+    standard-cell spice libraries declare - read live off this box's real
+    PDK tree, never a hardcoded snapshot that could drift from whatever
+    `EDA_TOOLCHAIN` actually points at."""
+    names: set[str] = set()
+    ngspice_dir = Path(pdk_root) / "libs.tech" / "ngspice"
+    found_any = False
+    for fname in PDK_NGSPICE_FILES:
+        p = ngspice_dir / fname
+        if not p.is_file():
+            continue
+        found_any = True
+        for line in p.read_text(encoding="utf-8", errors="replace").splitlines():
+            m = SUBCKT_RE.match(strip_comment(line))
+            if m:
+                names.add(m.group(1).lower())
+    if not found_any:
+        from checklib import CheckError
+        raise CheckError(f"no PDK ngspice model files found under {ngspice_dir}")
+    for rel in PDK_STDCELL_FILES:
+        p = Path(pdk_root) / rel
+        if not p.is_file():
+            continue
+        for line in p.read_text(encoding="utf-8", errors="replace").splitlines():
+            m = SUBCKT_RE.match(line)
+            if m:
+                names.add(m.group(1).lower())
+    return names
+
+
+def parse_devices(netlist_text: str) -> list[dict]:
+    """[{ref, nodes: [...], model, params: {k: v}, line}] for every `x...`
+    instantiation line in netlist_text, in file order."""
+    out = []
+    for lineno, raw in enumerate(netlist_text.splitlines(), 1):
+        line = strip_comment(raw)
+        m = DEVICE_RE.match(line)
+        if not m:
+            continue
+        ref = "x" + m.group(1)
+        tokens = m.group(2).split()
+        if not tokens:
+            continue
+        i = len(tokens) - 1
+        while i > 0 and "=" in tokens[i]:
+            i -= 1
+        model = tokens[i]
+        nodes = tokens[:i]
+        params = {}
+        for tok in tokens[i + 1:]:
+            if "=" in tok:
+                k, _, v = tok.partition("=")
+                params[k.lower()] = v
+        out.append({"ref": ref, "nodes": nodes, "model": model.lower(),
+                   "params": params, "line": lineno})
+    return out
+
+
+# Every SPICE element letter, as the name bench_strength's coverage report
+# uses for it. parse_devices() above only reads `x` lines; parse_elements()
+# below reads every element line, so a device no mutation class covers is
+# named in the report instead of silently left out of the tally.
+ELEMENT_KINDS = {
+    "x": "subckt_instance", "b": "behavioural_source", "e": "vcvs",
+    "g": "vccs", "f": "cccs", "h": "ccvs", "r": "resistor",
+    "c": "capacitor", "l": "inductor", "k": "coupling", "m": "mosfet",
+    "d": "diode", "q": "bjt", "j": "jfet", "z": "mesfet", "v": "vsource",
+    "i": "isource", "s": "switch", "w": "switch", "t": "tline",
+    "o": "tline", "u": "tline", "y": "tline", "a": "xspice", "n": "osdi",
+    "p": "tline"}
+
+
+def parse_elements(netlist_text: str) -> list[dict]:
+    """[{ref, kind, line}] for EVERY element line in netlist_text, in file
+    order - `x` instances and every other element letter (ELEMENT_KINDS;
+    an unknown letter reads as kind "unknown"). Dot-cards, comments, `+`
+    continuations and anything between `.control` and `.endc` are not
+    elements. `ref` lowercases only the element letter, as parse_devices
+    does."""
+    out = []
+    in_control = False
+    for lineno, raw in enumerate(netlist_text.splitlines(), 1):
+        line = strip_comment(raw).strip()
+        if not line:
+            continue
+        low = line.lower()
+        if low.startswith(".control"):
+            in_control = True
+            continue
+        if low.startswith(".endc"):
+            in_control = False
+            continue
+        if in_control or line[0] in ".+$;":
+            continue
+        tok = line.split()[0]
+        ref = tok[0].lower() + tok[1:]
+        out.append({"ref": ref,
+                    "kind": ELEMENT_KINDS.get(ref[0], "unknown"),
+                    "line": lineno})
+    return out
+
+
+BSOURCE_RE = re.compile(r"^\s*([bB]\S*)\s+(\S+)\s+(\S+)\s+([vViI])\s*=\s*(.*?)\s*$")
+
+
+def _split_expression(rest: str) -> tuple[str, str, str, str] | None:
+    """(open, expr, close, trailing) for a B source's right-hand side: a
+    '...' or {...} expression, or one bare token followed only by k=v
+    params. None when the expression's extent cannot be told for sure (a
+    bare expression with spaces, an unclosed quote or brace)."""
+    if rest.startswith("'"):
+        end = rest.find("'", 1)
+        if end < 0:
+            return None
+        return "'", rest[1:end], "'", rest[end + 1:].strip()
+    if rest.startswith("{"):
+        depth = 0
+        for i, ch in enumerate(rest):
+            depth += ch == "{"
+            depth -= ch == "}"
+            if depth == 0:
+                return "{", rest[1:i], "}", rest[i + 1:].strip()
+        return None
+    parts = rest.split()
+    if not parts or not all("=" in t for t in parts[1:]):
+        return None
+    return "", parts[0], "", " ".join(parts[1:])
+
+
+def parse_bsources(netlist_text: str) -> dict[str, dict]:
+    """{ref.lower(): {ref, p, n, quantity: v|i, open, expr, close,
+    trailing, line, unmutable}} for every `b<ref> n+ n- v=EXPR` /
+    `i=EXPR` behavioural source in netlist_text. `unmutable` is None when
+    the line can be mutated soundly on its own, else the reason it
+    cannot: the expression runs onto a `+` continuation line, or its
+    extent cannot be told for sure."""
+    lines = netlist_text.splitlines()
+    out = {}
+    for idx, raw in enumerate(lines):
+        line = strip_comment(raw)
+        if not line.strip() or line.lstrip()[0] not in "bB":
+            continue
+        ref0 = line.split()[0]
+        ref = "b" + ref0[1:]
+        nxt = next((ln for ln in lines[idx + 1:]
+                    if strip_comment(ln).strip()), "")
+        m = BSOURCE_RE.match(line)
+        split = _split_expression(m.group(5)) if m else None
+        entry = {"ref": ref, "line": idx + 1, "unmutable": None}
+        if nxt.lstrip().startswith("+"):
+            entry["unmutable"] = ("its expression continues onto a '+' "
+                                  "line - join it onto one line")
+        elif m is None:
+            entry["unmutable"] = ("not the `b<ref> n+ n- v=EXPR` / "
+                                  "`i=EXPR` form")
+        elif split is None:
+            entry["unmutable"] = ("the expression's extent is ambiguous - "
+                                  "wrap it in '...' or {...}")
+        else:
+            entry.update(p=m.group(2), n=m.group(3),
+                         quantity=m.group(4).lower(), open=split[0],
+                         expr=split[1], close=split[2], trailing=split[3])
+        out[ref.lower()] = entry
+    return out
+
+
+def unmutable_reason(element: dict, netlist_text: str) -> str:
+    """Why device_mutants() generated nothing for this parse_elements()
+    entry (a declared device it could not mutate)."""
+    kind = element["kind"]
+    if kind == "behavioural_source":
+        src = parse_bsources(netlist_text).get(element["ref"].lower())
+        if src and src["unmutable"]:
+            return src["unmutable"]
+    if kind == "subckt_instance":
+        return ("no w/l or r_width/r_length, no nfet/pfet model to flip and "
+                "fewer than two nodes to disconnect")
+    return f"no mutation class covers a {kind} element"
+
+
+def subckt_pins(netlist_text: str) -> dict[str, list[str]]:
+    """{subckt_name.lower(): [pin, ...]} for every `.subckt NAME p1 p2 ...`
+    THIS netlist file itself declares - used to exclude a subckt's own
+    header pins from the floating-node scan (they are meant to connect once
+    inside, many times outside)."""
+    out = {}
+    for line in join_continuations(netlist_text):
+        m = SUBCKT_RE.match(line)
+        if m:
+            out[m.group(1).lower()] = m.group(2).split()
+    return out
+
+
+def floating_nodes(devices: list[dict], declared_pins: set[str]) -> list[str]:
+    """Nodes touched by exactly one device terminal across the whole
+    netlist - excluding GLOBAL_NETS (ground/supply rails, expected to fan
+    out to zero or one terminal in a tiny corpus bench) and declared_pins
+    (a subckt's own header pins, meant to connect externally)."""
+    counts: dict[str, int] = {}
+    for dev in devices:
+        for n in dev["nodes"]:
+            key = n.lower()
+            if key in GLOBAL_NETS or key in declared_pins:
+                continue
+            counts[key] = counts.get(key, 0) + 1
+    return sorted(n for n, c in counts.items() if c < 2)
+
+
+# ------------------------------------------------------------- device mutants
+# bench_strength (gates.yaml, "### M8."): "faults.py device mutants (size
+# doubled, connection removed, type flipped, bias halved)". One mutant
+# changes exactly ONE aspect of ONE declared device; every mutant must push
+# at least one bench measure out of its bound (a survivor is the fault:
+# "bounds wide enough to pass anything").
+
+def _flip_target(model: str) -> str | None:
+    """The opposite-type MOS model at the SAME voltage rating (a 3.3V nfet
+    flips to the 3.3V pfet, never to a 6V device) - "type flipped" must stay
+    a same-rail swap, or the mutant would also be a supply/model mismatch
+    the netlist_lint gate would refuse before bench_strength ever ran it."""
+    pairs = {"nfet_03v3": "pfet_03v3", "pfet_03v3": "nfet_03v3",
+            "nfet_05v0": "pfet_05v0", "pfet_05v0": "nfet_05v0",
+            "nfet_06v0": "pfet_06v0", "pfet_06v0": "nfet_06v0"}
+    return pairs.get(model)
+
+
+SOURCE_RE = re.compile(r"^\s*([iIvV])(\S+)\s+(\S+)\s+(\S+)\s+(?:dc\s+)?"
+                       r"([-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?)\s*$")
+
+
+def parse_sources(bench_text: str) -> dict[str, dict]:
+    """{ref.lower(): {ref, kind: i|v, p, n, value, line}} for every plain
+    `i<ref>`/`v<ref> p n [dc] VALUE` bias source in a bench file - the
+    reference/tail current or voltage a mirror-style bench declares, which
+    lives in tb/, never in netlist/ (netlistlib.parse_devices only sees
+    `x...` subcircuit instances)."""
+    out = {}
+    for lineno, raw in enumerate(bench_text.splitlines(), 1):
+        m = SOURCE_RE.match(strip_comment(raw))
+        if m:
+            kind, ref, p, n, val = m.groups()
+            out[(kind.lower() + ref).lower()] = {
+                "ref": kind.lower() + ref, "kind": kind.lower(), "p": p,
+                "n": n, "value": val, "line": lineno}
+    return out
+
+
+def device_mutants(netlist_text: str, device_refs: list[str],
+                   bench_text: str | None = None) -> list[dict]:
+    """[{id, ref, kind, target: netlist|bench, describe, apply(text) ->
+    text}] - one entry per (declared device ref, mutation kind) combination.
+    `kind` is one of gates.yaml's four named classes for bench_strength:
+    size_doubled/connection_removed (a device's own W or a terminal, from
+    netlist_text's `x...` lines), type_flipped (an nfet<->pfet swap at the
+    same voltage rating, netlist_text), bias_halved (a plain `i`/`v` source
+    declared in bench_text, e.g. a mirror's reference current). A
+    behavioural `b...` source in netlist_text gets two: output_stuck (its
+    expression replaced by 0) and gain_halved (its expression times 0.5,
+    kept inside the line's own '...' or {...}); one parse_bsources() marks
+    unmutable gets none. Any other declared ref gets none either - the
+    caller names it (parse_elements, unmutable_reason)."""
+    devices = {d["ref"]: d for d in parse_devices(netlist_text)}
+    sources = parse_sources(bench_text) if bench_text else {}
+    bsources = parse_bsources(netlist_text)
+    mutants: list[dict] = []
+    for ref in device_refs:
+        dev = devices.get(ref)
+        if dev is not None:
+            model = dev["model"]
+            # a MOSFET's w/l, or a gf180mcu_fd_pr resistor's r_width/r_length
+            w_key = next((k for k in ("w", "r_width") if k in dev["params"]), None)
+            l_key = next((k for k in ("l", "r_length") if k in dev["params"]), None)
+            if w_key or l_key:
+                mutants.append(_size_mutant(ref, dev, w_key or l_key))
+            if len(dev["nodes"]) >= 2:
+                mutants.append(_disconnect_mutant(ref, dev))
+            flip = _flip_target(model)
+            if flip:
+                mutants.append(_retype_mutant(ref, dev, flip))
+            continue
+        bsrc = bsources.get(ref.lower())
+        if bsrc is not None:
+            if bsrc["unmutable"] is None:
+                mutants.append(_bstuck_mutant(ref, bsrc))
+                mutants.append(_bgain_mutant(ref, bsrc))
+            continue
+        src = sources.get(ref.lower())
+        if src is not None:
+            mutants.append(_bias_mutant(ref, src))
+    return mutants
+
+
+def _replace_line(text: str, lineno: int, new_line: str) -> str:
+    lines = text.splitlines(keepends=True)
+    ending = "\n" if lines[lineno - 1].endswith("\n") else ""
+    lines[lineno - 1] = new_line + ending
+    return "".join(lines)
+
+
+def _rebuild_device_line(dev: dict, model: str, nodes: list[str],
+                         params: dict[str, str]) -> str:
+    parts = [dev["ref"], *nodes, model,
+            *(f"{k}={v}" for k, v in params.items())]
+    return " ".join(parts)
+
+
+def _size_mutant(ref: str, dev: dict, key: str) -> dict:
+    def apply(text: str) -> str:
+        params = dict(dev["params"])
+        try:
+            params[key] = repr(float(params[key]) * 2.0)
+        except ValueError:
+            # a brace expression or an SI-suffixed value ("4u"): ngspice
+            # reads a bare `{w_out}*2` or `4u*2` as the value alone and drops
+            # the `*2`, so the doubling must sit inside one expression
+            inner = params[key].strip()
+            if inner.startswith("{") and inner.endswith("}"):
+                inner = inner[1:-1]
+            params[key] = "{(" + inner + ")*2}"
+        new_line = _rebuild_device_line(dev, dev["model"], dev["nodes"], params)
+        return _replace_line(text, dev["line"], new_line)
+    return {"id": f"{ref}_size_doubled_{key}", "ref": ref, "kind": "size_doubled",
+           "target": "netlist", "describe": f"{ref}: {key} doubled",
+           "apply": apply}
+
+
+def _disconnect_target(dev: dict) -> tuple[int, str]:
+    """(index, name) of the terminal a connection_removed mutant floats.
+    Normally the last one (a MOSFET's bulk in d g s b order). When a
+    4-terminal device's bulk is the same node as its own source (compared
+    case-insensitively, as spice does), floating the bulk changes nothing a
+    simulation can see, so the drain (first terminal) is floated instead - a
+    stronger mutant, not an exclusion (owner ruling, 2026-09-25). The same
+    rule covers a 3-terminal resistor (ppolyf_u's `r0 r1 body`): its body
+    carries only parasitics, so its first terminal is floated instead."""
+    nodes = dev["nodes"]
+    if len(nodes) == 3 and ("r_width" in dev["params"]
+                            or "r_length" in dev["params"]):
+        return 0, "first terminal (a resistor's body carries only parasitics)"
+    if len(nodes) == 4 and nodes[3].lower() == nodes[2].lower():
+        return 0, "drain (bulk tied to its own source)"
+    if len(nodes) == 4:
+        return 3, "bulk"
+    return len(nodes) - 1, "last terminal"
+
+
+def _disconnect_mutant(ref: str, dev: dict) -> dict:
+    idx, name = _disconnect_target(dev)
+
+    def apply(text: str) -> str:
+        nodes = list(dev["nodes"])
+        nodes[idx] = f"__floating_{ref}__"
+        new_line = _rebuild_device_line(dev, dev["model"], nodes, dev["params"])
+        return _replace_line(text, dev["line"], new_line)
+    return {"id": f"{ref}_connection_removed", "ref": ref,
+           "kind": "connection_removed", "target": "netlist",
+           "describe": f"{ref}: {name} disconnected", "apply": apply}
+
+
+def _retype_mutant(ref: str, dev: dict, flip_model: str) -> dict:
+    def apply(text: str) -> str:
+        new_line = _rebuild_device_line(dev, flip_model, dev["nodes"], dev["params"])
+        return _replace_line(text, dev["line"], new_line)
+    return {"id": f"{ref}_type_flipped", "ref": ref, "kind": "type_flipped",
+           "target": "netlist",
+           "describe": f"{ref}: {dev['model']} -> {flip_model}", "apply": apply}
+
+
+def _bias_mutant(ref: str, src: dict) -> dict:
+    def apply(text: str) -> str:
+        half = repr(float(src["value"]) / 2.0)
+        new_line = f"{src['ref']} {src['p']} {src['n']} dc {half}"
+        return _replace_line(text, src["line"], new_line)
+    return {"id": f"{ref}_bias_halved", "ref": ref, "kind": "bias_halved",
+           "target": "bench", "describe": f"{ref}: bias halved",
+           "apply": apply}
+
+
+def _bsource_line(src: dict, expr: str) -> str:
+    rhs = f"{src['open']}{expr}{src['close']}"
+    tail = f" {src['trailing']}" if src["trailing"] else ""
+    return f"{src['ref']} {src['p']} {src['n']} {src['quantity']}={rhs}{tail}"
+
+
+def _bstuck_mutant(ref: str, src: dict) -> dict:
+    def apply(text: str) -> str:
+        new_line = _bsource_line(dict(src, open="", close=""), "0")
+        return _replace_line(text, src["line"], new_line)
+    return {"id": f"{ref}_output_stuck", "ref": ref, "kind": "output_stuck",
+            "target": "netlist",
+            "describe": f"{ref}: output stuck at 0", "apply": apply}
+
+
+def _bgain_mutant(ref: str, src: dict) -> dict:
+    def apply(text: str) -> str:
+        new_line = _bsource_line(src, f"({src['expr']})*0.5")
+        return _replace_line(text, src["line"], new_line)
+    return {"id": f"{ref}_gain_halved", "ref": ref, "kind": "gain_halved",
+            "target": "netlist",
+            "describe": f"{ref}: expression gain halved", "apply": apply}
+
+
+# ------------------------------------------------ simulator tolerances
+# What a deck tells ngspice about its own resolution, so a gate can refuse a
+# threshold that sits inside it (check_bench_strength's absolute
+# sensitivity floor). ngspice's own defaults stand when a deck sets none.
+
+NGSPICE_TOLERANCES = {"reltol": 1e-3, "abstol": 1e-12, "vntol": 1e-6}
+SPICE_SCALE = {"t": 1e12, "g": 1e9, "meg": 1e6, "k": 1e3, "mil": 25.4e-6,
+               "m": 1e-3, "u": 1e-6, "n": 1e-9, "p": 1e-12, "f": 1e-15}
+SPICE_NUMBER_RE = re.compile(
+    r"^([-+]?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?)(meg|mil|[tgkmunpf])?[a-z]*$",
+    re.IGNORECASE)
+OPTIONS_RE = re.compile(r"^\s*\.?options?\s+(.*)$", re.IGNORECASE)
+TRAN_RE = re.compile(r"^\s*\.?tran\s+(.*)$", re.IGNORECASE)
+
+
+def spice_number(token: str) -> float | None:
+    """A SPICE number with its scale suffix (`0.2n`, `20u`, `1meg`, `5e-7`),
+    or None when the token is not one (an expression, a variable)."""
+    m = SPICE_NUMBER_RE.match(token.strip())
+    if not m:
+        return None
+    return float(m.group(1)) * SPICE_SCALE.get((m.group(2) or "").lower(), 1.0)
+
+
+def _directive_args(text: str, pattern: re.Pattern) -> list[list[str]]:
+    """The argument tokens of every line matching `pattern`, continuation
+    lines joined and a trailing `;`/`$` comment dropped."""
+    out = []
+    for line in join_continuations(text):
+        m = pattern.match(line)
+        if not m:
+            continue
+        toks = []
+        for tok in re.sub(r"\s*=\s*", "=", m.group(1)).split():
+            if tok[0] in ";$":
+                break
+            toks.append(tok)
+        out.append(toks)
+    return out
+
+
+def sim_tolerances(texts: list[str]) -> dict[str, float]:
+    """{reltol, abstol, vntol} as the decks in `texts` leave them: the
+    loosest (largest) value any `.options`/`option` line sets, ngspice's
+    default otherwise. Raises ValueError for a value that is not a plain
+    number, which no floor can be read from."""
+    out = dict(NGSPICE_TOLERANCES)
+    seen: dict[str, float] = {}
+    for text in texts:
+        for toks in _directive_args(text, OPTIONS_RE):
+            for tok in toks:
+                key, _, val = tok.partition("=")
+                key = key.lower()
+                if key not in out:
+                    continue
+                v = spice_number(val)
+                if v is None:
+                    raise ValueError(f"option {key}={val!r} is not a number")
+                seen[key] = max(seen.get(key, v), v)
+    out.update(seen)
+    return out
+
+
+def tran_max_steps(texts: list[str]) -> list[float]:
+    """The effective max step of every `.tran`/control `tran` line in
+    `texts`: its own tmax, else ngspice's default min(tstep,
+    (tstop - tstart) / 50). Raises ValueError for a tstep/tstop/tstart/tmax
+    that is not a plain number."""
+    out = []
+    for text in texts:
+        for toks in _directive_args(text, TRAN_RE):
+            nums = []
+            for tok in toks:
+                if tok.lower() == "uic":
+                    break
+                v = spice_number(tok)
+                if v is None:
+                    raise ValueError(f"tran argument {tok!r} is not a number")
+                nums.append(v)
+            if len(nums) < 2:
+                raise ValueError("a tran line needs tstep and tstop")
+            tstep, tstop = nums[0], nums[1]
+            tstart = nums[2] if len(nums) > 2 else 0.0
+            out.append(nums[3] if len(nums) > 3
+                       else min(tstep, (tstop - tstart) / 50.0))
+    return out

@@ -1,0 +1,10 @@
+.cc/
+__pycache__/
+*.pyc
+runs/
+.venv/
+!docs/runs/
+# a block's gate logs and build dirs: every gate rewrites them, and
+# check-all re-runs every gate from the block's sources
+blocks/*/log/
+blocks/*/*/log/

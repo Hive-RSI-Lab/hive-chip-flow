@@ -1,0 +1,164 @@
+{
+ "script": "gate",
+ "gate": "sim_tt",
+ "phase": "P4",
+ "tool": "sim_tt",
+ "input_digest": "dir_text:13970a2f19f36bd8aa49baa3a94132821e16917455715ba77b23b074b4551548",
+ "status": "pass",
+ "criteria": {
+  "fail_severities": [
+   "error"
+  ],
+  "max_count": 0
+ },
+ "counts": {
+  "total": 1,
+  "by_severity": {
+   "warning": 1
+  },
+  "by_source": {
+   "ngspice": 1
+  }
+ },
+ "failing_count": 0,
+ "failing": [],
+ "violations": [
+  {
+   "check": "sim_tt",
+   "severity": "warning",
+   "file": "r2r_dac_tb.cir",
+   "module": null,
+   "line": null,
+   "kind": "sim_bound_fail",
+   "refs": [
+    "inl_sens_1pct_max",
+    "tt"
+   ],
+   "msg": "inl_sens_1pct_max @ tt = 0.526369 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
+   "source": "ngspice",
+   "items": [
+    {
+     "msg": "inl_sens_1pct_max @ tt = 0.526369 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
+     "file": "r2r_dac_tb.cir",
+     "line": null
+    }
+   ]
+  }
+ ],
+ "facts": {
+  "top": "r2r_dac_analog",
+  "corners": [
+   "tt"
+  ],
+  "results": [
+   {
+    "bench": "r2r_dac_glitch_tb.cir",
+    "corner": "tt",
+    "names": [
+     "tt",
+     "tt_27c"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": 27,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "glitch_energy_up": 1.80441e-12,
+     "glitch_energy_down": 2.19565e-15,
+     "glitch_peak_up": 6.70116e-05,
+     "glitch_peak_down": 3.14616e-05,
+     "glitch_energy_up_skew_p200p": 1.28361e-14,
+     "glitch_energy_up_skew_m200p": 1.4139e-11,
+     "glitch_energy_down_skew_p200p": 2.85914e-14,
+     "glitch_energy_down_skew_m200p": 0.0,
+     "glitch_peak_skew_max": 0.000513315,
+     "i_vdd_peak": 0.0148534
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_glitch_tb__tt.cir"
+   },
+   {
+    "bench": "r2r_dac_step_tb.cir",
+    "corner": "tt",
+    "names": [
+     "tt",
+     "tt_27c"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": 27,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "t_settle_rise": 1.18882e-06,
+     "t_settle_fall": 1.18613e-06,
+     "t_rise_10_90": 4.2e-07,
+     "t_fall_10_90": 4.1625e-07,
+     "i_vdd_peak": 0.0153811
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_step_tb__tt.cir"
+   },
+   {
+    "bench": "r2r_dac_tb.cir",
+    "corner": "tt",
+    "names": [
+     "tt",
+     "tt_27c"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": 27,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "dnl_max_abs": 0.048108,
+     "inl_max_abs": 0.23276,
+     "monotonic": 1.0,
+     "v_zero_offset": 1.04265e-08,
+     "fs_gain_err_lsb": -0.00471474,
+     "inl_sens_1pct_max": 0.526369,
+     "i_vdd_avg": 8.8296e-05
+    },
+    "engine_errors": [],
+    "violations": [
+     {
+      "check": "sim_tt",
+      "severity": "warning",
+      "file": "r2r_dac_tb.cir",
+      "module": null,
+      "line": null,
+      "kind": "sim_bound_fail",
+      "refs": [
+       "inl_sens_1pct_max",
+       "tt"
+      ],
+      "msg": "inl_sens_1pct_max @ tt = 0.526369 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
+      "source": "ngspice",
+      "items": [
+       {
+        "msg": "inl_sens_1pct_max @ tt = 0.526369 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
+        "file": "r2r_dac_tb.cir",
+        "line": null
+       }
+      ]
+     }
+    ],
+    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_tb__tt.cir"
+   }
+  ],
+  "not_scored": [],
+  "out_of_scope": []
+ },
+ "inputs_at_start": {
+  "netlist": "dir_text:13970a2f19f36bd8aa49baa3a94132821e16917455715ba77b23b074b4551548",
+  "tb": "dir_text:bd1a8539e7092bb573bd6811f95fc170b4fce78f2829463999ce0bfe4f4a0609",
+  "spec_yaml": "json_canonical:99047ed51c88b1767b136d48e2c3832967daa1e22eec34905494620acacea45d",
+  "sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df"
+ },
+ "recorded_ts": "2026-10-13T06:11:25",
+ "attempts": 7
+}

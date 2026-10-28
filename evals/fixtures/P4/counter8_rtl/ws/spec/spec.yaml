@@ -1,0 +1,39 @@
+top: counter8
+
+requirements:
+  - id: REQ-INC
+    text: On every rising edge of clk with rst low, count becomes its previous value plus 1 (modulo 256).
+    check: both
+    property: p_inc
+  - id: REQ-RST-SYNC
+    text: On every rising edge of clk with rst high, count is 0 on that edge; rst changing between edges does not change count.
+    check: both
+    property: p_rst_sync
+  - id: REQ-WRAP
+    text: When count is 255 and rst is low, the next rising edge of clk sets count to 0 and counting continues from there; there is no overflow output.
+    check: sim
+  - id: REQ-RST-PULSE
+    text: A single-cycle rst pulse while count is non-zero clears count to 0 on the very next rising edge, and count is 1 on the edge after rst is released.
+    check: sim
+
+ports:
+  clk: {dir: input, width: 1}
+  rst: {dir: input, width: 1}
+  count: {dir: output, width: 8}
+
+clock:
+  # brief gives no frequency; 10 ns (100 MHz) chosen by the architect, see spec.md "Clock plan"
+  period_ns: 10
+  domains: [clk]
+
+tt_pins:
+  # Tiny Tapeout tile mapping (engine/lib/ttlib.py): the tile's reset is
+  # active-low, the block's rst is active-high, so it is inverted at the pin.
+  clk: clk
+  rst: "~rst_n"
+  count: "uo_out[7:0]"
+
+# formal.depth: the depth the formal gate used implicitly when this
+# fixture was frozen; the gate no longer defaults it.
+formal:
+  depth: 20

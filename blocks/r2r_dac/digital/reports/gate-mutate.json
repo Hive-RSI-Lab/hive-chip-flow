@@ -1,0 +1,124 @@
+{
+  "script": "gate",
+  "gate": "mutate",
+  "phase": "P4",
+  "tool": "mutate",
+  "input_digest": "dir_text:2a2b1ae7e895ad5405f5ae367ab80ae45039df70315e07a67867027fa4bbdf15",
+  "status": "fail",
+  "criteria": {
+    "fail_severities": [
+      "error"
+    ],
+    "max_count": 0
+  },
+  "counts": {
+    "total": 2,
+    "by_severity": {
+      "error": 2
+    },
+    "by_source": {
+      "mcy": 2
+    }
+  },
+  "failing_count": 2,
+  "failing": [
+    {
+      "check": "mutate",
+      "severity": "error",
+      "file": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:16.13-16.18",
+      "module": null,
+      "line": null,
+      "kind": "survivor_condition_inverted",
+      "refs": [],
+      "msg": "mutant 14 (condition_inverted) survived: mutate -mode inv -module r2r_dac_digital -cell $procdff$39 -port Q -portbit 5 -wire presc -wirebit 5 -src /home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:16.13-16.18 -src /home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:285.3-304.6",
+      "source": "mcy",
+      "items": [
+        {
+          "msg": "mutant 14 (condition_inverted) survived: mutate -mode inv -module r2r_dac_digital -cell $procdff$39 -port Q -portbit 5 -wire presc -wirebit 5 -src /home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:16.13-16.18 -src /home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:285.3-304.6",
+          "file": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:16.13-16.18",
+          "line": null
+        }
+      ]
+    },
+    {
+      "check": "mutate",
+      "severity": "error",
+      "file": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:16.13-16.18",
+      "module": null,
+      "line": null,
+      "kind": "survivor_condition_inverted",
+      "refs": [],
+      "msg": "mutant 21 (condition_inverted) survived: mutate -mode inv -module r2r_dac_digital -cell $procdff$39 -port Q -portbit 3 -wire presc -wirebit 3 -src /home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:16.13-16.18 -src /home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:285.3-304.6",
+      "source": "mcy",
+      "items": [
+        {
+          "msg": "mutant 21 (condition_inverted) survived: mutate -mode inv -module r2r_dac_digital -cell $procdff$39 -port Q -portbit 3 -wire presc -wirebit 3 -src /home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:16.13-16.18 -src /home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:285.3-304.6",
+          "file": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:16.13-16.18",
+          "line": null
+        }
+      ]
+    }
+  ],
+  "violations": [
+    {
+      "check": "mutate",
+      "severity": "error",
+      "file": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:16.13-16.18",
+      "module": null,
+      "line": null,
+      "kind": "survivor_condition_inverted",
+      "refs": [],
+      "msg": "mutant 14 (condition_inverted) survived: mutate -mode inv -module r2r_dac_digital -cell $procdff$39 -port Q -portbit 5 -wire presc -wirebit 5 -src /home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:16.13-16.18 -src /home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:285.3-304.6",
+      "source": "mcy",
+      "items": [
+        {
+          "msg": "mutant 14 (condition_inverted) survived: mutate -mode inv -module r2r_dac_digital -cell $procdff$39 -port Q -portbit 5 -wire presc -wirebit 5 -src /home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:16.13-16.18 -src /home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:285.3-304.6",
+          "file": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:16.13-16.18",
+          "line": null
+        }
+      ]
+    },
+    {
+      "check": "mutate",
+      "severity": "error",
+      "file": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:16.13-16.18",
+      "module": null,
+      "line": null,
+      "kind": "survivor_condition_inverted",
+      "refs": [],
+      "msg": "mutant 21 (condition_inverted) survived: mutate -mode inv -module r2r_dac_digital -cell $procdff$39 -port Q -portbit 3 -wire presc -wirebit 3 -src /home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:16.13-16.18 -src /home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:285.3-304.6",
+      "source": "mcy",
+      "items": [
+        {
+          "msg": "mutant 21 (condition_inverted) survived: mutate -mode inv -module r2r_dac_digital -cell $procdff$39 -port Q -portbit 3 -wire presc -wirebit 3 -src /home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:16.13-16.18 -src /home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:285.3-304.6",
+          "file": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:16.13-16.18",
+          "line": null
+        }
+      ]
+    }
+  ],
+  "facts": {
+    "top": "r2r_dac_digital",
+    "total_mutants": 23,
+    "killed": 21,
+    "survived": 2,
+    "kill_rate": 0.913,
+    "survivors_by_class": {
+      "condition_inverted": 2
+    },
+    "wall_s": 68.77
+  },
+  "record_result": {
+    "ok": true,
+    "recorded": true,
+    "workspace": "blocks/r2r_dac/digital",
+    "gate": "mutate",
+    "status": "fail",
+    "attempts": 2,
+    "inputs": {
+      "rtl": "dir_text:2a2b1ae7e895ad5405f5ae367ab80ae45039df70315e07a67867027fa4bbdf15",
+      "tb": "dir_text:6aa2b475089f5db2f0d695236744c00ac8db1a3787df914d5d5ae69a447205de",
+      "spec_yaml": "json_canonical:cee93f343d721dc9797350155b3f0e85133a766eb1f1963c30aacd1d23e5d2f4"
+    }
+  }
+}

@@ -1,0 +1,15 @@
+# analog_spec.yaml - the analog side's own declared copy of the crossing
+# signals interface.yaml names. Stands in for the nested /ade block's own
+# spec.yaml `interface:` section (engine/scripts/check_split.py docstring).
+#
+# The macro's .subckt also has an analog output pin `vout` that goes to TT
+# analog pad ua[0], not to the digital side; it is not a crossing signal
+# and so is deliberately absent from this list (see analog/brief/spec.md).
+top: r2r_dac_analog
+interface:
+  - name: dac_code
+    direction: d2a
+    level: cmos_3v3
+    domain: clk_sys
+    width: 8
+    load: "gate inputs of the 8 ladder switch driver cells inside the analog macro, one gf180mcu_fd_sc_mcu7t5v0 buffer input per bit"

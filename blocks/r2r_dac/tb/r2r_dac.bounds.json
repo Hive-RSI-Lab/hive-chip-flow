@@ -1,0 +1,9 @@
+{
+  "dnl_max_abs": {"max": 0.5},
+  "inl_max_abs": {"max": 0.5},
+  "monotonic": {"min": 1},
+  "fs_gain_err_lsb": {"min": -0.5, "max": 0.5},
+  "t_settle_rise": {"max": 1.5e-6},
+  "t_settle_fall": {"max": 1.5e-6},
+  "dac_code_mismatches": {"max": 0}
+}

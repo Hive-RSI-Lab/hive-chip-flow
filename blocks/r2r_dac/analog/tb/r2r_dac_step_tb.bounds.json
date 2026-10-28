@@ -1,0 +1,7 @@
+[
+  {"measure": "t_settle_rise", "max": 1.5e-6, "severity": "error", "msg": "owner round 2: 0->255 settles to 0.5 LSB within 1.5 us (27k unit R, tau 189 ns tt, 9 ln2 tau = 1.42 us at ss)"},
+  {"measure": "t_settle_fall", "max": 1.5e-6, "severity": "error", "msg": "owner round 2: 255->0 settles to 0.5 LSB within 1.5 us (27k unit R, tau 189 ns tt, 9 ln2 tau = 1.42 us at ss)"},
+  {"measure": "t_rise_10_90", "max": 0.5e-6, "severity": "warning", "msg": "derived, owner trade-off: 2.2 tau = 0.42 us at tt, 0.5 us at ss"},
+  {"measure": "t_fall_10_90", "max": 0.5e-6, "severity": "warning", "msg": "derived, owner trade-off: 2.2 tau = 0.42 us at tt, 0.5 us at ss"},
+  {"measure": "i_vdd_peak", "max": 30e-3, "severity": "warning", "msg": "derived: 15 mA static + load slew current, rounded"}
+]

@@ -1,0 +1,66 @@
+{
+  "script": "gate",
+  "gate": "cover",
+  "phase": "P4",
+  "tool": "cover",
+  "input_digest": "dir_text:2a2b1ae7e895ad5405f5ae367ab80ae45039df70315e07a67867027fa4bbdf15",
+  "status": "pass",
+  "criteria": {
+    "fail_severities": [
+      "error"
+    ],
+    "max_count": 0
+  },
+  "counts": {
+    "total": 1,
+    "by_severity": {
+      "info": 1
+    },
+    "by_source": {
+      "verilator": 1
+    }
+  },
+  "failing_count": 0,
+  "failing": [],
+  "violations": [
+    {
+      "check": "cover",
+      "severity": "info",
+      "file": "r2r_dac_digital.v",
+      "module": null,
+      "line": 279,
+      "kind": "line_not_covered",
+      "refs": [],
+      "msg": "r2r_dac_digital.v:279 was never executed by tb/",
+      "source": "verilator",
+      "items": [
+        {
+          "msg": "r2r_dac_digital.v:279 was never executed by tb/",
+          "file": "r2r_dac_digital.v",
+          "line": 279
+        }
+      ]
+    }
+  ],
+  "facts": {
+    "top": "r2r_dac_digital",
+    "line_pct": 99.6552,
+    "toggle_pct": 100.0,
+    "line_covered": 289,
+    "line_total": 290,
+    "toggle_covered": 128,
+    "toggle_total": 128
+  },
+  "record_result": {
+    "ok": true,
+    "recorded": true,
+    "workspace": "blocks/r2r_dac/digital",
+    "gate": "cover",
+    "status": "pass",
+    "attempts": 1,
+    "inputs": {
+      "rtl": "dir_text:2a2b1ae7e895ad5405f5ae367ab80ae45039df70315e07a67867027fa4bbdf15",
+      "tb": "dir_text:6aa2b475089f5db2f0d695236744c00ac8db1a3787df914d5d5ae69a447205de"
+    }
+  }
+}

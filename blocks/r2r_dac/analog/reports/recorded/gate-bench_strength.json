@@ -1,0 +1,432 @@
+{
+ "script": "gate",
+ "gate": "bench_strength",
+ "phase": "P4",
+ "tool": "bench_strength",
+ "input_digest": "dir_text:13970a2f19f36bd8aa49baa3a94132821e16917455715ba77b23b074b4551548",
+ "status": "pass",
+ "criteria": {
+  "fail_severities": [
+   "error"
+  ],
+  "max_count": 0
+ },
+ "counts": {
+  "total": 0,
+  "by_severity": {},
+  "by_source": {}
+ },
+ "failing_count": 0,
+ "failing": [],
+ "violations": [],
+ "facts": {
+  "top": "r2r_dac_analog",
+  "total_mutants": 58,
+  "killed": 58,
+  "survived": 0,
+  "devices_total": 33,
+  "devices_mutated": 33,
+  "unmutated": [],
+  "killed_by_sensitivity": 4,
+  "killed_by_sensitivity_kind": {
+   "relative": 4,
+   "absolute": 0
+  },
+  "equivalent": 0,
+  "below_spread": 0,
+  "equivalent_ids": [],
+  "below_spread_ids": [],
+  "bench_order": [
+   "r2r_dac_tb.cir",
+   "r2r_dac_glitch_tb.cir",
+   "r2r_dac_step_tb.cir"
+  ],
+  "mutants": {
+   "xd0_connection_removed": {
+    "kind": "connection_removed",
+    "killed": true,
+    "describe": "xd0: last terminal disconnected",
+    "killed_by": "r2r_dac_tb.cir"
+   },
+   "xd1_connection_removed": {
+    "kind": "connection_removed",
+    "killed": true,
+    "describe": "xd1: last terminal disconnected",
+    "killed_by": "r2r_dac_tb.cir"
+   },
+   "xd2_connection_removed": {
+    "kind": "connection_removed",
+    "killed": true,
+    "describe": "xd2: last terminal disconnected",
+    "killed_by": "r2r_dac_tb.cir"
+   },
+   "xd3_connection_removed": {
+    "kind": "connection_removed",
+    "killed": true,
+    "describe": "xd3: last terminal disconnected",
+    "killed_by": "r2r_dac_tb.cir"
+   },
+   "xd4_connection_removed": {
+    "kind": "connection_removed",
+    "killed": true,
+    "describe": "xd4: last terminal disconnected",
+    "killed_by": "r2r_dac_tb.cir"
+   },
+   "xd5_connection_removed": {
+    "kind": "connection_removed",
+    "killed": true,
+    "describe": "xd5: last terminal disconnected",
+    "killed_by": "r2r_dac_tb.cir"
+   },
+   "xd6_connection_removed": {
+    "kind": "connection_removed",
+    "killed": true,
+    "describe": "xd6: last terminal disconnected",
+    "killed_by": "r2r_dac_tb.cir"
+   },
+   "xd7_connection_removed": {
+    "kind": "connection_removed",
+    "killed": true,
+    "describe": "xd7: last terminal disconnected",
+    "killed_by": "r2r_dac_tb.cir"
+   },
+   "xrb0a_connection_removed": {
+    "kind": "connection_removed",
+    "killed": true,
+    "describe": "xrb0a: first terminal (a resistor's body carries only parasitics) disconnected",
+    "killed_by": "r2r_dac_tb.cir"
+   },
+   "xrb0a_size_doubled_r_width": {
+    "kind": "size_doubled",
+    "killed": true,
+    "describe": "xrb0a: r_width doubled",
+    "killed_by": "r2r_dac_tb.cir",
+    "sensitivity_kill": {
+     "bench": "r2r_dac_tb.cir",
+     "measure": "dnl_max_abs",
+     "delta": 4.379064,
+     "sensitivity": 0.02,
+     "kind": "relative"
+    }
+   },
+   "xrb0b_connection_removed": {
+    "kind": "connection_removed",
+    "killed": true,
+    "describe": "xrb0b: first terminal (a resistor's body carries only parasitics) disconnected",
+    "killed_by": "r2r_dac_tb.cir"
+   },
+   "xrb0b_size_doubled_r_width": {
+    "kind": "size_doubled",
+    "killed": true,
+    "describe": "xrb0b: r_width doubled",
+    "killed_by": "r2r_dac_tb.cir",
+    "sensitivity_kill": {
+     "bench": "r2r_dac_tb.cir",
+     "measure": "dnl_max_abs",
+     "delta": 4.310447,
+     "sensitivity": 0.02,
+     "kind": "relative"
+    }
+   },
+   "xrb1a_connection_removed": {
+    "kind": "connection_removed",
+    "killed": true,
+    "describe": "xrb1a: first terminal (a resistor's body carries only parasitics) disconnected",
+    "killed_by": "r2r_dac_tb.cir"
+   },
+   "xrb1a_size_doubled_r_width": {
+    "kind": "size_doubled",
+    "killed": true,
+    "describe": "xrb1a: r_width doubled",
+    "killed_by": "r2r_dac_tb.cir"
+   },
+   "xrb1b_connection_removed": {
+    "kind": "connection_removed",
+    "killed": true,
+    "describe": "xrb1b: first terminal (a resistor's body carries only parasitics) disconnected",
+    "killed_by": "r2r_dac_tb.cir"
+   },
+   "xrb1b_size_doubled_r_width": {
+    "kind": "size_doubled",
+    "killed": true,
+    "describe": "xrb1b: r_width doubled",
+    "killed_by": "r2r_dac_tb.cir"
+   },
+   "xrb2a_connection_removed": {
+    "kind": "connection_removed",
+    "killed": true,
+    "describe": "xrb2a: first terminal (a resistor's body carries only parasitics) disconnected",
+    "killed_by": "r2r_dac_tb.cir"
+   },
+   "xrb2a_size_doubled_r_width": {
+    "kind": "size_doubled",
+    "killed": true,
+    "describe": "xrb2a: r_width doubled",
+    "killed_by": "r2r_dac_tb.cir"
+   },
+   "xrb2b_connection_removed": {
+    "kind": "connection_removed",
+    "killed": true,
+    "describe": "xrb2b: first terminal (a resistor's body carries only parasitics) disconnected",
+    "killed_by": "r2r_dac_tb.cir"
+   },
+   "xrb2b_size_doubled_r_width": {
+    "kind": "size_doubled",
+    "killed": true,
+    "describe": "xrb2b: r_width doubled",
+    "killed_by": "r2r_dac_tb.cir"
+   },
+   "xrb3a_connection_removed": {
+    "kind": "connection_removed",
+    "killed": true,
+    "describe": "xrb3a: first terminal (a resistor's body carries only parasitics) disconnected",
+    "killed_by": "r2r_dac_tb.cir"
+   },
+   "xrb3a_size_doubled_r_width": {
+    "kind": "size_doubled",
+    "killed": true,
+    "describe": "xrb3a: r_width doubled",
+    "killed_by": "r2r_dac_tb.cir"
+   },
+   "xrb3b_connection_removed": {
+    "kind": "connection_removed",
+    "killed": true,
+    "describe": "xrb3b: first terminal (a resistor's body carries only parasitics) disconnected",
+    "killed_by": "r2r_dac_tb.cir"
+   },
+   "xrb3b_size_doubled_r_width": {
+    "kind": "size_doubled",
+    "killed": true,
+    "describe": "xrb3b: r_width doubled",
+    "killed_by": "r2r_dac_tb.cir"
+   },
+   "xrb4a_connection_removed": {
+    "kind": "connection_removed",
+    "killed": true,
+    "describe": "xrb4a: first terminal (a resistor's body carries only parasitics) disconnected",
+    "killed_by": "r2r_dac_tb.cir"
+   },
+   "xrb4a_size_doubled_r_width": {
+    "kind": "size_doubled",
+    "killed": true,
+    "describe": "xrb4a: r_width doubled",
+    "killed_by": "r2r_dac_tb.cir"
+   },
+   "xrb4b_connection_removed": {
+    "kind": "connection_removed",
+    "killed": true,
+    "describe": "xrb4b: first terminal (a resistor's body carries only parasitics) disconnected",
+    "killed_by": "r2r_dac_tb.cir"
+   },
+   "xrb4b_size_doubled_r_width": {
+    "kind": "size_doubled",
+    "killed": true,
+    "describe": "xrb4b: r_width doubled",
+    "killed_by": "r2r_dac_tb.cir"
+   },
+   "xrb5a_connection_removed": {
+    "kind": "connection_removed",
+    "killed": true,
+    "describe": "xrb5a: first terminal (a resistor's body carries only parasitics) disconnected",
+    "killed_by": "r2r_dac_tb.cir"
+   },
+   "xrb5a_size_doubled_r_width": {
+    "kind": "size_doubled",
+    "killed": true,
+    "describe": "xrb5a: r_width doubled",
+    "killed_by": "r2r_dac_tb.cir"
+   },
+   "xrb5b_connection_removed": {
+    "kind": "connection_removed",
+    "killed": true,
+    "describe": "xrb5b: first terminal (a resistor's body carries only parasitics) disconnected",
+    "killed_by": "r2r_dac_tb.cir"
+   },
+   "xrb5b_size_doubled_r_width": {
+    "kind": "size_doubled",
+    "killed": true,
+    "describe": "xrb5b: r_width doubled",
+    "killed_by": "r2r_dac_tb.cir"
+   },
+   "xrb6a_connection_removed": {
+    "kind": "connection_removed",
+    "killed": true,
+    "describe": "xrb6a: first terminal (a resistor's body carries only parasitics) disconnected",
+    "killed_by": "r2r_dac_tb.cir"
+   },
+   "xrb6a_size_doubled_r_width": {
+    "kind": "size_doubled",
+    "killed": true,
+    "describe": "xrb6a: r_width doubled",
+    "killed_by": "r2r_dac_tb.cir"
+   },
+   "xrb6b_connection_removed": {
+    "kind": "connection_removed",
+    "killed": true,
+    "describe": "xrb6b: first terminal (a resistor's body carries only parasitics) disconnected",
+    "killed_by": "r2r_dac_tb.cir"
+   },
+   "xrb6b_size_doubled_r_width": {
+    "kind": "size_doubled",
+    "killed": true,
+    "describe": "xrb6b: r_width doubled",
+    "killed_by": "r2r_dac_tb.cir"
+   },
+   "xrb7a_connection_removed": {
+    "kind": "connection_removed",
+    "killed": true,
+    "describe": "xrb7a: first terminal (a resistor's body carries only parasitics) disconnected",
+    "killed_by": "r2r_dac_tb.cir"
+   },
+   "xrb7a_size_doubled_r_width": {
+    "kind": "size_doubled",
+    "killed": true,
+    "describe": "xrb7a: r_width doubled",
+    "killed_by": "r2r_dac_tb.cir"
+   },
+   "xrb7b_connection_removed": {
+    "kind": "connection_removed",
+    "killed": true,
+    "describe": "xrb7b: first terminal (a resistor's body carries only parasitics) disconnected",
+    "killed_by": "r2r_dac_tb.cir"
+   },
+   "xrb7b_size_doubled_r_width": {
+    "kind": "size_doubled",
+    "killed": true,
+    "describe": "xrb7b: r_width doubled",
+    "killed_by": "r2r_dac_tb.cir"
+   },
+   "xrs0_connection_removed": {
+    "kind": "connection_removed",
+    "killed": true,
+    "describe": "xrs0: first terminal (a resistor's body carries only parasitics) disconnected",
+    "killed_by": "r2r_dac_tb.cir"
+   },
+   "xrs0_size_doubled_r_width": {
+    "kind": "size_doubled",
+    "killed": true,
+    "describe": "xrs0: r_width doubled",
+    "killed_by": "r2r_dac_tb.cir"
+   },
+   "xrs1_connection_removed": {
+    "kind": "connection_removed",
+    "killed": true,
+    "describe": "xrs1: first terminal (a resistor's body carries only parasitics) disconnected",
+    "killed_by": "r2r_dac_tb.cir"
+   },
+   "xrs1_size_doubled_r_width": {
+    "kind": "size_doubled",
+    "killed": true,
+    "describe": "xrs1: r_width doubled",
+    "killed_by": "r2r_dac_tb.cir"
+   },
+   "xrs2_connection_removed": {
+    "kind": "connection_removed",
+    "killed": true,
+    "describe": "xrs2: first terminal (a resistor's body carries only parasitics) disconnected",
+    "killed_by": "r2r_dac_tb.cir"
+   },
+   "xrs2_size_doubled_r_width": {
+    "kind": "size_doubled",
+    "killed": true,
+    "describe": "xrs2: r_width doubled",
+    "killed_by": "r2r_dac_tb.cir"
+   },
+   "xrs3_connection_removed": {
+    "kind": "connection_removed",
+    "killed": true,
+    "describe": "xrs3: first terminal (a resistor's body carries only parasitics) disconnected",
+    "killed_by": "r2r_dac_tb.cir"
+   },
+   "xrs3_size_doubled_r_width": {
+    "kind": "size_doubled",
+    "killed": true,
+    "describe": "xrs3: r_width doubled",
+    "killed_by": "r2r_dac_tb.cir"
+   },
+   "xrs4_connection_removed": {
+    "kind": "connection_removed",
+    "killed": true,
+    "describe": "xrs4: first terminal (a resistor's body carries only parasitics) disconnected",
+    "killed_by": "r2r_dac_tb.cir"
+   },
+   "xrs4_size_doubled_r_width": {
+    "kind": "size_doubled",
+    "killed": true,
+    "describe": "xrs4: r_width doubled",
+    "killed_by": "r2r_dac_tb.cir"
+   },
+   "xrs5_connection_removed": {
+    "kind": "connection_removed",
+    "killed": true,
+    "describe": "xrs5: first terminal (a resistor's body carries only parasitics) disconnected",
+    "killed_by": "r2r_dac_tb.cir"
+   },
+   "xrs5_size_doubled_r_width": {
+    "kind": "size_doubled",
+    "killed": true,
+    "describe": "xrs5: r_width doubled",
+    "killed_by": "r2r_dac_tb.cir"
+   },
+   "xrs6_connection_removed": {
+    "kind": "connection_removed",
+    "killed": true,
+    "describe": "xrs6: first terminal (a resistor's body carries only parasitics) disconnected",
+    "killed_by": "r2r_dac_tb.cir"
+   },
+   "xrs6_size_doubled_r_width": {
+    "kind": "size_doubled",
+    "killed": true,
+    "describe": "xrs6: r_width doubled",
+    "killed_by": "r2r_dac_tb.cir"
+   },
+   "xrta_connection_removed": {
+    "kind": "connection_removed",
+    "killed": true,
+    "describe": "xrta: first terminal (a resistor's body carries only parasitics) disconnected",
+    "killed_by": "r2r_dac_tb.cir"
+   },
+   "xrta_size_doubled_r_width": {
+    "kind": "size_doubled",
+    "killed": true,
+    "describe": "xrta: r_width doubled",
+    "killed_by": "r2r_dac_tb.cir",
+    "sensitivity_kill": {
+     "bench": "r2r_dac_tb.cir",
+     "measure": "dnl_max_abs",
+     "delta": 4.158768,
+     "sensitivity": 0.02,
+     "kind": "relative"
+    }
+   },
+   "xrtb_connection_removed": {
+    "kind": "connection_removed",
+    "killed": true,
+    "describe": "xrtb: first terminal (a resistor's body carries only parasitics) disconnected",
+    "killed_by": "r2r_dac_tb.cir"
+   },
+   "xrtb_size_doubled_r_width": {
+    "kind": "size_doubled",
+    "killed": true,
+    "describe": "xrtb: r_width doubled",
+    "killed_by": "r2r_dac_tb.cir",
+    "sensitivity_kill": {
+     "bench": "r2r_dac_tb.cir",
+     "measure": "dnl_max_abs",
+     "delta": 4.158768,
+     "sensitivity": 0.02,
+     "kind": "relative"
+    }
+   }
+  }
+ },
+ "inputs_at_start": {
+  "netlist": "dir_text:13970a2f19f36bd8aa49baa3a94132821e16917455715ba77b23b074b4551548",
+  "tb": "dir_text:bd1a8539e7092bb573bd6811f95fc170b4fce78f2829463999ce0bfe4f4a0609",
+  "mutant_rulings": null,
+  "spec_yaml": "json_canonical:99047ed51c88b1767b136d48e2c3832967daa1e22eec34905494620acacea45d",
+  "sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df"
+ },
+ "recorded_ts": "2026-10-13T06:12:56",
+ "attempts": 4
+}
