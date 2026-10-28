@@ -8,3 +8,4 @@ runs/
 # check-all re-runs every gate from the block's sources
 blocks/*/log/
 blocks/*/*/log/
+.pytest_cache/

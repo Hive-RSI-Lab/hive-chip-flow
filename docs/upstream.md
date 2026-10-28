@@ -6,9 +6,9 @@ Everything outside `module.json`, `README.md`, `bin/chip-flow`,
 and `docs/workarounds.md` is ihsan-sa/chip-flow at
 `b9bf8716d86fcd0ffdcb24e289cea8aaa5c7c055` (main, 2026-10-15), at the same
 paths, because the skills reach the engine as `$CHIP_FLOW_HOME/engine/...` and
-`$CHIP_FLOW_HOME/bin/eda`, but for the [fixes the Hive made](#fixes-the-hive-made)
-and `tests/conftest.py`'s `NOT_CARRIED` (an upstream test of a file left out,
-skipped with its reason). Left out:
+`$CHIP_FLOW_HOME/bin/eda`, but for the [fixes the Hive made](#fixes-the-hive-made),
+`.gitignore` (block logs) and `tests/conftest.py`'s `NOT_CARRIED` (an
+upstream test of a file left out, skipped with its reason). Left out:
 
 - `.github/` (upstream's CI, which unpacks the toolchain on GitHub's runners;
   here the test is `bin/chip-flow test`) and `.dispatch/` (upstream's run
