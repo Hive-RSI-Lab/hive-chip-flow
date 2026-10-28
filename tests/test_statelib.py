@@ -62,6 +62,16 @@ def test_json_canonical_sans_roots_reads_a_moved_block_as_the_same_config(tmp_pa
     a = _harden_config(tmp_path / "here" / "blk", "/opt/a/foss/pdks")
     b = _harden_config(tmp_path / "there" / "blk", "/home/x/.cc/foss/pdks")
     h = statelib.hash_artifact(a, "json_canonical_sans_roots")
+    # written on another machine and copied here as it is: its paths name a
+    # block and a chip-flow that aren't where the file now sits
+    moved = tmp_path / "copied" / "blk" / "harden"
+    moved.mkdir(parents=True)
+    (moved / "config.json").write_text(
+        b.read_text().replace(str(Path(statelib.__file__).resolve().parents[2]),
+                              "/home/x/.claude/skills/chip-flow"))
+    assert "/home/x/.claude" in (moved / "config.json").read_text()
+    assert statelib.hash_artifact(moved / "config.json",
+                                  "json_canonical_sans_roots") == h
     assert h.startswith("json_canonical_sans_roots:")
     assert h == statelib.hash_artifact(b, "json_canonical_sans_roots")
     assert statelib.hash_artifact(a, "json_canonical") != \

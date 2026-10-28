@@ -145,24 +145,46 @@ def _norm_json_canonical_sans_formal(path: Path) -> bytes:
                       separators=(",", ":")).encode("utf-8")
 
 
+def _config_roots(doc: dict, path: Path) -> list[tuple[str, str]]:
+    """The machine roots in a generated LibreLane config, longest first: the
+    block's workspace and chip-flow's checkout as the config itself names
+    them (the TT wrapper `<ws>/harden/tt_um_*.v` among VERILOG_FILES, a
+    `<home>/engine/reference/...` template) and as they are on this machine,
+    and the config's own PDK_ROOT. Read from the document, so a config
+    written in another checkout or on another machine normalizes the same
+    as one written here."""
+    roots = [(str(path.resolve().parent.parent), "${BLOCK}"),
+             (str(Path(__file__).resolve().parents[2]), "${CHIP_FLOW_HOME}")]
+    strings = [v for v in doc.values() if isinstance(v, str)]
+    for v in doc.values():
+        if isinstance(v, list):
+            strings += [x for x in v if isinstance(x, str)]
+    for v in strings:
+        m = re.fullmatch(r"(/.+)/harden/tt_um_[^/]+\.v", v)
+        if m:
+            roots.append((m.group(1), "${BLOCK}"))
+        m = re.match(r"(/.+?)/engine/reference/", v)
+        if m:
+            roots.append((m.group(1), "${CHIP_FLOW_HOME}"))
+    if isinstance(doc.get("PDK_ROOT"), str) and doc["PDK_ROOT"].startswith("/"):
+        roots.append((doc["PDK_ROOT"].rstrip("/"), "${PDK_ROOT}"))
+    return sorted(set(roots), key=lambda r: -len(r[0]))
+
+
 def _norm_json_canonical_sans_roots(path: Path) -> bytes:
     """json_canonical of a generated LibreLane config (harden/config.json)
-    with the machine's own roots written as placeholders: the block's
-    workspace (the config sits at <ws>/harden/config.json), this checkout
-    of chip-flow, and the config's own PDK_ROOT. check_harden.py rewrites
-    the file on every run with absolute paths, so hashed as it is, a block
-    hardened in another checkout, on another machine or from a scratch copy
-    read its own config as an edit made during the run, and the gate went
-    stale on its first pass. Any other change still moves the hash. A
-    document that is not a mapping raises (hash_artifact's raw fallback)."""
+    with the machine's own roots written as placeholders (_config_roots):
+    the block's workspace, chip-flow's checkout and PDK_ROOT.
+    check_harden.py rewrites the file on every run with absolute paths, so
+    hashed as it is, a block hardened in another checkout, on another
+    machine or from a scratch copy read its own config as an edit made
+    during the run, and the gate went stale on its first pass. Any other
+    change still moves the hash. A document that is not a mapping raises
+    (hash_artifact's raw fallback)."""
     doc = yaml.safe_load(_text(path.read_bytes()))
     if not isinstance(doc, dict):
         raise ValueError(f"{path} is not a mapping")
-    roots = [(str(path.resolve().parent.parent), "${BLOCK}"),
-             (str(Path(__file__).resolve().parents[2]), "${CHIP_FLOW_HOME}")]
-    if isinstance(doc.get("PDK_ROOT"), str) and doc["PDK_ROOT"].startswith("/"):
-        roots.append((doc["PDK_ROOT"].rstrip("/"), "${PDK_ROOT}"))
-    roots.sort(key=lambda r: -len(r[0]))
+    roots = _config_roots(doc, path)
 
     def sub(v):
         if isinstance(v, str):
@@ -222,18 +244,12 @@ def _norm_harden_signoff(path: Path) -> bytes:
     the step directories LibreLane leaves are not inputs of anything."""
     if not path.is_dir():
         raise ValueError(f"{path} is not a directory")
-    ws = path.resolve().parent
-    roots = [(str(ws), "${BLOCK}"),
-             (str(Path(__file__).resolve().parents[2]), "${CHIP_FLOW_HOME}")]
     cfg = path / "config.json"
-    if cfg.is_file():
-        try:
-            pdk = (yaml.safe_load(_text(cfg.read_bytes())) or {}).get("PDK_ROOT")
-        except yaml.YAMLError:
-            pdk = None
-        if isinstance(pdk, str) and pdk.startswith("/"):
-            roots.append((pdk.rstrip("/"), "${PDK_ROOT}"))
-    roots.sort(key=lambda r: -len(r[0]))
+    try:
+        doc = yaml.safe_load(_text(cfg.read_bytes())) if cfg.is_file() else {}
+    except yaml.YAMLError:
+        doc = {}
+    roots = _config_roots(doc if isinstance(doc, dict) else {}, cfg)
 
     def text(f: Path) -> bytes:
         t = _eol(_text(f.read_bytes()))
