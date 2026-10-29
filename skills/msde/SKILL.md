@@ -259,9 +259,10 @@ step up and record it; never silently drop a tier.
   analog sizing does not stale a recorded pass - re-run `top_harden`, then
   `top_drc` and `top_lvs`, by hand after one.
 - **The macro sits in the middle of the tile**, placed by `top_harden`, at
-  a size the analog layout decides. A macro too large for the tile, or one
-  that leaves the standard cells no room to route, is an analog layout
-  fix, not a floorplan knob msde owns.
+  a size the analog layout decides. It moves off-centre by up to one stripe
+  pitch where that lets the tile's power stripes reach its supplies. A
+  macro too large for the tile, or one that leaves the standard cells no
+  room to route, is an analog layout fix, not a floorplan knob msde owns.
 - **`dac_spi` and `sar_adc` are specs only.** Those corpus rungs have
   interface files and `split` faults, no reference design or bench; they
   may stay red. `sensor_counted` and `ring_osc_div` are the working rungs.

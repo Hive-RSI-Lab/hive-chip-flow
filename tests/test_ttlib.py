@@ -197,6 +197,42 @@ def test_harden_override_may_not_replace_the_specs_macros(tmp_path):
     assert config["PL_TARGET_DENSITY_PCT"] == 50
 
 
+def _pdk_config(tmp_path: Path, keys: dict) -> Path:
+    pdk = tmp_path / "gf180mcuD"
+    cfg = pdk / "libs.tech" / "librelane" / "config.tcl"
+    cfg.parent.mkdir(parents=True)
+    cfg.write_text("".join(f"set ::env({k}) {v}\n" for k, v in keys.items()))
+    return pdk
+
+
+def test_tile_power_stripes_match_the_pdns_own_layout(tmp_path):
+    """The PLL's 1x2 analog tile, as LibreLane's DEF drew it: VPWR at
+    19.68 + 38.87k (the core's 6-site margin plus PDN_VOFFSET; the
+    template's FP_PDN_VPITCH over the PDK's pitch), VGND 3.3 um right."""
+    pdk = _pdk_config(tmp_path, {"PDN_VOFFSET": 16.32, "PDN_VWIDTH": 1.6,
+                                 "PDN_VSPACING": 1.7, "PDN_VPITCH": 153.6})
+    pdn = ttlib.tile_pdn(pdk)
+    assert pdn["PDN_VPITCH"] == 38.87
+    stripes = ttlib.tile_power_stripes("0 0 346.64 325.36", pdn)
+    assert stripes[:4] == [("VPWR", 19.68), ("VGND", 22.98),
+                           ("VPWR", 58.55), ("VGND", 61.85)]
+    assert stripes[-2:] == [("VPWR", 330.64), ("VGND", 333.94)]
+    assert len(stripes) == 18
+    with pytest.raises(ttlib.TTError, match="PDN_VOFFSET"):
+        ttlib.tile_pdn(_pdk_config(tmp_path / "x", {"PDN_VWIDTH": 1.6}))
+
+
+def test_macro_config_sets_the_pdn_halo_placement_counts_on(tmp_path):
+    macro = {"cell": "a", "instance": "u_analog", "location": [1, 2],
+             "power": {"vdd": "vdd", "vss": "vss"},
+             "files": {k: f"a.{k}" for k in ("gds", "lef", "vh", "spice")}}
+    config = ttlib.macro_config([macro])
+    assert config["PDN_HORIZONTAL_HALO"] == ttlib.MACRO_PDN_HALO_UM
+    assert config["PDN_VERTICAL_HALO"] == ttlib.MACRO_PDN_HALO_UM
+    assert {"PDN_VERTICAL_HALO", "PDN_VOFFSET", "FP_PDN_VWIDTH"} <= \
+        ttlib.forbidden_override_keys()
+
+
 def test_clock_port_none_when_spec_names_no_domain():
     assert ttlib.clock_port(COUNTER8_SPEC) is None
     assert ttlib.clock_port({**COUNTER8_SPEC, "clock": {"period_ns": 20}}) is None
