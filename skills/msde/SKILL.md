@@ -146,8 +146,9 @@ released fails here as `nested_not_released`.
 ## Edit classes and the nested cascade
 
 msde's own edit classes (`invalidation.yaml`) are `spec_edit` and
-`interface_edit`; both mark `split`, `cosim`, `top_harden`, `top_drc`,
-`top_lvs` and `release`. `docs/design.md` 1.6 adds that `interface_edit` marks both
+`interface_edit`, which both mark `split`, `cosim`, `top_harden`, `top_drc`,
+`top_lvs` and `release`, and `top_sdc_edit` (the integrator's `top.sdc`),
+which marks `top_harden` onward. `docs/design.md` 1.6 adds that `interface_edit` marks both
 nested runs' `spec_edit`, and a plain `state.py edit` cannot reach a
 nested `state.json`. So after ANY interface edit, run in each nested
 workspace that exists:
@@ -168,6 +169,7 @@ Other cross-boundary edits, declared where the file lives:
 |---|---|---|
 | interface.yaml | `interface_edit`, then the cascade above | msde, then both sides |
 | a side's design, re-released | nothing to declare: `top_harden` hashes `digital/rtl` and `analog/layout`, and `top_drc`/`top_lvs` hash its GDS | msde |
+| `top.sdc` (the top's clocks) | `top_sdc_edit`; `top_harden` also hashes it and `digital/harden/constraints.sdc` | msde |
 | `tb/` (the cosim bench) | none exists for msde; `cosim`'s `tb` input hash catches it | msde |
 
 ## Run start / resume

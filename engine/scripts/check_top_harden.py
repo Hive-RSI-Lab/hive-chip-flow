@@ -15,6 +15,15 @@ with M4's own harden (check_harden.run, the same LibreLane job):
                       <name>[N-1]..<name>[0] (engine/lib/ttlib.py's macros
                       schema)
   top/rtl/            a copy of digital/rtl
+  top/harden/constraints.sdc
+                      the top's design SDC (ttlib.prepare_harden_sdc), for
+                      a spec with more than one clock domain: the
+                      integrator's own <ws>/top.sdc when there is one, else
+                      digital/harden/constraints.sdc with each crossing
+                      signal's standalone pad bit moved onto the macro's pin
+                      ([get_ports {ui_in[3]}] -> [get_pins
+                      {u_analog/vco_out}]; top_sdc). top/ is rebuilt every
+                      run, so a file written there by hand never survives
   top/macros/         the analog cell as LibreLane takes a macro: its GDS
                       (layout_gen, rebuilt from analog/layout/gen_<block>.py
                       like every ade layout gate does), a LEF abstract magic
@@ -77,6 +86,8 @@ from checklib import CheckError  # noqa: E402
 
 SCRIPT = "check_top_harden"
 TOP_DIR = "top"
+# the integrator's SDC for the assembled top, beside interface.yaml
+TOP_SDC_NAME = "top.sdc"
 INSTANCE = "u_analog"
 VDD_RE = re.compile(r"^(a?vdd|vpwr|vcc)", re.IGNORECASE)
 VSS_RE = re.compile(r"^(a?vss|gnd|vgnd)", re.IGNORECASE)
@@ -581,6 +592,152 @@ def centre(die_area: str, w: float, h: float) -> list[float] | None:
             round(round((dy - h) / 2 / 3.92) * 3.92, 2)]
 
 
+def crossing_pins(dspec: dict, macro: dict) -> dict[str, str]:
+    """{standalone TT pin bit: macro instance pin} for every crossing signal
+    the digital spec's tt_pins put on a pad: in the standalone harden that
+    signal enters (or leaves) on, say, ui_in[3]; in the top it is the
+    macro's pin u_analog/vco_out. A width-N port's bit k is pad bit lo+k
+    and macro pin <name>[k]. A crossing signal with no tt_pins entry has
+    nothing to rewrite."""
+    tt_pins = {k.lower(): v for k, v in (dspec.get("tt_pins") or {}).items()}
+    out: dict[str, str] = {}
+    for pin, port in macro["pins"].items():
+        expr = tt_pins.get(port.lower())
+        if expr is None:
+            continue
+        p = ttlib.parse_pin_expr(expr)
+        at = f"{macro['instance']}/{pin}"
+        if p["hi"] is None:
+            out[p["base"]] = at
+        elif p["hi"] == p["lo"]:
+            out[f"{p['base']}[{p['lo']}]"] = at
+        else:
+            out.update({f"{p['base']}[{p['lo'] + k}]": f"{at}[{k}]"
+                        for k in range(p["hi"] - p["lo"] + 1)})
+    return out
+
+
+def _tcl_words(text: str, i: int) -> tuple[list[tuple[str, str]], int]:
+    """The Tcl words of a command from text[i] to its closing `]`, as
+    (kind, word) with kind brace, quote or bare, and the index of that
+    `]`. A bare word may hold a nested [...] (it is kept whole)."""
+    words, n = [], len(text)
+    while i < n:
+        c = text[i]
+        if c in " \t\n" or text.startswith("\\\n", i):
+            i += 2 if c == "\\" else 1
+            continue
+        if c == "]":
+            return words, i
+        if c in "{\"":
+            close, depth, j = ("}" if c == "{" else "\""), 0, i + 1
+            while j < n:
+                if text[j] == "\\":
+                    j += 2
+                    continue
+                if c == "{" and text[j] == "{":
+                    depth += 1
+                elif text[j] == close:
+                    if depth == 0:
+                        break
+                    depth -= 1
+                j += 1
+            words.append(("brace" if c == "{" else "quote", text[i + 1:j]))
+            i = j + 1
+            continue
+        depth, j = 0, i
+        while j < n:
+            if text[j] == "\\":
+                j += 2
+                continue
+            if text[j] == "[":
+                depth += 1
+            elif text[j] == "]":
+                if depth == 0:
+                    break
+                depth -= 1
+            elif text[j] in " \t\n" and depth == 0:
+                break
+            j += 1
+        words.append(("bare", text[i:j]))
+        i = j
+    raise CheckError("an SDC [get_ports ...] has no closing ]")
+
+
+def rewrite_crossing_ports(text: str, cross: dict[str, str]) -> str:
+    """`text` (a design SDC against the standalone wrapper) with every
+    crossing pad bit a [get_ports ...] names exactly moved onto its macro
+    pin: [get_ports {ui_in[3]}] becomes [get_pins {u_analog/vco_out}], and
+    a list naming other ports too becomes the concat of the two. Patterns
+    (ui_in[*]) are left alone: they still match the top's own ports. A
+    crossing bit still named anywhere else in a command is a refusal, since
+    in the top that port reaches nothing."""
+    out, pos = [], 0
+    for m in re.finditer(r"\[\s*get_ports\b", text):
+        if m.start() < pos:
+            continue
+        words, end = _tcl_words(text, m.end())
+        opts = [w for k, w in words if k == "bare" and w.startswith("-")]
+        names = [name for k, w in words
+                 if not (k == "bare" and w.startswith("-"))
+                 for name in (w.split() if k == "brace"
+                              else [w.replace("\\[", "[")
+                                     .replace("\\]", "]")])]
+        pins = [cross[n] for n in names if n in cross]
+        if not pins:
+            continue
+        ports = [n for n in names if n not in cross]
+        flags = "".join(f" {o}" for o in opts)
+        got = f"[get_pins{flags} {{{' '.join(pins)}}}]"
+        if ports:
+            got = (f"[concat [get_ports{flags} {{{' '.join(ports)}}}] "
+                   f"{got}]")
+        out += [text[pos:m.start()], got]
+        pos = end + 1
+    out.append(text[pos:])
+    new = "".join(out)
+    left = [(bit, cmd) for cmd in ttlib._sdc_commands(new) for bit in cross
+            if re.search(r"(?<![\w/])" + re.escape(bit).replace(
+                r"\[", r"\\?\[").replace(r"\]", r"\\?\]") + r"(?!\w)", cmd)]
+    if left:
+        bit, cmd = left[0]
+        raise CheckError(
+            f"digital/harden/{ttlib.HARDEN_SDC_NAME} names {bit}, which in "
+            f"the top is the macro pin {cross[bit]}, outside a [get_ports "
+            f"...] top_harden can move ({cmd!r}); write the top's own SDC "
+            f"at {TOP_SDC_NAME} in the msde workspace")
+    return new
+
+
+def top_sdc(ws: Path, dspec: dict, macro: dict) -> str | None:
+    """The text of top/harden/constraints.sdc, or None when there is none
+    to write: the integrator's <ws>/top.sdc as it is, else the digital
+    side's harden/constraints.sdc with its crossing ports on the macro's
+    pins (rewrite_crossing_ports). A spec with more than one clock domain
+    and neither file is a refusal here, naming both, rather than
+    check_harden's about a file under top/ no one can write."""
+    own = ws / TOP_SDC_NAME
+    if own.is_file():
+        return own.read_text(encoding="utf-8")
+    dsdc = ws / "digital" / "harden" / ttlib.HARDEN_SDC_NAME
+    if dsdc.is_file():
+        head = (f"# Generated by check_top_harden.py from digital/harden/"
+                f"{ttlib.HARDEN_SDC_NAME}, each crossing port moved onto "
+                f"the macro's pin; write {TOP_SDC_NAME} in the msde "
+                "workspace to give the top its own.\n")
+        return head + rewrite_crossing_ports(
+            dsdc.read_text(encoding="utf-8"), crossing_pins(dspec, macro))
+    domains = (dspec.get("clock") or {}).get("domains") or []
+    if isinstance(domains, list) and len(domains) > 1:
+        raise CheckError(
+            f"the digital spec's clock.domains {domains} names more than one "
+            f"clock but neither {TOP_SDC_NAME} nor digital/harden/"
+            f"{ttlib.HARDEN_SDC_NAME} exists - write {TOP_SDC_NAME} in the "
+            "msde workspace with the other clocks against the top's "
+            f"ports and the macro's pins ({macro['instance']}/<pin>)")
+    return None
+
+
 def assemble(ws: Path) -> tuple[Path, dict]:
     """Build top/ from the two nested workspaces; return its path and spec.
     A macro larger than the tile comes back with location None, and a ua
@@ -648,6 +805,11 @@ def assemble(ws: Path) -> tuple[Path, dict]:
     if problems:
         raise CheckError("the assembled top's pins do not fit: "
                          + "; ".join(problems))
+    sdc = top_sdc(ws, dspec, macro)
+    if sdc is not None:
+        (top / "harden").mkdir()
+        (top / "harden" / ttlib.HARDEN_SDC_NAME).write_text(
+            sdc, encoding="utf-8")
     import yaml
     (top / "spec" / "spec.yaml").write_text(
         yaml.safe_dump(tspec, sort_keys=False), encoding="utf-8")

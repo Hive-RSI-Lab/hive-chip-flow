@@ -59,7 +59,21 @@ top netlist to write. It joins the sides by name alone, case-insensitive:
   `vss`/`avss`/`gnd`/`vgnd...`;
 - the analog layout's top cell is that `.subckt`.
 
-Any of these off, `top_harden` refuses (exit 2) and names it. The macro
+Any of these off, `top_harden` refuses (exit 2) and names it.
+
+A digital spec with more than one `clock.domains` entry needs the top's
+SDC. `top_harden` writes `top/harden/constraints.sdc` from the digital
+side's `harden/constraints.sdc`, moving each crossing signal's standalone
+pad onto the macro's pin (`[get_ports {ui_in[3]}]` becomes
+`[get_pins {u_analog/vco_out}]`). When that rewrite can't be done (a pad
+bit named outside `get_ports`), or the top needs other clocks, write
+`<ws>/top.sdc` yourself against the top's ports and `u_analog/<pin>`; it
+is used as it is. Never write under `top/`: it is rebuilt every run.
+
+The cosim bench builds its bridge as `CosimBridge` (`from cosimlib import
+CosimBridge`, `engine/lib/cosimlib.py`), not the bare
+`MixedSignalBridge`, and carries each a2d crossing net in its top as a
+`reg` nothing in the Verilog drives: the bridge writes it on change. The macro
 GDS it places is re-saved without klayout's context-info cell
 (`check_top_harden.clean_gds`); there is nothing to do about that.
 
