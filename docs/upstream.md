@@ -2,8 +2,8 @@
 
 Everything outside `module.json`, `README.md`, `bin/chip-flow`,
 `bin/check_all.py`, `bin/score.py`, `blocks/`, `tests/workarounds/`,
-`tests/test_workarounds.py` and the files `docs/README.md`, `docs/upstream.md`
-and `docs/workarounds.md` is ihsan-sa/chip-flow at
+`tests/test_workarounds.py`, `tests/test_score.py` and the files
+`docs/README.md`, `docs/upstream.md` and `docs/workarounds.md` is ihsan-sa/chip-flow at
 `b9bf8716d86fcd0ffdcb24e289cea8aaa5c7c055` (main, 2026-10-15), at the same
 paths, because the skills reach the engine as `$CHIP_FLOW_HOME/engine/...` and
 `$CHIP_FLOW_HOME/bin/eda`, but for the [fixes the Hive made](#fixes-the-hive-made),

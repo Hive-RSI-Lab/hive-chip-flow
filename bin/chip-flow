@@ -5,13 +5,17 @@
 #
 #   chip-flow env              print the exports (eval "$(chip-flow env)")
 #   chip-flow check            eda check-env: every tool the gates need
-#   chip-flow test             the engine's fast tests (upstream's
-#                              tests/check-engine.sh, no real-tool runs) and
-#                              the workaround probes: the per-change test
+#   chip-flow test             the per-change test: the engine's fast tests
+#                              (upstream's tests/check-engine.sh, with the
+#                              workaround probes), then every corpus rung's
+#                              planted faults that need no harden, each
+#                              caught by its gate
 #   chip-flow check-all        re-run every block's recorded gates from a
 #                              scratch copy, and check docs/workarounds.md
-#                              against its probes (slow: hardens included)
-#   chip-flow score            the share of gate steps with no workaround
+#                              against its probes (slow: hardens included);
+#                              --record keeps the run for the score
+#   chip-flow score            how much of the known blocks (blocks/known.json)
+#                              passes every gate in the Hive: the score
 #   chip-flow eda <tool> ...   bin/eda: any tool from the tree (ngspice,
 #                              xschem, magic, netgen, klayout, yosys, ...)
 #   chip-flow <script> [args]  engine/scripts/<script>.py with the tree's
@@ -21,12 +25,6 @@
 # there through a warden), and bin/eda keeps its shims under HOME.
 set -e
 here=$(cd "$(dirname "$0")/.." && pwd)
-
-# The score reads files only: no toolchain.
-if [ "${1:-}" = score ]; then
-	shift
-	exec python3 "$here/bin/score.py" "$@"
-fi
 
 # The tree: an explicit pin wins; else the newest IIC-OSIC-TOOLS tree in the
 # Hive's tools folder, then in /opt/eda-toolchain, where H0 keeps it.
@@ -55,8 +53,18 @@ check)
 test)
 	# Upstream's engine suite without its real-tool (slow) tests, under its
 	# own CPU budget; it collects tests/test_workarounds.py, the probes, too.
+	# Then the planted faults: each rung's untouched reference passes the
+	# gates its faults/manifest.yaml names and each plant is caught by its
+	# gate (tests/test_corpus_faults.py, real tools, under its own cap); the
+	# rungs that harden stay in tests/check-harden-faults.sh, too slow here.
 	cd "$here"
-	exec bash tests/check-engine.sh
+	bash tests/check-engine.sh
+	exec timeout 1200 "$eda" python -m pytest -q -p no:cacheprovider \
+		tests/test_corpus_faults.py -m "slow and not harden_faults"
+	;;
+score)
+	shift
+	exec "$eda" python "$here/bin/score.py" "$@"
 	;;
 check-all)
 	shift
@@ -67,7 +75,7 @@ eda)
 	exec "$eda" "$@"
 	;;
 "" | -h | --help)
-	sed -n '2,21p' "$0" | sed 's/^# \{0,1\}//'
+	sed -n '2,25p' "$0" | sed 's/^# \{0,1\}//'
 	;;
 *)
 	s=$1

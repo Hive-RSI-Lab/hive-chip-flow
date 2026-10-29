@@ -1,17 +1,34 @@
-"""chip-flow score: the share of gate steps, over all blocks, with no workaround.
+"""chip-flow score: how much of the known blocks passes every gate in the Hive.
 
-    chip-flow score       (or: python3 bin/score.py)
+    chip-flow score       (bin/eda's python: it hashes the blocks' inputs)
+
+The known blocks are the ones blocks/known.json pins (a repository and the
+commit chip-flow's block came from): designs that passed their gates once,
+which the module must keep passing. Each scores the share of its gate steps
+that are clean, and the score is 100 x the mean over the known blocks,
+higher is better; 100 is every known block through every gate.
 
 A block under blocks/ is a workspace (a dir with state.json) and, for an
-msde block, its analog/ and digital/ sides, each a workspace of its own. Its
-gate steps are the gates each workspace's state.json records as passed,
-named `<side>/<gate>` (`top` for the block's own workspace): the steps
-`chip-flow check-all` re-runs. A step is charged when a row of
-docs/workarounds.md names it for that block: its input came through a shim
-in bin/ or an edit made by hand in the block's files. The score is
-100 x clean steps / steps, higher is better. It reads files only; check-all
-and the test hold the table to the truth (probes, below). Prints one line
-per block, then the number alone.
+msde block, its analog/ and digital/ sides, each a workspace of its own.
+Its gate steps are named `<side>/<gate>` (`top` for the block's own
+workspace). They are the steps blocks/<name>/check-all.json records:
+`chip-flow check-all --record` re-runs every gate the block owes, from a
+scratch copy, in the Hive's sandbox through bin/eda, copies the run back
+and writes that record. A step is clean when:
+
+- that run passed it, or failed it under the block's waiver (release then
+  judged that waiver, and is a step of its own);
+- it is still fresh: the inputs the gate read then hash the same now
+  (state.py freshness), so a change to a block's files counts only once
+  check-all has run over it again; and
+- no row of docs/workarounds.md names it for that block: its input came
+  through a shim in bin/ or an edit made by hand in the block's files.
+
+A known block not under blocks/ yet, or with no record, scores 0. Blocks
+under blocks/ that known.json doesn't list are printed, not scored. The
+score reads files and hashes them; check-all is what runs the gates, and the
+test holds docs/workarounds.md to its probes. Prints one line per block,
+then the number alone.
 """
 from __future__ import annotations
 
@@ -24,6 +41,8 @@ from fnmatch import fnmatch
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+KNOWN = ROOT / "blocks" / "known.json"
+RECORD = "check-all.json"   # in each block's dir, written by check-all --record
 PROBES = ROOT / "tests" / "workarounds"
 SIDES = (("analog", "ade"), ("digital", "vde"))
 _ROW = re.compile(r"^\|\s*([a-z0-9][a-z0-9-]*)\s*\|(.*)\|\s*$")
@@ -46,7 +65,7 @@ class Workspace:
     tag: str       # analog, digital, or top (the block's own workspace)
     rel: str       # its path in the block
     skill: str
-    gates: list[str] = field(default_factory=list)  # recorded as passed
+    gates: list[str] = field(default_factory=list)  # recorded in state.json
 
 
 @dataclass
@@ -84,9 +103,10 @@ def read_workarounds(path: Path) -> dict[str, Workaround]:
     return out
 
 
-def _passed(state: Path) -> list[str]:
-    gates = json.loads(state.read_text(encoding="utf-8")).get("gates") or {}
-    return [g for g, r in gates.items() if (r or {}).get("status") == "pass"]
+def _recorded(state: Path) -> list[str]:
+    """Every gate the workspace has recorded, passed or failed: one that
+    failed stays a step, so a failing run can't drop it from the next."""
+    return list(json.loads(state.read_text(encoding="utf-8")).get("gates") or {})
 
 
 def read_blocks(root: Path) -> list[Block]:
@@ -100,8 +120,8 @@ def read_blocks(root: Path) -> list[Block]:
             for side, skill in SIDES:
                 if (st.parent / side / "state.json").is_file():
                     b.workspaces.append(Workspace(side, side, skill,
-                                                  _passed(st.parent / side / "state.json")))
-        b.workspaces.append(Workspace("top", ".", d.get("skill") or "", _passed(st)))
+                                                  _recorded(st.parent / side / "state.json")))
+        b.workspaces.append(Workspace("top", ".", d.get("skill") or "", _recorded(st)))
         out.append(b)
     return out
 
@@ -127,29 +147,78 @@ def probes(table: dict[str, Workaround]) -> list[str]:
     return out
 
 
+def read_known(path: Path) -> list[dict]:
+    """known.json's blocks: each {name, repo, commit}."""
+    rows = json.loads(path.read_text(encoding="utf-8")).get("blocks") or []
+    for r in rows:
+        if not all(isinstance(r.get(k), str) and r[k] for k in ("name", "repo", "commit")):
+            raise ValueError(f"{path}: a block needs name, repo and commit: {r}")
+    if not rows:
+        raise ValueError(f"{path}: no known blocks")
+    return rows
+
+
+def fresh_steps(b: Block) -> set[str]:
+    """The block's steps whose recorded result is fresh against its files now."""
+    sys.path.insert(0, str(ROOT / "engine" / "lib"))
+    import statelib  # yaml: run under bin/eda's python
+    imap = statelib.load_map()
+    out = set()
+    for w in b.workspaces:
+        ws = b.path / w.rel if w.rel != "." else b.path
+        data = json.loads((ws / "state.json").read_text(encoding="utf-8"))
+        rep = statelib.freshness_report(data, ws, imap)
+        out |= {f"{w.tag}/{g}" for g, r in rep["gates"].items() if r.get("fresh")}
+    return out
+
+
+def block_share(b: Block, table: dict[str, Workaround]) -> tuple[float, str]:
+    """The block's clean share of its recorded steps, and a line saying why."""
+    try:
+        rec = json.loads((b.path / RECORD).read_text(encoding="utf-8"))
+    except OSError:
+        return 0.0, f"no {RECORD}: run chip-flow check-all --record --block {b.name}"
+    steps: dict[str, str] = rec.get("steps") or {}
+    if not steps:
+        return 0.0, f"{RECORD} records no step"
+    fresh = fresh_steps(b)
+    bad = []
+    for s, outcome in steps.items():
+        why = [] if outcome in ("pass", "waived") else [outcome]
+        if s not in fresh:
+            why.append("stale since")
+        why += [w.id for w in table.values() if w.charges(b.name, s)]
+        if why:
+            bad.append(f"{s} ({', '.join(why)})")
+    ok = len(steps) - len(bad)
+    line = f"{ok}/{len(steps)} clean, run {rec.get('ran', '?')} on {rec.get('toolchain') or '?'}"
+    return ok / len(steps), line + (f"; not: {'; '.join(bad)}" if bad else "")
+
+
 def main() -> int:
     try:
         table = read_workarounds(ROOT / "docs" / "workarounds.md")
-        blocks = read_blocks(ROOT / "blocks")
+        known = read_known(KNOWN)
+        blocks = {b.name: b for b in read_blocks(ROOT / "blocks")}
     except (OSError, ValueError) as e:
         print(f"score: {e}", file=sys.stderr)
         return 1
-    total = clean = 0
-    for b in blocks:
-        steps = b.steps()
-        charged = {s: [w.id for w in table.values() if w.charges(b.name, s)] for s in steps}
-        ok = [s for s in steps if not charged[s]]
-        total += len(steps)
-        clean += len(ok)
-        bad = [f"{s} ({', '.join(charged[s])})" for s in steps if charged[s]]
-        print(f"{b.name}: {len(ok)}/{len(steps)} clean" + (f"; worked around: {'; '.join(bad)}" if bad else ""))
-    if not total:
-        print("score: no block has a gate step yet", file=sys.stderr)
-        return 1
+    shares = []
+    for k in known:
+        b = blocks.get(k["name"])
+        if b is None:
+            share, line = 0.0, f"not under blocks/ yet ({k['repo']} at {k['commit']})"
+        else:
+            share, line = block_share(b, table)
+        shares.append(share)
+        print(f"{k['name']}: {line}")
+    for name in sorted(set(blocks) - {k["name"] for k in known}):
+        print(f"{name}: not scored (not in blocks/known.json)")
+    print(f"known blocks through every gate: {sum(s == 1 for s in shares)}/{len(shares)}")
     print(f"workarounds listed: {len(table)} "
           f"({sum(w.kind == 'shim' for w in table.values())} shim, "
           f"{sum(w.kind == 'hand' for w in table.values())} by hand)")
-    print(f"{100 * clean / total:.2f}")
+    print(f"{100 * sum(shares) / len(shares):.2f}")
     return 0
 
 
