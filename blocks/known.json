@@ -1,0 +1,6 @@
+{
+ "blocks": [
+  {"name": "r2r_dac", "repo": "ihsan-sa/ece298a-r2r-dac", "commit": "4014bf6"},
+  {"name": "counter", "repo": "ihsan-sa/ece298a-counter", "commit": "b2fd880"}
+ ]
+}

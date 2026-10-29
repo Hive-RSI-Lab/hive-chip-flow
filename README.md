@@ -27,13 +27,22 @@ person signs off between stages. Submitting a tile is always the person's.
 
 - **Test**, `bin/chip-flow test`, every change: upstream's engine suite
   without its real-tool tests (`tests/check-engine.sh`, held to 120 s of CPU)
-  and the workaround probes (`tests/test_workarounds.py`).
+  with the workaround probes (`tests/test_workarounds.py`), then every
+  corpus rung's planted faults that need no harden, each caught by its gate
+  (`tests/test_corpus_faults.py`).
 - **Blocks**, `bin/chip-flow check-all`: re-runs every gate each block under
-  `blocks/` records as passed, from a scratch copy, through `bin/eda`, then
-  the probes. Slow (it hardens); run it on a change to the gates, `bin/` or
-  a block.
-- **Score**, `bin/chip-flow score`, higher is better: the share of those gate
-  steps with no workaround listed in [docs/workarounds.md](docs/workarounds.md).
+  `blocks/` records, from a scratch copy, through `bin/eda`, then the
+  probes. Slow (it hardens); run it on a change to the gates, `bin/` or a
+  block. `--record` writes the run to the block's `check-all.json`, which
+  the score reads.
+- **Score**, `bin/chip-flow score`, higher is better: for the known blocks
+  ([blocks/known.json](blocks/known.json): ihsan-sa/ece298a-r2r-dac and
+  ece298a-counter at their pinned commits), the mean share of gate steps
+  that passed check-all's last recorded run in the Hive, while the block's
+  files, `engine/` and `bin/eda` are as that run had them, with no
+  workaround listed in
+  [docs/workarounds.md](docs/workarounds.md). A known block not brought in
+  yet scores 0.
 
 MIT, like upstream (LICENSE); the vendored Tiny Tapeout templates and tools
 under `engine/reference/tt/` keep their own licences (VENDORED.md there).

@@ -86,19 +86,34 @@ fails while a row and its probe disagree.
 ## Test and score
 
 - **Test**, `chip-flow test`, every change: upstream's engine suite without
-  its real-tool tests (`tests/check-engine.sh`, under a 120 s CPU budget),
-  then the workaround probes (`tests/test_workarounds.py`). Upstream's
-  real-tool sets still run by hand: `tests/check.sh` (a smoke per tool),
+  its real-tool tests (`tests/check-engine.sh`, under a 120 s CPU budget)
+  with the workaround probes (`tests/test_workarounds.py`), then the planted
+  faults: every corpus rung whose faults need no harden, its untouched
+  reference passing and each plant caught by its gate
+  (`tests/test_corpus_faults.py`, real tools). Upstream's other real-tool
+  sets still run by hand: `tests/check.sh` (a smoke per tool),
   `tests/check-slow.sh`, `tests/check-harden-faults.sh <rung>`, each with
   `EDA_TOOLCHAIN` set (`eval "$(chip-flow env)"`).
 - **Blocks**, `chip-flow check-all`: copies every block under this module's
   `blocks/` to a scratch dir and re-runs there, in pipeline order, every gate
-  each of its workspaces records as passed (an msde block's analog and
-  digital sides first, then its top), then the probes. Hardens included, so
-  it takes a while; run it on a change to the gates, `bin/` or a block, and
-  before a release. `--block NAME`, `--keep DIR` to read the logs after.
-- **Score**, `chip-flow score`, higher is better: the share of those gate
-  steps, over all blocks, with no workaround, as a percentage.
+  each of its workspaces records (an msde block's analog and digital sides
+  first, then its top), then the probes. Hardens included, so it takes a
+  while (about 20 minutes for r2r_dac): run it as a job on a change to the
+  gates, `bin/` or a block. `--block NAME`, `--keep DIR` to read the logs
+  after, and `--record` to write the run to the block's `check-all.json`;
+  commit it.
+- **Score**, `chip-flow score`, higher is better: how much of the known
+  blocks passes every gate in the Hive. `blocks/known.json` pins them
+  (ihsan-sa/ece298a-r2r-dac and ece298a-counter, each at the commit its
+  block came from). Each scores the share of its `check-all.json` steps
+  that that run passed (or failed under the block's waiver) and that no
+  workaround names, while the block's files, `engine/` and `bin/eda` hash
+  as the run had them (a change to any of them needs a new `--record` run,
+  committed with it, or the block scores 0); the score is 100 x the mean. A known block not under `blocks/` yet, or with no
+  record, scores 0, so bringing the counter in and taking it through its
+  gates raises it, and so does any fix that gets a step to pass. It reads
+  and hashes files, so it runs in seconds; check-all is what runs the
+  gates, too slow for the Hive's 30-minute check.
 
 ## What it never does
 
