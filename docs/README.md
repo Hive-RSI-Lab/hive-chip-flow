@@ -97,6 +97,16 @@ fails while a row and its probe disagree.
   digital sides first, then its top), then the probes. Hardens included, so
   it takes a while; run it on a change to the gates, `bin/` or a block, and
   before a release. `--block NAME`, `--keep DIR` to read the logs after.
+- **Heavy runs**: inside a Hive run (`HIVE_BOX` set) whose `hive agent
+  help` lists `heavy`, `chip-flow` runs `test`, `check-all`, the long
+  engine scripts (hardens, timing, DRC/LVS, SPICE corner and Monte Carlo
+  sweeps, gate-level sim, mutation, `optimise`), `gate --gate` on their
+  gates and `eda` on librelane, openroad, ngspice, magic, netgen and klayout
+  through `hive agent heavy --what "..." -- cmd`, so only a few run at once
+  machine-wide; `bin/eda librelane|openroad` does too, which covers a
+  detached `jobs.py` harden. One lease per run: the nested calls see
+  `CHIP_FLOW_HEAVY_HELD=1` and run directly. Elsewhere, or with
+  `CHIP_FLOW_HEAVY=0`, everything runs directly (`bin/heavy.sh`).
 - **Score**, `chip-flow score`, higher is better: the share of those gate
   steps, over all blocks, with no workaround, as a percentage.
 

@@ -19,6 +19,8 @@
 #
 # Nothing here installs anything: the tree is the Hive's, read-only (put
 # there through a warden), and bin/eda keeps its shims under HOME.
+# Inside a Hive run, the multi-minute ones (test, check-all, hardens,
+# DRC/LVS, SPICE sweeps, ...) wait for a `hive agent heavy` lease first.
 set -e
 here=$(cd "$(dirname "$0")/.." && pwd)
 
@@ -44,6 +46,35 @@ CHIP_FLOW_HOME=$here
 export EDA_TOOLCHAIN CHIP_FLOW_HOME
 eda=$here/bin/eda
 
+# Multi-minute runs go under the Hive's heavy-run lease (bin/heavy.sh: only
+# inside a Hive run whose `hive agent help` lists heavy; else directly).
+. "$here/bin/heavy.sh"
+# Engine scripts that run for minutes: hardens, DRC/LVS, timing, SPICE
+# corner and Monte Carlo sweeps, gate-level sim, mutation, optimisation.
+heavy_scripts=" check_harden check_top_harden check_timing check_drc check_lvs
+ check_top_drc check_top_lvs check_analog_drc check_analog_lvs check_pex_sim
+ check_sim_pvt check_mc check_glsim check_mutate mutate_runner check_precheck
+ check_bench_strength estimate_bench_strength corners optimise "
+# Their gates, by name (gates.yaml), for `chip-flow gate --gate <name>`.
+heavy_gates=" harden top_harden timing drc lvs top_drc top_lvs analog_drc
+ analog_lvs pex_sim sim_pvt mc glsim mutate precheck bench_strength "
+heavy_tools=" librelane openroad ngspice ngspice_con magic netgen klayout "
+# is_in WORD LIST: WORD is one of LIST's whitespace-separated words.
+is_in() {
+	for w in $2; do [ "$w" = "$1" ] && return 0; done
+	return 1
+}
+# gate_name ARGS...: the --gate value of a gate.py command line.
+gate_name() {
+	while [ $# -gt 0 ]; do
+		case "$1" in
+		--gate) echo "${2:-}"; return ;;
+		--gate=*) echo "${1#--gate=}"; return ;;
+		esac
+		shift
+	done
+}
+
 case "${1:-}" in
 env)
 	printf "export EDA_TOOLCHAIN='%s'\nexport CHIP_FLOW_HOME='%s'\n" "$EDA_TOOLCHAIN" "$CHIP_FLOW_HOME"
@@ -56,22 +87,29 @@ test)
 	# Upstream's engine suite without its real-tool (slow) tests, under its
 	# own CPU budget; it collects tests/test_workarounds.py, the probes, too.
 	cd "$here"
-	exec bash tests/check-engine.sh
+	heavy_exec "chip-flow test" bash tests/check-engine.sh
 	;;
 check-all)
 	shift
-	exec "$eda" python "$here/bin/check_all.py" "$@"
+	heavy_exec "chip-flow check-all $*" "$eda" python "$here/bin/check_all.py" "$@"
 	;;
 eda)
 	shift
+	if is_in "${1:-}" "$heavy_tools"; then
+		heavy_exec "chip-flow eda $*" "$eda" "$@"
+	fi
 	exec "$eda" "$@"
 	;;
 "" | -h | --help)
-	sed -n '2,21p' "$0" | sed 's/^# \{0,1\}//'
+	sed -n '2,23p' "$0" | sed 's/^# \{0,1\}//'
 	;;
 *)
-	s=$1
+	s=${1%.py}
 	shift
-	exec "$eda" python "$here/engine/scripts/${s%.py}.py" "$@"
+	if is_in "$s" "$heavy_scripts" ||
+		{ [ "$s" = gate ] && is_in "$(gate_name "$@")" "$heavy_gates"; }; then
+		heavy_exec "chip-flow $s $*" "$eda" python "$here/engine/scripts/$s.py" "$@"
+	fi
+	exec "$eda" python "$here/engine/scripts/$s.py" "$@"
 	;;
 esac
