@@ -90,7 +90,7 @@
     "run_tag": "run",
     "resumed": false,
     "wall_s": 72.27,
-    "run_dir": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/top/harden/runs/run",
+    "run_dir": "top/harden/runs/run",
     "metrics": {
       "design__instance__count": 2553,
       "design__instance__area": 99325.8,
@@ -135,7 +135,7 @@
   "record_result": {
     "ok": true,
     "recorded": true,
-    "workspace": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac",
+    "workspace": ".",
     "gate": "top_harden",
     "status": "fail",
     "attempts": 4,

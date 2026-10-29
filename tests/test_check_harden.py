@@ -465,10 +465,13 @@ def test_multi_clock_with_a_design_sdc_reaches_librelane_on_flow_sdc(
                         _fake_run_factory(_failing_flow))
     check_harden.main(["--workspace", str(ws)])
     capsys.readouterr()
-    config = json.loads((ws / "harden" / "config.json").read_text())
-    flow = str(ws / "harden" / "flow.sdc")
-    assert config["PNR_SDC_FILE"] == config["SIGNOFF_SDC_FILE"] == flow
+    text = (ws / "harden" / "config.json").read_text()
+    config = json.loads(text)
+    # by LibreLane's design directory (harden/), never this machine's path
+    assert config["PNR_SDC_FILE"] == config["SIGNOFF_SDC_FILE"] == "dir::flow.sdc"
     assert config["CLOCK_PORT"] == "clk"
+    assert str(tmp_path) not in text
+    assert all(v.startswith("dir::") for v in config["VERILOG_FILES"])
 
 
 def test_design_sdc_edit_stales_harden(tmp_path):

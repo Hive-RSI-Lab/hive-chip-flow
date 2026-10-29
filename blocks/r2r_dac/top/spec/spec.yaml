@@ -90,10 +90,10 @@ macros:
   ua:
     vout: 0
   files:
-    gds: /home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/top/macros/r2r_dac_analog.gds
-    lef: /home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/top/macros/r2r_dac_analog.lef
-    vh: /home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/top/macros/r2r_dac_analog.v
-    spice: /home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/top/macros/r2r_dac_analog.spice
+    gds: macros/r2r_dac_analog.gds
+    lef: macros/r2r_dac_analog.lef
+    vh: macros/r2r_dac_analog.v
+    spice: macros/r2r_dac_analog.spice
   location:
   - 68.32
   - 94.08

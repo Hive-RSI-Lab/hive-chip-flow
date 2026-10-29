@@ -166,8 +166,18 @@ def _config_roots(doc: dict, path: Path) -> list[tuple[str, str]]:
         m = re.match(r"(/.+?)/engine/reference/", v)
         if m:
             roots.append((m.group(1), "${CHIP_FLOW_HOME}"))
-    if isinstance(doc.get("PDK_ROOT"), str) and doc["PDK_ROOT"].startswith("/"):
-        roots.append((doc["PDK_ROOT"].rstrip("/"), "${PDK_ROOT}"))
+    pdk_roots = [doc.get("PDK_ROOT")]
+    # a config check_harden writes now names no PDK_ROOT (it goes on the
+    # command line): the one its runs resolved stands in
+    for resolved in sorted(path.parent.glob("runs/*/resolved.json")):
+        try:
+            pdk_roots.append(json.loads(resolved.read_text(
+                encoding="utf-8")).get("PDK_ROOT"))
+        except (OSError, ValueError, AttributeError):
+            pass
+    for pdk in pdk_roots:
+        if isinstance(pdk, str) and pdk.startswith("/"):
+            roots.append((pdk.rstrip("/"), "${PDK_ROOT}"))
     return sorted(set(roots), key=lambda r: -len(r[0]))
 
 
