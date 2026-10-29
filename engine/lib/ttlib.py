@@ -610,6 +610,8 @@ def generate_glsim_harness(spec: dict, dut_instance: str = "dut",
 # config.json (which check_harden.py rewrites on every run, so a hand edit
 # of config.json itself never reaches LibreLane).
 HARDEN_OVERRIDE_NAME = "config.override.json"
+# the tile's vertical-stripe PDN numbers (tile_pdn)
+_PDN_KEYS = ("PDN_VOFFSET", "PDN_VWIDTH", "PDN_VSPACING", "PDN_VPITCH")
 _TEMPLATE_LOCK_MARKER = "DO NOT CHANGE ANYTHING BELOW THIS POINT"
 # Keys the engine sets itself in harden_config(). CLOCK_PERIOD is the
 # spec's (clock.period_ns) - relaxing it here would pass timing by moving
@@ -624,7 +626,10 @@ _ENGINE_OWNED_KEYS = frozenset({
     "PNR_SDC_FILE", "SIGNOFF_SDC_FILE",
     # macro_config()'s keys: spec.yaml `macros` owns the hard macros.
     "MACROS", "PDN_MACRO_CONNECTIONS", "PDN_CFG", "MAGIC_EXT_USE_GDS",
-    "EXTRA_SPICE_MODELS",
+    "EXTRA_SPICE_MODELS", "PDN_HORIZONTAL_HALO", "PDN_VERTICAL_HALO",
+    "FP_PDN_HORIZONTAL_HALO", "FP_PDN_VERTICAL_HALO",
+    # what check_top_harden places a macro against (tile_power_stripes)
+    *_PDN_KEYS, *(f"FP_{k}" for k in _PDN_KEYS),
 })
 
 
@@ -976,10 +981,65 @@ def harden_config(spec: dict, rtl_files: list[Path], wrapper_path: Path,
     return config
 
 
+# gf180's 7-track standard-cell site width: the core's margins count in it
+SITE_WIDTH_UM = 0.56
+
+
+def tile_pdn(pdk_root: Path) -> dict[str, float]:
+    """The tile's vertical-stripe PDN numbers ({PDN_VOFFSET, PDN_VWIDTH,
+    PDN_VSPACING, PDN_VPITCH} um): the PDK's LibreLane config.tcl
+    (pdk_root is the gf180mcuD directory) under the vendored template's
+    FP_PDN_* overrides, as LibreLane resolves them."""
+    cfg = pdk_root / "libs.tech" / "librelane" / "config.tcl"
+    if not cfg.is_file():
+        raise TTError(f"no PDK LibreLane config at {cfg}")
+    text = cfg.read_text(encoding="utf-8", errors="replace")
+    template = load_template_config()
+    pdn = {}
+    for key in _PDN_KEYS:
+        value = template.get(f"FP_{key}", template.get(key))
+        if value is None:
+            m = re.search(rf"^\s*set\s+::env\({key}\)\s+(\S+)", text,
+                          re.MULTILINE)
+            if m is None:
+                raise TTError(f"{cfg}: no {key}, so the tile's power "
+                              "stripes can't be placed")
+            value = m.group(1)
+        pdn[key] = float(value)
+    return pdn
+
+
+def tile_power_stripes(die_area: str,
+                       pdn: dict[str, float]) -> list[tuple[str, float]]:
+    """The tile's vertical Metal4 PDN stripes, as (VPWR|VGND, centre x um),
+    the way LibreLane's pdn_cfg.tcl lays them out (pdn is tile_pdn's): a
+    VPWR stripe every PDN_VPITCH from the core's left edge (the template's
+    LEFT_MARGIN_MULT sites) plus PDN_VOFFSET, its VGND PDN_VWIDTH +
+    PDN_VSPACING to the right, each while it fits in the core."""
+    template = load_template_config()
+    _x0, _y0, dx, _dy = (float(v) for v in die_area.split())
+    left = float(template.get("LEFT_MARGIN_MULT", 0)) * SITE_WIDTH_UM
+    right = dx - float(template.get("RIGHT_MARGIN_MULT", 0)) * SITE_WIDTH_UM
+    half = pdn["PDN_VWIDTH"] / 2
+    step = pdn["PDN_VWIDTH"] + pdn["PDN_VSPACING"]
+    stripes, x = [], left + pdn["PDN_VOFFSET"]
+    while x + half <= right:
+        stripes.append(("VPWR", round(x, 3)))
+        if x + step + half <= right:
+            stripes.append(("VGND", round(x + step, 3)))
+        x += pdn["PDN_VPITCH"]
+    return stripes
+
+
 # The TT GF180 tile has no Metal5 stripes and an analog macro's power pins
 # are Metal3 straps (docs/spikes/macro_harden.md), so LibreLane's default
 # macro grid (Metal4-Metal5 only) needs one more connection.
 MACRO_PDN_CFG = Path(__file__).resolve().parent / "macro_pdn.tcl"
+# The PDN's halo around a macro (LibreLane's own default, set here so the
+# placement that has to fit it - check_top_harden.supply_reach - and the
+# harden use one number): OpenROAD grows each of the macro's obstructions
+# by it, as well as the layer's spacing, before it cuts the tile's stripes
+MACRO_PDN_HALO_UM = 10.0
 
 
 # The nets that run from an analog macro's pin straight to its ua pad, which
@@ -1011,6 +1071,8 @@ def macro_config(macros: list[dict]) -> dict:
             f"{m['instance']} VPWR VGND {m['power']['vdd']} {m['power']['vss']}"
             for m in macros],
         "PDN_CFG": str(MACRO_PDN_CFG),
+        "PDN_HORIZONTAL_HALO": MACRO_PDN_HALO_UM,
+        "PDN_VERTICAL_HALO": MACRO_PDN_HALO_UM,
         "MAGIC_EXT_USE_GDS": True,
         "EXTRA_SPICE_MODELS": [m["files"]["spice"] for m in macros],
         **({"RSZ_DONT_TOUCH_RX": ANALOG_NET_RX}
