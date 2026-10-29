@@ -113,6 +113,11 @@ artifact_kinds:
   analog_netlist: {path: "analog/netlist", norm: dir_text}
   analog_sizing: {path: "analog/sizing/sizing.yaml", norm: json_canonical}
   top_gds:       {path: "top/harden/runs/run/final/gds", norm: dir_text}
+  # the assembled top's SDC (check_top_harden.top_sdc): the integrator's
+  # own top.sdc when there is one, else the digital side's design SDC with
+  # each crossing port moved onto the macro's pin; both optional
+  top_sdc:       {path: "top.sdc", norm: text_eol}
+  digital_sdc:   {path: "digital/harden/constraints.sdc", norm: text_eol}
 
 # What each gate reads, per skill (docs/design.md 1.5 tables). Every gate a
 # skill's edit_classes name must have an entry here, even a stub's - it is
@@ -182,7 +187,7 @@ gate_inputs:
     split:    [interface]
     # the bench simulates the released RTL and the sized analog netlist
     cosim:    [interface, tb, digital_rtl, analog_netlist, analog_sizing]
-    top_harden: [digital_rtl, analog_layout]
+    top_harden: [digital_rtl, analog_layout, top_sdc, digital_sdc]
     top_drc:  [top_gds]
     top_lvs:  [top_gds, analog_layout]
     precheck: [top_gds, interface]
@@ -298,4 +303,11 @@ edit_classes:
       mutates: [interface]
       stale_artifacts: []
       gates: [split, cosim, top_harden, top_drc, top_lvs, precheck, release]
+      human_hold: 2
+    top_sdc_edit:
+      # the integrator's top.sdc: the top's clocks move, so the top GDS
+      # and everything that reads it re-run
+      mutates: [top_sdc]
+      stale_artifacts: []
+      gates: [top_harden, top_drc, top_lvs, precheck, release]
       human_hold: 2
