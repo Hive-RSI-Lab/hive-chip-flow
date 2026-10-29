@@ -18,10 +18,14 @@ record. A step is clean when:
 
 - that run passed it, or failed it under the block's waiver (release then
   judged that waiver, and is a step of its own);
-- the run still stands: the block's files, engine/ and bin/eda are as
-  they were when it ran (the record's `sources`, a hash of them as git
-  tracks them), so a change to a block or to the gates counts only once
-  check-all has run over it again and its record is committed with it; and
+- the step's run still stands: what that gate read is as it was when it
+  ran (the record's `step_sources`, step_sources' hash per step of the
+  block's files, bin/eda and the engine files the gate's run reads, as
+  git tracks them), so a change to a block or to that gate counts only
+  once check-all has run over it again and its record is committed with
+  it, and an engine change no gate of the block reads leaves its steps
+  standing (a record from before step_sources holds one `sources` hash
+  over the block, all of engine/ and bin/eda); and
 - no row of docs/workarounds.md names it for that block: its input came
   through a shim in bin/ or an edit made by hand in the block's files.
 
