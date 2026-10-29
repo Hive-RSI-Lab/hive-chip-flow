@@ -1,0 +1,7 @@
+{
+  "lock_time_us": {"max": 50},
+  "lock_drops_after_lock": {"max": 0},
+  "fb_period_rel_err": {"max": 0.001},
+  "vco_period_rel_err": {"max": 0.001},
+  "vctrl_pp_last_10us_mv": {"max": 20}
+}

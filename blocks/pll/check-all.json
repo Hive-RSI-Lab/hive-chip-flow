@@ -1,0 +1,31 @@
+{
+ "ran": "2026-10-29T23:27:56Z",
+ "toolchain": "iic-osic-tools-2026.09",
+ "sources": "5015b223e0a811f356f02f2f68f056fed8b6274350a7fb07b0b8caf30db5c956",
+ "steps": {
+  "analog/spec_lint": "pass",
+  "analog/netlist_lint": "pass",
+  "analog/sim_tt": "pass",
+  "analog/sim_pvt": "pass",
+  "analog/bench_strength": "pass",
+  "analog/drc": "pass",
+  "analog/lvs": "pass",
+  "analog/pex_sim": "pass",
+  "digital/spec_lint": "pass",
+  "digital/lint": "pass",
+  "digital/sim": "pass",
+  "digital/holdout": "pass",
+  "digital/mutate": "pass",
+  "digital/formal": "pass",
+  "digital/cover": "pass",
+  "digital/synth": "pass",
+  "digital/harden": "pass",
+  "digital/timing": "fail",
+  "digital/drc": "pass",
+  "digital/lvs": "pass",
+  "digital/glsim": "pass",
+  "digital/precheck": "pass",
+  "top/split": "pass",
+  "top/cosim": "pass"
+ }
+}

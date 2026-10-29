@@ -1,0 +1,160 @@
+* pll_analog.cir - analog half of the charge-pump PLL (P4 netlist).
+* GF180MCU 3.3 V, gf180mcu_fd_pr models only: nfet_03v3 / pfet_03v3
+* (subckt wrappers, so every MOS is an X instance), ppolyf_u (350 ohm/sq
+* typical, 280 ff, 420 ss) and cap_mim_2f0_m4m5_noshield (2 fF/um2, MIM-B between metal4 and metal5, the only MIM gf180mcuD draws; the
+* PDK has no cap_mim_2f0ff in the mimcap_<corner> sections the benches load).
+* Topology and refdes: spec/topology.md. Pins in topology.md's order.
+* Sizing: every W/L/length below is a global .param; sizing/sizing.yaml
+* carries the same values (and their bounds) and the bench's {{SIZING}}
+* line overrides these defaults. W and L are bare names (no braces) so a
+* bench_strength size mutant's "*2" is honoured.
+*
+* Blocks: (1) enable inverter, (2) Vgs/R self-biased reference with startup
+* and standby clamps, (3) trimmed, current-steered charge pump, (4) R1-C1 ||
+* C2 loop filter, (3b) vdump = vctrl rail-to-rail buffer, (5) degenerated V-to-I with floor current and
+* current ceiling, (6) 5-stage
+* current-starved ring, (7) NAND2(r5, pll_en) + inverter output buffer.
+
+* ---- default sizing (overridden by sizing/sizing.yaml via {{SIZING}}) ----
+.param w_bp=4e-06 l_bp=2e-06 w_b1=2e-06 l_b1=2e-06
+.param w_b2=4e-06 l_b2=1e-06 rb_l=0.000366 rbt_l=0.00018 w_cpn=2e-05
+.param l_cpn=2e-06 w_cpp=5e-05 l_cpp=2e-06 w_swn=2e-06
+.param w_swp=4e-06 l_sw=5e-07 r1_l=0.00015 c1_w=0.0001
+.param c2_w=3.2e-05 w_v2i=1e-05 l_v2i=1e-06 rv2i_l=3.5e-05
+.param w_flr=2e-06 l_flr=2e-06 w_v2ip=1e-05 w_v2in=4e-06
+.param l_v2i2=5e-07 w_sp=1e-05 w_sn=4e-06 l_s=5e-07
+.param w_rp=6e-06 w_rn=3e-06 l_r=2.8e-07 w_gp=4e-06
+.param w_gn=4e-06 w_op=1.2e-05 w_on=6e-06
+.param m_buft=4 w_bufp=2e-05 l_bufp=1e-06 w_bufn=1e-05 l_bufn=1e-06
+.param w_bufln=4e-06 w_buflp=8e-06 l_bufl=2e-06
+.param w_cl=4e-05 l_cl=2e-06
+
+.subckt pll_analog vco_out pfd_up pfd_dn pll_en cp_trim0 cp_trim1 vctrl bias_ref vdd vss
+
+* (1) enable inverter: pll_en -> en_b
+XMP_ENI en_b pll_en vdd vdd pfet_03v3 w=2e-6 l=2.8e-7
+XMN_ENI en_b pll_en vss vss nfet_03v3 w=1e-6 l=2.8e-7
+
+* (2) bias: Ib = Vgs(MN_B1) / (RBIAS_TOP + RBIAS_INT || R_ext)
+* The loop node is vref (= Vgs of MN_B1); the pad bias_ref is a tap on the
+* bias resistor, isolated from vref by RBIAS_TOP (63 kOhm). Why: MN_B2's
+* current returns to va through the MP_B2/MP_B1 mirror (a positive loop,
+* gain 1), while the negative loop goes through MN_B1's gate. The admittance
+* into va is gm2 (gm1 Zs - 1) / (1 + gm2 Zs), Zs = impedance at MN_B2's
+* source. With the 5 pF pad straight on vref, |Zs| < 1/gm1 above ~1.6 MHz,
+* va sees a negative conductance and the loop relaxes (period 1.3 us,
+* vref 0.68..1.33 V, startup re-firing each cycle). With the split,
+* Re(Zs) >= RBIAS_TOP at every frequency and gm1 * RBIAS_TOP > 1, so va
+* stays passive for any pad capacitance. Total R (and Ib) is unchanged; an
+* external resistor still only raises Ib, now capped at Vgs / RBIAS_TOP
+* (~2x) even with the pad shorted. RBIAS_TOP was 38.5 kOhm until
+* 09-29, when gm1 * RTOP fell below 1 at ff_125c and vref relaxed at 341 ns. Pad settles with (RTOP || RINT) x Cpad.
+XMP_B2 vbp vbp vdd vdd pfet_03v3 w=w_bp l=l_bp
+XMP_B1 va vbp vdd vdd pfet_03v3 w=w_bp l=l_bp
+XMN_B1 va vref vss vss nfet_03v3 w=w_b1 l=l_b1
+XMN_B2 vbp va vref vss nfet_03v3 w=w_b2 l=l_b2
+XRBIAS_TOP vref bias_ref vss ppolyf_u r_width=1e-6 r_length=rbt_l
+XRBIAS_INT bias_ref vss vss ppolyf_u r_width=1e-6 r_length=rb_l
+* startup: weak pull-up on vst, released once vref rises
+XMP_STL vst en_b vdd vdd pfet_03v3 w=5e-7 l=1e-5
+XMN_STD vst vref vss vss nfet_03v3 w=1e-5 l=1e-6
+XMN_ST vbp vst vss vss nfet_03v3 w=5e-7 l=2e-6
+XMN_STE vst en_b vss vss nfet_03v3 w=1e-6 l=2.8e-7
+* standby clamps
+XMP_ENB vbp pll_en vdd vdd pfet_03v3 w=1e-6 l=2.8e-7
+XMN_ENA va en_b vss vss nfet_03v3 w=1e-6 l=2.8e-7
+XMN_ENB vref en_b vss vss nfet_03v3 w=1e-6 l=2.8e-7
+
+* (3) charge pump: Icp = (4 + t0 + 2 t1 + t0 t1) x Ib
+XMP_T4 vcp_n vbp vdd vdd pfet_03v3 w=w_bp l=l_bp m=4
+XMP_T1A t1a vbp vdd vdd pfet_03v3 w=w_bp l=l_bp m=1
+XMN_SW0 vcp_n cp_trim0 t1a vss nfet_03v3 w=2e-6 l=2.8e-7
+XMP_T2 t2 vbp vdd vdd pfet_03v3 w=w_bp l=l_bp m=2
+XMN_SW1 vcp_n cp_trim1 t2 vss nfet_03v3 w=2e-6 l=2.8e-7
+XMP_T1B t1b vbp vdd vdd pfet_03v3 w=w_bp l=l_bp m=1
+XMN_SW0B t1c cp_trim0 t1b vss nfet_03v3 w=2e-6 l=2.8e-7
+XMN_SW1B vcp_n cp_trim1 t1c vss nfet_03v3 w=2e-6 l=2.8e-7
+XMN_CPREF vcp_n vcp_n vss vss nfet_03v3 w=w_cpn l=l_cpn
+XMN_CPREF2 vcp_p vcp_n vss vss nfet_03v3 w=w_cpn l=l_cpn
+XMP_CPREF vcp_p vcp_p vdd vdd pfet_03v3 w=w_cpp l=l_cpp
+* UP: source, output switch, steering switch, input inverter
+XMP_UPS up_s vcp_p vdd vdd pfet_03v3 w=w_cpp l=l_cpp
+XMP_UP vctrl up_b up_s vdd pfet_03v3 w=w_swp l=l_sw
+XMP_UPD vdump pfd_up up_s vdd pfet_03v3 w=w_swp l=l_sw
+XMP_UPI up_b pfd_up vdd vdd pfet_03v3 w=2e-6 l=2.8e-7
+XMN_UPI up_b pfd_up vss vss nfet_03v3 w=1e-6 l=2.8e-7
+* DN: sink, output switch, steering switch, input inverter
+XMN_DNS dn_s vcp_n vss vss nfet_03v3 w=w_cpn l=l_cpn
+XMN_DN vctrl pfd_dn dn_s vss nfet_03v3 w=w_swn l=l_sw
+XMN_DND vdump dn_b dn_s vss nfet_03v3 w=w_swn l=l_sw
+XMP_DNI dn_b pfd_dn vdd vdd pfet_03v3 w=2e-6 l=2.8e-7
+XMN_DNI dn_b pfd_dn vss vss nfet_03v3 w=1e-6 l=2.8e-7
+* standby clamps
+XMP_ENP vcp_p pll_en vdd vdd pfet_03v3 w=1e-6 l=2.8e-7
+XMN_ENN vcp_n en_b vss vss nfet_03v3 w=1e-6 l=2.8e-7
+
+* (3b) dump-node buffer: rail-to-rail unity-gain OTA, vdump = vctrl
+* PMOS half: tail off vbp (m_buft x Ib), NMOS mirror load
+XMP_BUFT vbt vbp vdd vdd pfet_03v3 w=w_bp l=l_bp m=m_buft
+XMP_BUF1 vbl vctrl vbt vdd pfet_03v3 w=w_bufp l=l_bufp
+XMP_BUF2 vdump vdump vbt vdd pfet_03v3 w=w_bufp l=l_bufp
+XMN_BUFL1 vbl vbl vss vss nfet_03v3 w=w_bufln l=l_bufl
+XMN_BUFL2 vdump vbl vss vss nfet_03v3 w=w_bufln l=l_bufl
+* NMOS half: tail off vref (m_buft x Ib), PMOS mirror load
+XMN_BUFT vnt vref vss vss nfet_03v3 w=w_b1 l=l_b1 m=m_buft
+XMN_BUF1 vbh vctrl vnt vss nfet_03v3 w=w_bufn l=l_bufn
+XMN_BUF2 vdump vdump vnt vss nfet_03v3 w=w_bufn l=l_bufn
+XMP_BUFL1 vbh vbh vdd vdd pfet_03v3 w=w_buflp l=l_bufl
+XMP_BUFL2 vdump vbh vdd vdd pfet_03v3 w=w_buflp l=l_bufl
+
+* (4) loop filter: R1-C1 series, C2 shunt
+XR1 vctrl vfilt vss ppolyf_u r_width=2e-6 r_length=r1_l
+XC1 vfilt vss cap_mim_2f0_m4m5_noshield c_width=c1_w c_length=c1_w
+XC2 vctrl vss cap_mim_2f0_m4m5_noshield c_width=c2_w c_length=c2_w
+
+* (5) VCO control: degenerated V2I + floor current -> vbp_vco / vbn_vco
+* MN_CL (gate vref, a (W/L)cl/(W/L)b1 copy of Ib) sits under R_V2I: in
+* triode it adds ~1-2 kOhm to the degeneration; once the V2I current reaches
+* its copy of Ib it saturates and caps I_ctl - the fmax ceiling at ff/-40 C/3.63 V.
+XMN_V2I vi vctrl vs vss nfet_03v3 w=w_v2i l=l_v2i
+XR_V2I vs vcl vss ppolyf_u r_width=1e-6 r_length=rv2i_l
+XMN_CL vcl vref vss vss nfet_03v3 w=w_cl l=l_cl
+XMN_FLR vi vref vss vss nfet_03v3 w=w_flr l=l_flr
+XMN_ENS vbp_vco pll_en vi vss nfet_03v3 w=1e-5 l=2.8e-7
+XMP_V2I vbp_vco vbp_vco vdd vdd pfet_03v3 w=w_v2ip l=l_v2i2
+XMP_V2IB vbn_vco vbp_vco vdd vdd pfet_03v3 w=w_v2ip l=l_v2i2
+XMN_V2IM vbn_vco vbn_vco vss vss nfet_03v3 w=w_v2in l=l_v2i2
+XMP_ENV vbp_vco pll_en vdd vdd pfet_03v3 w=1e-6 l=2.8e-7
+XMN_ENV vbn_vco en_b vss vss nfet_03v3 w=1e-6 l=2.8e-7
+
+* (6) 5-stage current-starved ring r1 -> r2 -> r3 -> r4 -> r5 -> r1
+XMP_S1 p1 vbp_vco vdd vdd pfet_03v3 w=w_sp l=l_s
+XMP_I1 r1 r5 p1 vdd pfet_03v3 w=w_rp l=l_r
+XMN_I1 r1 r5 n1 vss nfet_03v3 w=w_rn l=l_r
+XMN_S1 n1 vbn_vco vss vss nfet_03v3 w=w_sn l=l_s
+XMP_S2 p2 vbp_vco vdd vdd pfet_03v3 w=w_sp l=l_s
+XMP_I2 r2 r1 p2 vdd pfet_03v3 w=w_rp l=l_r
+XMN_I2 r2 r1 n2 vss nfet_03v3 w=w_rn l=l_r
+XMN_S2 n2 vbn_vco vss vss nfet_03v3 w=w_sn l=l_s
+XMP_S3 p3 vbp_vco vdd vdd pfet_03v3 w=w_sp l=l_s
+XMP_I3 r3 r2 p3 vdd pfet_03v3 w=w_rp l=l_r
+XMN_I3 r3 r2 n3 vss nfet_03v3 w=w_rn l=l_r
+XMN_S3 n3 vbn_vco vss vss nfet_03v3 w=w_sn l=l_s
+XMP_S4 p4 vbp_vco vdd vdd pfet_03v3 w=w_sp l=l_s
+XMP_I4 r4 r3 p4 vdd pfet_03v3 w=w_rp l=l_r
+XMN_I4 r4 r3 n4 vss nfet_03v3 w=w_rn l=l_r
+XMN_S4 n4 vbn_vco vss vss nfet_03v3 w=w_sn l=l_s
+XMP_S5 p5 vbp_vco vdd vdd pfet_03v3 w=w_sp l=l_s
+XMP_I5 r5 r4 p5 vdd pfet_03v3 w=w_rp l=l_r
+XMN_I5 r5 r4 n5 vss nfet_03v3 w=w_rn l=l_r
+XMN_S5 n5 vbn_vco vss vss nfet_03v3 w=w_sn l=l_s
+
+* (7) output buffer: nb = NAND2(r5, pll_en); vco_out = NOT nb
+XMP_G1 nb r5 vdd vdd pfet_03v3 w=w_gp l=2.8e-7
+XMP_G2 nb pll_en vdd vdd pfet_03v3 w=w_gp l=2.8e-7
+XMN_G1 nb r5 ng vss nfet_03v3 w=w_gn l=2.8e-7
+XMN_G2 ng pll_en vss vss nfet_03v3 w=w_gn l=2.8e-7
+XMP_O vco_out nb vdd vdd pfet_03v3 w=w_op l=2.8e-7
+XMN_O vco_out nb vss vss nfet_03v3 w=w_on l=2.8e-7
+
+.ends pll_analog

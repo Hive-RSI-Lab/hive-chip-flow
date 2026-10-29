@@ -1,0 +1,16 @@
+equivalent:
+  - id: 6
+    ruling: "agent ruling under the owner's standing sign-off (2026-10-28 13:18, 'yea just do it all i signoff we can always go back'), 2026-10-29, not the owner's own ruling on this mutant"
+    evidence: "inv on the $logic_not of `if (!rst_n)` at rtl/pll_lock_det.v:51 (the recovery block). yosys proc takes the async reset straight from rst_n into the $adff, so this $logic_not's Y drives nothing: in the mutated netlist its wire is assigned and never read. The full visible suite passes on it, as it must. Unprovable automatically because the design is multiclock."
+  - id: 10
+    ruling: "agent ruling under the owner's standing sign-off (2026-10-28 13:18, 'yea just do it all i signoff we can always go back'), 2026-10-29, not the owner's own ruling on this mutant"
+    evidence: "const0 on input A of $auto$proc_dff.cc:220:proc_dff$120 in pll_divider, a $not of rst_n that proc_dff leaves behind; its Y only feeds the wire ReduceOr$123, which nothing reads (log/mutate/database/design.il). Same multiclock reason."
+  - id: 11
+    ruling: "agent ruling under the owner's standing sign-off (2026-10-28 13:18, 'yea just do it all i signoff we can always go back'), 2026-10-29, not the owner's own ruling on this mutant"
+    evidence: "cnot0 on wd_cnt Q bit 5 controlled by bit 3 (rtl/pll_lock_det.v:33): every reader sees bit 5 flipped while bit 3 is 0. The counter then walks a permuted sequence, but from 0 it still first reads 1023 on the 1024th edge and 127 on the 128th (stepped through in Python), so recovery starts and ends on the same edges. Same multiclock reason."
+  - id: 15
+    ruling: "agent ruling under the owner's standing sign-off (2026-10-28 13:18, 'yea just do it all i signoff we can always go back'), 2026-10-29, not the owner's own ruling on this mutant"
+    evidence: "cnot1 on port A bit 1 of `lock_cnt == K` (rtl/pll_lock_det.v:35), controlled by bit 2: bit 1 flips only when bit 2 is 1, and K = 5'b10000 has bit 2 = 0, so A' == 16 exactly when A == 16 for every 5-bit A. Combinationally equivalent. Same multiclock reason."
+  - id: 17
+    ruling: "agent ruling under the owner's standing sign-off (2026-10-28 13:18, 'yea just do it all i signoff we can always go back'), 2026-10-29, not the owner's own ruling on this mutant"
+    evidence: "const0 on the $logic_not of `if (!rst_n)` at rtl/pll_prescaler.v:32 (stage 0 in simulation). As for id 6, proc takes the reset from rst_n directly; the mutated netlist assigns this wire 1'h0 and never reads it. Same multiclock reason."

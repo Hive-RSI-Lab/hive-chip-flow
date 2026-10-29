@@ -1,0 +1,12 @@
+{
+  "script": "gate",
+  "gate": "harden",
+  "status": "error",
+  "error": "Traceback (most recent call last):\n  File \"engine/scripts/gate.py\", line 487, in main\n    report = run_report_for_gate(\n             ^^^^^^^^^^^^^^^^^^^^\n  File \"engine/scripts/gate.py\", line 152, in run_report_for_gate\n    payload, _out = mod.run([\"--workspace\", str(workspace)])\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"engine/scripts/check_harden.py\", line 134, in run\n    config = ttlib.harden_config(spec, rtl_files, wrapper_path, pdk_root,\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"engine/lib/ttlib.py\", line 792, in harden_config\n    port = clock_port(spec)\n           ^^^^^^^^^^^^^^^^\n  File \"engine/lib/ttlib.py\", line 724, in clock_port\n    raise TTError(f\"clock.domains {domains} names more than one clock; \"\nttlib.TTError: clock.domains ['clk', 'vco_out'] names more than one clock; harden constrains exactly one clock port - keep the one the block's flops run on\n",
+  "remediation": "TTError: clock.domains ['clk', 'vco_out'] names more than one clock; harden constrains exactly one clock port - keep the one the block's flops run on",
+  "stale_mark": {
+    "ok": true,
+    "marked": false,
+    "reason": "no earlier recorded result to distrust"
+  }
+}

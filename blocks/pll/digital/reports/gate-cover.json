@@ -1,0 +1,44 @@
+{
+  "script": "gate",
+  "gate": "cover",
+  "phase": "P4",
+  "tool": "cover",
+  "input_digest": "dir_text:9e181375afa489d426afbb5d8223651b91e0614bd96238458d78aa97270383f1",
+  "status": "pass",
+  "criteria": {
+    "fail_severities": [
+      "error"
+    ],
+    "max_count": 0
+  },
+  "counts": {
+    "total": 0,
+    "by_severity": {},
+    "by_source": {}
+  },
+  "failing_count": 0,
+  "failing": [],
+  "violations": [],
+  "facts": {
+    "top": "ihsan_sa_pll",
+    "line_pct": 100.0,
+    "toggle_pct": 100.0,
+    "line_covered": 103,
+    "line_total": 103,
+    "toggle_covered": 156,
+    "toggle_total": 156
+  },
+  "record_result": {
+    "ok": true,
+    "recorded": true,
+    "workspace": "blocks/pll/digital",
+    "gate": "cover",
+    "status": "pass",
+    "attempts": 2,
+    "inputs": {
+      "rtl": "dir_text:9e181375afa489d426afbb5d8223651b91e0614bd96238458d78aa97270383f1",
+      "tb": "dir_text:052af20e5f8df5b5f2bc6b6fbfedf5cc1eceea14569da45fea5dc52c37413560",
+      "spec_yaml": "json_canonical:c9e51f1f04e643a054e125bd8f1cfe9eea9a124986e0e42fd5eb7f25247fba2c"
+    }
+  }
+}

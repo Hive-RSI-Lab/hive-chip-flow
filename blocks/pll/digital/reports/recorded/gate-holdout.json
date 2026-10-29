@@ -1,0 +1,42 @@
+{
+ "script": "gate",
+ "gate": "holdout",
+ "phase": "P4",
+ "tool": "holdout",
+ "input_digest": "dir_text:d57e8def30c23cb7654bbd9d72b98e3c18d24c5ee8934cf63e6d13031be58a3a",
+ "status": "pass",
+ "criteria": {
+  "fail_severities": [
+   "error"
+  ],
+  "max_count": 0
+ },
+ "counts": {
+  "total": 0,
+  "by_severity": {},
+  "by_source": {}
+ },
+ "failing_count": 0,
+ "failing": [],
+ "violations": [],
+ "facts": {
+  "top": "ihsan_sa_pll",
+  "tests_run": [
+   "test_ctrl_regs_every_cycle",
+   "test_dn_side_wide_drops_lock",
+   "test_live_nsel_changes",
+   "test_midrun_reset_pulse",
+   "test_obs_sel_live_fast_vco",
+   "test_pfd_extreme_offsets",
+   "test_wide_on_fifteenth_clean_cycle"
+  ],
+  "tests_passed": 7
+ },
+ "inputs_at_start": {
+  "rtl": "dir_text:d57e8def30c23cb7654bbd9d72b98e3c18d24c5ee8934cf63e6d13031be58a3a",
+  "holdout": "dir_text:e180d6ee35f64921871848b7e7839e06d7f784a5128865b80cd657984d773b16",
+  "spec_yaml_sans_formal": "json_canonical_sans_formal:0d4f4df02ec4e9e126b142d27d8677203998d22be647a17a60f3717dd16355e7"
+ },
+ "recorded_ts": "2026-10-29T11:00:07",
+ "attempts": 11
+}

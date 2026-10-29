@@ -1,0 +1,189 @@
+{
+ "script": "gate",
+ "gate": "sim_tt",
+ "phase": "P4",
+ "tool": "sim_tt",
+ "input_digest": "dir_text:c20767143e29ce734d55b7e2a8cacb836b60b62cefe973cc06edc21007841f07",
+ "status": "pass",
+ "criteria": {
+  "fail_severities": [
+   "error"
+  ],
+  "max_count": 0
+ },
+ "counts": {
+  "total": 0,
+  "by_severity": {},
+  "by_source": {}
+ },
+ "failing_count": 0,
+ "failing": [],
+ "violations": [],
+ "facts": {
+  "top": "pll_analog",
+  "corners": [
+   "tt"
+  ],
+  "results": [
+   {
+    "bench": "pll_analog_cp_tb.cir",
+    "corner": "tt",
+    "names": [
+     "tt",
+     "tt_27c"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": 27,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "icp_up_code00_ua": 19.0145,
+     "icp_dn_code00_ua": 18.6602,
+     "icp_up_code00_tt_ua": 19.0145,
+     "icp_up_code01_ua": 23.6748,
+     "icp_up_code10_ua": 28.3222,
+     "icp_up_code11_ua": 37.5873,
+     "icp_code11_over_code00_ratio": 1.97677,
+     "cp_updn_mismatch_pct": 4.97552,
+     "vctrl_leak_off_na": 0.00276435
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_cp_tb__tt.cir"
+   },
+   {
+    "bench": "pll_analog_ol_tb.cir",
+    "corner": "tt",
+    "names": [
+     "tt",
+     "tt_27c"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": 27,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "ol_pm_pn16_nopad_pvt_deg": 49.5144,
+     "ol_pm_pn16_nopad_deg": 49.5144,
+     "ol_pm_pn16_pad5p_deg": 33.8996,
+     "ol_fc_pn16_nopad_khz": 479.973,
+     "ol_pm_pn8_nopad_deg": 55.296,
+     "ol_pm_pn40_nopad_deg": 35.937
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_ol_tb__tt.cir"
+   },
+   {
+    "bench": "pll_analog_overlap_tb.cir",
+    "corner": "tt",
+    "names": [
+     "tt",
+     "tt_27c"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": 27,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "cp_overlap_net_charge_fc": 2.38237
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_overlap_tb__tt.cir"
+   },
+   {
+    "bench": "pll_analog_pwr_tb.cir",
+    "corner": "tt",
+    "names": [
+     "tt",
+     "tt_27c"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": 27,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "standby_current_ua": 0.00012758,
+     "vco_out_off_toggles": 0.0
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_pwr_tb__tt.cir"
+   },
+   {
+    "bench": "pll_analog_startup_tb.cir",
+    "corner": "tt",
+    "names": [
+     "tt",
+     "tt_27c"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": 27,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "startup_time_us": 0.670512
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_startup_tb__tt.cir"
+   },
+   {
+    "bench": "pll_analog_vco_tb.cir",
+    "corner": "tt",
+    "names": [
+     "tt",
+     "tt_27c"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": 27,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "vco_kvco_mhz_per_v": 91.9244,
+     "vco_df_dv_min_mhz_per_v": 14.1399,
+     "vco_fmin_tt_mhz": 9.55305,
+     "vco_fmax_tt_mhz": 257.749,
+     "vco_out_swing_pct_vdd": 100.452,
+     "vco_out_duty_pct": 53.9346,
+     "vco_fmax_ff_mhz": 260.525,
+     "vco_out_tr_ns": 0.05168,
+     "vco_out_tf_ns": 0.04836
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_vco_tb__tt.cir"
+   }
+  ],
+  "not_scored": [
+   {
+    "bench": "pll_analog_presc_tb.cir",
+    "corner": "tt",
+    "reason": "no bound in the sidecar is scored at this corner"
+   }
+  ],
+  "out_of_scope": [
+   {
+    "bench": "pll_analog_presc_tb.cir",
+    "scored_at": [
+     "ff_m40c_vp10"
+    ]
+   }
+  ]
+ },
+ "inputs_at_start": {
+  "netlist": "dir_text:c20767143e29ce734d55b7e2a8cacb836b60b62cefe973cc06edc21007841f07",
+  "tb": "dir_text:efd9799144260e352d6f69a25effecc4fd0b59bbd586e63c75169b804a3bc56d",
+  "spec_yaml": "json_canonical:d716cf6b0d1929fc3a2f9bda14a0e67b244264ae581dca2e8ce465dd41dbf6da",
+  "sizing": "json_canonical:429052419ccf2b75a4fc2ec239291b317f44114890a6ed0e84d86b36d91e5c78"
+ },
+ "recorded_ts": "2026-10-28T18:30:58",
+ "attempts": 13
+}

@@ -1,0 +1,38 @@
+{
+ "script": "gate",
+ "gate": "cover",
+ "phase": "P4",
+ "tool": "cover",
+ "input_digest": "dir_text:d57e8def30c23cb7654bbd9d72b98e3c18d24c5ee8934cf63e6d13031be58a3a",
+ "status": "pass",
+ "criteria": {
+  "fail_severities": [
+   "error"
+  ],
+  "max_count": 0
+ },
+ "counts": {
+  "total": 0,
+  "by_severity": {},
+  "by_source": {}
+ },
+ "failing_count": 0,
+ "failing": [],
+ "violations": [],
+ "facts": {
+  "top": "ihsan_sa_pll",
+  "line_pct": 100.0,
+  "toggle_pct": 100.0,
+  "line_covered": 127,
+  "line_total": 127,
+  "toggle_covered": 192,
+  "toggle_total": 192
+ },
+ "inputs_at_start": {
+  "rtl": "dir_text:d57e8def30c23cb7654bbd9d72b98e3c18d24c5ee8934cf63e6d13031be58a3a",
+  "tb": "dir_text:022a1f658f4693c973114db21c0e45003fd9d8abcbfad44a47e01cbeaa60b0fe",
+  "spec_yaml": "json_canonical:a757fc1c7b8e08b8cc83ae92b67008c4729da5fc5bf5b77958a34aab450daf36"
+ },
+ "recorded_ts": "2026-10-29T11:00:23",
+ "attempts": 13
+}

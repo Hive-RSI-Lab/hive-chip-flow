@@ -1,0 +1,6 @@
+{
+  "top": "pll_cosim_top",
+  "bounds": "pll_cosim.bounds.json",
+  "analog_netlist": "pll_analog_tr.sp",
+  "analog_kind": "transistor"
+}

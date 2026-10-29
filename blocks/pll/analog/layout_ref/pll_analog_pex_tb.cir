@@ -1,0 +1,155 @@
+* pll_analog_pex_tb.cir - the post-layout bench for pll_analog, typical
+* corner, 27 C, vdd = 3.3 V (pex_sim runs typical only). It runs on the
+* magic-extracted, parasitic-annotated netlist of this run's own GDS;
+* check_pex_sim.py fills in the pdk and extracted tokens through
+* str.format(), so this file carries no other curly brace at all.
+* Written from spec/ only (post_layout_bounds), before any layout exists.
+*
+* Measures (spec.yaml post_layout_bounds, same bounds as pre-layout):
+*  - icp_up_code00_ua, icp_dn_code00_ua: the pump's UP source / DN sink
+*    current, code 00, vctrl forced at vdd/2 (spec.md's definition, the
+*    same operating point as tb/pll_analog_cp_tb.cir). The layout moves
+*    these through wire resistance in the mirror sources, the steering
+*    switches and the vdd/vss rails (degeneration, IR drop on the Vgs/R
+*    bias). i(vvc) is the current the pump pushes INTO vctrl: UP = +i,
+*    DN = -i.
+*  - vco_kvco_mhz_per_v: the mean df/dv over the tuning range,
+*    (f(vdd-0.3) - f(0.3)) / (vdd-0.6), spec.md's definition. This is the
+*    measure parasitics move most: every fF of wire on the ring nodes
+*    r1..r5, the NAND input and the starve rails slows the ring, mostly at
+*    the fast end, so the extracted Kvco falls below the schematic's.
+*
+* Conditions: pll_en = 1, cp_trim = 00, bias_ref floating (internal
+* default), vco_out into 15 fF, pump inputs low for the VCO runs.
+*
+* START-UP KICK, through a pin only: the pre-layout benches kick ring node
+* r1 directly, but that is a net internal to the cell, and the extracted
+* netlist keeps it only if the layout labels it - a kick into an unlabelled
+* node would silently hit a dangling node and the ring could sit on its DC
+* balance point. Here vkick, a 0.3 V, 2 ns pulse in series with the vctrl
+* source at t = 1 ns (zero at the operating point, so the op and the pump
+* currents are untouched), steps the starve current; the ring nodes, loaded
+* unequally (r5 also drives the NAND), leave the balance point. A ring whose
+* DC point is stable still decays and stalls.
+*
+* Both frequency runs start from the operating point at vctrl = 3.0 V,
+* where the ring's small-signal gain is high and the kick grows to full
+* swing within ~10 ns. At vctrl = 0.3 V it would take ~300 ns (pre-layout),
+* and a large fast vctrl step instead couples through the V2I node into the
+* bias (vref), which then takes ~1 us to recover and moves the period by
+* up to 15 %. So the slow-end run ramps vctrl from 3.0 V to 0.3 V slowly
+* (vramp, in series, 100 ns ramp from 20 ns; it is zero at the op and in
+* the fast run) with the ring already running at full swing.
+*
+* Frequency: f = (n-1) / (t(rise n) - t(rise 1)) over the rising vdd/2
+* crossings of vco_out after the settle time, n capped. Fewer than 2 rises:
+* f = 0, a stalled ring, printed as a real value so Kvco fails its bound,
+* never skipped.
+*   fast end (vctrl = 3.0 V, ~258 MHz pre-layout): 20 ps max step, 45 ns,
+*     rises after 10 ns, up to 8 periods - the bias answers the ring's own
+*     start with a damped ~25 ns period wobble of about +-2 %, which 8
+*     periods average out.
+*   slow end (vctrl = 0.3 V, ~9.2 MHz pre-layout): 250 ps max step,
+*     650 ns, rises after 200 ns (80 ns after the ramp ends), up to 3
+*     periods.
+* vco_fmax_tt_mhz is f at vctrl = vdd - 0.3 V (= vco_f_hi_mhz), the
+* pre-layout measure of the same name, bounded post-layout too: wire
+* capacitance on the ring slows the top of the range, and the 200 MHz lock
+* point lives there. vco_f_lo_mhz is printed for the layout-fixer, unbounded.
+.include '{pdk}/libs.tech/ngspice/design.spice'
+.lib '{pdk}/libs.tech/ngspice/sm141064.spice' typical
+.lib '{pdk}/libs.tech/ngspice/sm141064.spice' res_typical
+.lib '{pdk}/libs.tech/ngspice/sm141064.spice' mimcap_typical
+.include '{extracted}'
+
+.temp 27
+vdd_src  vdd      0 dc 3.3
+vss_src  vss      0 dc 0
+ven      pll_en   0 dc 3.3
+vup      pfd_up   0 dc 0
+vdn      pfd_dn   0 dc 0
+vt0      cp_trim0 0 dc 0
+vt1      cp_trim1 0 dc 0
+vvc      vctrl    vk dc 1.65
+vkick    vk       vr dc 0 pulse(0 0.3 1n 100p 100p 2n 1)
+vramp    vr       0 dc 0 pulse(0 0 20n 100n 100n 1 1)
+cload    vco_out  0 15f
+xdut vco_out pfd_up pfd_dn pll_en cp_trim0 cp_trim1 vctrl bias_ref vdd vss pll_analog
+
+.control
+set noaskquit
+* --- pump currents, code 00, vctrl = vdd/2
+alter vup dc = 3.3
+op
+let x = i(vvc)*1e6
+set iup = "$&x"
+alter vup dc = 0
+alter vdn dc = 3.3
+op
+let x = -i(vvc)*1e6
+set idn = "$&x"
+alter vdn dc = 0
+* --- VCO frequency at the two ends of the tuning range
+setplot new
+set rp = $curplot
+let fhi = 0
+let flo = 0
+alter vvc dc = 3.0
+foreach pt 0 1
+  if $pt eq 0
+    set tsx = "20p"
+    set tex = "45n"
+    set tdx = "10n"
+    set nmx = "9"
+  else
+    alter @vramp[pulse] = [ 0 -2.7 20n 100n 100n 1 1 ]
+    set tsx = "250p"
+    set tex = "650n"
+    set tdx = "200n"
+    set nmx = "4"
+  end
+  tran $tsx $tex 0 $tsx
+  set tp = $curplot
+  let nx = length(time)
+  let nx1 = nx - 1
+  let nx2 = nx - 2
+  let hv = (v(vco_out) gt 1.65)
+  let late = time[1,$&nx1] gt $tdx
+  let nrise = mean(((hv[1,$&nx1] - hv[0,$&nx2]) gt 0.5) and late)*length(late)
+  let fk = 0
+  let nmax = $nmx
+  if nrise ge 2
+    let nr = nrise
+    if nr gt nmax
+      let nr = nmax
+    end
+    meas tran tra when v(vco_out)=1.65 rise=1 td=$tdx
+    meas tran trb when v(vco_out)=1.65 rise=$&nr td=$tdx
+    let fk = (nr - 1)/(trb - tra)
+  end
+  set fks = "$&fk"
+  setplot $rp
+  if $pt eq 0
+    let fhi = $fks
+  else
+    let flo = $fks
+  end
+  destroy $tp
+end
+let kv = (fhi - flo)/2.7/1e6
+let fhm = fhi/1e6
+let flm = flo/1e6
+set kvs = "$&kv"
+set fhs = "$&fhm"
+set fls = "$&flm"
+echo
+echo "  Measurements (pll_analog_pex_tb, computed in .control)"
+echo "icp_up_code00_ua = $iup"
+echo "icp_dn_code00_ua = $idn"
+echo "vco_kvco_mhz_per_v = $kvs"
+echo "vco_f_hi_mhz = $fhs"
+echo "vco_fmax_tt_mhz = $fhs"
+echo "vco_f_lo_mhz = $fls"
+echo
+.endc
+.end

@@ -1,0 +1,20 @@
+[
+  {"measure": "icp_up_code00_ua", "sensitivity": 0.02, "min": 12.0, "max": 30.0, "severity": "error",
+   "msg": "UP source current, code 00, vctrl = vdd/2 (20 uA nominal; window widened to PVT + R/T skew, spec rev H1)"},
+  {"measure": "icp_dn_code00_ua", "sensitivity": 0.02, "min": 12.0, "max": 30.0, "severity": "error",
+   "msg": "DN sink current, code 00, vctrl = vdd/2"},
+  {"measure": "icp_up_code00_tt_ua", "min": 18.0, "max": 22.0, "severity": "error",
+   "corners": ["tt_27c"], "msg": "code 00 nominal check, 20 uA +-10 %"},
+  {"measure": "icp_up_code01_ua", "sensitivity": 0.02, "min": 15.0, "max": 37.5, "severity": "error",
+   "msg": "code 01, 25 uA nominal; 15 .. 37.5 uA over PVT + skew (spec rev H1)"},
+  {"measure": "icp_up_code10_ua", "sensitivity": 0.02, "min": 18.0, "max": 45.0, "severity": "error",
+   "msg": "code 10, 30 uA nominal; 18 .. 45 uA over PVT + skew (spec rev H1)"},
+  {"measure": "icp_up_code11_ua", "sensitivity": 0.02, "min": 24.0, "max": 60.0, "severity": "error",
+   "msg": "code 11, 40 uA nominal; 24 .. 60 uA over PVT + skew (spec rev H1)"},
+  {"measure": "icp_code11_over_code00_ratio", "sensitivity": 0.02, "min": 1.8, "max": 2.2, "severity": "error",
+   "msg": "the trim codes reach 2x"},
+  {"measure": "cp_updn_mismatch_pct", "sensitivity": 0.02, "max": 10.0, "severity": "error",
+   "msg": "max 100*|Iup-Idn|/Icp over vctrl 0.3 .. vdd-0.3 V, code 00"},
+  {"measure": "vctrl_leak_off_na", "max": 1.0, "severity": "error",
+   "msg": "max |I(vctrl)| with both inputs low over the tuning range"}
+]

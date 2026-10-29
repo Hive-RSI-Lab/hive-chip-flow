@@ -1,0 +1,208 @@
+# spec.yaml - PLL digital side (Tiny Tapeout GF180 analog tile top).
+# Crossing signals, names, widths and standalone TT pins are copied field
+# for field from ../../interface.yaml and ../../digital_spec.yaml; a change
+# to any of them goes back through the msde split step, not this file.
+top: ihsan_sa_pll
+
+requirements:
+  # --- prescaler / divider / observation -----------------------------------
+  - id: REQ-PRE-DIV8
+    text: clk_pre rises exactly once per 8 rising edges of vco_out (three ripple toggle flops, /8 exactly, at any vco_out period down to 2.7 ns).
+    check: both
+    property: prescaler_div8
+  - id: REQ-OBS-SEL
+    text: obs_out (uo_out[0]) equals clk_pre (vco_out/8) when obs_sel (ui_in[7]) is 0 and equals a fourth toggle flop output at exactly vco_out/16 when obs_sel is 1.
+    check: sim
+  - id: REQ-DIV-N
+    text: For every legal code n_sel in 1..5, clk_fb has exactly one rising edge per N = n_sel rising edges of clk_pre, so clk_fb = vco_out/(8*N); N = 1 passes clk_pre through unchanged.
+    check: both
+    property: divider_ratio
+  - id: REQ-DIV-ILLEGAL
+    text: Unsupported codes n_sel = 0, 6 and 7 are treated as N = 1 (clk_fb = clk_pre), never as a stalled or undefined divider.
+    check: sim
+  - id: REQ-DIV-RESET-CLEAN
+    text: With vco_out already running when rst_n is released, the prescaler and divider start cleanly - the first full clk_fb period after release is exactly 8*N vco_out periods and no clk_pre, clk_fb or obs_out pulse shorter than one vco_out period appears.
+    check: sim
+  # --- PFD ------------------------------------------------------------------
+  - id: REQ-PFD-UP-LEAD
+    text: When a clk rising edge leads the next clk_fb rising edge by dt, pfd_up is high from the clk edge until the clk_fb edge (pulse width tracks dt, checked at at least three dt values) and pfd_dn shows only the reset-width pulse.
+    check: sim
+  - id: REQ-PFD-DN-LEAD
+    text: When a clk_fb rising edge leads the next clk rising edge by dt, pfd_dn is high from the clk_fb edge until the clk edge (pulse width tracks dt, checked at at least three dt values) and pfd_up shows only the reset-width pulse.
+    check: sim
+  - id: REQ-PFD-FREQ
+    text: With clk_fb slower than clk the total pfd_up high time over 20 reference cycles exceeds the total pfd_dn high time (net UP); with clk_fb faster than clk the total pfd_dn high time exceeds the total pfd_up high time (net DN).
+    check: sim
+  - id: REQ-PFD-RESET
+    text: Outside a recovery (REQ-RECOVER), whenever pfd_up and pfd_dn are both high the PFD reset fires and both are cleared before the next active edge of either clock; the reset event is observed (covered) in simulation, its width is a cosim measure owned by msde.
+    check: both
+    property: pfd_reset_on_both
+  - id: REQ-PFD-NO-OVERLAP
+    text: pfd_up and pfd_dn are never both high at any sample point beyond the reset delay - in zero-delay RTL they are never simultaneously high at a clock sample.
+    check: formal
+    property: pfd_never_both_high
+  - id: REQ-PFD-DELAY-KEEP
+    text: The PFD reset delay chain cells carry keep attributes and survive synthesis - the synthesised netlist contains at least 2 kept delay cells on the PFD reset path.
+    check: measure
+    bounds: {kept_pfd_delay_cells: {min: 2}}
+  # --- lock detector --------------------------------------------------------
+  - id: REQ-LOCK-ASSERT
+    text: lock asserts after K = 16 consecutive reference cycles in which neither pfd_up nor pfd_dn was still high at the falling edge of clk following the reference rising edge (wide-pulse threshold = half a reference period), and not before the 16th such cycle.
+    check: sim
+  - id: REQ-LOCK-DEASSERT
+    text: A single reference cycle in which pfd_up or pfd_dn is still high at the falling edge of clk drops lock on the next reference edge and restarts the K = 16 count.
+    check: sim
+  - id: REQ-LOCK-NO-WIDE
+    text: lock is never asserted in a reference cycle in which a wide pfd_up or pfd_dn pulse (still high at the falling edge of clk) was observed in that cycle or any of the previous 15.
+    check: formal
+    property: lock_not_while_wide
+  # --- runaway recovery ----------------------------------------------------
+  - id: REQ-RECOVER
+    text: With pll_en high and lock low at W = 1024 consecutive reference rising edges, a recovery starts on the 1024th; it holds pfd_up at 0 and pfd_dn at 1 for exactly M = 128 reference periods, then ends and the count restarts from 0. pll_en low or lock high at a reference rising edge clears the count and ends a recovery in progress. (A VCO driven past what the prescaler divides makes clk_fb look slow, so the PFD alone would hold Vctrl at the rail; the forced DN pulls it to ground and the loop acquires again from below.)
+    check: sim
+  - id: REQ-RECOVER-OUT
+    text: While a recovery is in progress pfd_up is 0 and pfd_dn is 1. (A sim check, not formal - a recovery starts 1024 reference cycles after reset, far past any formal depth, so an assertion on it would be vacuous.)
+    check: sim
+  # --- control registers, reset, tile tie-offs ------------------------------
+  - id: REQ-CTRL-REG
+    text: pll_en, cp_trim0 and cp_trim1 equal pll_en_in (ui_in[6]) and cp_trim_in[1:0] (uio_in[1:0]) sampled on the rising edge of clk, one clk cycle after the input changes, and hold their value between changes.
+    check: sim
+  - id: REQ-RST-ASYNC
+    text: rst_n low asynchronously (without any clock edge) forces pfd_up, pfd_dn, lock, clk_fb, obs_out, pll_en, cp_trim0 and cp_trim1 to 0 and every internal register to its reset value, on all clock domains.
+    check: formal
+    property: reset_forces_outputs
+  - id: REQ-TT-TIEOFF
+    text: In the tt_um_ihsan_sa_pll tile, uio_oe = 8'h00 and uio_out = 8'h00 at all times, and ui_in[5:4] and uio_in[7:2] have no effect on any output.
+    check: sim
+  - id: REQ-NO-UA
+    text: The digital side has no port, wire or logic named vctrl or bias_ref and never drives or reads ua[*]; ua[0]/ua[1] belong to the analog macro alone.
+    check: sim
+  # --- closed-loop behaviour with the `ifdef SIM real-number model ---------
+  - id: REQ-LOOP-LOCK
+    text: With the bench-only real-number model of pump, filter and VCO (Icp 20 uA, C1 20 pF, R 22 kOhm, C2 2 pF, Kvco 100 MHz/V, 50-200 MHz typical, 333 MHz fast) closing the loop, lock rises within 50 us at every (f_ref, N) point of the lock table - (5 MHz, N=2..5), (6.25 MHz, N=1..4), (10 MHz, N=1,2), (12.5 MHz, N=1,2).
+    check: measure
+    bounds: {lock_time_us: {max: 50}}
+  - id: REQ-LOOP-FREQ
+    text: At every lock-table point, after lock, the mean clk_fb period equals the reference period and the modelled VCO period equals the reference period / (8*N), each within 0.1 percent relative error.
+    check: measure
+    bounds: {fb_period_rel_err: {max: 0.001}, vco_period_rel_err: {max: 0.001}}
+  - id: REQ-LOOP-VCTRL
+    text: At every lock-table point the modelled Vctrl settles - its peak-to-peak variation over the last 10 us of the run is at most 20 mV.
+    check: measure
+    bounds: {vctrl_pp_last_10us_mv: {max: 20}}
+  - id: REQ-LOOP-RELOCK
+    text: After a change of N between two lock-table points at the same f_ref, lock drops and rises again within 50 us of the change.
+    check: measure
+    bounds: {relock_time_us: {max: 50}}
+  - id: REQ-LOOP-MODEL-BENCH-ONLY
+    text: The real-number loop model exists only under ifdef SIM - the synthesised netlist contains no real-valued or model logic and every synthesised cell is a gf180mcu_fd_sc_mcu7t5v0 standard cell.
+    check: measure
+    bounds: {non_std_cells_in_netlist: {max: 0}}
+  # --- bench strength -------------------------------------------------------
+  - id: REQ-MUT-KILL
+    text: The bench kills all four named mutants - swapped UP/DN, missing PFD reset, divider off by one, prescaler /4 - with a kill rate of 100 percent on that set.
+    check: measure
+    bounds: {named_mutant_kill_rate: {min: 1.0}}
+  # --- timing and harden ----------------------------------------------------
+  - id: REQ-TIM-PRE
+    text: The generated clock clk_pre (vco_out/8) constrained at 50 MHz (20 ns) is met by the divider, the PFD feedback flop and the /16 flop with non-negative worst slack at the tt corner.
+    check: measure
+    bounds: {clk_pre_wns_ns: {min: 0}}
+  - id: REQ-TIM-REF
+    text: The reference domain clk constrained at 12.5 MHz (80 ns) is met by the PFD reference flop, the lock detector and the control registers with non-negative worst slack.
+    check: measure
+    bounds: {clk_wns_ns: {min: 0}}
+  - id: REQ-TIM-VCO
+    text: The three prescaler flops clocked by vco_out meet the Liberty minimum period (0.93 ns ff, 1.71 ns tt) and minimum pulse width at a 2.7 ns vco_out period (370 MHz, the analog spec's vco_fmax_ff_mhz ceiling at every corner) - each flop's toggle loop is under the 2.7 ns period at both corners. At ss (ss_125C_3v00) no library flop toggles at 2.7 ns, so there the first stage's toggle loop (clock-to-Q, inverter, setup, without the SDC's 0.25 ns uncertainty) is held to 3.65 ns (274 MHz), what the hand-placed dffrnq_2 + inv_1 reaches after routing. Evidence for that bound is tb/prescaler_margin.py on the ss_pff calibration. Acquiring from Vctrl = 0, every lock-table point locks with a stage of up to 3.65 ns, and the 5 MHz x 5 point (peak about 283 MHz) stops locking from 3.68 ns, so that point has no margin on the pre-layout netlist. REQ-RECOVER covers a VCO above the stage.
+    check: measure
+    bounds: {vco_out_period_ns: {min: 2.7}, prescaler_min_period_ns_tt: {max: 1.71}, prescaler_min_period_ns_ff: {max: 0.93}}
+  - id: REQ-HARDEN-STANDALONE
+    text: The digital side hardens alone as tt_um_ihsan_sa_pll on the TT GF180 analog-tile footprint with the pin map in tt_pins, with zero DRC errors and zero LVS mismatches; the analog macro area is reserved later by the msde integrator, not by this run.
+    check: measure
+    bounds: {drc_errors: {max: 0}, lvs_mismatches: {max: 0}}
+
+# Ports of the digital core. Crossing-signal names/widths are verbatim from
+# interface.yaml (a2d -> input, d2a -> output). The architect (P2) refines.
+ports:
+  clk:        {dir: input,  width: 1}
+  rst_n:      {dir: input,  width: 1}
+  n_sel:      {dir: input,  width: 3}
+  vco_out:    {dir: input,  width: 1}
+  pll_en_in:  {dir: input,  width: 1}
+  obs_sel:    {dir: input,  width: 1}
+  cp_trim_in: {dir: input,  width: 2}
+  obs_out:    {dir: output, width: 1}
+  clk_fb:     {dir: output, width: 1}
+  lock:       {dir: output, width: 1}
+  pfd_up:     {dir: output, width: 1}
+  pfd_dn:     {dir: output, width: 1}
+  pll_en:     {dir: output, width: 1}
+  cp_trim0:   {dir: output, width: 1}
+  cp_trim1:   {dir: output, width: 1}
+
+# Standalone-harden pin map (brief "Crossing signals" table + final-tile pin
+# map). ui_in[5:4], uio_in[7:2] spare; uio_oe/uio_out all 0 (no uio_out
+# port). uo_out[7:5] carry the crossing outputs only in the standalone
+# harden; the msde integrator strips those entries and binds them to the
+# pll_analog macro.
+tt_pins:
+  clk:        clk
+  rst_n:      rst_n
+  n_sel:      ui_in[2:0]
+  vco_out:    ui_in[3]
+  pll_en_in:  ui_in[6]
+  obs_sel:    ui_in[7]
+  cp_trim_in: uio_in[1:0]
+  obs_out:    uo_out[0]
+  clk_fb:     uo_out[1]
+  lock:       uo_out[2]
+  pfd_up:     uo_out[3]
+  pfd_dn:     uo_out[4]
+  pll_en:     uo_out[5]
+  cp_trim0:   uo_out[6]
+  cp_trim1:   uo_out[7]
+
+# Primary clock is the reference (12.5 MHz worst case). vco_out is the second
+# port clock (prescaler flops only). clk_pre and clk_fb are internal
+# generated clocks - see timing_notes for the architect / SDC.
+clock:
+  period_ns: 80
+  domains: [clk, vco_out]
+  primary: clk
+
+timing_notes:
+  clk:     {period_ns: 80,  note: "reference, 5-12.5 MHz, constrained at 12.5 MHz"}
+  vco_out: {period_ns: 2.7, note: "prescaler flops only; check Liberty min period 0.93 ns ff / 1.71 ns tt and min pulse width, not setup paths; at ss the first toggle loop is held to 3.65 ns, not 2.7 (REQ-TIM-VCO)"}
+  clk_pre: {period_ns: 20,  note: "generated clock vco_out/8, constrained at 50 MHz; clocks divider, PFD feedback flop, /16 flop"}
+  clk_fb:  {period_ns: 20,  note: "clk_pre/N, <= 46 MHz; PFD feedback flop clock; gated clock clk_pre AND fb_en (fb_en changes only while clk_pre is low)"}
+  sdc:     {note: "harden's CLOCK_PORT/CLOCK_PERIOD cover clk only; vco_out (create_clock 2.7 ns on the port), clk_pre and clk_fb (create_generated_clock -divide_by 8 / 8*N from vco_out) and the clk<->clk_pre/clk_fb false paths (PFD reset AND, lock sampler) go in harden/constraints.sdc, written against the flat netlist names"}
+
+design_choices:
+  illegal_n_codes: "codes 0, 6, 7 decode as N = 1 (no hidden state, divider never stalls)"
+  lock_k_cycles: 16
+  lock_wide_threshold: "pulse still high at the falling edge of clk after the reference rising edge (half a reference period)"
+  lock_deassert: "one wide pulse drops lock on the next reference edge"
+  recover_w_cycles: 1024
+  recover_m_cycles: 128
+  recover_why: "W x T_ref is 82 us at 12.5 MHz, past the 50 us lock-time bound, so a loop that is acquiring is never cut short; 128 periods of DN (10 us at 12.5 MHz) take Vctrl from the rail to ground at the weakest pump current (13.6 uA into 22 pF is 5.3 us)"
+
+# Instance names of the two hand-instantiated PFD reset delay cells inside
+# u_pfd (flattened: u_pfd.pfd_dly0, u_pfd.pfd_dly1), the port clock buffers
+# and the prescaler's hand-instantiated first stage (u_pre.u_pre_ff0/inv0)
+# with the buffer that clocks stage 1 (u_pre.u_pre_ckbuf0). Everything else in the
+# design reaches a port and cannot be pruned as unused. See spec.md
+# "## Architecture" for the module and instance naming.
+must_keep: [pfd_dly0, pfd_dly1, u_clk_fb_obuf, u_obs_obuf, u_pre_ff0, u_pre_inv0, u_pre_ckbuf0]
+
+# Formal depths (P3 property-writer): prove depth covers the 16-cycle lock
+# history window; cover_depth reaches lock (16 ref cycles) and an N=5 clk_fb
+# period (40 vco_out periods) with each clock edge taking >= 2 steps.
+formal:
+  depth: 20
+  cover_depth: 300
+  timeout_s: 7200
+  async_reset_cuts:
+    - signal: dut.u_pfd.pfd_ref_q
+      why: "Approved by a delegate on the person's redirect (Slack ts 1791072039.428359), not the person's own ruling. Classic tri-state PFD: AND(up,dn) through two delay cells clears pfd_ref_q and pfd_fb_q asynchronously, a loop sby cannot model. Cut in the formal model only, RTL unchanged. The reset pulse and its width stay checked by the cocotb PFD tests and the cosim reset-width measurement (sim_pvt passed 2026-10-02)."
+    - signal: dut.u_pfd.pfd_fb_q
+      why: "Approved by a delegate on the person's redirect (Slack ts 1791072039.428359), not the person's own ruling. Classic tri-state PFD: AND(up,dn) through two delay cells clears pfd_ref_q and pfd_fb_q asynchronously, a loop sby cannot model. Cut in the formal model only, RTL unchanged. The reset pulse and its width stay checked by the cocotb PFD tests and the cosim reset-width measurement (sim_pvt passed 2026-10-02)."

@@ -1,0 +1,8 @@
+{
+  "measures": {
+    "icp_up_code00_ua": {"min": 12.0, "max": 30.0},
+    "icp_dn_code00_ua": {"min": 12.0, "max": 30.0},
+    "vco_kvco_mhz_per_v": {"min": 40.0, "max": 250.0},
+    "vco_fmax_tt_mhz": {"min": 200.0}
+  }
+}

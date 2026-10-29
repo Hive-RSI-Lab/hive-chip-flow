@@ -1,0 +1,20 @@
+[
+  {"measure": "vco_kvco_mhz_per_v", "sensitivity": 0.02, "min": 40.0, "max": 250.0, "severity": "error",
+   "msg": "mean df/dv over vctrl 0.3 .. vdd-0.3 V"},
+  {"measure": "vco_df_dv_min_mhz_per_v", "sensitivity": 0.02, "min": 0.0, "severity": "error",
+   "msg": "minimum df/dv step of the 13-point sweep: monotonic, positive Kvco"},
+  {"measure": "vco_fmin_tt_mhz", "max": 50.0, "severity": "error",
+   "corners": ["tt_27c"], "msg": "f at vctrl = 0.3 V"},
+  {"measure": "vco_fmax_tt_mhz", "min": 200.0, "severity": "error",
+   "corners": ["tt_27c"], "msg": "f at vctrl = vdd-0.3 V"},
+  {"measure": "vco_fmax_ff_mhz", "min": 150.0, "max": 370.0, "severity": "error",
+   "msg": "f at vctrl = vdd at every corner: the 370 MHz (2.7 ns) ceiling the digital timing holds, and the 150 MHz lock point every corner keeps"},
+  {"measure": "vco_out_swing_pct_vdd", "sensitivity": 0.02, "min": 90.0, "severity": "error",
+   "msg": "min over the sweep of (Vhigh-Vlow)/vdd on vco_out into 15 fF"},
+  {"measure": "vco_out_tr_ns", "sensitivity": 0.02, "max": 0.15, "severity": "error",
+   "corners": ["ff_m40c_vp10", "tt_27c"], "msg": "20-80 % rise at vctrl = vdd into 15 fF"},
+  {"measure": "vco_out_tf_ns", "sensitivity": 0.02, "max": 0.15, "severity": "error",
+   "corners": ["ff_m40c_vp10", "tt_27c"], "msg": "80-20 % fall at vctrl = vdd into 15 fF"},
+  {"measure": "vco_out_duty_pct", "sensitivity": 0.02, "min": 40.0, "max": 60.0, "severity": "error",
+   "msg": "duty at vctrl = vdd/2, vdd/2 threshold"}
+]

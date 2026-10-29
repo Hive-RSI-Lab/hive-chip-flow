@@ -1,0 +1,58 @@
+* pll_analog_pwr_tb.cir - power-down bench (spec.yaml: standby_current_ua,
+* vco_out_off_toggles). Written from spec/ only, before any netlist exists.
+*
+* pll_en = 0 throughout (DC operating point with the cell disabled, no uic).
+*  - standby_current_ua: |I(vdd)| in uA, max over vctrl swept 0.3 .. vdd-0.3 V
+*    (vctrl is still held by the filter in standby, so it is swept, not fixed).
+*    Pump inputs and trim low, bias_ref floating.
+*  - vco_out_off_toggles: vdd/2 crossings of vco_out (either direction) in a
+*    500 ns transient with vctrl = vdd-0.3 V (the strongest drive the ring
+*    would see) and pll_en = 0. Must be 0.
+* sim_timeout_s: 300
+
+.include '{{PDK}}/libs.tech/ngspice/design.spice'
+.lib '{{PDK}}/libs.tech/ngspice/sm141064.spice' {{CORNER}}
+.lib '{{PDK}}/libs.tech/ngspice/sm141064.spice' {{RES_CORNER}}
+.lib '{{PDK}}/libs.tech/ngspice/sm141064.spice' {{MIM_CORNER}}
+.include '{{NETLIST}}'
+{{SIZING}}
+
+.temp {{TEMP_C}}
+.param vddp={{VDD}}
+.csparam vddp={vddp}
+.csparam vmid={vddp/2}
+.csparam vhi={vddp-0.3}
+.csparam vstp={(vddp-0.6)/24}
+
+vdd_src  vdd      0 {vddp}
+vss_src  vss      0 0
+ven      pll_en   0 0
+vup      pfd_up   0 0
+vdn      pfd_dn   0 0
+vt0      cp_trim0 0 0
+vt1      cp_trim1 0 0
+vvc      vctrl    0 {vddp/2}
+cload    vco_out  0 15f
+xdut vco_out pfd_up pfd_dn pll_en cp_trim0 cp_trim1 vctrl bias_ref vdd vss pll_analog
+
+.control
+set noaskquit
+dc vvc 0.3 $&vhi $&vstp
+let x = vecmax(abs(i(vdd_src)))*1e6
+set isb = "$&x"
+alter vvc dc = $&vhi
+tran 50p 500n 0 50p
+let nx = length(time)
+let nx1 = nx - 1
+let nx2 = nx - 2
+let hi = (v(vco_out) gt vmid)
+let x = mean(abs(hi[1,$&nx1] - hi[0,$&nx2]))*(nx - 1)
+set tog = "$&x"
+echo
+echo "  Measurements for Transient Analysis (pll_analog_pwr_tb, computed in .control)"
+echo "standby_current_ua = $isb"
+echo "vco_out_off_toggles = $tog"
+echo
+.endc
+
+.end

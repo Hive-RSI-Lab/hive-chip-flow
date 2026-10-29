@@ -21,7 +21,8 @@ person signs off between stages. Submitting a tile is always the person's.
 - `bin/chip-flow`: finds that tree and runs the engine's scripts, the tools,
   the test, check-all and the score.
 - How an agent uses it in the Hive: [docs/README.md](docs/README.md)
-- The first block: [blocks/r2r_dac/](blocks/r2r_dac/), the R-2R DAC.
+- The first block: [blocks/r2r_dac/](blocks/r2r_dac/), the R-2R DAC; and
+  [blocks/pll/](blocks/pll/), the PLL the Hive is designing.
 
 ## Test and score
 
@@ -36,8 +37,8 @@ person signs off between stages. Submitting a tile is always the person's.
   block. `--record` writes the run to the block's `check-all.json`, which
   the score reads.
 - **Score**, `bin/chip-flow score`, higher is better: for the known blocks
-  ([blocks/known.json](blocks/known.json): ihsan-sa/ece298a-r2r-dac and
-  ece298a-counter at their pinned commits), the mean share of gate steps
+  ([blocks/known.json](blocks/known.json): ihsan-sa/ece298a-r2r-dac,
+  ece298a-counter and Hive-RSI-Lab/ece298a-pll at their pinned commits), the mean share of gate steps
   that passed check-all's last recorded run in the Hive, while the block's
   files, `engine/` and `bin/eda` are as that run had them, with no
   workaround listed in

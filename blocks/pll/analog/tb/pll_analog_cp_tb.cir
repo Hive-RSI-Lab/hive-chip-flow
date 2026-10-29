@@ -1,0 +1,107 @@
+* pll_analog_cp_tb.cir - charge-pump DC bench (spec.yaml: icp_up_code00_ua,
+* icp_dn_code00_ua, icp_up_code00_tt_ua, icp_up_code01_ua, icp_up_code10_ua,
+* icp_up_code11_ua, icp_code11_over_code00_ratio, cp_updn_mismatch_pct,
+* vctrl_leak_off_na). Written from spec/ only, before any netlist exists.
+*
+* vctrl is forced by the 0 V-referenced source vvc; i(vvc) is the current the
+* pump pushes INTO vctrl (ngspice: positive into the + node of the source),
+* so UP current = +i(vvc), DN current = -i(vvc). Every point is a DC
+* operating point (no uic). pll_en = 1, bias_ref floating (internal default),
+* vco_out loaded with 15 fF, as spec.md's default conditions.
+*
+* Spec reading (resolved here, spec.md "Measures"):
+*  - icp_*_code*: vctrl = vdd/2, the addressed input held high.
+*  - cp_updn_mismatch_pct: vctrl swept 0.3 V .. vdd-0.3 V (49 points) at code
+*    00; max over the sweep of 100*|Iup-Idn| / Icp, Icp = the code-00 mid-range
+*    pump current (Iup+Idn)/2 at vdd/2.
+*  - vctrl_leak_off_na: both inputs low, same sweep, max |i(vctrl)| in nA.
+*  - icp_up_code00_tt_ua is the same UP code-00 current, bound only at tt_27c.
+* sim_timeout_s: 300
+
+.include '{{PDK}}/libs.tech/ngspice/design.spice'
+.lib '{{PDK}}/libs.tech/ngspice/sm141064.spice' {{CORNER}}
+.lib '{{PDK}}/libs.tech/ngspice/sm141064.spice' {{RES_CORNER}}
+.lib '{{PDK}}/libs.tech/ngspice/sm141064.spice' {{MIM_CORNER}}
+.include '{{NETLIST}}'
+{{SIZING}}
+
+.temp {{TEMP_C}}
+.param vddp={{VDD}}
+.csparam vddp={vddp}
+.csparam vhi={vddp-0.3}
+.csparam vstp={(vddp-0.6)/48}
+
+vdd_src  vdd      0 {vddp}
+vss_src  vss      0 0
+ven      pll_en   0 {vddp}
+vup      pfd_up   0 0
+vdn      pfd_dn   0 0
+vt0      cp_trim0 0 0
+vt1      cp_trim1 0 0
+vvc      vctrl    0 {vddp/2}
+cload    vco_out  0 15f
+xdut vco_out pfd_up pfd_dn pll_en cp_trim0 cp_trim1 vctrl bias_ref vdd vss pll_analog
+
+.control
+set noaskquit
+* --- UP current per trim code, vctrl = vdd/2
+alter vup dc = $&vddp
+op
+let x = i(vvc)*1e6
+set iu00 = "$&x"
+alter vt0 dc = $&vddp
+op
+let x = i(vvc)*1e6
+set iu01 = "$&x"
+alter vt0 dc = 0
+alter vt1 dc = $&vddp
+op
+let x = i(vvc)*1e6
+set iu10 = "$&x"
+alter vt0 dc = $&vddp
+op
+let x = i(vvc)*1e6
+set iu11 = "$&x"
+let x = $iu11 / $iu00
+set rat = "$&x"
+* --- DN current, code 00, vctrl = vdd/2
+alter vt0 dc = 0
+alter vt1 dc = 0
+alter vup dc = 0
+alter vdn dc = $&vddp
+op
+let x = -i(vvc)*1e6
+set id00 = "$&x"
+* --- UP/DN mismatch over the tuning range, code 00
+alter vdn dc = 0
+alter vup dc = $&vddp
+dc vvc 0.3 $&vhi $&vstp
+set pu = $curplot
+let iupv = i(vvc)
+alter vup dc = 0
+alter vdn dc = $&vddp
+dc vvc 0.3 $&vhi $&vstp
+let idnv = -i(vvc)
+let icpm = ($iu00 + $id00)/2
+let x = vecmax(abs({$pu}.iupv - idnv))*1e6/icpm*100
+set mm = "$&x"
+* --- off leakage into vctrl, both inputs low, over the tuning range
+alter vdn dc = 0
+dc vvc 0.3 $&vhi $&vstp
+let x = vecmax(abs(i(vvc)))*1e9
+set lk = "$&x"
+echo
+echo "  Measurements for DC Analysis (pll_analog_cp_tb, computed in .control)"
+echo "icp_up_code00_ua = $iu00"
+echo "icp_dn_code00_ua = $id00"
+echo "icp_up_code00_tt_ua = $iu00"
+echo "icp_up_code01_ua = $iu01"
+echo "icp_up_code10_ua = $iu10"
+echo "icp_up_code11_ua = $iu11"
+echo "icp_code11_over_code00_ratio = $rat"
+echo "cp_updn_mismatch_pct = $mm"
+echo "vctrl_leak_off_na = $lk"
+echo
+.endc
+
+.end

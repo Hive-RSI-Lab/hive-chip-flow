@@ -1,0 +1,56 @@
+* pll_analog_overlap_tb.cir - PFD reset-overlap charge bench (spec.yaml:
+* cp_overlap_net_charge_fc). Written from spec/ only, before any netlist.
+*
+* pfd_up and pfd_dn pulse high together for 1 ns (100 ps edges) every 40 ns;
+* vctrl is held by vvc, so the net charge per event is the integral of
+* i(vvc) over one full event period. The third event is scored (the first two
+* let vdump and the switch nodes reach their periodic state). Includes the
+* charge sharing/injection of the switch nodes. Run at vctrl = 0.3 V, vdd/2
+* and vdd-0.3 V; the measure is the largest |Q| of the three, in fC.
+* Operating-point-first .tran (no uic).
+* sim_timeout_s: 300
+
+.include '{{PDK}}/libs.tech/ngspice/design.spice'
+.lib '{{PDK}}/libs.tech/ngspice/sm141064.spice' {{CORNER}}
+.lib '{{PDK}}/libs.tech/ngspice/sm141064.spice' {{RES_CORNER}}
+.lib '{{PDK}}/libs.tech/ngspice/sm141064.spice' {{MIM_CORNER}}
+.include '{{NETLIST}}'
+{{SIZING}}
+
+.temp {{TEMP_C}}
+.param vddp={{VDD}}
+.csparam vddp={vddp}
+.csparam vmid={vddp/2}
+.csparam vhi={vddp-0.3}
+
+vdd_src  vdd      0 {vddp}
+vss_src  vss      0 0
+ven      pll_en   0 {vddp}
+vup      pfd_up   0 pulse(0 {vddp} 20n 100p 100p 1n 40n)
+vdn      pfd_dn   0 pulse(0 {vddp} 20n 100p 100p 1n 40n)
+vt0      cp_trim0 0 0
+vt1      cp_trim1 0 0
+vvc      vctrl    0 {vddp/2}
+cload    vco_out  0 15f
+xdut vco_out pfd_up pfd_dn pll_en cp_trim0 cp_trim1 vctrl bias_ref vdd vss pll_analog
+
+.control
+set noaskquit
+set qmax = "0"
+foreach vc 0.3 $&vmid $&vhi
+  alter vvc dc = $vc
+  tran 10p 140n 0 10p
+  meas tran qev integ i(vvc) from=99n to=139n
+  let x = abs(qev)*1e15
+  if x gt $qmax
+    set qmax = "$&x"
+  end
+  destroy $curplot
+end
+echo
+echo "  Measurements for Transient Analysis (pll_analog_overlap_tb, computed in .control)"
+echo "cp_overlap_net_charge_fc = $qmax"
+echo
+.endc
+
+.end

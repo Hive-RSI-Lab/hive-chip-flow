@@ -1,0 +1,56 @@
+{
+  "script": "gate",
+  "gate": "sim",
+  "phase": "P4",
+  "tool": "sim",
+  "input_digest": "dir_text:9e181375afa489d426afbb5d8223651b91e0614bd96238458d78aa97270383f1",
+  "status": "pass",
+  "criteria": {
+    "fail_severities": [
+      "error"
+    ],
+    "max_count": 0
+  },
+  "counts": {
+    "total": 0,
+    "by_severity": {},
+    "by_source": {}
+  },
+  "failing_count": 0,
+  "failing": [],
+  "violations": [],
+  "facts": {
+    "top": "ihsan_sa_pll",
+    "tests_run": [
+      "test_async_reset_outputs",
+      "test_ctrl_regs",
+      "test_divider_illegal_codes",
+      "test_divider_ratio",
+      "test_lock_assert",
+      "test_lock_deassert",
+      "test_lock_deassert_dn",
+      "test_no_vctrl_bias_ua",
+      "test_obs_sel",
+      "test_pfd_dn_lead",
+      "test_pfd_frequency",
+      "test_pfd_up_lead",
+      "test_prescaler_div8",
+      "test_reset_release_clean",
+      "test_tt_tieoff"
+    ],
+    "tests_passed": 15
+  },
+  "record_result": {
+    "ok": true,
+    "recorded": true,
+    "workspace": "blocks/pll/digital",
+    "gate": "sim",
+    "status": "pass",
+    "attempts": 6,
+    "inputs": {
+      "rtl": "dir_text:9e181375afa489d426afbb5d8223651b91e0614bd96238458d78aa97270383f1",
+      "tb": "dir_text:052af20e5f8df5b5f2bc6b6fbfedf5cc1eceea14569da45fea5dc52c37413560",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:08fd0975f7d5116e45920eef43d5b9120ed832afcd70581c17d55bd037abf224"
+    }
+  }
+}

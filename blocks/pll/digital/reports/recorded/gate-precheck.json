@@ -1,0 +1,33 @@
+{
+ "script": "gate",
+ "gate": "precheck",
+ "phase": "P6",
+ "tool": "precheck",
+ "input_digest": "harden_signoff:04fa97823ac4c3b617e7eab318b4313722ba89c3ae80a79b3e41e364b80be02c",
+ "status": "pass",
+ "criteria": {
+  "fail_severities": [
+   "error"
+  ],
+  "max_count": 0
+ },
+ "counts": {
+  "total": 0,
+  "by_severity": {},
+  "by_source": {}
+ },
+ "failing_count": 0,
+ "failing": [],
+ "violations": [],
+ "facts": {
+  "top": "tt_um_ihsan_sa_pll",
+  "checks_run": 12
+ },
+ "inputs_at_start": {
+  "harden": "harden_signoff:04fa97823ac4c3b617e7eab318b4313722ba89c3ae80a79b3e41e364b80be02c",
+  "harden_info": "json_canonical:9ecb304f904f41c8a2def236b1d232e86b2691564dd312d1cdd01fed3c0c796c",
+  "spec_yaml_sans_formal": "json_canonical_sans_formal:0d4f4df02ec4e9e126b142d27d8677203998d22be647a17a60f3717dd16355e7"
+ },
+ "recorded_ts": "2026-10-29T11:04:28",
+ "attempts": 8
+}

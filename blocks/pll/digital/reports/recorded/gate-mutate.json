@@ -1,0 +1,172 @@
+{
+ "script": "gate",
+ "gate": "mutate",
+ "phase": "P4",
+ "tool": "mutate",
+ "input_digest": "dir_text:d57e8def30c23cb7654bbd9d72b98e3c18d24c5ee8934cf63e6d13031be58a3a",
+ "status": "pass",
+ "criteria": {
+  "fail_severities": [
+   "error"
+  ],
+  "max_count": 0
+ },
+ "counts": {
+  "total": 6,
+  "by_severity": {
+   "info": 6
+  },
+  "by_source": {
+   "mutant_rulings": 5,
+   "yosys": 1
+  }
+ },
+ "failing_count": 0,
+ "failing": [],
+ "violations": [
+  {
+   "check": "mutate",
+   "severity": "info",
+   "file": "rtl/pll_lock_det.v:51.9-51.15",
+   "module": null,
+   "line": null,
+   "kind": "equivalent_condition_inverted",
+   "refs": [],
+   "msg": "mutant 6 (condition_inverted) is accepted as equivalent by owner ruling (agent ruling under the owner's standing sign-off (2026-10-28 13:18, 'yea just do it all i signoff we can always go back'), 2026-10-29, not the owner's own ruling on this mutant) and left out of the kill rate: mutate -mode inv -module pll_lock_det -cell $logic_not$rtl/pll_lock_det.v:51$30 -port Y -portbit 0 -src rtl/pll_lock_det.v:51.9-51.15",
+   "source": "mutant_rulings",
+   "items": [
+    {
+     "msg": "mutant 6 (condition_inverted) is accepted as equivalent by owner ruling (agent ruling under the owner's standing sign-off (2026-10-28 13:18, 'yea just do it all i signoff we can always go back'), 2026-10-29, not the owner's own ruling on this mutant) and left out of the kill rate: mutate -mode inv -module pll_lock_det -cell $logic_not$rtl/pll_lock_det.v:51$30 -port Y -portbit 0 -src rtl/pll_lock_det.v:51.9-51.15",
+     "file": "rtl/pll_lock_det.v:51.9-51.15",
+     "line": null
+    }
+   ]
+  },
+  {
+   "check": "mutate",
+   "severity": "info",
+   "file": null,
+   "module": null,
+   "line": null,
+   "kind": "equivalent_stuck_other",
+   "refs": [],
+   "msg": "mutant 10 (stuck_other) is accepted as equivalent by owner ruling (agent ruling under the owner's standing sign-off (2026-10-28 13:18, 'yea just do it all i signoff we can always go back'), 2026-10-29, not the owner's own ruling on this mutant) and left out of the kill rate: mutate -mode const0 -module pll_divider -cell $auto$proc_dff.cc:220:proc_dff$120 -port A -portbit 0",
+   "source": "mutant_rulings",
+   "items": [
+    {
+     "msg": "mutant 10 (stuck_other) is accepted as equivalent by owner ruling (agent ruling under the owner's standing sign-off (2026-10-28 13:18, 'yea just do it all i signoff we can always go back'), 2026-10-29, not the owner's own ruling on this mutant) and left out of the kill rate: mutate -mode const0 -module pll_divider -cell $auto$proc_dff.cc:220:proc_dff$120 -port A -portbit 0",
+     "file": null,
+     "line": null
+    }
+   ]
+  },
+  {
+   "check": "mutate",
+   "severity": "info",
+   "file": "rtl/pll_lock_det.v:33.13-33.19",
+   "module": null,
+   "line": null,
+   "kind": "equivalent_conditional_stuck",
+   "refs": [],
+   "msg": "mutant 11 (conditional_stuck) is accepted as equivalent by owner ruling (agent ruling under the owner's standing sign-off (2026-10-28 13:18, 'yea just do it all i signoff we can always go back'), 2026-10-29, not the owner's own ruling on this mutant) and left out of the kill rate: mutate -mode cnot0 -module pll_lock_det -cell $procdff$104 -port Q -portbit 5 -ctrlbit 3 -wire wd_cnt -wirebit 5 -src rtl/pll_lock_det.v:33.13-33.19 -src rtl/pll_lock_det.v:50.3-62.8",
+   "source": "mutant_rulings",
+   "items": [
+    {
+     "msg": "mutant 11 (conditional_stuck) is accepted as equivalent by owner ruling (agent ruling under the owner's standing sign-off (2026-10-28 13:18, 'yea just do it all i signoff we can always go back'), 2026-10-29, not the owner's own ruling on this mutant) and left out of the kill rate: mutate -mode cnot0 -module pll_lock_det -cell $procdff$104 -port Q -portbit 5 -ctrlbit 3 -wire wd_cnt -wirebit 5 -src rtl/pll_lock_det.v:33.13-33.19 -src rtl/pll_lock_det.v:50.3-62.8",
+     "file": "rtl/pll_lock_det.v:33.13-33.19",
+     "line": null
+    }
+   ]
+  },
+  {
+   "check": "mutate",
+   "severity": "info",
+   "file": "rtl/pll_lock_det.v:35.25-35.38",
+   "module": null,
+   "line": null,
+   "kind": "equivalent_conditional_stuck",
+   "refs": [],
+   "msg": "mutant 15 (conditional_stuck) is accepted as equivalent by owner ruling (agent ruling under the owner's standing sign-off (2026-10-28 13:18, 'yea just do it all i signoff we can always go back'), 2026-10-29, not the owner's own ruling on this mutant) and left out of the kill rate: mutate -mode cnot1 -module pll_lock_det -cell $eq$rtl/pll_lock_det.v:35$19 -port A -portbit 1 -ctrlbit 2 -src rtl/pll_lock_det.v:35.25-35.38",
+   "source": "mutant_rulings",
+   "items": [
+    {
+     "msg": "mutant 15 (conditional_stuck) is accepted as equivalent by owner ruling (agent ruling under the owner's standing sign-off (2026-10-28 13:18, 'yea just do it all i signoff we can always go back'), 2026-10-29, not the owner's own ruling on this mutant) and left out of the kill rate: mutate -mode cnot1 -module pll_lock_det -cell $eq$rtl/pll_lock_det.v:35$19 -port A -portbit 1 -ctrlbit 2 -src rtl/pll_lock_det.v:35.25-35.38",
+     "file": "rtl/pll_lock_det.v:35.25-35.38",
+     "line": null
+    }
+   ]
+  },
+  {
+   "check": "mutate",
+   "severity": "info",
+   "file": "rtl/pll_prescaler.v:40.9-40.15",
+   "module": null,
+   "line": null,
+   "kind": "equivalent_stuck_other",
+   "refs": [],
+   "msg": "mutant 17 (stuck_other) is accepted as equivalent by owner ruling (agent ruling under the owner's standing sign-off (2026-10-28 13:18, 'yea just do it all i signoff we can always go back'), 2026-10-29, not the owner's own ruling on this mutant) and left out of the kill rate: mutate -mode const0 -module pll_prescaler -cell $logic_not$rtl/pll_prescaler.v:40$43 -port Y -portbit 0 -src rtl/pll_prescaler.v:40.9-40.15",
+   "source": "mutant_rulings",
+   "items": [
+    {
+     "msg": "mutant 17 (stuck_other) is accepted as equivalent by owner ruling (agent ruling under the owner's standing sign-off (2026-10-28 13:18, 'yea just do it all i signoff we can always go back'), 2026-10-29, not the owner's own ruling on this mutant) and left out of the kill rate: mutate -mode const0 -module pll_prescaler -cell $logic_not$rtl/pll_prescaler.v:40$43 -port Y -portbit 0 -src rtl/pll_prescaler.v:40.9-40.15",
+     "file": "rtl/pll_prescaler.v:40.9-40.15",
+     "line": null
+    }
+   ]
+  },
+  {
+   "check": "mutate",
+   "severity": "info",
+   "file": null,
+   "module": null,
+   "line": null,
+   "kind": "equivalent_stuck_other",
+   "refs": [],
+   "msg": "mutant 18 (stuck_other) is proven equivalent to the design and left out of the kill rate: mutate -mode const1 -module pll_ctrl_regs -cell $auto$proc_dff.cc:220:proc_dff$130 -port Y -portbit 0",
+   "source": "yosys",
+   "items": [
+    {
+     "msg": "mutant 18 (stuck_other) is proven equivalent to the design and left out of the kill rate: mutate -mode const1 -module pll_ctrl_regs -cell $auto$proc_dff.cc:220:proc_dff$130 -port Y -portbit 0",
+     "file": null,
+     "line": null
+    }
+   ]
+  }
+ ],
+ "facts": {
+  "top": "ihsan_sa_pll",
+  "total_mutants": 19,
+  "equivalent": 6,
+  "equivalent_ids": [
+   6,
+   10,
+   11,
+   15,
+   17,
+   18
+  ],
+  "scored_mutants": 13,
+  "killed": 13,
+  "survived": 0,
+  "kill_rate": 1.0,
+  "survivors_by_class": {},
+  "equivalent_by": {
+   "6": "accepted by owner ruling: agent ruling under the owner's standing sign-off (2026-10-28 13:18, 'yea just do it all i signoff we can always go back'), 2026-10-29, not the owner's own ruling on this mutant",
+   "10": "accepted by owner ruling: agent ruling under the owner's standing sign-off (2026-10-28 13:18, 'yea just do it all i signoff we can always go back'), 2026-10-29, not the owner's own ruling on this mutant",
+   "11": "accepted by owner ruling: agent ruling under the owner's standing sign-off (2026-10-28 13:18, 'yea just do it all i signoff we can always go back'), 2026-10-29, not the owner's own ruling on this mutant",
+   "15": "accepted by owner ruling: agent ruling under the owner's standing sign-off (2026-10-28 13:18, 'yea just do it all i signoff we can always go back'), 2026-10-29, not the owner's own ruling on this mutant",
+   "17": "accepted by owner ruling: agent ruling under the owner's standing sign-off (2026-10-28 13:18, 'yea just do it all i signoff we can always go back'), 2026-10-29, not the owner's own ruling on this mutant",
+   "18": "signal induction (module pll_ctrl_regs alone, at its own ports)"
+  },
+  "unproven_survivors": {},
+  "wall_s": 77.65
+ },
+ "inputs_at_start": {
+  "rtl": "dir_text:d57e8def30c23cb7654bbd9d72b98e3c18d24c5ee8934cf63e6d13031be58a3a",
+  "tb": "dir_text:022a1f658f4693c973114db21c0e45003fd9d8abcbfad44a47e01cbeaa60b0fe",
+  "spec_yaml_sans_formal": "json_canonical_sans_formal:0d4f4df02ec4e9e126b142d27d8677203998d22be647a17a60f3717dd16355e7",
+  "mutant_rulings": "json_canonical:496e537588b010ca98bf8b3a378328b6a82d7525a738c2d543787d75a6e4b41c"
+ },
+ "recorded_ts": "2026-10-29T11:01:47",
+ "attempts": 13
+}

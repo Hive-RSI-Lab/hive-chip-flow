@@ -104,8 +104,8 @@ fails while a row and its probe disagree.
   commit it.
 - **Score**, `chip-flow score`, higher is better: how much of the known
   blocks passes every gate in the Hive. `blocks/known.json` pins them
-  (ihsan-sa/ece298a-r2r-dac and ece298a-counter, each at the commit its
-  block came from). Each scores the share of its `check-all.json` steps
+  (ihsan-sa/ece298a-r2r-dac, ece298a-counter and Hive-RSI-Lab/ece298a-pll,
+  each at the commit its block came from). Each scores the share of its `check-all.json` steps
   that that run passed (or failed under the block's waiver) and that no
   workaround names, while the block's files, `engine/` and `bin/eda` hash
   as the run had them (a change to any of them needs a new `--record` run,
@@ -130,3 +130,27 @@ a small digital front end (code register, ramp, sine table) on one Tiny
 Tapeout analog tile, released on the old box with the person's three H2
 sign-offs. `chip-flow check-all --block r2r_dac` takes it through all its
 gates again inside the Hive; its `README.md` says what each run found.
+
+## The PLL
+
+[`blocks/pll/`](../blocks/pll/) is Hive-RSI-Lab/ece298a-pll's `blocks/pll`
+(the msde block the pll project is taking to a tile), copied in at the
+commit `blocks/known.json` pins, so the score counts it and a module fix
+that gets it through another gate raises the score. The copy leaves out
+what no gate reads: `analog/log/` and `digital/log/` (117 MB of sim
+scratch) and the `state_snapshots/`. Its harden config and flow SDC were
+made portable the way the gates now write them (`ttlib.portable_config`,
+`ttlib.flow_sdc_text`), the old box's absolute paths came out of its
+reports, and the person's and host's names out of its rulings.
+
+The pll project keeps designing it; this copy moves only when someone
+brings it up to a newer commit: copy the block again the same way, set
+the commit in `known.json`, run `chip-flow check-all --record --block pll`
+and commit the record with it. A block can't be scored from the other
+repository without the copy: the score hashes the block's files as this
+repository's git tracks them, and the check that measures it sees this
+repository only. To drop the copy, `known.json` could name the source
+project and its block's git tree id at the pinned commit, check-all would
+take the block from that tree (`git archive`), and the record's `sources`
+would carry the tree id in place of the files' hash; that needs the
+other project's clone wherever the score runs.

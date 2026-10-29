@@ -1,0 +1,118 @@
+* pll_analog_startup_tb.cir - enable-to-running bench (spec.yaml:
+* startup_time_us). Written from spec/ only, before any netlist exists.
+* Built on the step_settle_tb.cir window/verdict rules.
+*
+* 5 pF on vctrl and 5 pF on bias_ref (spec.md). The cell starts from its
+* pll_en = 0 DC operating point (no uic); pll_en rises at t_en = 200 ns
+* (1 ns edge). vctrl is held at 0.3 V, the low end of the tuning range and
+* the slowest ring (worst case: spec.md names no vctrl for this measure),
+* through 1 MOhm, so over the window it is effectively a floating, 5 pF-
+* loaded node that the enable transient can kick.
+*
+* WINDOW: 5x the spec bound (5 us) = 25 us; topology.md gives no bias-loop
+* time constant to size a longer one from.
+* RUNNING, FULL SWING: rising 0.9*vdd crossings of vco_out after t_en. The
+* final period T_f is the mean of the last 5 periods of the window. The
+* startup time is the first such rising edge from which the next three
+* periods are all within +-5 % of T_f and vco_out also falls below 0.1*vdd
+* inside them. VERDICT: if there is no such edge, or it lies in the last
+* 20 % of the window, or fewer than 12 full-swing rises occur, the bench
+* prints `startup_time_us = not_settled` (sim_not_settled finding), never a
+* number clamped to the window.
+* START-UP KICK: a noiseless transient can leave the ring on its symmetric
+* balance point (every ring node equal), unstable in a live ring but never
+* left by ngspice without a perturbation (it11: stall at vctrl = 0.3 V).
+* ikick injects 1 uA for 1 ns (1 fC) into ring node r1 at t_en + 1 ns, the
+* stand-in for the device noise that starts a real ring; it is zero at the
+* op, and a ring whose DC point is stable still decays back and stalls.
+* sim_timeout_s: 1800
+
+.include '{{PDK}}/libs.tech/ngspice/design.spice'
+.lib '{{PDK}}/libs.tech/ngspice/sm141064.spice' {{CORNER}}
+.lib '{{PDK}}/libs.tech/ngspice/sm141064.spice' {{RES_CORNER}}
+.lib '{{PDK}}/libs.tech/ngspice/sm141064.spice' {{MIM_CORNER}}
+.include '{{NETLIST}}'
+{{SIZING}}
+
+.temp {{TEMP_C}}
+.param vddp={{VDD}}
+.param t_bound=5u
+.param t_en=200n t_win={5*t_bound}
+.csparam ten={t_en}
+.csparam t_stop={t_en+t_win}
+.csparam t_tail={t_en+0.8*t_win}
+.csparam v90={0.9*vddp}
+.csparam v10={0.1*vddp}
+
+vdd_src  vdd      0 {vddp}
+vss_src  vss      0 0
+ven      pll_en   0 pwl(0 0 {t_en} 0 {t_en+1n} {vddp})
+vup      pfd_up   0 0
+vdn      pfd_dn   0 0
+vt0      cp_trim0 0 0
+vt1      cp_trim1 0 0
+vvc      vfeed    0 0.3
+rfeed    vfeed    vctrl 1meg
+cpadv    vctrl    0 5p
+cpadb    bias_ref 0 5p
+cload    vco_out  0 15f
+xdut vco_out pfd_up pfd_dn pll_en cp_trim0 cp_trim1 vctrl bias_ref vdd vss pll_analog
+ikick    0        xdut.r1 pulse(0 1u {t_en+1n} 50p 50p 1n 1)
+
+.control
+set noaskquit
+tran 100p $&t_stop 0 100p
+let nx = length(time)
+let nx1 = nx - 1
+let nx2 = nx - 2
+let hi = (v(vco_out) gt v90)
+let rs = ((hi[1,$&nx1] - hi[0,$&nx2]) gt 0.5) and (time[1,$&nx1] gt ten)
+let nr = mean(rs)*length(rs)
+set res = "not_settled"
+if nr ge 12
+  let ka = nr - 6
+  let kb = nr - 1
+  meas tran tfa when v(vco_out)=$&v90 rise=$&ka td=$&ten
+  meas tran tfb when v(vco_out)=$&v90 rise=$&kb td=$&ten
+  let tfin = (tfb - tfa)/5
+  meas tran t0 when v(vco_out)=$&v90 rise=1 td=$&ten
+  meas tran t1 when v(vco_out)=$&v90 rise=2 td=$&ten
+  meas tran t2 when v(vco_out)=$&v90 rise=3 td=$&ten
+  meas tran t3 when v(vco_out)=$&v90 rise=4 td=$&ten
+  let k = 4
+  let found = 0
+  while (found eq 0) and (t0 lt t_tail)
+    let e1 = abs(t1 - t0 - tfin)
+    let e2 = abs(t2 - t1 - tfin)
+    let e3 = abs(t3 - t2 - tfin)
+    let lim = 0.05*tfin
+    if (e1 lt lim) and (e2 lt lim) and (e3 lt lim)
+      meas tran vlo min v(vco_out) from=$&t0 to=$&t3
+      if vlo lt v10
+        let found = 1
+      end
+    end
+    if found eq 0
+      if k ge kb
+        let t0 = t_tail
+      else
+        let k = k + 1
+        let t0 = t1
+        let t1 = t2
+        let t2 = t3
+        meas tran t3 when v(vco_out)=$&v90 rise=$&k td=$&ten
+      end
+    end
+  end
+  if (found eq 1) and (t0 lt t_tail)
+    let x = (t0 - ten)*1e6
+    set res = "$&x"
+  end
+end
+echo
+echo "  Measurements for Transient Analysis (pll_analog_startup_tb, computed in .control)"
+echo "startup_time_us = $res"
+echo
+.endc
+
+.end

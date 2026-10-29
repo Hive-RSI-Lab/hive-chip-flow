@@ -1,0 +1,189 @@
+{
+ "script": "gate",
+ "gate": "timing",
+ "phase": "P6",
+ "tool": "timing",
+ "input_digest": "harden_signoff:04fa97823ac4c3b617e7eab318b4313722ba89c3ae80a79b3e41e364b80be02c",
+ "status": "fail",
+ "criteria": {
+  "fail_severities": [
+   "error"
+  ],
+  "max_count": 0
+ },
+ "counts": {
+  "total": 3,
+  "by_severity": {
+   "error": 3
+  },
+  "by_source": {
+   "opensta": 3
+  }
+ },
+ "failing_count": 3,
+ "failing": [
+  {
+   "check": "timing",
+   "severity": "error",
+   "file": null,
+   "module": "tt_um_ihsan_sa_pll",
+   "line": null,
+   "kind": "setup_violation",
+   "refs": [],
+   "msg": "corner max_ss_125C_3v00: worst setup slack -1.2000ns",
+   "source": "opensta",
+   "items": [
+    {
+     "msg": "corner max_ss_125C_3v00: worst setup slack -1.2000ns",
+     "file": null,
+     "line": null
+    }
+   ],
+   "corner": "max_ss_125C_3v00"
+  },
+  {
+   "check": "timing",
+   "severity": "error",
+   "file": null,
+   "module": "tt_um_ihsan_sa_pll",
+   "line": null,
+   "kind": "setup_violation",
+   "refs": [],
+   "msg": "corner min_ss_125C_3v00: worst setup slack -1.1600ns",
+   "source": "opensta",
+   "items": [
+    {
+     "msg": "corner min_ss_125C_3v00: worst setup slack -1.1600ns",
+     "file": null,
+     "line": null
+    }
+   ],
+   "corner": "min_ss_125C_3v00"
+  },
+  {
+   "check": "timing",
+   "severity": "error",
+   "file": null,
+   "module": "tt_um_ihsan_sa_pll",
+   "line": null,
+   "kind": "setup_violation",
+   "refs": [],
+   "msg": "corner nom_ss_125C_3v00: worst setup slack -1.1800ns",
+   "source": "opensta",
+   "items": [
+    {
+     "msg": "corner nom_ss_125C_3v00: worst setup slack -1.1800ns",
+     "file": null,
+     "line": null
+    }
+   ],
+   "corner": "nom_ss_125C_3v00"
+  }
+ ],
+ "violations": [
+  {
+   "check": "timing",
+   "severity": "error",
+   "file": null,
+   "module": "tt_um_ihsan_sa_pll",
+   "line": null,
+   "kind": "setup_violation",
+   "refs": [],
+   "msg": "corner max_ss_125C_3v00: worst setup slack -1.2000ns",
+   "source": "opensta",
+   "items": [
+    {
+     "msg": "corner max_ss_125C_3v00: worst setup slack -1.2000ns",
+     "file": null,
+     "line": null
+    }
+   ],
+   "corner": "max_ss_125C_3v00"
+  },
+  {
+   "check": "timing",
+   "severity": "error",
+   "file": null,
+   "module": "tt_um_ihsan_sa_pll",
+   "line": null,
+   "kind": "setup_violation",
+   "refs": [],
+   "msg": "corner min_ss_125C_3v00: worst setup slack -1.1600ns",
+   "source": "opensta",
+   "items": [
+    {
+     "msg": "corner min_ss_125C_3v00: worst setup slack -1.1600ns",
+     "file": null,
+     "line": null
+    }
+   ],
+   "corner": "min_ss_125C_3v00"
+  },
+  {
+   "check": "timing",
+   "severity": "error",
+   "file": null,
+   "module": "tt_um_ihsan_sa_pll",
+   "line": null,
+   "kind": "setup_violation",
+   "refs": [],
+   "msg": "corner nom_ss_125C_3v00: worst setup slack -1.1800ns",
+   "source": "opensta",
+   "items": [
+    {
+     "msg": "corner nom_ss_125C_3v00: worst setup slack -1.1800ns",
+     "file": null,
+     "line": null
+    }
+   ],
+   "corner": "nom_ss_125C_3v00"
+  }
+ ],
+ "facts": {
+  "top": "tt_um_ihsan_sa_pll",
+  "corners": {
+   "max_ff_n40C_3v60": {
+    "setup_ws": 1.43,
+    "hold_ws": 0.43
+   },
+   "max_ss_125C_3v00": {
+    "setup_ws": -1.2,
+    "hold_ws": 2.36
+   },
+   "max_tt_025C_3v30": {
+    "setup_ws": 0.65,
+    "hold_ws": 0.99
+   },
+   "min_ff_n40C_3v60": {
+    "setup_ws": 1.44,
+    "hold_ws": 0.42
+   },
+   "min_ss_125C_3v00": {
+    "setup_ws": -1.16,
+    "hold_ws": 2.33
+   },
+   "min_tt_025C_3v30": {
+    "setup_ws": 0.67,
+    "hold_ws": 0.97
+   },
+   "nom_ff_n40C_3v60": {
+    "setup_ws": 1.43,
+    "hold_ws": 0.43
+   },
+   "nom_ss_125C_3v00": {
+    "setup_ws": -1.18,
+    "hold_ws": 2.34
+   },
+   "nom_tt_025C_3v30": {
+    "setup_ws": 0.66,
+    "hold_ws": 0.98
+   }
+  }
+ },
+ "inputs_at_start": {
+  "harden": "harden_signoff:04fa97823ac4c3b617e7eab318b4313722ba89c3ae80a79b3e41e364b80be02c",
+  "spec_yaml_sans_formal": "json_canonical_sans_formal:0d4f4df02ec4e9e126b142d27d8677203998d22be647a17a60f3717dd16355e7"
+ },
+ "recorded_ts": "2026-10-29T11:05:01",
+ "attempts": 10
+}

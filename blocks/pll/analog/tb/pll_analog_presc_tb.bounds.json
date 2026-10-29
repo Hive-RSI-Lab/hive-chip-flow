@@ -1,0 +1,5 @@
+[
+  {"measure": "presc_div2_ratio", "min": 0.99, "max": 1.01, "severity": "error",
+   "corners": ["ff_m40c_vp10"],
+   "msg": "f(Q)/(f(vco_out)/2) of a dffq_1 + inv_1 toggle stage clocked by vco_out at vctrl = vdd"}
+]

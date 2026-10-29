@@ -1,0 +1,4129 @@
+{
+ "script": "gate",
+ "gate": "sim_pvt",
+ "phase": "P4",
+ "tool": "sim_pvt",
+ "input_digest": "dir_text:c20767143e29ce734d55b7e2a8cacb836b60b62cefe973cc06edc21007841f07",
+ "status": "pass",
+ "criteria": {
+  "fail_severities": [
+   "error"
+  ],
+  "max_count": 0
+ },
+ "counts": {
+  "total": 0,
+  "by_severity": {},
+  "by_source": {}
+ },
+ "failing_count": 0,
+ "failing": [],
+ "violations": [],
+ "facts": {
+  "top": "pll_analog",
+  "corners": [
+   "tt_m40c_vm10",
+   "tt_m40c",
+   "tt_m40c_vp10",
+   "tt_27c_vm10",
+   "tt_27c",
+   "tt_27c_vp10",
+   "tt_125c_vm10",
+   "tt_125c",
+   "tt_125c_vp10",
+   "ss_m40c_vm10",
+   "ss_m40c",
+   "ss_m40c_vp10",
+   "ss_27c_vm10",
+   "ss_27c",
+   "ss_27c_vp10",
+   "ss_125c_vm10",
+   "ss_125c",
+   "ss_125c_vp10",
+   "ff_m40c_vm10",
+   "ff_m40c",
+   "ff_m40c_vp10",
+   "ff_27c_vm10",
+   "ff_27c",
+   "ff_27c_vp10",
+   "ff_125c_vm10",
+   "ff_125c",
+   "ff_125c_vp10",
+   "ss_pff",
+   "ff_pss",
+   "tt_pss",
+   "tt_pff"
+  ],
+  "results": [
+   {
+    "bench": "pll_analog_cp_tb.cir",
+    "corner": "tt_m40c_vm10",
+    "names": [
+     "tt_m40c_vm10"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": -40,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "icp_up_code00_ua": 19.3478,
+     "icp_dn_code00_ua": 19.0784,
+     "icp_up_code00_tt_ua": 19.3478,
+     "icp_up_code01_ua": 24.1003,
+     "icp_up_code10_ua": 28.8406,
+     "icp_up_code11_ua": 38.2932,
+     "icp_code11_over_code00_ratio": 1.9792,
+     "cp_updn_mismatch_pct": 4.45084,
+     "vctrl_leak_off_na": 0.00242607
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_cp_tb__tt_m40c_vm10.cir"
+   },
+   {
+    "bench": "pll_analog_cp_tb.cir",
+    "corner": "tt_m40c",
+    "names": [
+     "tt_m40c"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": -40,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "icp_up_code00_ua": 19.5828,
+     "icp_dn_code00_ua": 19.1997,
+     "icp_up_code00_tt_ua": 19.5828,
+     "icp_up_code01_ua": 24.3761,
+     "icp_up_code10_ua": 29.1556,
+     "icp_up_code11_ua": 38.6835,
+     "icp_code11_over_code00_ratio": 1.97538,
+     "cp_updn_mismatch_pct": 5.42516,
+     "vctrl_leak_off_na": 0.00276434
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_cp_tb__tt_m40c.cir"
+   },
+   {
+    "bench": "pll_analog_cp_tb.cir",
+    "corner": "tt_m40c_vp10",
+    "names": [
+     "tt_m40c_vp10"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": -40,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "icp_up_code00_ua": 19.8739,
+     "icp_dn_code00_ua": 19.3143,
+     "icp_up_code00_tt_ua": 19.8739,
+     "icp_up_code01_ua": 24.7112,
+     "icp_up_code10_ua": 29.5309,
+     "icp_up_code11_ua": 39.1316,
+     "icp_code11_over_code00_ratio": 1.96899,
+     "cp_updn_mismatch_pct": 6.68834,
+     "vctrl_leak_off_na": 0.00329065
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_cp_tb__tt_m40c_vp10.cir"
+   },
+   {
+    "bench": "pll_analog_cp_tb.cir",
+    "corner": "tt_27c_vm10",
+    "names": [
+     "tt_27c_vm10"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": 27,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "icp_up_code00_ua": 18.8088,
+     "icp_dn_code00_ua": 18.5542,
+     "icp_up_code00_tt_ua": 18.8088,
+     "icp_up_code01_ua": 23.4334,
+     "icp_up_code10_ua": 28.0461,
+     "icp_up_code11_ua": 37.244,
+     "icp_code11_over_code00_ratio": 1.98014,
+     "cp_updn_mismatch_pct": 4.11716,
+     "vctrl_leak_off_na": 0.00242599
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_cp_tb__tt_27c_vm10.cir"
+   },
+   {
+    "bench": "pll_analog_cp_tb.cir",
+    "corner": "tt_27c",
+    "names": [
+     "tt_27c"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": 27,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "icp_up_code00_ua": 19.0145,
+     "icp_dn_code00_ua": 18.6602,
+     "icp_up_code00_tt_ua": 19.0145,
+     "icp_up_code01_ua": 23.6748,
+     "icp_up_code10_ua": 28.3222,
+     "icp_up_code11_ua": 37.5873,
+     "icp_code11_over_code00_ratio": 1.97677,
+     "cp_updn_mismatch_pct": 4.97552,
+     "vctrl_leak_off_na": 0.00276435
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_cp_tb__tt_27c.cir"
+   },
+   {
+    "bench": "pll_analog_cp_tb.cir",
+    "corner": "tt_27c_vp10",
+    "names": [
+     "tt_27c_vp10"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": 27,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "icp_up_code00_ua": 19.2791,
+     "icp_dn_code00_ua": 18.7603,
+     "icp_up_code00_tt_ua": 19.2791,
+     "icp_up_code01_ua": 23.9774,
+     "icp_up_code10_ua": 28.6592,
+     "icp_up_code11_ua": 37.9864,
+     "icp_code11_over_code00_ratio": 1.97034,
+     "cp_updn_mismatch_pct": 6.1474,
+     "vctrl_leak_off_na": 0.00329066
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_cp_tb__tt_27c_vp10.cir"
+   },
+   {
+    "bench": "pll_analog_cp_tb.cir",
+    "corner": "tt_125c_vm10",
+    "names": [
+     "tt_125c_vm10"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": 125,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "icp_up_code00_ua": 17.6953,
+     "icp_dn_code00_ua": 17.4505,
+     "icp_up_code00_tt_ua": 17.6953,
+     "icp_up_code01_ua": 22.0487,
+     "icp_up_code10_ua": 26.3909,
+     "icp_up_code11_ua": 35.049,
+     "icp_code11_over_code00_ratio": 1.9807,
+     "cp_updn_mismatch_pct": 4.01297,
+     "vctrl_leak_off_na": 0.0024256
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_cp_tb__tt_125c_vm10.cir"
+   },
+   {
+    "bench": "pll_analog_cp_tb.cir",
+    "corner": "tt_125c",
+    "names": [
+     "tt_125c"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": 125,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "icp_up_code00_ua": 17.8719,
+     "icp_dn_code00_ua": 17.5403,
+     "icp_up_code00_tt_ua": 17.8719,
+     "icp_up_code01_ua": 22.2553,
+     "icp_up_code10_ua": 26.6267,
+     "icp_up_code11_ua": 35.342,
+     "icp_code11_over_code00_ratio": 1.97752,
+     "cp_updn_mismatch_pct": 4.77006,
+     "vctrl_leak_off_na": 0.00276387
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_cp_tb__tt_125c.cir"
+   },
+   {
+    "bench": "pll_analog_cp_tb.cir",
+    "corner": "tt_125c_vp10",
+    "names": [
+     "tt_125c_vp10"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": 125,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "icp_up_code00_ua": 18.1135,
+     "icp_dn_code00_ua": 17.6255,
+     "icp_up_code00_tt_ua": 18.1135,
+     "icp_up_code01_ua": 22.5282,
+     "icp_up_code10_ua": 26.9274,
+     "icp_up_code11_ua": 35.6923,
+     "icp_code11_over_code00_ratio": 1.97048,
+     "cp_updn_mismatch_pct": 5.89303,
+     "vctrl_leak_off_na": 0.00329036
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_cp_tb__tt_125c_vp10.cir"
+   },
+   {
+    "bench": "pll_analog_cp_tb.cir",
+    "corner": "ss_m40c_vm10",
+    "names": [
+     "ss_m40c_vm10"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": -40,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "icp_up_code00_ua": 17.7764,
+     "icp_dn_code00_ua": 17.5997,
+     "icp_up_code00_tt_ua": 17.7764,
+     "icp_up_code01_ua": 22.1518,
+     "icp_up_code10_ua": 26.5166,
+     "icp_up_code11_ua": 35.2218,
+     "icp_code11_over_code00_ratio": 1.98138,
+     "cp_updn_mismatch_pct": 3.97824,
+     "vctrl_leak_off_na": 0.00242607
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_cp_tb__ss_m40c_vm10.cir"
+   },
+   {
+    "bench": "pll_analog_cp_tb.cir",
+    "corner": "ss_m40c",
+    "names": [
+     "ss_m40c"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": -40,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "icp_up_code00_ua": 17.9942,
+     "icp_dn_code00_ua": 17.7206,
+     "icp_up_code00_tt_ua": 17.9942,
+     "icp_up_code01_ua": 22.4093,
+     "icp_up_code10_ua": 26.8126,
+     "icp_up_code11_ua": 35.5928,
+     "icp_code11_over_code00_ratio": 1.97802,
+     "cp_updn_mismatch_pct": 4.92279,
+     "vctrl_leak_off_na": 0.00276301
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_cp_tb__ss_m40c.cir"
+   },
+   {
+    "bench": "pll_analog_cp_tb.cir",
+    "corner": "ss_m40c_vp10",
+    "names": [
+     "ss_m40c_vp10"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": -40,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "icp_up_code00_ua": 18.2374,
+     "icp_dn_code00_ua": 17.8302,
+     "icp_up_code00_tt_ua": 18.2374,
+     "icp_up_code01_ua": 22.6913,
+     "icp_up_code10_ua": 27.1309,
+     "icp_up_code11_ua": 35.9786,
+     "icp_code11_over_code00_ratio": 1.97279,
+     "cp_updn_mismatch_pct": 6.03829,
+     "vctrl_leak_off_na": 0.00317489
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_cp_tb__ss_m40c_vp10.cir"
+   },
+   {
+    "bench": "pll_analog_cp_tb.cir",
+    "corner": "ss_27c_vm10",
+    "names": [
+     "ss_27c_vm10"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": 27,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "icp_up_code00_ua": 17.3737,
+     "icp_dn_code00_ua": 17.2004,
+     "icp_up_code00_tt_ua": 17.3737,
+     "icp_up_code01_ua": 21.6522,
+     "icp_up_code10_ua": 25.9202,
+     "icp_up_code11_ua": 34.4317,
+     "icp_code11_over_code00_ratio": 1.98183,
+     "cp_updn_mismatch_pct": 3.69084,
+     "vctrl_leak_off_na": 0.002426
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_cp_tb__ss_27c_vm10.cir"
+   },
+   {
+    "bench": "pll_analog_cp_tb.cir",
+    "corner": "ss_27c",
+    "names": [
+     "ss_27c"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": 27,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "icp_up_code00_ua": 17.563,
+     "icp_dn_code00_ua": 17.3055,
+     "icp_up_code00_tt_ua": 17.563,
+     "icp_up_code01_ua": 21.8767,
+     "icp_up_code10_ua": 26.1792,
+     "icp_up_code11_ua": 34.7584,
+     "icp_code11_over_code00_ratio": 1.97907,
+     "cp_updn_mismatch_pct": 4.51235,
+     "vctrl_leak_off_na": 0.00276293
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_cp_tb__ss_27c.cir"
+   },
+   {
+    "bench": "pll_analog_cp_tb.cir",
+    "corner": "ss_27c_vp10",
+    "names": [
+     "ss_27c_vp10"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": 27,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "icp_up_code00_ua": 17.7808,
+     "icp_dn_code00_ua": 17.4012,
+     "icp_up_code00_tt_ua": 17.7808,
+     "icp_up_code01_ua": 22.1282,
+     "icp_up_code10_ua": 26.4622,
+     "icp_up_code11_ua": 35.1004,
+     "icp_code11_over_code00_ratio": 1.97406,
+     "cp_updn_mismatch_pct": 5.5243,
+     "vctrl_leak_off_na": 0.0031749
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_cp_tb__ss_27c_vp10.cir"
+   },
+   {
+    "bench": "pll_analog_cp_tb.cir",
+    "corner": "ss_125c_vm10",
+    "names": [
+     "ss_125c_vm10"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": 125,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "icp_up_code00_ua": 16.5034,
+     "icp_dn_code00_ua": 16.3284,
+     "icp_up_code00_tt_ua": 16.5034,
+     "icp_up_code01_ua": 20.5688,
+     "icp_up_code10_ua": 24.624,
+     "icp_up_code11_ua": 32.7103,
+     "icp_code11_over_code00_ratio": 1.98203,
+     "cp_updn_mismatch_pct": 3.63209,
+     "vctrl_leak_off_na": 0.00242588
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_cp_tb__ss_125c_vm10.cir"
+   },
+   {
+    "bench": "pll_analog_cp_tb.cir",
+    "corner": "ss_125c",
+    "names": [
+     "ss_125c"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": 125,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "icp_up_code00_ua": 16.6638,
+     "icp_dn_code00_ua": 16.4171,
+     "icp_up_code00_tt_ua": 16.6638,
+     "icp_up_code01_ua": 20.7591,
+     "icp_up_code10_ua": 24.8438,
+     "icp_up_code11_ua": 32.9887,
+     "icp_code11_over_code00_ratio": 1.97966,
+     "cp_updn_mismatch_pct": 4.33674,
+     "vctrl_leak_off_na": 0.00276283
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_cp_tb__ss_125c.cir"
+   },
+   {
+    "bench": "pll_analog_cp_tb.cir",
+    "corner": "ss_125c_vp10",
+    "names": [
+     "ss_125c_vp10"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": 125,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "icp_up_code00_ua": 16.8583,
+     "icp_dn_code00_ua": 16.4984,
+     "icp_up_code00_tt_ua": 16.8583,
+     "icp_up_code01_ua": 20.9816,
+     "icp_up_code10_ua": 25.0923,
+     "icp_up_code11_ua": 33.2859,
+     "icp_code11_over_code00_ratio": 1.97445,
+     "cp_updn_mismatch_pct": 5.27244,
+     "vctrl_leak_off_na": 0.00317487
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_cp_tb__ss_125c_vp10.cir"
+   },
+   {
+    "bench": "pll_analog_cp_tb.cir",
+    "corner": "ff_m40c_vm10",
+    "names": [
+     "ff_m40c_vm10"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": -40,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "icp_up_code00_ua": 21.7368,
+     "icp_dn_code00_ua": 21.3502,
+     "icp_up_code00_tt_ua": 21.7368,
+     "icp_up_code01_ua": 27.0659,
+     "icp_up_code10_ua": 32.3802,
+     "icp_up_code11_ua": 42.9753,
+     "icp_code11_over_code00_ratio": 1.97708,
+     "cp_updn_mismatch_pct": 4.88601,
+     "vctrl_leak_off_na": 0.00242606
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_cp_tb__ff_m40c_vm10.cir"
+   },
+   {
+    "bench": "pll_analog_cp_tb.cir",
+    "corner": "ff_m40c",
+    "names": [
+     "ff_m40c"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": -40,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "icp_up_code00_ua": 22.0082,
+     "icp_dn_code00_ua": 21.4795,
+     "icp_up_code00_tt_ua": 22.0082,
+     "icp_up_code01_ua": 27.3819,
+     "icp_up_code10_ua": 32.7385,
+     "icp_up_code11_ua": 43.4136,
+     "icp_code11_over_code00_ratio": 1.97261,
+     "cp_updn_mismatch_pct": 5.91307,
+     "vctrl_leak_off_na": 0.00282632
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_cp_tb__ff_m40c.cir"
+   },
+   {
+    "bench": "pll_analog_cp_tb.cir",
+    "corner": "ff_m40c_vp10",
+    "names": [
+     "ff_m40c_vp10"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": -40,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "icp_up_code00_ua": 22.3811,
+     "icp_dn_code00_ua": 21.6059,
+     "icp_up_code00_tt_ua": 22.3811,
+     "icp_up_code01_ua": 27.8085,
+     "icp_up_code10_ua": 33.2132,
+     "icp_up_code11_ua": 43.9727,
+     "icp_code11_over_code00_ratio": 1.96472,
+     "cp_updn_mismatch_pct": 7.37713,
+     "vctrl_leak_off_na": 0.00349625
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_cp_tb__ff_m40c_vp10.cir"
+   },
+   {
+    "bench": "pll_analog_cp_tb.cir",
+    "corner": "ff_27c_vm10",
+    "names": [
+     "ff_27c_vm10"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": 27,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "icp_up_code00_ua": 21.0235,
+     "icp_dn_code00_ua": 20.6653,
+     "icp_up_code00_tt_ua": 21.0235,
+     "icp_up_code01_ua": 26.184,
+     "icp_up_code10_ua": 31.3305,
+     "icp_up_code11_ua": 41.5914,
+     "icp_code11_over_code00_ratio": 1.97833,
+     "cp_updn_mismatch_pct": 4.5249,
+     "vctrl_leak_off_na": 0.002426
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_cp_tb__ff_27c_vm10.cir"
+   },
+   {
+    "bench": "pll_analog_cp_tb.cir",
+    "corner": "ff_27c",
+    "names": [
+     "ff_27c"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": 27,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "icp_up_code00_ua": 21.2637,
+     "icp_dn_code00_ua": 20.7786,
+     "icp_up_code00_tt_ua": 21.2637,
+     "icp_up_code01_ua": 26.4632,
+     "icp_up_code10_ua": 31.6467,
+     "icp_up_code11_ua": 41.9782,
+     "icp_code11_over_code00_ratio": 1.97417,
+     "cp_updn_mismatch_pct": 5.44594,
+     "vctrl_leak_off_na": 0.00282633
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_cp_tb__ff_27c.cir"
+   },
+   {
+    "bench": "pll_analog_cp_tb.cir",
+    "corner": "ff_27c_vp10",
+    "names": [
+     "ff_27c_vp10"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": 27,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "icp_up_code00_ua": 21.6078,
+     "icp_dn_code00_ua": 20.8894,
+     "icp_up_code00_tt_ua": 21.6078,
+     "icp_up_code01_ua": 26.8536,
+     "icp_up_code10_ua": 32.0779,
+     "icp_up_code11_ua": 42.48,
+     "icp_code11_over_code00_ratio": 1.96596,
+     "cp_updn_mismatch_pct": 6.83338,
+     "vctrl_leak_off_na": 0.00349626
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_cp_tb__ff_27c_vp10.cir"
+   },
+   {
+    "bench": "pll_analog_cp_tb.cir",
+    "corner": "ff_125c_vm10",
+    "names": [
+     "ff_125c_vm10"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": 125,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "icp_up_code00_ua": 19.574,
+     "icp_dn_code00_ua": 19.2389,
+     "icp_up_code00_tt_ua": 19.574,
+     "icp_up_code01_ua": 24.3824,
+     "icp_up_code10_ua": 29.1778,
+     "icp_up_code11_ua": 38.7387,
+     "icp_code11_over_code00_ratio": 1.97909,
+     "cp_updn_mismatch_pct": 4.41063,
+     "vctrl_leak_off_na": 0.00242227
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_cp_tb__ff_125c_vm10.cir"
+   },
+   {
+    "bench": "pll_analog_cp_tb.cir",
+    "corner": "ff_125c",
+    "names": [
+     "ff_125c"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": 125,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "icp_up_code00_ua": 19.7844,
+     "icp_dn_code00_ua": 19.3352,
+     "icp_up_code00_tt_ua": 19.7844,
+     "icp_up_code01_ua": 24.6251,
+     "icp_up_code10_ua": 29.4512,
+     "icp_up_code11_ua": 39.0709,
+     "icp_code11_over_code00_ratio": 1.97483,
+     "cp_updn_mismatch_pct": 5.25029,
+     "vctrl_leak_off_na": 0.00282177
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_cp_tb__ff_125c.cir"
+   },
+   {
+    "bench": "pll_analog_cp_tb.cir",
+    "corner": "ff_125c_vp10",
+    "names": [
+     "ff_125c_vp10"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": 125,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "icp_up_code00_ua": 20.1046,
+     "icp_dn_code00_ua": 19.4303,
+     "icp_up_code00_tt_ua": 20.1046,
+     "icp_up_code01_ua": 24.9836,
+     "icp_up_code10_ua": 29.8426,
+     "icp_up_code11_ua": 39.5176,
+     "icp_code11_over_code00_ratio": 1.9656,
+     "cp_updn_mismatch_pct": 6.62163,
+     "vctrl_leak_off_na": 0.00349356
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_cp_tb__ff_125c_vp10.cir"
+   },
+   {
+    "bench": "pll_analog_cp_tb.cir",
+    "corner": "ss_pff",
+    "names": [
+     "ss_pff"
+    ],
+    "process": "ss",
+    "passive": "ff",
+    "temp_c": 125,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "icp_up_code00_ua": 27.0609,
+     "icp_dn_code00_ua": 26.8581,
+     "icp_up_code00_tt_ua": 27.0609,
+     "icp_up_code01_ua": 33.7285,
+     "icp_up_code10_ua": 40.3759,
+     "icp_up_code11_ua": 53.6205,
+     "icp_code11_over_code00_ratio": 1.98148,
+     "cp_updn_mismatch_pct": 7.84894,
+     "vctrl_leak_off_na": 0.0024259
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_cp_tb__ss_pff.cir"
+   },
+   {
+    "bench": "pll_analog_cp_tb.cir",
+    "corner": "ff_pss",
+    "names": [
+     "ff_pss"
+    ],
+    "process": "ff",
+    "passive": "ss",
+    "temp_c": -40,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "icp_up_code00_ua": 14.2457,
+     "icp_dn_code00_ua": 13.6448,
+     "icp_up_code00_tt_ua": 14.2457,
+     "icp_up_code01_ua": 17.6896,
+     "icp_up_code10_ua": 21.1173,
+     "icp_up_code11_ua": 27.9371,
+     "icp_code11_over_code00_ratio": 1.96109,
+     "cp_updn_mismatch_pct": 8.6882,
+     "vctrl_leak_off_na": 0.00349625
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_cp_tb__ff_pss.cir"
+   },
+   {
+    "bench": "pll_analog_cp_tb.cir",
+    "corner": "tt_pss",
+    "names": [
+     "tt_pss"
+    ],
+    "process": "typical",
+    "passive": "ss",
+    "temp_c": 27,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "icp_up_code00_ua": 15.4105,
+     "icp_dn_code00_ua": 15.0922,
+     "icp_up_code00_tt_ua": 15.4105,
+     "icp_up_code01_ua": 19.1841,
+     "icp_up_code10_ua": 22.9468,
+     "icp_up_code11_ua": 30.4478,
+     "icp_code11_over_code00_ratio": 1.97578,
+     "cp_updn_mismatch_pct": 5.32301,
+     "vctrl_leak_off_na": 0.00276435
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_cp_tb__tt_pss.cir"
+   },
+   {
+    "bench": "pll_analog_cp_tb.cir",
+    "corner": "tt_pff",
+    "names": [
+     "tt_pff"
+    ],
+    "process": "typical",
+    "passive": "ff",
+    "temp_c": 27,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "icp_up_code00_ua": 24.683,
+     "icp_dn_code00_ua": 24.282,
+     "icp_up_code00_tt_ua": 24.683,
+     "icp_up_code01_ua": 30.7389,
+     "icp_up_code10_ua": 36.7782,
+     "icp_up_code11_ua": 48.8184,
+     "icp_code11_over_code00_ratio": 1.97781,
+     "cp_updn_mismatch_pct": 4.61295,
+     "vctrl_leak_off_na": 0.00276435
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_cp_tb__tt_pff.cir"
+   },
+   {
+    "bench": "pll_analog_ol_tb.cir",
+    "corner": "tt_m40c_vm10",
+    "names": [
+     "tt_m40c_vm10"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": -40,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "ol_pm_pn16_nopad_pvt_deg": 52.6418
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_ol_tb__tt_m40c_vm10.cir"
+   },
+   {
+    "bench": "pll_analog_ol_tb.cir",
+    "corner": "tt_m40c",
+    "names": [
+     "tt_m40c"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": -40,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "ol_pm_pn16_nopad_pvt_deg": 51.1525
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_ol_tb__tt_m40c.cir"
+   },
+   {
+    "bench": "pll_analog_ol_tb.cir",
+    "corner": "tt_m40c_vp10",
+    "names": [
+     "tt_m40c_vp10"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": -40,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "ol_pm_pn16_nopad_pvt_deg": 48.2224
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_ol_tb__tt_m40c_vp10.cir"
+   },
+   {
+    "bench": "pll_analog_ol_tb.cir",
+    "corner": "tt_27c_vm10",
+    "names": [
+     "tt_27c_vm10"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": 27,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "ol_pm_pn16_nopad_pvt_deg": 51.6259
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_ol_tb__tt_27c_vm10.cir"
+   },
+   {
+    "bench": "pll_analog_ol_tb.cir",
+    "corner": "tt_27c",
+    "names": [
+     "tt_27c"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": 27,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "ol_pm_pn16_nopad_pvt_deg": 49.5144,
+     "ol_pm_pn16_nopad_deg": 49.5144,
+     "ol_pm_pn16_pad5p_deg": 33.8996,
+     "ol_fc_pn16_nopad_khz": 479.973,
+     "ol_pm_pn8_nopad_deg": 55.296,
+     "ol_pm_pn40_nopad_deg": 35.937
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_ol_tb__tt_27c.cir"
+   },
+   {
+    "bench": "pll_analog_ol_tb.cir",
+    "corner": "tt_27c_vp10",
+    "names": [
+     "tt_27c_vp10"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": 27,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "ol_pm_pn16_nopad_pvt_deg": 45.9595
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_ol_tb__tt_27c_vp10.cir"
+   },
+   {
+    "bench": "pll_analog_ol_tb.cir",
+    "corner": "tt_125c_vm10",
+    "names": [
+     "tt_125c_vm10"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": 125,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "ol_pm_pn16_nopad_pvt_deg": 49.7023
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_ol_tb__tt_125c_vm10.cir"
+   },
+   {
+    "bench": "pll_analog_ol_tb.cir",
+    "corner": "tt_125c",
+    "names": [
+     "tt_125c"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": 125,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "ol_pm_pn16_nopad_pvt_deg": 46.8258
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_ol_tb__tt_125c.cir"
+   },
+   {
+    "bench": "pll_analog_ol_tb.cir",
+    "corner": "tt_125c_vp10",
+    "names": [
+     "tt_125c_vp10"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": 125,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "ol_pm_pn16_nopad_pvt_deg": 43.1341
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_ol_tb__tt_125c_vp10.cir"
+   },
+   {
+    "bench": "pll_analog_ol_tb.cir",
+    "corner": "ss_m40c_vm10",
+    "names": [
+     "ss_m40c_vm10"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": -40,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "ol_pm_pn16_nopad_pvt_deg": 53.9609
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_ol_tb__ss_m40c_vm10.cir"
+   },
+   {
+    "bench": "pll_analog_ol_tb.cir",
+    "corner": "ss_m40c",
+    "names": [
+     "ss_m40c"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": -40,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "ol_pm_pn16_nopad_pvt_deg": 53.3432
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_ol_tb__ss_m40c.cir"
+   },
+   {
+    "bench": "pll_analog_ol_tb.cir",
+    "corner": "ss_m40c_vp10",
+    "names": [
+     "ss_m40c_vp10"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": -40,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "ol_pm_pn16_nopad_pvt_deg": 52.0721
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_ol_tb__ss_m40c_vp10.cir"
+   },
+   {
+    "bench": "pll_analog_ol_tb.cir",
+    "corner": "ss_27c_vm10",
+    "names": [
+     "ss_27c_vm10"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": 27,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "ol_pm_pn16_nopad_pvt_deg": 53.438
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_ol_tb__ss_27c_vm10.cir"
+   },
+   {
+    "bench": "pll_analog_ol_tb.cir",
+    "corner": "ss_27c",
+    "names": [
+     "ss_27c"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": 27,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "ol_pm_pn16_nopad_pvt_deg": 52.3728
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_ol_tb__ss_27c.cir"
+   },
+   {
+    "bench": "pll_analog_ol_tb.cir",
+    "corner": "ss_27c_vp10",
+    "names": [
+     "ss_27c_vp10"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": 27,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "ol_pm_pn16_nopad_pvt_deg": 50.6604
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_ol_tb__ss_27c_vp10.cir"
+   },
+   {
+    "bench": "pll_analog_ol_tb.cir",
+    "corner": "ss_125c_vm10",
+    "names": [
+     "ss_125c_vm10"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": 125,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "ol_pm_pn16_nopad_pvt_deg": 51.9795
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_ol_tb__ss_125c_vm10.cir"
+   },
+   {
+    "bench": "pll_analog_ol_tb.cir",
+    "corner": "ss_125c",
+    "names": [
+     "ss_125c"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": 125,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "ol_pm_pn16_nopad_pvt_deg": 51.4099
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_ol_tb__ss_125c.cir"
+   },
+   {
+    "bench": "pll_analog_ol_tb.cir",
+    "corner": "ss_125c_vp10",
+    "names": [
+     "ss_125c_vp10"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": 125,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "ol_pm_pn16_nopad_pvt_deg": 48.3063
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_ol_tb__ss_125c_vp10.cir"
+   },
+   {
+    "bench": "pll_analog_ol_tb.cir",
+    "corner": "ff_m40c_vm10",
+    "names": [
+     "ff_m40c_vm10"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": -40,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "ol_pm_pn16_nopad_pvt_deg": 50.1133
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_ol_tb__ff_m40c_vm10.cir"
+   },
+   {
+    "bench": "pll_analog_ol_tb.cir",
+    "corner": "ff_m40c",
+    "names": [
+     "ff_m40c"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": -40,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "ol_pm_pn16_nopad_pvt_deg": 46.7273
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_ol_tb__ff_m40c.cir"
+   },
+   {
+    "bench": "pll_analog_ol_tb.cir",
+    "corner": "ff_m40c_vp10",
+    "names": [
+     "ff_m40c_vp10"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": -40,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "ol_pm_pn16_nopad_pvt_deg": 42.9315
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_ol_tb__ff_m40c_vp10.cir"
+   },
+   {
+    "bench": "pll_analog_ol_tb.cir",
+    "corner": "ff_27c_vm10",
+    "names": [
+     "ff_27c_vm10"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": 27,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "ol_pm_pn16_nopad_pvt_deg": 48.3891
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_ol_tb__ff_27c_vm10.cir"
+   },
+   {
+    "bench": "pll_analog_ol_tb.cir",
+    "corner": "ff_27c",
+    "names": [
+     "ff_27c"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": 27,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "ol_pm_pn16_nopad_pvt_deg": 44.5131
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_ol_tb__ff_27c.cir"
+   },
+   {
+    "bench": "pll_analog_ol_tb.cir",
+    "corner": "ff_27c_vp10",
+    "names": [
+     "ff_27c_vp10"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": 27,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "ol_pm_pn16_nopad_pvt_deg": 40.6648
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_ol_tb__ff_27c_vp10.cir"
+   },
+   {
+    "bench": "pll_analog_ol_tb.cir",
+    "corner": "ff_125c_vm10",
+    "names": [
+     "ff_125c_vm10"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": 125,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "ol_pm_pn16_nopad_pvt_deg": 45.1222
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_ol_tb__ff_125c_vm10.cir"
+   },
+   {
+    "bench": "pll_analog_ol_tb.cir",
+    "corner": "ff_125c",
+    "names": [
+     "ff_125c"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": 125,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "ol_pm_pn16_nopad_pvt_deg": 40.9335
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_ol_tb__ff_125c.cir"
+   },
+   {
+    "bench": "pll_analog_ol_tb.cir",
+    "corner": "ff_125c_vp10",
+    "names": [
+     "ff_125c_vp10"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": 125,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "ol_pm_pn16_nopad_pvt_deg": 37.229
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_ol_tb__ff_125c_vp10.cir"
+   },
+   {
+    "bench": "pll_analog_ol_tb.cir",
+    "corner": "ss_pff",
+    "names": [
+     "ss_pff"
+    ],
+    "process": "ss",
+    "passive": "ff",
+    "temp_c": 125,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "ol_pm_pn16_nopad_pvt_deg": 50.0041
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_ol_tb__ss_pff.cir"
+   },
+   {
+    "bench": "pll_analog_ol_tb.cir",
+    "corner": "ff_pss",
+    "names": [
+     "ff_pss"
+    ],
+    "process": "ff",
+    "passive": "ss",
+    "temp_c": -40,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "ol_pm_pn16_nopad_pvt_deg": 43.3352
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_ol_tb__ff_pss.cir"
+   },
+   {
+    "bench": "pll_analog_ol_tb.cir",
+    "corner": "tt_pss",
+    "names": [
+     "tt_pss"
+    ],
+    "process": "typical",
+    "passive": "ss",
+    "temp_c": 27,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "ol_pm_pn16_nopad_pvt_deg": 49.86,
+     "ol_pm_pn16_nopad_deg": 49.86,
+     "ol_pm_pn16_pad5p_deg": 35.0905,
+     "ol_fc_pn16_nopad_khz": 371.053,
+     "ol_pm_pn8_nopad_deg": 55.3991,
+     "ol_pm_pn40_nopad_deg": 36.3278
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_ol_tb__tt_pss.cir"
+   },
+   {
+    "bench": "pll_analog_ol_tb.cir",
+    "corner": "tt_pff",
+    "names": [
+     "tt_pff"
+    ],
+    "process": "typical",
+    "passive": "ff",
+    "temp_c": 27,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "ol_pm_pn16_nopad_pvt_deg": 49.201,
+     "ol_pm_pn16_nopad_deg": 49.201,
+     "ol_pm_pn16_pad5p_deg": 32.5847,
+     "ol_fc_pn16_nopad_khz": 655.293,
+     "ol_pm_pn8_nopad_deg": 55.187,
+     "ol_pm_pn40_nopad_deg": 35.5901
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_ol_tb__tt_pff.cir"
+   },
+   {
+    "bench": "pll_analog_overlap_tb.cir",
+    "corner": "tt_m40c_vm10",
+    "names": [
+     "tt_m40c_vm10"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": -40,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "cp_overlap_net_charge_fc": 2.29108
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_overlap_tb__tt_m40c_vm10.cir"
+   },
+   {
+    "bench": "pll_analog_overlap_tb.cir",
+    "corner": "tt_m40c",
+    "names": [
+     "tt_m40c"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": -40,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "cp_overlap_net_charge_fc": 2.31756
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_overlap_tb__tt_m40c.cir"
+   },
+   {
+    "bench": "pll_analog_overlap_tb.cir",
+    "corner": "tt_m40c_vp10",
+    "names": [
+     "tt_m40c_vp10"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": -40,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "cp_overlap_net_charge_fc": 2.67517
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_overlap_tb__tt_m40c_vp10.cir"
+   },
+   {
+    "bench": "pll_analog_overlap_tb.cir",
+    "corner": "tt_27c_vm10",
+    "names": [
+     "tt_27c_vm10"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": 27,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "cp_overlap_net_charge_fc": 2.3184
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_overlap_tb__tt_27c_vm10.cir"
+   },
+   {
+    "bench": "pll_analog_overlap_tb.cir",
+    "corner": "tt_27c",
+    "names": [
+     "tt_27c"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": 27,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "cp_overlap_net_charge_fc": 2.38237
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_overlap_tb__tt_27c.cir"
+   },
+   {
+    "bench": "pll_analog_overlap_tb.cir",
+    "corner": "tt_27c_vp10",
+    "names": [
+     "tt_27c_vp10"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": 27,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "cp_overlap_net_charge_fc": 2.52766
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_overlap_tb__tt_27c_vp10.cir"
+   },
+   {
+    "bench": "pll_analog_overlap_tb.cir",
+    "corner": "tt_125c_vm10",
+    "names": [
+     "tt_125c_vm10"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": 125,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "cp_overlap_net_charge_fc": 2.27533
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_overlap_tb__tt_125c_vm10.cir"
+   },
+   {
+    "bench": "pll_analog_overlap_tb.cir",
+    "corner": "tt_125c",
+    "names": [
+     "tt_125c"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": 125,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "cp_overlap_net_charge_fc": 2.3488
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_overlap_tb__tt_125c.cir"
+   },
+   {
+    "bench": "pll_analog_overlap_tb.cir",
+    "corner": "tt_125c_vp10",
+    "names": [
+     "tt_125c_vp10"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": 125,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "cp_overlap_net_charge_fc": 2.53375
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_overlap_tb__tt_125c_vp10.cir"
+   },
+   {
+    "bench": "pll_analog_overlap_tb.cir",
+    "corner": "ss_m40c_vm10",
+    "names": [
+     "ss_m40c_vm10"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": -40,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "cp_overlap_net_charge_fc": 2.21706
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_overlap_tb__ss_m40c_vm10.cir"
+   },
+   {
+    "bench": "pll_analog_overlap_tb.cir",
+    "corner": "ss_m40c",
+    "names": [
+     "ss_m40c"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": -40,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "cp_overlap_net_charge_fc": 2.07138
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_overlap_tb__ss_m40c.cir"
+   },
+   {
+    "bench": "pll_analog_overlap_tb.cir",
+    "corner": "ss_m40c_vp10",
+    "names": [
+     "ss_m40c_vp10"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": -40,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "cp_overlap_net_charge_fc": 2.5436
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_overlap_tb__ss_m40c_vp10.cir"
+   },
+   {
+    "bench": "pll_analog_overlap_tb.cir",
+    "corner": "ss_27c_vm10",
+    "names": [
+     "ss_27c_vm10"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": 27,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "cp_overlap_net_charge_fc": 2.31473
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_overlap_tb__ss_27c_vm10.cir"
+   },
+   {
+    "bench": "pll_analog_overlap_tb.cir",
+    "corner": "ss_27c",
+    "names": [
+     "ss_27c"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": 27,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "cp_overlap_net_charge_fc": 2.14958
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_overlap_tb__ss_27c.cir"
+   },
+   {
+    "bench": "pll_analog_overlap_tb.cir",
+    "corner": "ss_27c_vp10",
+    "names": [
+     "ss_27c_vp10"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": 27,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "cp_overlap_net_charge_fc": 2.17204
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_overlap_tb__ss_27c_vp10.cir"
+   },
+   {
+    "bench": "pll_analog_overlap_tb.cir",
+    "corner": "ss_125c_vm10",
+    "names": [
+     "ss_125c_vm10"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": 125,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "cp_overlap_net_charge_fc": 2.14378
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_overlap_tb__ss_125c_vm10.cir"
+   },
+   {
+    "bench": "pll_analog_overlap_tb.cir",
+    "corner": "ss_125c",
+    "names": [
+     "ss_125c"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": 125,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "cp_overlap_net_charge_fc": 2.25123
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_overlap_tb__ss_125c.cir"
+   },
+   {
+    "bench": "pll_analog_overlap_tb.cir",
+    "corner": "ss_125c_vp10",
+    "names": [
+     "ss_125c_vp10"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": 125,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "cp_overlap_net_charge_fc": 2.27115
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_overlap_tb__ss_125c_vp10.cir"
+   },
+   {
+    "bench": "pll_analog_overlap_tb.cir",
+    "corner": "ff_m40c_vm10",
+    "names": [
+     "ff_m40c_vm10"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": -40,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "cp_overlap_net_charge_fc": 2.53415
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_overlap_tb__ff_m40c_vm10.cir"
+   },
+   {
+    "bench": "pll_analog_overlap_tb.cir",
+    "corner": "ff_m40c",
+    "names": [
+     "ff_m40c"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": -40,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "cp_overlap_net_charge_fc": 2.63523
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_overlap_tb__ff_m40c.cir"
+   },
+   {
+    "bench": "pll_analog_overlap_tb.cir",
+    "corner": "ff_m40c_vp10",
+    "names": [
+     "ff_m40c_vp10"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": -40,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "cp_overlap_net_charge_fc": 2.92418
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_overlap_tb__ff_m40c_vp10.cir"
+   },
+   {
+    "bench": "pll_analog_overlap_tb.cir",
+    "corner": "ff_27c_vm10",
+    "names": [
+     "ff_27c_vm10"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": 27,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "cp_overlap_net_charge_fc": 2.57811
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_overlap_tb__ff_27c_vm10.cir"
+   },
+   {
+    "bench": "pll_analog_overlap_tb.cir",
+    "corner": "ff_27c",
+    "names": [
+     "ff_27c"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": 27,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "cp_overlap_net_charge_fc": 2.68996
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_overlap_tb__ff_27c.cir"
+   },
+   {
+    "bench": "pll_analog_overlap_tb.cir",
+    "corner": "ff_27c_vp10",
+    "names": [
+     "ff_27c_vp10"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": 27,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "cp_overlap_net_charge_fc": 2.98185
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_overlap_tb__ff_27c_vp10.cir"
+   },
+   {
+    "bench": "pll_analog_overlap_tb.cir",
+    "corner": "ff_125c_vm10",
+    "names": [
+     "ff_125c_vm10"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": 125,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "cp_overlap_net_charge_fc": 2.51423
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_overlap_tb__ff_125c_vm10.cir"
+   },
+   {
+    "bench": "pll_analog_overlap_tb.cir",
+    "corner": "ff_125c",
+    "names": [
+     "ff_125c"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": 125,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "cp_overlap_net_charge_fc": 2.58202
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_overlap_tb__ff_125c.cir"
+   },
+   {
+    "bench": "pll_analog_overlap_tb.cir",
+    "corner": "ff_125c_vp10",
+    "names": [
+     "ff_125c_vp10"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": 125,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "cp_overlap_net_charge_fc": 2.84388
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_overlap_tb__ff_125c_vp10.cir"
+   },
+   {
+    "bench": "pll_analog_overlap_tb.cir",
+    "corner": "ss_pff",
+    "names": [
+     "ss_pff"
+    ],
+    "process": "ss",
+    "passive": "ff",
+    "temp_c": 125,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "cp_overlap_net_charge_fc": 3.60887
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_overlap_tb__ss_pff.cir"
+   },
+   {
+    "bench": "pll_analog_overlap_tb.cir",
+    "corner": "ff_pss",
+    "names": [
+     "ff_pss"
+    ],
+    "process": "ff",
+    "passive": "ss",
+    "temp_c": -40,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "cp_overlap_net_charge_fc": 2.19684
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_overlap_tb__ff_pss.cir"
+   },
+   {
+    "bench": "pll_analog_overlap_tb.cir",
+    "corner": "tt_pss",
+    "names": [
+     "tt_pss"
+    ],
+    "process": "typical",
+    "passive": "ss",
+    "temp_c": 27,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "cp_overlap_net_charge_fc": 1.96921
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_overlap_tb__tt_pss.cir"
+   },
+   {
+    "bench": "pll_analog_overlap_tb.cir",
+    "corner": "tt_pff",
+    "names": [
+     "tt_pff"
+    ],
+    "process": "typical",
+    "passive": "ff",
+    "temp_c": 27,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "cp_overlap_net_charge_fc": 3.0382
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_overlap_tb__tt_pff.cir"
+   },
+   {
+    "bench": "pll_analog_presc_tb.cir",
+    "corner": "ff_m40c_vp10",
+    "names": [
+     "ff_m40c_vp10"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": -40,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "presc_div2_ratio": 1.00003
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_presc_tb__ff_m40c_vp10.cir"
+   },
+   {
+    "bench": "pll_analog_pwr_tb.cir",
+    "corner": "tt_m40c_vm10",
+    "names": [
+     "tt_m40c_vm10"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": -40,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "standby_current_ua": 0.000105028,
+     "vco_out_off_toggles": 0.0
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_pwr_tb__tt_m40c_vm10.cir"
+   },
+   {
+    "bench": "pll_analog_pwr_tb.cir",
+    "corner": "tt_m40c",
+    "names": [
+     "tt_m40c"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": -40,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "standby_current_ua": 0.000119927,
+     "vco_out_off_toggles": 0.0
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_pwr_tb__tt_m40c.cir"
+   },
+   {
+    "bench": "pll_analog_pwr_tb.cir",
+    "corner": "tt_m40c_vp10",
+    "names": [
+     "tt_m40c_vp10"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": -40,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "standby_current_ua": 0.00013836,
+     "vco_out_off_toggles": 0.0
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_pwr_tb__tt_m40c_vp10.cir"
+   },
+   {
+    "bench": "pll_analog_pwr_tb.cir",
+    "corner": "tt_27c_vm10",
+    "names": [
+     "tt_27c_vm10"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": 27,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "standby_current_ua": 0.000112002,
+     "vco_out_off_toggles": 0.0
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_pwr_tb__tt_27c_vm10.cir"
+   },
+   {
+    "bench": "pll_analog_pwr_tb.cir",
+    "corner": "tt_27c",
+    "names": [
+     "tt_27c"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": 27,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "standby_current_ua": 0.00012758,
+     "vco_out_off_toggles": 0.0
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_pwr_tb__tt_27c.cir"
+   },
+   {
+    "bench": "pll_analog_pwr_tb.cir",
+    "corner": "tt_27c_vp10",
+    "names": [
+     "tt_27c_vp10"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": 27,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "standby_current_ua": 0.000147256,
+     "vco_out_off_toggles": 0.0
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_pwr_tb__tt_27c_vp10.cir"
+   },
+   {
+    "bench": "pll_analog_pwr_tb.cir",
+    "corner": "tt_125c_vm10",
+    "names": [
+     "tt_125c_vm10"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": 125,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "standby_current_ua": 0.000964935,
+     "vco_out_off_toggles": 0.0
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_pwr_tb__tt_125c_vm10.cir"
+   },
+   {
+    "bench": "pll_analog_pwr_tb.cir",
+    "corner": "tt_125c",
+    "names": [
+     "tt_125c"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": 125,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "standby_current_ua": 0.00111132,
+     "vco_out_off_toggles": 0.0
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_pwr_tb__tt_125c.cir"
+   },
+   {
+    "bench": "pll_analog_pwr_tb.cir",
+    "corner": "tt_125c_vp10",
+    "names": [
+     "tt_125c_vp10"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": 125,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "standby_current_ua": 0.00130872,
+     "vco_out_off_toggles": 0.0
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_pwr_tb__tt_125c_vp10.cir"
+   },
+   {
+    "bench": "pll_analog_pwr_tb.cir",
+    "corner": "ss_m40c_vm10",
+    "names": [
+     "ss_m40c_vm10"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": -40,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "standby_current_ua": 0.000101878,
+     "vco_out_off_toggles": 0.0
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_pwr_tb__ss_m40c_vm10.cir"
+   },
+   {
+    "bench": "pll_analog_pwr_tb.cir",
+    "corner": "ss_m40c",
+    "names": [
+     "ss_m40c"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": -40,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "standby_current_ua": 0.000115851,
+     "vco_out_off_toggles": 0.0
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_pwr_tb__ss_m40c.cir"
+   },
+   {
+    "bench": "pll_analog_pwr_tb.cir",
+    "corner": "ss_m40c_vp10",
+    "names": [
+     "ss_m40c_vp10"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": -40,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "standby_current_ua": 0.000132031,
+     "vco_out_off_toggles": 0.0
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_pwr_tb__ss_m40c_vp10.cir"
+   },
+   {
+    "bench": "pll_analog_pwr_tb.cir",
+    "corner": "ss_27c_vm10",
+    "names": [
+     "ss_27c_vm10"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": 27,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "standby_current_ua": 0.00010597,
+     "vco_out_off_toggles": 0.0
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_pwr_tb__ss_27c_vm10.cir"
+   },
+   {
+    "bench": "pll_analog_pwr_tb.cir",
+    "corner": "ss_27c",
+    "names": [
+     "ss_27c"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": 27,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "standby_current_ua": 0.000120009,
+     "vco_out_off_toggles": 0.0
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_pwr_tb__ss_27c.cir"
+   },
+   {
+    "bench": "pll_analog_pwr_tb.cir",
+    "corner": "ss_27c_vp10",
+    "names": [
+     "ss_27c_vp10"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": 27,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "standby_current_ua": 0.000136277,
+     "vco_out_off_toggles": 0.0
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_pwr_tb__ss_27c_vp10.cir"
+   },
+   {
+    "bench": "pll_analog_pwr_tb.cir",
+    "corner": "ss_125c_vm10",
+    "names": [
+     "ss_125c_vm10"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": 125,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "standby_current_ua": 0.000224804,
+     "vco_out_off_toggles": 0.0
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_pwr_tb__ss_125c_vm10.cir"
+   },
+   {
+    "bench": "pll_analog_pwr_tb.cir",
+    "corner": "ss_125c",
+    "names": [
+     "ss_125c"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": 125,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "standby_current_ua": 0.000254071,
+     "vco_out_off_toggles": 0.0
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_pwr_tb__ss_125c.cir"
+   },
+   {
+    "bench": "pll_analog_pwr_tb.cir",
+    "corner": "ss_125c_vp10",
+    "names": [
+     "ss_125c_vp10"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": 125,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "standby_current_ua": 0.000290552,
+     "vco_out_off_toggles": 0.0
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_pwr_tb__ss_125c_vp10.cir"
+   },
+   {
+    "bench": "pll_analog_pwr_tb.cir",
+    "corner": "ff_m40c_vm10",
+    "names": [
+     "ff_m40c_vm10"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": -40,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "standby_current_ua": 0.000108765,
+     "vco_out_off_toggles": 0.0
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_pwr_tb__ff_m40c_vm10.cir"
+   },
+   {
+    "bench": "pll_analog_pwr_tb.cir",
+    "corner": "ff_m40c",
+    "names": [
+     "ff_m40c"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": -40,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "standby_current_ua": 0.0001253,
+     "vco_out_off_toggles": 0.0
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_pwr_tb__ff_m40c.cir"
+   },
+   {
+    "bench": "pll_analog_pwr_tb.cir",
+    "corner": "ff_m40c_vp10",
+    "names": [
+     "ff_m40c_vp10"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": -40,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "standby_current_ua": 0.00014813,
+     "vco_out_off_toggles": 0.0
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_pwr_tb__ff_m40c_vp10.cir"
+   },
+   {
+    "bench": "pll_analog_pwr_tb.cir",
+    "corner": "ff_27c_vm10",
+    "names": [
+     "ff_27c_vm10"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": 27,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "standby_current_ua": 0.000160852,
+     "vco_out_off_toggles": 0.0
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_pwr_tb__ff_27c_vm10.cir"
+   },
+   {
+    "bench": "pll_analog_pwr_tb.cir",
+    "corner": "ff_27c",
+    "names": [
+     "ff_27c"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": 27,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "standby_current_ua": 0.000190098,
+     "vco_out_off_toggles": 0.0
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_pwr_tb__ff_27c.cir"
+   },
+   {
+    "bench": "pll_analog_pwr_tb.cir",
+    "corner": "ff_27c_vp10",
+    "names": [
+     "ff_27c_vp10"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": 27,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "standby_current_ua": 0.000231515,
+     "vco_out_off_toggles": 0.0
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_pwr_tb__ff_27c_vp10.cir"
+   },
+   {
+    "bench": "pll_analog_pwr_tb.cir",
+    "corner": "ff_125c_vm10",
+    "names": [
+     "ff_125c_vm10"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": 125,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "standby_current_ua": 0.00810187,
+     "vco_out_off_toggles": 0.0
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_pwr_tb__ff_125c_vm10.cir"
+   },
+   {
+    "bench": "pll_analog_pwr_tb.cir",
+    "corner": "ff_125c",
+    "names": [
+     "ff_125c"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": 125,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "standby_current_ua": 0.00950887,
+     "vco_out_off_toggles": 0.0
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_pwr_tb__ff_125c.cir"
+   },
+   {
+    "bench": "pll_analog_pwr_tb.cir",
+    "corner": "ff_125c_vp10",
+    "names": [
+     "ff_125c_vp10"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": 125,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "standby_current_ua": 0.0114595,
+     "vco_out_off_toggles": 0.0
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_pwr_tb__ff_125c_vp10.cir"
+   },
+   {
+    "bench": "pll_analog_pwr_tb.cir",
+    "corner": "ss_pff",
+    "names": [
+     "ss_pff"
+    ],
+    "process": "ss",
+    "passive": "ff",
+    "temp_c": 125,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "standby_current_ua": 0.000224804,
+     "vco_out_off_toggles": 0.0
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_pwr_tb__ss_pff.cir"
+   },
+   {
+    "bench": "pll_analog_pwr_tb.cir",
+    "corner": "ff_pss",
+    "names": [
+     "ff_pss"
+    ],
+    "process": "ff",
+    "passive": "ss",
+    "temp_c": -40,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "standby_current_ua": 0.00014813,
+     "vco_out_off_toggles": 0.0
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_pwr_tb__ff_pss.cir"
+   },
+   {
+    "bench": "pll_analog_pwr_tb.cir",
+    "corner": "tt_pss",
+    "names": [
+     "tt_pss"
+    ],
+    "process": "typical",
+    "passive": "ss",
+    "temp_c": 27,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "standby_current_ua": 0.00012758,
+     "vco_out_off_toggles": 0.0
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_pwr_tb__tt_pss.cir"
+   },
+   {
+    "bench": "pll_analog_pwr_tb.cir",
+    "corner": "tt_pff",
+    "names": [
+     "tt_pff"
+    ],
+    "process": "typical",
+    "passive": "ff",
+    "temp_c": 27,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "standby_current_ua": 0.00012758,
+     "vco_out_off_toggles": 0.0
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_pwr_tb__tt_pff.cir"
+   },
+   {
+    "bench": "pll_analog_startup_tb.cir",
+    "corner": "tt_m40c_vm10",
+    "names": [
+     "tt_m40c_vm10"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": -40,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "startup_time_us": 0.717691
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_startup_tb__tt_m40c_vm10.cir"
+   },
+   {
+    "bench": "pll_analog_startup_tb.cir",
+    "corner": "tt_m40c",
+    "names": [
+     "tt_m40c"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": -40,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "startup_time_us": 0.686017
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_startup_tb__tt_m40c.cir"
+   },
+   {
+    "bench": "pll_analog_startup_tb.cir",
+    "corner": "tt_m40c_vp10",
+    "names": [
+     "tt_m40c_vp10"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": -40,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "startup_time_us": 0.711566
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_startup_tb__tt_m40c_vp10.cir"
+   },
+   {
+    "bench": "pll_analog_startup_tb.cir",
+    "corner": "tt_27c_vm10",
+    "names": [
+     "tt_27c_vm10"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": 27,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "startup_time_us": 0.639067
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_startup_tb__tt_27c_vm10.cir"
+   },
+   {
+    "bench": "pll_analog_startup_tb.cir",
+    "corner": "tt_27c",
+    "names": [
+     "tt_27c"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": 27,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "startup_time_us": 0.670512
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_startup_tb__tt_27c.cir"
+   },
+   {
+    "bench": "pll_analog_startup_tb.cir",
+    "corner": "tt_27c_vp10",
+    "names": [
+     "tt_27c_vp10"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": 27,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "startup_time_us": 0.682278
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_startup_tb__tt_27c_vp10.cir"
+   },
+   {
+    "bench": "pll_analog_startup_tb.cir",
+    "corner": "tt_125c_vm10",
+    "names": [
+     "tt_125c_vm10"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": 125,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "startup_time_us": 0.58735
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_startup_tb__tt_125c_vm10.cir"
+   },
+   {
+    "bench": "pll_analog_startup_tb.cir",
+    "corner": "tt_125c",
+    "names": [
+     "tt_125c"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": 125,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "startup_time_us": 0.581528
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_startup_tb__tt_125c.cir"
+   },
+   {
+    "bench": "pll_analog_startup_tb.cir",
+    "corner": "tt_125c_vp10",
+    "names": [
+     "tt_125c_vp10"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": 125,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "startup_time_us": 0.562531
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_startup_tb__tt_125c_vp10.cir"
+   },
+   {
+    "bench": "pll_analog_startup_tb.cir",
+    "corner": "ss_m40c_vm10",
+    "names": [
+     "ss_m40c_vm10"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": -40,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "startup_time_us": 1.62794
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_startup_tb__ss_m40c_vm10.cir"
+   },
+   {
+    "bench": "pll_analog_startup_tb.cir",
+    "corner": "ss_m40c",
+    "names": [
+     "ss_m40c"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": -40,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "startup_time_us": 0.880494
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_startup_tb__ss_m40c.cir"
+   },
+   {
+    "bench": "pll_analog_startup_tb.cir",
+    "corner": "ss_m40c_vp10",
+    "names": [
+     "ss_m40c_vp10"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": -40,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "startup_time_us": 0.828985
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_startup_tb__ss_m40c_vp10.cir"
+   },
+   {
+    "bench": "pll_analog_startup_tb.cir",
+    "corner": "ss_27c_vm10",
+    "names": [
+     "ss_27c_vm10"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": 27,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "startup_time_us": 0.858917
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_startup_tb__ss_27c_vm10.cir"
+   },
+   {
+    "bench": "pll_analog_startup_tb.cir",
+    "corner": "ss_27c",
+    "names": [
+     "ss_27c"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": 27,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "startup_time_us": 0.875528
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_startup_tb__ss_27c.cir"
+   },
+   {
+    "bench": "pll_analog_startup_tb.cir",
+    "corner": "ss_27c_vp10",
+    "names": [
+     "ss_27c_vp10"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": 27,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "startup_time_us": 0.798217
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_startup_tb__ss_27c_vp10.cir"
+   },
+   {
+    "bench": "pll_analog_startup_tb.cir",
+    "corner": "ss_125c_vm10",
+    "names": [
+     "ss_125c_vm10"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": 125,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "startup_time_us": 0.836009
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_startup_tb__ss_125c_vm10.cir"
+   },
+   {
+    "bench": "pll_analog_startup_tb.cir",
+    "corner": "ss_125c",
+    "names": [
+     "ss_125c"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": 125,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "startup_time_us": 0.810162
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_startup_tb__ss_125c.cir"
+   },
+   {
+    "bench": "pll_analog_startup_tb.cir",
+    "corner": "ss_125c_vp10",
+    "names": [
+     "ss_125c_vp10"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": 125,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "startup_time_us": 0.815277
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_startup_tb__ss_125c_vp10.cir"
+   },
+   {
+    "bench": "pll_analog_startup_tb.cir",
+    "corner": "ff_m40c_vm10",
+    "names": [
+     "ff_m40c_vm10"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": -40,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "startup_time_us": 0.547973
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_startup_tb__ff_m40c_vm10.cir"
+   },
+   {
+    "bench": "pll_analog_startup_tb.cir",
+    "corner": "ff_m40c",
+    "names": [
+     "ff_m40c"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": -40,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "startup_time_us": 0.579701
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_startup_tb__ff_m40c.cir"
+   },
+   {
+    "bench": "pll_analog_startup_tb.cir",
+    "corner": "ff_m40c_vp10",
+    "names": [
+     "ff_m40c_vp10"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": -40,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "startup_time_us": 0.579937
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_startup_tb__ff_m40c_vp10.cir"
+   },
+   {
+    "bench": "pll_analog_startup_tb.cir",
+    "corner": "ff_27c_vm10",
+    "names": [
+     "ff_27c_vm10"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": 27,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "startup_time_us": 0.544495
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_startup_tb__ff_27c_vm10.cir"
+   },
+   {
+    "bench": "pll_analog_startup_tb.cir",
+    "corner": "ff_27c",
+    "names": [
+     "ff_27c"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": 27,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "startup_time_us": 0.46626
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_startup_tb__ff_27c.cir"
+   },
+   {
+    "bench": "pll_analog_startup_tb.cir",
+    "corner": "ff_27c_vp10",
+    "names": [
+     "ff_27c_vp10"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": 27,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "startup_time_us": 0.55248
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_startup_tb__ff_27c_vp10.cir"
+   },
+   {
+    "bench": "pll_analog_startup_tb.cir",
+    "corner": "ff_125c_vm10",
+    "names": [
+     "ff_125c_vm10"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": 125,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "startup_time_us": 0.470192
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_startup_tb__ff_125c_vm10.cir"
+   },
+   {
+    "bench": "pll_analog_startup_tb.cir",
+    "corner": "ff_125c",
+    "names": [
+     "ff_125c"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": 125,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "startup_time_us": 0.458182
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_startup_tb__ff_125c.cir"
+   },
+   {
+    "bench": "pll_analog_startup_tb.cir",
+    "corner": "ff_125c_vp10",
+    "names": [
+     "ff_125c_vp10"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": 125,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "startup_time_us": 0.42445
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_startup_tb__ff_125c_vp10.cir"
+   },
+   {
+    "bench": "pll_analog_startup_tb.cir",
+    "corner": "ss_pff",
+    "names": [
+     "ss_pff"
+    ],
+    "process": "ss",
+    "passive": "ff",
+    "temp_c": 125,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "startup_time_us": 0.543381
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_startup_tb__ss_pff.cir"
+   },
+   {
+    "bench": "pll_analog_startup_tb.cir",
+    "corner": "ff_pss",
+    "names": [
+     "ff_pss"
+    ],
+    "process": "ff",
+    "passive": "ss",
+    "temp_c": -40,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "startup_time_us": 0.900329
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_startup_tb__ff_pss.cir"
+   },
+   {
+    "bench": "pll_analog_startup_tb.cir",
+    "corner": "tt_pss",
+    "names": [
+     "tt_pss"
+    ],
+    "process": "typical",
+    "passive": "ss",
+    "temp_c": 27,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "startup_time_us": 0.847396
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_startup_tb__tt_pss.cir"
+   },
+   {
+    "bench": "pll_analog_startup_tb.cir",
+    "corner": "tt_pff",
+    "names": [
+     "tt_pff"
+    ],
+    "process": "typical",
+    "passive": "ff",
+    "temp_c": 27,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "startup_time_us": 0.504864
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_startup_tb__tt_pff.cir"
+   },
+   {
+    "bench": "pll_analog_vco_tb.cir",
+    "corner": "tt_m40c_vm10",
+    "names": [
+     "tt_m40c_vm10"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": -40,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "vco_kvco_mhz_per_v": 114.951,
+     "vco_df_dv_min_mhz_per_v": 3.27291,
+     "vco_fmin_tt_mhz": 13.2764,
+     "vco_fmax_tt_mhz": 285.71,
+     "vco_out_swing_pct_vdd": 100.748,
+     "vco_out_duty_pct": 54.1509,
+     "vco_fmax_ff_mhz": 319.911,
+     "vco_out_tr_ns": 0.043293,
+     "vco_out_tf_ns": 0.04229
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_vco_tb__tt_m40c_vm10.cir"
+   },
+   {
+    "bench": "pll_analog_vco_tb.cir",
+    "corner": "tt_m40c",
+    "names": [
+     "tt_m40c"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": -40,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "vco_kvco_mhz_per_v": 98.8975,
+     "vco_df_dv_min_mhz_per_v": 6.15311,
+     "vco_fmin_tt_mhz": 11.9518,
+     "vco_fmax_tt_mhz": 278.975,
+     "vco_out_swing_pct_vdd": 100.574,
+     "vco_out_duty_pct": 53.9635,
+     "vco_fmax_ff_mhz": 286.594,
+     "vco_out_tr_ns": 0.043422,
+     "vco_out_tf_ns": 0.04137
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_vco_tb__tt_m40c.cir"
+   },
+   {
+    "bench": "pll_analog_vco_tb.cir",
+    "corner": "tt_m40c_vp10",
+    "names": [
+     "tt_m40c_vp10"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": -40,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "vco_kvco_mhz_per_v": 77.8787,
+     "vco_df_dv_min_mhz_per_v": 13.9836,
+     "vco_fmin_tt_mhz": 8.96447,
+     "vco_fmax_tt_mhz": 244.937,
+     "vco_out_swing_pct_vdd": 100.428,
+     "vco_out_duty_pct": 53.8018,
+     "vco_fmax_ff_mhz": 246.398,
+     "vco_out_tr_ns": 0.04499,
+     "vco_out_tf_ns": 0.042065
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_vco_tb__tt_m40c_vp10.cir"
+   },
+   {
+    "bench": "pll_analog_vco_tb.cir",
+    "corner": "tt_27c_vm10",
+    "names": [
+     "tt_27c_vm10"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": 27,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "vco_kvco_mhz_per_v": 109.001,
+     "vco_df_dv_min_mhz_per_v": 11.5316,
+     "vco_fmin_tt_mhz": 12.1908,
+     "vco_fmax_tt_mhz": 270.524,
+     "vco_out_swing_pct_vdd": 100.633,
+     "vco_out_duty_pct": 54.1043,
+     "vco_fmax_ff_mhz": 295.853,
+     "vco_out_tr_ns": 0.051105,
+     "vco_out_tf_ns": 0.048755
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_vco_tb__tt_27c_vm10.cir"
+   },
+   {
+    "bench": "pll_analog_vco_tb.cir",
+    "corner": "tt_27c",
+    "names": [
+     "tt_27c"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": 27,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "vco_kvco_mhz_per_v": 91.9244,
+     "vco_df_dv_min_mhz_per_v": 14.1399,
+     "vco_fmin_tt_mhz": 9.55305,
+     "vco_fmax_tt_mhz": 257.749,
+     "vco_out_swing_pct_vdd": 100.452,
+     "vco_out_duty_pct": 53.9346,
+     "vco_fmax_ff_mhz": 260.525,
+     "vco_out_tr_ns": 0.05168,
+     "vco_out_tf_ns": 0.04836
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_vco_tb__tt_27c.cir"
+   },
+   {
+    "bench": "pll_analog_vco_tb.cir",
+    "corner": "tt_27c_vp10",
+    "names": [
+     "tt_27c_vp10"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": 27,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "vco_kvco_mhz_per_v": 71.0836,
+     "vco_df_dv_min_mhz_per_v": 16.8903,
+     "vco_fmin_tt_mhz": 8.60161,
+     "vco_fmax_tt_mhz": 223.985,
+     "vco_out_swing_pct_vdd": 100.333,
+     "vco_out_duty_pct": 53.79,
+     "vco_fmax_ff_mhz": 225.03,
+     "vco_out_tr_ns": 0.05348,
+     "vco_out_tf_ns": 0.049202
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_vco_tb__tt_27c_vp10.cir"
+   },
+   {
+    "bench": "pll_analog_vco_tb.cir",
+    "corner": "tt_125c_vm10",
+    "names": [
+     "tt_125c_vm10"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": 125,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "vco_kvco_mhz_per_v": 99.1503,
+     "vco_df_dv_min_mhz_per_v": 22.4711,
+     "vco_fmin_tt_mhz": 9.93872,
+     "vco_fmax_tt_mhz": 244.925,
+     "vco_out_swing_pct_vdd": 100.408,
+     "vco_out_duty_pct": 53.9513,
+     "vco_fmax_ff_mhz": 258.621,
+     "vco_out_tr_ns": 0.06452,
+     "vco_out_tf_ns": 0.059367
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_vco_tb__tt_125c_vm10.cir"
+   },
+   {
+    "bench": "pll_analog_vco_tb.cir",
+    "corner": "tt_125c",
+    "names": [
+     "tt_125c"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": 125,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "vco_kvco_mhz_per_v": 79.481,
+     "vco_df_dv_min_mhz_per_v": 23.9414,
+     "vco_fmin_tt_mhz": 8.76728,
+     "vco_fmax_tt_mhz": 223.366,
+     "vco_out_swing_pct_vdd": 100.299,
+     "vco_out_duty_pct": 53.8016,
+     "vco_fmax_ff_mhz": 224.58,
+     "vco_out_tr_ns": 0.06598,
+     "vco_out_tf_ns": 0.059553
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_vco_tb__tt_125c.cir"
+   },
+   {
+    "bench": "pll_analog_vco_tb.cir",
+    "corner": "tt_125c_vp10",
+    "names": [
+     "tt_125c_vp10"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": 125,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "vco_kvco_mhz_per_v": 61.4975,
+     "vco_df_dv_min_mhz_per_v": 8.14257,
+     "vco_fmin_tt_mhz": 8.00944,
+     "vco_fmax_tt_mhz": 194.347,
+     "vco_out_swing_pct_vdd": 100.198,
+     "vco_out_duty_pct": 53.6697,
+     "vco_fmax_ff_mhz": 195.04,
+     "vco_out_tr_ns": 0.0682,
+     "vco_out_tf_ns": 0.06076
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_vco_tb__tt_125c_vp10.cir"
+   },
+   {
+    "bench": "pll_analog_vco_tb.cir",
+    "corner": "ss_m40c_vm10",
+    "names": [
+     "ss_m40c_vm10"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": -40,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "vco_kvco_mhz_per_v": 93.5612,
+     "vco_df_dv_min_mhz_per_v": 0.244304,
+     "vco_fmin_tt_mhz": 13.3709,
+     "vco_fmax_tt_mhz": 235.111,
+     "vco_out_swing_pct_vdd": 101.221,
+     "vco_out_duty_pct": 54.6222,
+     "vco_fmax_ff_mhz": 266.85,
+     "vco_out_tr_ns": 0.05128,
+     "vco_out_tf_ns": 0.05202
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_vco_tb__ss_m40c_vm10.cir"
+   },
+   {
+    "bench": "pll_analog_vco_tb.cir",
+    "corner": "ss_m40c",
+    "names": [
+     "ss_m40c"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": -40,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "vco_kvco_mhz_per_v": 83.7818,
+     "vco_df_dv_min_mhz_per_v": 0.952,
+     "vco_fmin_tt_mhz": 11.2492,
+     "vco_fmax_tt_mhz": 237.46,
+     "vco_out_swing_pct_vdd": 101.002,
+     "vco_out_duty_pct": 54.1969,
+     "vco_fmax_ff_mhz": 264.269,
+     "vco_out_tr_ns": 0.0484,
+     "vco_out_tf_ns": 0.048175
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_vco_tb__ss_m40c.cir"
+   },
+   {
+    "bench": "pll_analog_vco_tb.cir",
+    "corner": "ss_m40c_vp10",
+    "names": [
+     "ss_m40c_vp10"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": -40,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "vco_kvco_mhz_per_v": 72.8666,
+     "vco_df_dv_min_mhz_per_v": 2.68101,
+     "vco_fmin_tt_mhz": 9.92629,
+     "vco_fmax_tt_mhz": 230.712,
+     "vco_out_swing_pct_vdd": 100.815,
+     "vco_out_duty_pct": 53.255,
+     "vco_fmax_ff_mhz": 235.761,
+     "vco_out_tr_ns": 0.04877,
+     "vco_out_tf_ns": 0.047417
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_vco_tb__ss_m40c_vp10.cir"
+   },
+   {
+    "bench": "pll_analog_vco_tb.cir",
+    "corner": "ss_27c_vm10",
+    "names": [
+     "ss_27c_vm10"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": 27,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "vco_kvco_mhz_per_v": 89.6247,
+     "vco_df_dv_min_mhz_per_v": 0.780759,
+     "vco_fmin_tt_mhz": 12.3854,
+     "vco_fmax_tt_mhz": 224.796,
+     "vco_out_swing_pct_vdd": 101.159,
+     "vco_out_duty_pct": 54.0874,
+     "vco_fmax_ff_mhz": 250.605,
+     "vco_out_tr_ns": 0.05932,
+     "vco_out_tf_ns": 0.058719
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_vco_tb__ss_27c_vm10.cir"
+   },
+   {
+    "bench": "pll_analog_vco_tb.cir",
+    "corner": "ss_27c",
+    "names": [
+     "ss_27c"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": 27,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "vco_kvco_mhz_per_v": 79.9042,
+     "vco_df_dv_min_mhz_per_v": 3.39511,
+     "vco_fmin_tt_mhz": 10.5737,
+     "vco_fmax_tt_mhz": 226.315,
+     "vco_out_swing_pct_vdd": 100.923,
+     "vco_out_duty_pct": 53.9502,
+     "vco_fmax_ff_mhz": 245.705,
+     "vco_out_tr_ns": 0.0568,
+     "vco_out_tf_ns": 0.055229
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_vco_tb__ss_27c.cir"
+   },
+   {
+    "bench": "pll_analog_vco_tb.cir",
+    "corner": "ss_27c_vp10",
+    "names": [
+     "ss_27c_vp10"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": 27,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "vco_kvco_mhz_per_v": 67.3255,
+     "vco_df_dv_min_mhz_per_v": 4.10812,
+     "vco_fmin_tt_mhz": 10.3576,
+     "vco_fmax_tt_mhz": 214.354,
+     "vco_out_swing_pct_vdd": 100.705,
+     "vco_out_duty_pct": 54.1235,
+     "vco_fmax_ff_mhz": 216.428,
+     "vco_out_tr_ns": 0.05763,
+     "vco_out_tf_ns": 0.05489
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_vco_tb__ss_27c_vp10.cir"
+   },
+   {
+    "bench": "pll_analog_vco_tb.cir",
+    "corner": "ss_125c_vm10",
+    "names": [
+     "ss_125c_vm10"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": 125,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "vco_kvco_mhz_per_v": 82.9599,
+     "vco_df_dv_min_mhz_per_v": 8.8962,
+     "vco_fmin_tt_mhz": 10.798,
+     "vco_fmax_tt_mhz": 207.413,
+     "vco_out_swing_pct_vdd": 100.93,
+     "vco_out_duty_pct": 53.6882,
+     "vco_fmax_ff_mhz": 226.896,
+     "vco_out_tr_ns": 0.07237,
+     "vco_out_tf_ns": 0.06949
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_vco_tb__ss_125c_vm10.cir"
+   },
+   {
+    "bench": "pll_analog_vco_tb.cir",
+    "corner": "ss_125c",
+    "names": [
+     "ss_125c"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": 125,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "vco_kvco_mhz_per_v": 76.6148,
+     "vco_df_dv_min_mhz_per_v": 32.6867,
+     "vco_fmin_tt_mhz": 0.0,
+     "vco_fmax_tt_mhz": 206.86,
+     "vco_out_swing_pct_vdd": 100.3,
+     "vco_out_duty_pct": 54.0776,
+     "vco_fmax_ff_mhz": 216.449,
+     "vco_out_tr_ns": 0.07083,
+     "vco_out_tf_ns": 0.06659
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_vco_tb__ss_125c.cir"
+   },
+   {
+    "bench": "pll_analog_vco_tb.cir",
+    "corner": "ss_125c_vp10",
+    "names": [
+     "ss_125c_vp10"
+    ],
+    "process": "ss",
+    "passive": "ss",
+    "temp_c": 125,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "vco_kvco_mhz_per_v": 59.766,
+     "vco_df_dv_min_mhz_per_v": 12.0791,
+     "vco_fmin_tt_mhz": 7.39313,
+     "vco_fmax_tt_mhz": 188.484,
+     "vco_out_swing_pct_vdd": 100.323,
+     "vco_out_duty_pct": 53.8232,
+     "vco_fmax_ff_mhz": 189.479,
+     "vco_out_tr_ns": 0.0724,
+     "vco_out_tf_ns": 0.06676
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_vco_tb__ss_125c_vp10.cir"
+   },
+   {
+    "bench": "pll_analog_vco_tb.cir",
+    "corner": "ff_m40c_vm10",
+    "names": [
+     "ff_m40c_vm10"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": -40,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "vco_kvco_mhz_per_v": 141.9,
+     "vco_df_dv_min_mhz_per_v": 25.9397,
+     "vco_fmin_tt_mhz": 12.7834,
+     "vco_fmax_tt_mhz": 349.086,
+     "vco_out_swing_pct_vdd": 100.543,
+     "vco_out_duty_pct": 54.0247,
+     "vco_fmax_ff_mhz": 362.873,
+     "vco_out_tr_ns": 0.038603,
+     "vco_out_tf_ns": 0.036378
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_vco_tb__ff_m40c_vm10.cir"
+   },
+   {
+    "bench": "pll_analog_vco_tb.cir",
+    "corner": "ff_m40c",
+    "names": [
+     "ff_m40c"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": -40,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "vco_kvco_mhz_per_v": 109.293,
+     "vco_df_dv_min_mhz_per_v": 24.5524,
+     "vco_fmin_tt_mhz": 11.3741,
+     "vco_fmax_tt_mhz": 306.465,
+     "vco_out_swing_pct_vdd": 100.383,
+     "vco_out_duty_pct": 53.861,
+     "vco_fmax_ff_mhz": 308.217,
+     "vco_out_tr_ns": 0.040221,
+     "vco_out_tf_ns": 0.037
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_vco_tb__ff_m40c.cir"
+   },
+   {
+    "bench": "pll_analog_vco_tb.cir",
+    "corner": "ff_m40c_vp10",
+    "names": [
+     "ff_m40c_vp10"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": -40,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "vco_kvco_mhz_per_v": 83.9779,
+     "vco_df_dv_min_mhz_per_v": 8.33861,
+     "vco_fmin_tt_mhz": 10.325,
+     "vco_fmax_tt_mhz": 264.778,
+     "vco_out_swing_pct_vdd": 100.283,
+     "vco_out_duty_pct": 53.718,
+     "vco_fmax_ff_mhz": 265.977,
+     "vco_out_tr_ns": 0.041983,
+     "vco_out_tf_ns": 0.038125
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_vco_tb__ff_m40c_vp10.cir"
+   },
+   {
+    "bench": "pll_analog_vco_tb.cir",
+    "corner": "ff_27c_vm10",
+    "names": [
+     "ff_27c_vm10"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": 27,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "vco_kvco_mhz_per_v": 130.689,
+     "vco_df_dv_min_mhz_per_v": 32.1916,
+     "vco_fmin_tt_mhz": 12.2779,
+     "vco_fmax_tt_mhz": 322.011,
+     "vco_out_swing_pct_vdd": 100.404,
+     "vco_out_duty_pct": 54.0135,
+     "vco_fmax_ff_mhz": 326.997,
+     "vco_out_tr_ns": 0.046571,
+     "vco_out_tf_ns": 0.04269
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_vco_tb__ff_27c_vm10.cir"
+   },
+   {
+    "bench": "pll_analog_vco_tb.cir",
+    "corner": "ff_27c",
+    "names": [
+     "ff_27c"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": 27,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "vco_kvco_mhz_per_v": 98.9397,
+     "vco_df_dv_min_mhz_per_v": 34.3689,
+     "vco_fmin_tt_mhz": 10.9068,
+     "vco_fmax_tt_mhz": 278.044,
+     "vco_out_swing_pct_vdd": 100.302,
+     "vco_out_duty_pct": 53.8595,
+     "vco_fmax_ff_mhz": 279.211,
+     "vco_out_tr_ns": 0.048166,
+     "vco_out_tf_ns": 0.04361
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_vco_tb__ff_27c.cir"
+   },
+   {
+    "bench": "pll_analog_vco_tb.cir",
+    "corner": "ff_27c_vp10",
+    "names": [
+     "ff_27c_vp10"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": 27,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "vco_kvco_mhz_per_v": 76.3148,
+     "vco_df_dv_min_mhz_per_v": 5.25941,
+     "vco_fmin_tt_mhz": 9.96126,
+     "vco_fmax_tt_mhz": 241.195,
+     "vco_out_swing_pct_vdd": 100.246,
+     "vco_out_duty_pct": 53.7263,
+     "vco_fmax_ff_mhz": 242.074,
+     "vco_out_tr_ns": 0.05023,
+     "vco_out_tf_ns": 0.044925
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_vco_tb__ff_27c_vp10.cir"
+   },
+   {
+    "bench": "pll_analog_vco_tb.cir",
+    "corner": "ff_125c_vm10",
+    "names": [
+     "ff_125c_vm10"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": 125,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "vco_kvco_mhz_per_v": 112.096,
+     "vco_df_dv_min_mhz_per_v": 50.2676,
+     "vco_fmin_tt_mhz": 10.0724,
+     "vco_fmax_tt_mhz": 275.739,
+     "vco_out_swing_pct_vdd": 100.285,
+     "vco_out_duty_pct": 53.8743,
+     "vco_fmax_ff_mhz": 277.296,
+     "vco_out_tr_ns": 0.060548,
+     "vco_out_tf_ns": 0.053629
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_vco_tb__ff_125c_vm10.cir"
+   },
+   {
+    "bench": "pll_analog_vco_tb.cir",
+    "corner": "ff_125c",
+    "names": [
+     "ff_125c"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": 125,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "vco_kvco_mhz_per_v": 84.7162,
+     "vco_df_dv_min_mhz_per_v": 9.94667,
+     "vco_fmin_tt_mhz": 9.05722,
+     "vco_fmax_tt_mhz": 237.791,
+     "vco_out_swing_pct_vdd": 100.245,
+     "vco_out_duty_pct": 53.7395,
+     "vco_fmax_ff_mhz": 238.576,
+     "vco_out_tr_ns": 0.06266,
+     "vco_out_tf_ns": 0.054641
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_vco_tb__ff_125c.cir"
+   },
+   {
+    "bench": "pll_analog_vco_tb.cir",
+    "corner": "ff_125c_vp10",
+    "names": [
+     "ff_125c_vp10"
+    ],
+    "process": "ff",
+    "passive": "ff",
+    "temp_c": 125,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "vco_kvco_mhz_per_v": 65.6728,
+     "vco_df_dv_min_mhz_per_v": 3.31683,
+     "vco_fmin_tt_mhz": 8.29042,
+     "vco_fmax_tt_mhz": 207.279,
+     "vco_out_swing_pct_vdd": 100.22,
+     "vco_out_duty_pct": 53.6179,
+     "vco_fmax_ff_mhz": 207.895,
+     "vco_out_tr_ns": 0.06531,
+     "vco_out_tf_ns": 0.05648
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_vco_tb__ff_125c_vp10.cir"
+   },
+   {
+    "bench": "pll_analog_vco_tb.cir",
+    "corner": "ss_pff",
+    "names": [
+     "ss_pff"
+    ],
+    "process": "ss",
+    "passive": "ff",
+    "temp_c": 125,
+    "vdd": "2.97",
+    "returncode": 0,
+    "measures": {
+     "vco_kvco_mhz_per_v": 115.239,
+     "vco_df_dv_min_mhz_per_v": 11.8365,
+     "vco_fmin_tt_mhz": 16.9314,
+     "vco_fmax_tt_mhz": 290.047,
+     "vco_out_swing_pct_vdd": 100.885,
+     "vco_out_duty_pct": 54.1057,
+     "vco_fmax_ff_mhz": 310.392,
+     "vco_out_tr_ns": 0.065957,
+     "vco_out_tf_ns": 0.064048
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_vco_tb__ss_pff.cir"
+   },
+   {
+    "bench": "pll_analog_vco_tb.cir",
+    "corner": "ff_pss",
+    "names": [
+     "ff_pss"
+    ],
+    "process": "ff",
+    "passive": "ss",
+    "temp_c": -40,
+    "vdd": "3.63",
+    "returncode": 0,
+    "measures": {
+     "vco_kvco_mhz_per_v": 49.7066,
+     "vco_df_dv_min_mhz_per_v": 3.4297,
+     "vco_fmin_tt_mhz": 7.51488,
+     "vco_fmax_tt_mhz": 158.126,
+     "vco_out_swing_pct_vdd": 100.196,
+     "vco_out_duty_pct": 53.687,
+     "vco_fmax_ff_mhz": 158.952,
+     "vco_out_tr_ns": 0.051717,
+     "vco_out_tf_ns": 0.04609
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_vco_tb__ff_pss.cir"
+   },
+   {
+    "bench": "pll_analog_vco_tb.cir",
+    "corner": "tt_pss",
+    "names": [
+     "tt_pss"
+    ],
+    "process": "typical",
+    "passive": "ss",
+    "temp_c": 27,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "vco_kvco_mhz_per_v": 72.533,
+     "vco_df_dv_min_mhz_per_v": 12.1689,
+     "vco_fmin_tt_mhz": 8.0419,
+     "vco_fmax_tt_mhz": 203.881,
+     "vco_out_swing_pct_vdd": 100.568,
+     "vco_out_duty_pct": 53.1893,
+     "vco_fmax_ff_mhz": 205.284,
+     "vco_out_tr_ns": 0.05592,
+     "vco_out_tf_ns": 0.05194
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_vco_tb__tt_pss.cir"
+   },
+   {
+    "bench": "pll_analog_vco_tb.cir",
+    "corner": "tt_pff",
+    "names": [
+     "tt_pff"
+    ],
+    "process": "typical",
+    "passive": "ff",
+    "temp_c": 27,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "vco_kvco_mhz_per_v": 118.308,
+     "vco_df_dv_min_mhz_per_v": 21.2602,
+     "vco_fmin_tt_mhz": 12.318,
+     "vco_fmax_tt_mhz": 331.75,
+     "vco_out_swing_pct_vdd": 100.551,
+     "vco_out_duty_pct": 53.9786,
+     "vco_fmax_ff_mhz": 346.034,
+     "vco_out_tr_ns": 0.047151,
+     "vco_out_tf_ns": 0.044655
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/pll_analog_vco_tb__tt_pff.cir"
+   }
+  ],
+  "not_scored": [
+   {
+    "bench": "pll_analog_presc_tb.cir",
+    "corner": "tt_m40c_vm10",
+    "reason": "no bound in the sidecar is scored at this corner"
+   },
+   {
+    "bench": "pll_analog_presc_tb.cir",
+    "corner": "tt_m40c",
+    "reason": "no bound in the sidecar is scored at this corner"
+   },
+   {
+    "bench": "pll_analog_presc_tb.cir",
+    "corner": "tt_m40c_vp10",
+    "reason": "no bound in the sidecar is scored at this corner"
+   },
+   {
+    "bench": "pll_analog_presc_tb.cir",
+    "corner": "tt_27c_vm10",
+    "reason": "no bound in the sidecar is scored at this corner"
+   },
+   {
+    "bench": "pll_analog_presc_tb.cir",
+    "corner": "tt_27c",
+    "reason": "no bound in the sidecar is scored at this corner"
+   },
+   {
+    "bench": "pll_analog_presc_tb.cir",
+    "corner": "tt_27c_vp10",
+    "reason": "no bound in the sidecar is scored at this corner"
+   },
+   {
+    "bench": "pll_analog_presc_tb.cir",
+    "corner": "tt_125c_vm10",
+    "reason": "no bound in the sidecar is scored at this corner"
+   },
+   {
+    "bench": "pll_analog_presc_tb.cir",
+    "corner": "tt_125c",
+    "reason": "no bound in the sidecar is scored at this corner"
+   },
+   {
+    "bench": "pll_analog_presc_tb.cir",
+    "corner": "tt_125c_vp10",
+    "reason": "no bound in the sidecar is scored at this corner"
+   },
+   {
+    "bench": "pll_analog_presc_tb.cir",
+    "corner": "ss_m40c_vm10",
+    "reason": "no bound in the sidecar is scored at this corner"
+   },
+   {
+    "bench": "pll_analog_presc_tb.cir",
+    "corner": "ss_m40c",
+    "reason": "no bound in the sidecar is scored at this corner"
+   },
+   {
+    "bench": "pll_analog_presc_tb.cir",
+    "corner": "ss_m40c_vp10",
+    "reason": "no bound in the sidecar is scored at this corner"
+   },
+   {
+    "bench": "pll_analog_presc_tb.cir",
+    "corner": "ss_27c_vm10",
+    "reason": "no bound in the sidecar is scored at this corner"
+   },
+   {
+    "bench": "pll_analog_presc_tb.cir",
+    "corner": "ss_27c",
+    "reason": "no bound in the sidecar is scored at this corner"
+   },
+   {
+    "bench": "pll_analog_presc_tb.cir",
+    "corner": "ss_27c_vp10",
+    "reason": "no bound in the sidecar is scored at this corner"
+   },
+   {
+    "bench": "pll_analog_presc_tb.cir",
+    "corner": "ss_125c_vm10",
+    "reason": "no bound in the sidecar is scored at this corner"
+   },
+   {
+    "bench": "pll_analog_presc_tb.cir",
+    "corner": "ss_125c",
+    "reason": "no bound in the sidecar is scored at this corner"
+   },
+   {
+    "bench": "pll_analog_presc_tb.cir",
+    "corner": "ss_125c_vp10",
+    "reason": "no bound in the sidecar is scored at this corner"
+   },
+   {
+    "bench": "pll_analog_presc_tb.cir",
+    "corner": "ff_m40c_vm10",
+    "reason": "no bound in the sidecar is scored at this corner"
+   },
+   {
+    "bench": "pll_analog_presc_tb.cir",
+    "corner": "ff_m40c",
+    "reason": "no bound in the sidecar is scored at this corner"
+   },
+   {
+    "bench": "pll_analog_presc_tb.cir",
+    "corner": "ff_27c_vm10",
+    "reason": "no bound in the sidecar is scored at this corner"
+   },
+   {
+    "bench": "pll_analog_presc_tb.cir",
+    "corner": "ff_27c",
+    "reason": "no bound in the sidecar is scored at this corner"
+   },
+   {
+    "bench": "pll_analog_presc_tb.cir",
+    "corner": "ff_27c_vp10",
+    "reason": "no bound in the sidecar is scored at this corner"
+   },
+   {
+    "bench": "pll_analog_presc_tb.cir",
+    "corner": "ff_125c_vm10",
+    "reason": "no bound in the sidecar is scored at this corner"
+   },
+   {
+    "bench": "pll_analog_presc_tb.cir",
+    "corner": "ff_125c",
+    "reason": "no bound in the sidecar is scored at this corner"
+   },
+   {
+    "bench": "pll_analog_presc_tb.cir",
+    "corner": "ff_125c_vp10",
+    "reason": "no bound in the sidecar is scored at this corner"
+   },
+   {
+    "bench": "pll_analog_presc_tb.cir",
+    "corner": "ss_pff",
+    "reason": "no bound in the sidecar is scored at this corner"
+   },
+   {
+    "bench": "pll_analog_presc_tb.cir",
+    "corner": "ff_pss",
+    "reason": "no bound in the sidecar is scored at this corner"
+   },
+   {
+    "bench": "pll_analog_presc_tb.cir",
+    "corner": "tt_pss",
+    "reason": "no bound in the sidecar is scored at this corner"
+   },
+   {
+    "bench": "pll_analog_presc_tb.cir",
+    "corner": "tt_pff",
+    "reason": "no bound in the sidecar is scored at this corner"
+   }
+  ],
+  "scoped_out": []
+ },
+ "inputs_at_start": {
+  "netlist": "dir_text:c20767143e29ce734d55b7e2a8cacb836b60b62cefe973cc06edc21007841f07",
+  "tb": "dir_text:efd9799144260e352d6f69a25effecc4fd0b59bbd586e63c75169b804a3bc56d",
+  "spec_yaml": "json_canonical:d716cf6b0d1929fc3a2f9bda14a0e67b244264ae581dca2e8ce465dd41dbf6da",
+  "sizing": "json_canonical:429052419ccf2b75a4fc2ec239291b317f44114890a6ed0e84d86b36d91e5c78"
+ },
+ "recorded_ts": "2026-10-28T18:49:46",
+ "attempts": 9
+}

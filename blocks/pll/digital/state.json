@@ -1,0 +1,6501 @@
+{
+ "version": 3,
+ "skill": "vde",
+ "block": "pll",
+ "workspace": "blocks/pll/digital",
+ "created": "2026-09-27T00:35:39",
+ "updated": "2026-10-29T11:43:06",
+ "phase": "P4",
+ "toolchain": null,
+ "gates": {
+  "spec_lint": {
+   "phase": "P1",
+   "status": "pass",
+   "attempts": 15,
+   "last": {
+    "ts": "2026-10-29T10:59:28",
+    "status": "pass",
+    "failing_count": 0,
+    "total": 0,
+    "inputs": {
+     "spec_yaml": "json_canonical:a757fc1c7b8e08b8cc83ae92b67008c4729da5fc5bf5b77958a34aab450daf36"
+    },
+    "job": null
+   },
+   "history": [
+    {
+     "ts": "2026-09-27T00:40:42",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "spec_yaml": "json_canonical:592d018f17e524be86b2eb94cc2408114b9811c6956b97cf531a1c53cfc0ff2f"
+     },
+     "job": null
+    },
+    {
+     "ts": "2026-09-27T00:42:22",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "spec_yaml": "json_canonical:1c510331f5f65caabfe448903caeff42856f5f8c8651c1d89dc755688639877a"
+     },
+     "job": null
+    },
+    {
+     "ts": "2026-09-27T00:51:42",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "spec_yaml": "json_canonical:08fd0975f7d5116e45920eef43d5b9120ed832afcd70581c17d55bd037abf224"
+     },
+     "job": null
+    },
+    {
+     "ts": "2026-09-27T01:04:42",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "spec_yaml": "json_canonical:c9e51f1f04e643a054e125bd8f1cfe9eea9a124986e0e42fd5eb7f25247fba2c"
+     },
+     "job": null
+    },
+    {
+     "ts": "2026-10-03T21:03:22",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "spec_yaml": "json_canonical:6684bc685cbdea109cc7039b0fe143f705088a761acf6bcf67bc9c827b22d24c"
+     },
+     "job": null
+    },
+    {
+     "ts": "2026-10-05T04:45:37",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "spec_yaml": "json_canonical:a6d1e746c6079353de966ef985a9c3838066fdcbb4558782326600dd54c0c894"
+     },
+     "job": null
+    },
+    {
+     "ts": "2026-10-05T05:58:16",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "spec_yaml": "json_canonical:af61b50535e58cd6e8d9ca224d05fc03bacb06c85f39fe2a3e2182d3dbc55db9"
+     },
+     "job": null
+    },
+    {
+     "ts": "2026-10-05T13:33:54",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "spec_yaml": "json_canonical:af61b50535e58cd6e8d9ca224d05fc03bacb06c85f39fe2a3e2182d3dbc55db9"
+     },
+     "job": null
+    },
+    {
+     "ts": "2026-10-28T15:34:06",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "spec_yaml": "json_canonical:ac784df5c9763c127bc11d87d4e16df3a2be5411104eefe53561c839120127c1"
+     },
+     "job": null
+    },
+    {
+     "ts": "2026-10-29T08:30:04",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "spec_yaml": "json_canonical:29f5d54defe5ec0effa29c6c64e28542dbbf3d383ff2a1be36d78514e45862ea"
+     },
+     "job": null
+    },
+    {
+     "ts": "2026-10-29T08:30:21",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "spec_yaml": "json_canonical:29f5d54defe5ec0effa29c6c64e28542dbbf3d383ff2a1be36d78514e45862ea"
+     },
+     "job": null
+    },
+    {
+     "ts": "2026-10-29T08:31:27",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "spec_yaml": "json_canonical:29f5d54defe5ec0effa29c6c64e28542dbbf3d383ff2a1be36d78514e45862ea"
+     },
+     "job": null
+    },
+    {
+     "ts": "2026-10-29T08:54:57",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "spec_yaml": "json_canonical:1ece11cd981de23294c430007a55c29c2950a215bfadd22c10b764d0ac5147a9"
+     },
+     "job": null
+    },
+    {
+     "ts": "2026-10-29T10:49:28",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "spec_yaml": "json_canonical:052939bbbb00bee572d8ec479af079496524ec65983793eb83898b227c24ae2f"
+     },
+     "job": null
+    },
+    {
+     "ts": "2026-10-29T10:59:28",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "spec_yaml": "json_canonical:a757fc1c7b8e08b8cc83ae92b67008c4729da5fc5bf5b77958a34aab450daf36"
+     },
+     "job": null
+    }
+   ]
+  },
+  "lint": {
+   "phase": "P4",
+   "status": "pass",
+   "attempts": 15,
+   "last": {
+    "ts": "2026-10-29T10:59:37",
+    "status": "pass",
+    "failing_count": 0,
+    "total": 0,
+    "inputs": {
+     "rtl": "dir_text:d57e8def30c23cb7654bbd9d72b98e3c18d24c5ee8934cf63e6d13031be58a3a",
+     "spec_yaml_sans_formal": "json_canonical_sans_formal:0d4f4df02ec4e9e126b142d27d8677203998d22be647a17a60f3717dd16355e7"
+    },
+    "job": null
+   },
+   "history": [
+    {
+     "ts": "2026-09-27T01:15:47",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:b997d550734465e8e8289b45ee0686cd46822a9b74c377d1f8afee8b44df7125",
+      "spec_yaml": "json_canonical:c9e51f1f04e643a054e125bd8f1cfe9eea9a124986e0e42fd5eb7f25247fba2c"
+     },
+     "job": null
+    },
+    {
+     "ts": "2026-09-27T01:15:58",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:b997d550734465e8e8289b45ee0686cd46822a9b74c377d1f8afee8b44df7125",
+      "spec_yaml": "json_canonical:c9e51f1f04e643a054e125bd8f1cfe9eea9a124986e0e42fd5eb7f25247fba2c"
+     },
+     "job": null
+    },
+    {
+     "ts": "2026-09-27T01:16:30",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:40f36ed05529b6fcb2d8351256094469271d52608d9c5d5e938cec4cae057ffc",
+      "spec_yaml": "json_canonical:c9e51f1f04e643a054e125bd8f1cfe9eea9a124986e0e42fd5eb7f25247fba2c"
+     },
+     "job": null
+    },
+    {
+     "ts": "2026-09-27T01:25:06",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:9e181375afa489d426afbb5d8223651b91e0614bd96238458d78aa97270383f1",
+      "spec_yaml": "json_canonical:c9e51f1f04e643a054e125bd8f1cfe9eea9a124986e0e42fd5eb7f25247fba2c"
+     },
+     "job": null
+    },
+    {
+     "ts": "2026-10-03T21:03:22",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:9e181375afa489d426afbb5d8223651b91e0614bd96238458d78aa97270383f1",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:08fd0975f7d5116e45920eef43d5b9120ed832afcd70581c17d55bd037abf224"
+     },
+     "job": null
+    },
+    {
+     "ts": "2026-10-05T04:45:39",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:9e181375afa489d426afbb5d8223651b91e0614bd96238458d78aa97270383f1",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:e2a4fe37863c4a99a7ba9a6c7b1dd3e07d889dded93624037a3bfd26fdbdf03b"
+     },
+     "job": null
+    },
+    {
+     "ts": "2026-10-05T05:58:16",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:4313dc4237b33f689d5a5c1d000a76c537f8b5773939fdfb51b2022cbd7800f3",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:40a971378098f816de95487c1a0b5667b2e41bee534dd235660912ba06084a1f"
+     },
+     "job": null
+    },
+    {
+     "ts": "2026-10-05T13:33:55",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:f808285d38575f0d883468250bf839ca71a3b20a05422f508c69e078d6d8230e",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:40a971378098f816de95487c1a0b5667b2e41bee534dd235660912ba06084a1f"
+     },
+     "job": null
+    },
+    {
+     "ts": "2026-10-28T15:34:12",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:f808285d38575f0d883468250bf839ca71a3b20a05422f508c69e078d6d8230e",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:4245c211e131cde0c1984344e1787a5816579be9a6e78fdfa5c28603e2a5a285"
+     },
+     "job": null
+    },
+    {
+     "ts": "2026-10-29T08:30:09",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:9d34a2d9f62478036a9204fb5f1ec32d5ef8a21b0977c804d558531b4b4dc469",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:39d2c40d6a0e65d1e80b3c4544efad8702ab738262408acf00b199251eebce18"
+     },
+     "job": null
+    },
+    {
+     "ts": "2026-10-29T08:30:21",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:9d34a2d9f62478036a9204fb5f1ec32d5ef8a21b0977c804d558531b4b4dc469",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:39d2c40d6a0e65d1e80b3c4544efad8702ab738262408acf00b199251eebce18"
+     },
+     "job": null
+    },
+    {
+     "ts": "2026-10-29T08:31:28",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:9d34a2d9f62478036a9204fb5f1ec32d5ef8a21b0977c804d558531b4b4dc469",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:39d2c40d6a0e65d1e80b3c4544efad8702ab738262408acf00b199251eebce18"
+     },
+     "job": null
+    },
+    {
+     "ts": "2026-10-29T08:55:04",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:d57e8def30c23cb7654bbd9d72b98e3c18d24c5ee8934cf63e6d13031be58a3a",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:592357b8bab59ea6bde3e9f9ea2029556d67faee4518b7b0ee38a1f2c56f0bc0"
+     },
+     "job": null
+    },
+    {
+     "ts": "2026-10-29T10:49:38",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:d57e8def30c23cb7654bbd9d72b98e3c18d24c5ee8934cf63e6d13031be58a3a",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:a40e7fca1c439d7841246e4c7cb6c9638b2e528a299634d1c02423170785f57f"
+     },
+     "job": null
+    },
+    {
+     "ts": "2026-10-29T10:59:37",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:d57e8def30c23cb7654bbd9d72b98e3c18d24c5ee8934cf63e6d13031be58a3a",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:0d4f4df02ec4e9e126b142d27d8677203998d22be647a17a60f3717dd16355e7"
+     },
+     "job": null
+    }
+   ]
+  },
+  "sim": {
+   "phase": "P4",
+   "status": "pass",
+   "attempts": 19,
+   "last": {
+    "ts": "2026-10-29T10:59:54",
+    "status": "pass",
+    "failing_count": 0,
+    "total": 0,
+    "inputs": {
+     "rtl": "dir_text:d57e8def30c23cb7654bbd9d72b98e3c18d24c5ee8934cf63e6d13031be58a3a",
+     "tb": "dir_text:022a1f658f4693c973114db21c0e45003fd9d8abcbfad44a47e01cbeaa60b0fe",
+     "spec_yaml_sans_formal": "json_canonical_sans_formal:0d4f4df02ec4e9e126b142d27d8677203998d22be647a17a60f3717dd16355e7"
+    },
+    "job": null,
+    "facts": {
+     "tests_passed": 18
+    }
+   },
+   "history": [
+    {
+     "ts": "2026-09-27T01:16:52",
+     "status": "fail",
+     "failing_count": 4,
+     "total": 4,
+     "inputs": {
+      "rtl": "dir_text:40f36ed05529b6fcb2d8351256094469271d52608d9c5d5e938cec4cae057ffc",
+      "tb": "dir_text:d4d4f1c054906d0ed7cf92b10d948f4ad5e0e6ab0c5082c4c38501e8205914e3",
+      "spec_yaml": "json_canonical:c9e51f1f04e643a054e125bd8f1cfe9eea9a124986e0e42fd5eb7f25247fba2c"
+     },
+     "job": null,
+     "facts": {
+      "tests_passed": 10
+     }
+    },
+    {
+     "ts": "2026-09-27T01:25:54",
+     "status": "fail",
+     "failing_count": 4,
+     "total": 4,
+     "inputs": {
+      "rtl": "dir_text:9e181375afa489d426afbb5d8223651b91e0614bd96238458d78aa97270383f1",
+      "tb": "dir_text:d4d4f1c054906d0ed7cf92b10d948f4ad5e0e6ab0c5082c4c38501e8205914e3",
+      "spec_yaml": "json_canonical:c9e51f1f04e643a054e125bd8f1cfe9eea9a124986e0e42fd5eb7f25247fba2c"
+     },
+     "job": null,
+     "facts": {
+      "tests_passed": 10
+     }
+    },
+    {
+     "ts": "2026-09-27T01:33:48",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:9e181375afa489d426afbb5d8223651b91e0614bd96238458d78aa97270383f1",
+      "tb": "dir_text:c9d9186283350b503be98b7cce4952216f40663a7a155553158c589badc26eed",
+      "spec_yaml": "json_canonical:c9e51f1f04e643a054e125bd8f1cfe9eea9a124986e0e42fd5eb7f25247fba2c"
+     },
+     "job": null,
+     "facts": {
+      "tests_passed": 14
+     }
+    },
+    {
+     "ts": "2026-09-27T01:34:46",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:9e181375afa489d426afbb5d8223651b91e0614bd96238458d78aa97270383f1",
+      "tb": "dir_text:c9d9186283350b503be98b7cce4952216f40663a7a155553158c589badc26eed",
+      "spec_yaml": "json_canonical:c9e51f1f04e643a054e125bd8f1cfe9eea9a124986e0e42fd5eb7f25247fba2c"
+     },
+     "job": null,
+     "facts": {
+      "tests_passed": 14
+     }
+    },
+    {
+     "ts": "2026-09-27T01:37:49",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:9e181375afa489d426afbb5d8223651b91e0614bd96238458d78aa97270383f1",
+      "tb": "dir_text:c9d9186283350b503be98b7cce4952216f40663a7a155553158c589badc26eed",
+      "spec_yaml": "json_canonical:c9e51f1f04e643a054e125bd8f1cfe9eea9a124986e0e42fd5eb7f25247fba2c"
+     },
+     "job": null,
+     "facts": {
+      "tests_passed": 14
+     }
+    },
+    {
+     "ts": "2026-09-28T13:30:44",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:9e181375afa489d426afbb5d8223651b91e0614bd96238458d78aa97270383f1",
+      "tb": "dir_text:052af20e5f8df5b5f2bc6b6fbfedf5cc1eceea14569da45fea5dc52c37413560",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:08fd0975f7d5116e45920eef43d5b9120ed832afcd70581c17d55bd037abf224"
+     },
+     "job": null,
+     "facts": {
+      "tests_passed": 15
+     }
+    },
+    {
+     "ts": "2026-10-03T21:03:35",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:9e181375afa489d426afbb5d8223651b91e0614bd96238458d78aa97270383f1",
+      "tb": "dir_text:052af20e5f8df5b5f2bc6b6fbfedf5cc1eceea14569da45fea5dc52c37413560",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:08fd0975f7d5116e45920eef43d5b9120ed832afcd70581c17d55bd037abf224"
+     },
+     "job": null,
+     "facts": {
+      "tests_passed": 15
+     }
+    },
+    {
+     "ts": "2026-10-05T04:45:43",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:9e181375afa489d426afbb5d8223651b91e0614bd96238458d78aa97270383f1",
+      "tb": "dir_text:052af20e5f8df5b5f2bc6b6fbfedf5cc1eceea14569da45fea5dc52c37413560",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:e2a4fe37863c4a99a7ba9a6c7b1dd3e07d889dded93624037a3bfd26fdbdf03b"
+     },
+     "job": null,
+     "facts": {
+      "tests_passed": 15
+     }
+    },
+    {
+     "ts": "2026-10-05T05:58:19",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:4313dc4237b33f689d5a5c1d000a76c537f8b5773939fdfb51b2022cbd7800f3",
+      "tb": "dir_text:052af20e5f8df5b5f2bc6b6fbfedf5cc1eceea14569da45fea5dc52c37413560",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:40a971378098f816de95487c1a0b5667b2e41bee534dd235660912ba06084a1f"
+     },
+     "job": null,
+     "facts": {
+      "tests_passed": 15
+     }
+    },
+    {
+     "ts": "2026-10-05T13:29:27",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:4313dc4237b33f689d5a5c1d000a76c537f8b5773939fdfb51b2022cbd7800f3",
+      "tb": "dir_text:1c410da71ba05588f5bbbd4708b1a145250d08dee17f707dfcc45f581df75abd",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:40a971378098f816de95487c1a0b5667b2e41bee534dd235660912ba06084a1f"
+     },
+     "job": null,
+     "facts": {
+      "tests_passed": 15
+     }
+    },
+    {
+     "ts": "2026-10-05T13:34:00",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:f808285d38575f0d883468250bf839ca71a3b20a05422f508c69e078d6d8230e",
+      "tb": "dir_text:1c410da71ba05588f5bbbd4708b1a145250d08dee17f707dfcc45f581df75abd",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:40a971378098f816de95487c1a0b5667b2e41bee534dd235660912ba06084a1f"
+     },
+     "job": null,
+     "facts": {
+      "tests_passed": 15
+     }
+    },
+    {
+     "ts": "2026-10-28T15:34:27",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:f808285d38575f0d883468250bf839ca71a3b20a05422f508c69e078d6d8230e",
+      "tb": "dir_text:1c410da71ba05588f5bbbd4708b1a145250d08dee17f707dfcc45f581df75abd",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:4245c211e131cde0c1984344e1787a5816579be9a6e78fdfa5c28603e2a5a285"
+     },
+     "job": null,
+     "facts": {
+      "tests_passed": 15
+     }
+    },
+    {
+     "ts": "2026-10-29T08:30:27",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:9d34a2d9f62478036a9204fb5f1ec32d5ef8a21b0977c804d558531b4b4dc469",
+      "tb": "dir_text:6676f51c3b338ea303cb7e0cadd32d101e0be439aefa4eef4e9615350c95ed1f",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:39d2c40d6a0e65d1e80b3c4544efad8702ab738262408acf00b199251eebce18"
+     },
+     "job": null,
+     "facts": {
+      "tests_passed": 18
+     }
+    },
+    {
+     "ts": "2026-10-29T08:31:31",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:9d34a2d9f62478036a9204fb5f1ec32d5ef8a21b0977c804d558531b4b4dc469",
+      "tb": "dir_text:6676f51c3b338ea303cb7e0cadd32d101e0be439aefa4eef4e9615350c95ed1f",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:39d2c40d6a0e65d1e80b3c4544efad8702ab738262408acf00b199251eebce18"
+     },
+     "job": null,
+     "facts": {
+      "tests_passed": 18
+     }
+    },
+    {
+     "ts": "2026-10-29T08:47:32",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:9d34a2d9f62478036a9204fb5f1ec32d5ef8a21b0977c804d558531b4b4dc469",
+      "tb": "dir_text:10dc05722444d83b4ea899a1149467db56ef3f72290b0498419bff44e565d3a2",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:39d2c40d6a0e65d1e80b3c4544efad8702ab738262408acf00b199251eebce18"
+     },
+     "job": null,
+     "facts": {
+      "tests_passed": 18
+     }
+    },
+    {
+     "ts": "2026-10-29T08:55:19",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:d57e8def30c23cb7654bbd9d72b98e3c18d24c5ee8934cf63e6d13031be58a3a",
+      "tb": "dir_text:10dc05722444d83b4ea899a1149467db56ef3f72290b0498419bff44e565d3a2",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:592357b8bab59ea6bde3e9f9ea2029556d67faee4518b7b0ee38a1f2c56f0bc0"
+     },
+     "job": null,
+     "facts": {
+      "tests_passed": 18
+     }
+    },
+    {
+     "ts": "2026-10-29T10:49:56",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:d57e8def30c23cb7654bbd9d72b98e3c18d24c5ee8934cf63e6d13031be58a3a",
+      "tb": "dir_text:9a1555cd6f09c8c02245b6b94b1b5b7066d074a49bf14fea9d0b195fa8746220",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:a40e7fca1c439d7841246e4c7cb6c9638b2e528a299634d1c02423170785f57f"
+     },
+     "job": null,
+     "facts": {
+      "tests_passed": 18
+     }
+    },
+    {
+     "ts": "2026-10-29T10:55:03",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:d57e8def30c23cb7654bbd9d72b98e3c18d24c5ee8934cf63e6d13031be58a3a",
+      "tb": "dir_text:022a1f658f4693c973114db21c0e45003fd9d8abcbfad44a47e01cbeaa60b0fe",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:a40e7fca1c439d7841246e4c7cb6c9638b2e528a299634d1c02423170785f57f"
+     },
+     "job": null,
+     "facts": {
+      "tests_passed": 18
+     }
+    },
+    {
+     "ts": "2026-10-29T10:59:54",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:d57e8def30c23cb7654bbd9d72b98e3c18d24c5ee8934cf63e6d13031be58a3a",
+      "tb": "dir_text:022a1f658f4693c973114db21c0e45003fd9d8abcbfad44a47e01cbeaa60b0fe",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:0d4f4df02ec4e9e126b142d27d8677203998d22be647a17a60f3717dd16355e7"
+     },
+     "job": null,
+     "facts": {
+      "tests_passed": 18
+     }
+    }
+   ]
+  },
+  "holdout": {
+   "phase": "P4",
+   "status": "pass",
+   "attempts": 11,
+   "last": {
+    "ts": "2026-10-29T11:00:07",
+    "status": "pass",
+    "failing_count": 0,
+    "total": 0,
+    "inputs": {
+     "rtl": "dir_text:d57e8def30c23cb7654bbd9d72b98e3c18d24c5ee8934cf63e6d13031be58a3a",
+     "holdout": "dir_text:e180d6ee35f64921871848b7e7839e06d7f784a5128865b80cd657984d773b16",
+     "spec_yaml_sans_formal": "json_canonical_sans_formal:0d4f4df02ec4e9e126b142d27d8677203998d22be647a17a60f3717dd16355e7"
+    },
+    "job": null,
+    "facts": {
+     "tests_passed": 7
+    }
+   },
+   "history": [
+    {
+     "ts": "2026-09-27T01:39:56",
+     "status": "fail",
+     "failing_count": 4,
+     "total": 4,
+     "inputs": {
+      "rtl": "dir_text:9e181375afa489d426afbb5d8223651b91e0614bd96238458d78aa97270383f1",
+      "holdout": "dir_text:38f6e12da866835d1060ae470f4353cd34fa57c3270835a658412279bcc8a875",
+      "spec_yaml": "json_canonical:c9e51f1f04e643a054e125bd8f1cfe9eea9a124986e0e42fd5eb7f25247fba2c"
+     },
+     "job": null,
+     "facts": {
+      "tests_passed": 3
+     }
+    },
+    {
+     "ts": "2026-09-27T01:57:56",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:9e181375afa489d426afbb5d8223651b91e0614bd96238458d78aa97270383f1",
+      "holdout": "dir_text:e180d6ee35f64921871848b7e7839e06d7f784a5128865b80cd657984d773b16",
+      "spec_yaml": "json_canonical:c9e51f1f04e643a054e125bd8f1cfe9eea9a124986e0e42fd5eb7f25247fba2c"
+     },
+     "job": null,
+     "facts": {
+      "tests_passed": 7
+     }
+    },
+    {
+     "ts": "2026-09-28T13:35:29",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:9e181375afa489d426afbb5d8223651b91e0614bd96238458d78aa97270383f1",
+      "holdout": "dir_text:e180d6ee35f64921871848b7e7839e06d7f784a5128865b80cd657984d773b16",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:08fd0975f7d5116e45920eef43d5b9120ed832afcd70581c17d55bd037abf224"
+     },
+     "job": null,
+     "facts": {
+      "tests_passed": 7
+     }
+    },
+    {
+     "ts": "2026-10-05T04:45:50",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:9e181375afa489d426afbb5d8223651b91e0614bd96238458d78aa97270383f1",
+      "holdout": "dir_text:e180d6ee35f64921871848b7e7839e06d7f784a5128865b80cd657984d773b16",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:e2a4fe37863c4a99a7ba9a6c7b1dd3e07d889dded93624037a3bfd26fdbdf03b"
+     },
+     "job": null,
+     "facts": {
+      "tests_passed": 7
+     }
+    },
+    {
+     "ts": "2026-10-05T05:58:22",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:4313dc4237b33f689d5a5c1d000a76c537f8b5773939fdfb51b2022cbd7800f3",
+      "holdout": "dir_text:e180d6ee35f64921871848b7e7839e06d7f784a5128865b80cd657984d773b16",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:40a971378098f816de95487c1a0b5667b2e41bee534dd235660912ba06084a1f"
+     },
+     "job": null,
+     "facts": {
+      "tests_passed": 7
+     }
+    },
+    {
+     "ts": "2026-10-05T13:34:09",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:f808285d38575f0d883468250bf839ca71a3b20a05422f508c69e078d6d8230e",
+      "holdout": "dir_text:e180d6ee35f64921871848b7e7839e06d7f784a5128865b80cd657984d773b16",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:40a971378098f816de95487c1a0b5667b2e41bee534dd235660912ba06084a1f"
+     },
+     "job": null,
+     "facts": {
+      "tests_passed": 7
+     }
+    },
+    {
+     "ts": "2026-10-28T15:34:29",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:f808285d38575f0d883468250bf839ca71a3b20a05422f508c69e078d6d8230e",
+      "holdout": "dir_text:e180d6ee35f64921871848b7e7839e06d7f784a5128865b80cd657984d773b16",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:4245c211e131cde0c1984344e1787a5816579be9a6e78fdfa5c28603e2a5a285"
+     },
+     "job": null,
+     "facts": {
+      "tests_passed": 7
+     }
+    },
+    {
+     "ts": "2026-10-29T08:31:33",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:9d34a2d9f62478036a9204fb5f1ec32d5ef8a21b0977c804d558531b4b4dc469",
+      "holdout": "dir_text:e180d6ee35f64921871848b7e7839e06d7f784a5128865b80cd657984d773b16",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:39d2c40d6a0e65d1e80b3c4544efad8702ab738262408acf00b199251eebce18"
+     },
+     "job": null,
+     "facts": {
+      "tests_passed": 7
+     }
+    },
+    {
+     "ts": "2026-10-29T08:55:29",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:d57e8def30c23cb7654bbd9d72b98e3c18d24c5ee8934cf63e6d13031be58a3a",
+      "holdout": "dir_text:e180d6ee35f64921871848b7e7839e06d7f784a5128865b80cd657984d773b16",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:592357b8bab59ea6bde3e9f9ea2029556d67faee4518b7b0ee38a1f2c56f0bc0"
+     },
+     "job": null,
+     "facts": {
+      "tests_passed": 7
+     }
+    },
+    {
+     "ts": "2026-10-29T10:50:11",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:d57e8def30c23cb7654bbd9d72b98e3c18d24c5ee8934cf63e6d13031be58a3a",
+      "holdout": "dir_text:e180d6ee35f64921871848b7e7839e06d7f784a5128865b80cd657984d773b16",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:a40e7fca1c439d7841246e4c7cb6c9638b2e528a299634d1c02423170785f57f"
+     },
+     "job": null,
+     "facts": {
+      "tests_passed": 7
+     }
+    },
+    {
+     "ts": "2026-10-29T11:00:07",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:d57e8def30c23cb7654bbd9d72b98e3c18d24c5ee8934cf63e6d13031be58a3a",
+      "holdout": "dir_text:e180d6ee35f64921871848b7e7839e06d7f784a5128865b80cd657984d773b16",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:0d4f4df02ec4e9e126b142d27d8677203998d22be647a17a60f3717dd16355e7"
+     },
+     "job": null,
+     "facts": {
+      "tests_passed": 7
+     }
+    }
+   ]
+  },
+  "cover": {
+   "phase": "P4",
+   "status": "pass",
+   "attempts": 13,
+   "last": {
+    "ts": "2026-10-29T11:00:23",
+    "status": "pass",
+    "failing_count": 0,
+    "total": 0,
+    "inputs": {
+     "rtl": "dir_text:d57e8def30c23cb7654bbd9d72b98e3c18d24c5ee8934cf63e6d13031be58a3a",
+     "tb": "dir_text:022a1f658f4693c973114db21c0e45003fd9d8abcbfad44a47e01cbeaa60b0fe",
+     "spec_yaml": "json_canonical:a757fc1c7b8e08b8cc83ae92b67008c4729da5fc5bf5b77958a34aab450daf36"
+    },
+    "job": null,
+    "facts": {
+     "line_pct": 100.0,
+     "toggle_pct": 100.0,
+     "line_covered": 127,
+     "line_total": 127,
+     "toggle_covered": 192,
+     "toggle_total": 192
+    }
+   },
+   "history": [
+    {
+     "ts": "2026-09-27T02:06:05",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:9e181375afa489d426afbb5d8223651b91e0614bd96238458d78aa97270383f1",
+      "tb": "dir_text:c9d9186283350b503be98b7cce4952216f40663a7a155553158c589badc26eed"
+     },
+     "job": null,
+     "facts": {
+      "line_pct": 100.0,
+      "toggle_pct": 100.0,
+      "line_covered": 103,
+      "line_total": 103,
+      "toggle_covered": 156,
+      "toggle_total": 156
+     }
+    },
+    {
+     "ts": "2026-09-28T13:34:50",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:9e181375afa489d426afbb5d8223651b91e0614bd96238458d78aa97270383f1",
+      "tb": "dir_text:052af20e5f8df5b5f2bc6b6fbfedf5cc1eceea14569da45fea5dc52c37413560",
+      "spec_yaml": "json_canonical:c9e51f1f04e643a054e125bd8f1cfe9eea9a124986e0e42fd5eb7f25247fba2c"
+     },
+     "job": null,
+     "facts": {
+      "line_pct": 100.0,
+      "toggle_pct": 100.0,
+      "line_covered": 103,
+      "line_total": 103,
+      "toggle_covered": 156,
+      "toggle_total": 156
+     }
+    },
+    {
+     "ts": "2026-10-03T21:03:39",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:9e181375afa489d426afbb5d8223651b91e0614bd96238458d78aa97270383f1",
+      "tb": "dir_text:052af20e5f8df5b5f2bc6b6fbfedf5cc1eceea14569da45fea5dc52c37413560",
+      "spec_yaml": "json_canonical:6684bc685cbdea109cc7039b0fe143f705088a761acf6bcf67bc9c827b22d24c"
+     },
+     "job": null,
+     "facts": {
+      "line_pct": 100.0,
+      "toggle_pct": 100.0,
+      "line_covered": 103,
+      "line_total": 103,
+      "toggle_covered": 156,
+      "toggle_total": 156
+     }
+    },
+    {
+     "ts": "2026-10-05T04:45:57",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:9e181375afa489d426afbb5d8223651b91e0614bd96238458d78aa97270383f1",
+      "tb": "dir_text:052af20e5f8df5b5f2bc6b6fbfedf5cc1eceea14569da45fea5dc52c37413560",
+      "spec_yaml": "json_canonical:a6d1e746c6079353de966ef985a9c3838066fdcbb4558782326600dd54c0c894"
+     },
+     "job": null,
+     "facts": {
+      "line_pct": 100.0,
+      "toggle_pct": 100.0,
+      "line_covered": 103,
+      "line_total": 103,
+      "toggle_covered": 156,
+      "toggle_total": 156
+     }
+    },
+    {
+     "ts": "2026-10-05T06:01:04",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:4313dc4237b33f689d5a5c1d000a76c537f8b5773939fdfb51b2022cbd7800f3",
+      "tb": "dir_text:052af20e5f8df5b5f2bc6b6fbfedf5cc1eceea14569da45fea5dc52c37413560",
+      "spec_yaml": "json_canonical:af61b50535e58cd6e8d9ca224d05fc03bacb06c85f39fe2a3e2182d3dbc55db9"
+     },
+     "job": null,
+     "facts": {
+      "line_pct": 100.0,
+      "toggle_pct": 100.0,
+      "line_covered": 105,
+      "line_total": 105,
+      "toggle_covered": 160,
+      "toggle_total": 160
+     }
+    },
+    {
+     "ts": "2026-10-05T13:29:52",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:4313dc4237b33f689d5a5c1d000a76c537f8b5773939fdfb51b2022cbd7800f3",
+      "tb": "dir_text:1c410da71ba05588f5bbbd4708b1a145250d08dee17f707dfcc45f581df75abd",
+      "spec_yaml": "json_canonical:af61b50535e58cd6e8d9ca224d05fc03bacb06c85f39fe2a3e2182d3dbc55db9"
+     },
+     "job": null,
+     "facts": {
+      "line_pct": 100.0,
+      "toggle_pct": 100.0,
+      "line_covered": 105,
+      "line_total": 105,
+      "toggle_covered": 160,
+      "toggle_total": 160
+     }
+    },
+    {
+     "ts": "2026-10-05T13:34:17",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:f808285d38575f0d883468250bf839ca71a3b20a05422f508c69e078d6d8230e",
+      "tb": "dir_text:1c410da71ba05588f5bbbd4708b1a145250d08dee17f707dfcc45f581df75abd",
+      "spec_yaml": "json_canonical:af61b50535e58cd6e8d9ca224d05fc03bacb06c85f39fe2a3e2182d3dbc55db9"
+     },
+     "job": null,
+     "facts": {
+      "line_pct": 100.0,
+      "toggle_pct": 100.0,
+      "line_covered": 105,
+      "line_total": 105,
+      "toggle_covered": 160,
+      "toggle_total": 160
+     }
+    },
+    {
+     "ts": "2026-10-28T16:00:31",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:f808285d38575f0d883468250bf839ca71a3b20a05422f508c69e078d6d8230e",
+      "tb": "dir_text:1c410da71ba05588f5bbbd4708b1a145250d08dee17f707dfcc45f581df75abd",
+      "spec_yaml": "json_canonical:ac784df5c9763c127bc11d87d4e16df3a2be5411104eefe53561c839120127c1"
+     },
+     "job": null,
+     "facts": {
+      "line_pct": 100.0,
+      "toggle_pct": 100.0,
+      "line_covered": 105,
+      "line_total": 105,
+      "toggle_covered": 160,
+      "toggle_total": 160
+     }
+    },
+    {
+     "ts": "2026-10-29T08:31:45",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:9d34a2d9f62478036a9204fb5f1ec32d5ef8a21b0977c804d558531b4b4dc469",
+      "tb": "dir_text:6676f51c3b338ea303cb7e0cadd32d101e0be439aefa4eef4e9615350c95ed1f",
+      "spec_yaml": "json_canonical:29f5d54defe5ec0effa29c6c64e28542dbbf3d383ff2a1be36d78514e45862ea"
+     },
+     "job": null,
+     "facts": {
+      "line_pct": 100.0,
+      "toggle_pct": 100.0,
+      "line_covered": 126,
+      "line_total": 126,
+      "toggle_covered": 190,
+      "toggle_total": 190
+     }
+    },
+    {
+     "ts": "2026-10-29T08:55:45",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:d57e8def30c23cb7654bbd9d72b98e3c18d24c5ee8934cf63e6d13031be58a3a",
+      "tb": "dir_text:10dc05722444d83b4ea899a1149467db56ef3f72290b0498419bff44e565d3a2",
+      "spec_yaml": "json_canonical:1ece11cd981de23294c430007a55c29c2950a215bfadd22c10b764d0ac5147a9"
+     },
+     "job": null,
+     "facts": {
+      "line_pct": 100.0,
+      "toggle_pct": 100.0,
+      "line_covered": 127,
+      "line_total": 127,
+      "toggle_covered": 192,
+      "toggle_total": 192
+     }
+    },
+    {
+     "ts": "2026-10-29T10:50:23",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:d57e8def30c23cb7654bbd9d72b98e3c18d24c5ee8934cf63e6d13031be58a3a",
+      "tb": "dir_text:9a1555cd6f09c8c02245b6b94b1b5b7066d074a49bf14fea9d0b195fa8746220",
+      "spec_yaml": "json_canonical:052939bbbb00bee572d8ec479af079496524ec65983793eb83898b227c24ae2f"
+     },
+     "job": null,
+     "facts": {
+      "line_pct": 100.0,
+      "toggle_pct": 100.0,
+      "line_covered": 127,
+      "line_total": 127,
+      "toggle_covered": 192,
+      "toggle_total": 192
+     }
+    },
+    {
+     "ts": "2026-10-29T10:55:17",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:d57e8def30c23cb7654bbd9d72b98e3c18d24c5ee8934cf63e6d13031be58a3a",
+      "tb": "dir_text:022a1f658f4693c973114db21c0e45003fd9d8abcbfad44a47e01cbeaa60b0fe",
+      "spec_yaml": "json_canonical:052939bbbb00bee572d8ec479af079496524ec65983793eb83898b227c24ae2f"
+     },
+     "job": null,
+     "facts": {
+      "line_pct": 100.0,
+      "toggle_pct": 100.0,
+      "line_covered": 127,
+      "line_total": 127,
+      "toggle_covered": 192,
+      "toggle_total": 192
+     }
+    },
+    {
+     "ts": "2026-10-29T11:00:23",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:d57e8def30c23cb7654bbd9d72b98e3c18d24c5ee8934cf63e6d13031be58a3a",
+      "tb": "dir_text:022a1f658f4693c973114db21c0e45003fd9d8abcbfad44a47e01cbeaa60b0fe",
+      "spec_yaml": "json_canonical:a757fc1c7b8e08b8cc83ae92b67008c4729da5fc5bf5b77958a34aab450daf36"
+     },
+     "job": null,
+     "facts": {
+      "line_pct": 100.0,
+      "toggle_pct": 100.0,
+      "line_covered": 127,
+      "line_total": 127,
+      "toggle_covered": 192,
+      "toggle_total": 192
+     }
+    }
+   ]
+  },
+  "mutate": {
+   "phase": "P4",
+   "status": "pass",
+   "attempts": 13,
+   "last": {
+    "ts": "2026-10-29T11:01:47",
+    "status": "pass",
+    "failing_count": 0,
+    "total": 6,
+    "inputs": {
+     "rtl": "dir_text:d57e8def30c23cb7654bbd9d72b98e3c18d24c5ee8934cf63e6d13031be58a3a",
+     "tb": "dir_text:022a1f658f4693c973114db21c0e45003fd9d8abcbfad44a47e01cbeaa60b0fe",
+     "spec_yaml_sans_formal": "json_canonical_sans_formal:0d4f4df02ec4e9e126b142d27d8677203998d22be647a17a60f3717dd16355e7",
+     "mutant_rulings": "json_canonical:496e537588b010ca98bf8b3a378328b6a82d7525a738c2d543787d75a6e4b41c"
+    },
+    "job": null,
+    "facts": {
+     "total_mutants": 19,
+     "equivalent": 6,
+     "scored_mutants": 13,
+     "killed": 13,
+     "survived": 0,
+     "kill_rate": 1.0,
+     "wall_s": 77.65
+    }
+   },
+   "history": [
+    {
+     "ts": "2026-09-28T13:23:26",
+     "status": "fail",
+     "failing_count": 2,
+     "total": 4,
+     "inputs": {
+      "rtl": "dir_text:9e181375afa489d426afbb5d8223651b91e0614bd96238458d78aa97270383f1",
+      "tb": "dir_text:c9d9186283350b503be98b7cce4952216f40663a7a155553158c589badc26eed",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:08fd0975f7d5116e45920eef43d5b9120ed832afcd70581c17d55bd037abf224",
+      "mutant_rulings": null
+     },
+     "job": null,
+     "facts": {
+      "total_mutants": 19,
+      "equivalent": 0,
+      "scored_mutants": 19,
+      "killed": 16,
+      "survived": 3,
+      "kill_rate": 0.8421,
+      "wall_s": 120.15
+     }
+    },
+    {
+     "ts": "2026-09-28T13:33:14",
+     "status": "fail",
+     "failing_count": 1,
+     "total": 3,
+     "inputs": {
+      "rtl": "dir_text:9e181375afa489d426afbb5d8223651b91e0614bd96238458d78aa97270383f1",
+      "tb": "dir_text:052af20e5f8df5b5f2bc6b6fbfedf5cc1eceea14569da45fea5dc52c37413560",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:08fd0975f7d5116e45920eef43d5b9120ed832afcd70581c17d55bd037abf224",
+      "mutant_rulings": null
+     },
+     "job": null,
+     "facts": {
+      "total_mutants": 19,
+      "equivalent": 0,
+      "scored_mutants": 19,
+      "killed": 17,
+      "survived": 2,
+      "kill_rate": 0.8947,
+      "wall_s": 131.58
+     }
+    },
+    {
+     "ts": "2026-10-05T04:47:35",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 2,
+     "inputs": {
+      "rtl": "dir_text:9e181375afa489d426afbb5d8223651b91e0614bd96238458d78aa97270383f1",
+      "tb": "dir_text:052af20e5f8df5b5f2bc6b6fbfedf5cc1eceea14569da45fea5dc52c37413560",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:e2a4fe37863c4a99a7ba9a6c7b1dd3e07d889dded93624037a3bfd26fdbdf03b",
+      "mutant_rulings": "json_canonical:b9ba3afa6269e5df718fbfbf5f8edc924beec39c8f502086c1039fec751f3aa0"
+     },
+     "job": null,
+     "facts": {
+      "total_mutants": 19,
+      "equivalent": 2,
+      "scored_mutants": 17,
+      "killed": 17,
+      "survived": 0,
+      "kill_rate": 1.0,
+      "wall_s": 84.59
+     }
+    },
+    {
+     "ts": "2026-10-05T06:01:37",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 2,
+     "inputs": {
+      "rtl": "dir_text:4313dc4237b33f689d5a5c1d000a76c537f8b5773939fdfb51b2022cbd7800f3",
+      "tb": "dir_text:052af20e5f8df5b5f2bc6b6fbfedf5cc1eceea14569da45fea5dc52c37413560",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:40a971378098f816de95487c1a0b5667b2e41bee534dd235660912ba06084a1f",
+      "mutant_rulings": "json_canonical:b9ba3afa6269e5df718fbfbf5f8edc924beec39c8f502086c1039fec751f3aa0"
+     },
+     "job": null,
+     "facts": {
+      "total_mutants": 19,
+      "equivalent": 2,
+      "scored_mutants": 17,
+      "killed": 17,
+      "survived": 0,
+      "kill_rate": 1.0,
+      "wall_s": 32.42
+     }
+    },
+    {
+     "ts": "2026-10-05T13:31:55",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 2,
+     "inputs": {
+      "rtl": "dir_text:4313dc4237b33f689d5a5c1d000a76c537f8b5773939fdfb51b2022cbd7800f3",
+      "tb": "dir_text:1c410da71ba05588f5bbbd4708b1a145250d08dee17f707dfcc45f581df75abd",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:40a971378098f816de95487c1a0b5667b2e41bee534dd235660912ba06084a1f",
+      "mutant_rulings": "json_canonical:b9ba3afa6269e5df718fbfbf5f8edc924beec39c8f502086c1039fec751f3aa0"
+     },
+     "job": null,
+     "facts": {
+      "total_mutants": 19,
+      "equivalent": 2,
+      "scored_mutants": 17,
+      "killed": 17,
+      "survived": 0,
+      "kill_rate": 1.0,
+      "wall_s": 122.35
+     }
+    },
+    {
+     "ts": "2026-10-05T13:36:11",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 2,
+     "inputs": {
+      "rtl": "dir_text:f808285d38575f0d883468250bf839ca71a3b20a05422f508c69e078d6d8230e",
+      "tb": "dir_text:1c410da71ba05588f5bbbd4708b1a145250d08dee17f707dfcc45f581df75abd",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:40a971378098f816de95487c1a0b5667b2e41bee534dd235660912ba06084a1f",
+      "mutant_rulings": "json_canonical:b9ba3afa6269e5df718fbfbf5f8edc924beec39c8f502086c1039fec751f3aa0"
+     },
+     "job": null,
+     "facts": {
+      "total_mutants": 19,
+      "equivalent": 2,
+      "scored_mutants": 17,
+      "killed": 17,
+      "survived": 0,
+      "kill_rate": 1.0,
+      "wall_s": 106.44
+     }
+    },
+    {
+     "ts": "2026-10-28T15:36:02",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 2,
+     "inputs": {
+      "rtl": "dir_text:f808285d38575f0d883468250bf839ca71a3b20a05422f508c69e078d6d8230e",
+      "tb": "dir_text:1c410da71ba05588f5bbbd4708b1a145250d08dee17f707dfcc45f581df75abd",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:4245c211e131cde0c1984344e1787a5816579be9a6e78fdfa5c28603e2a5a285",
+      "mutant_rulings": "json_canonical:b9ba3afa6269e5df718fbfbf5f8edc924beec39c8f502086c1039fec751f3aa0"
+     },
+     "job": null,
+     "facts": {
+      "total_mutants": 19,
+      "equivalent": 2,
+      "scored_mutants": 17,
+      "killed": 17,
+      "survived": 0,
+      "kill_rate": 1.0,
+      "wall_s": 92.31
+     }
+    },
+    {
+     "ts": "2026-10-29T08:48:59",
+     "status": "fail",
+     "failing_count": 2,
+     "total": 7,
+     "inputs": {
+      "rtl": "dir_text:9d34a2d9f62478036a9204fb5f1ec32d5ef8a21b0977c804d558531b4b4dc469",
+      "tb": "dir_text:10dc05722444d83b4ea899a1149467db56ef3f72290b0498419bff44e565d3a2",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:39d2c40d6a0e65d1e80b3c4544efad8702ab738262408acf00b199251eebce18",
+      "mutant_rulings": "json_canonical:06be2da00e2210466a31f5a40b3f8d26af0fc245fcb66c88b52aabe8fc11e8e4"
+     },
+     "job": null,
+     "facts": {
+      "total_mutants": 19,
+      "equivalent": 1,
+      "scored_mutants": 18,
+      "killed": 13,
+      "survived": 5,
+      "kill_rate": 0.7222,
+      "wall_s": 29.94
+     }
+    },
+    {
+     "ts": "2026-10-29T08:50:08",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 6,
+     "inputs": {
+      "rtl": "dir_text:9d34a2d9f62478036a9204fb5f1ec32d5ef8a21b0977c804d558531b4b4dc469",
+      "tb": "dir_text:10dc05722444d83b4ea899a1149467db56ef3f72290b0498419bff44e565d3a2",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:39d2c40d6a0e65d1e80b3c4544efad8702ab738262408acf00b199251eebce18",
+      "mutant_rulings": "json_canonical:496e537588b010ca98bf8b3a378328b6a82d7525a738c2d543787d75a6e4b41c"
+     },
+     "job": null,
+     "facts": {
+      "total_mutants": 19,
+      "equivalent": 6,
+      "scored_mutants": 13,
+      "killed": 13,
+      "survived": 0,
+      "kill_rate": 1.0,
+      "wall_s": 19.27
+     }
+    },
+    {
+     "ts": "2026-10-29T08:59:03",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 6,
+     "inputs": {
+      "rtl": "dir_text:d57e8def30c23cb7654bbd9d72b98e3c18d24c5ee8934cf63e6d13031be58a3a",
+      "tb": "dir_text:10dc05722444d83b4ea899a1149467db56ef3f72290b0498419bff44e565d3a2",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:592357b8bab59ea6bde3e9f9ea2029556d67faee4518b7b0ee38a1f2c56f0bc0",
+      "mutant_rulings": "json_canonical:496e537588b010ca98bf8b3a378328b6a82d7525a738c2d543787d75a6e4b41c"
+     },
+     "job": null,
+     "facts": {
+      "total_mutants": 19,
+      "equivalent": 6,
+      "scored_mutants": 13,
+      "killed": 13,
+      "survived": 0,
+      "kill_rate": 1.0,
+      "wall_s": 191.13
+     }
+    },
+    {
+     "ts": "2026-10-29T10:51:16",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 6,
+     "inputs": {
+      "rtl": "dir_text:d57e8def30c23cb7654bbd9d72b98e3c18d24c5ee8934cf63e6d13031be58a3a",
+      "tb": "dir_text:9a1555cd6f09c8c02245b6b94b1b5b7066d074a49bf14fea9d0b195fa8746220",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:a40e7fca1c439d7841246e4c7cb6c9638b2e528a299634d1c02423170785f57f",
+      "mutant_rulings": "json_canonical:496e537588b010ca98bf8b3a378328b6a82d7525a738c2d543787d75a6e4b41c"
+     },
+     "job": null,
+     "facts": {
+      "total_mutants": 19,
+      "equivalent": 6,
+      "scored_mutants": 13,
+      "killed": 13,
+      "survived": 0,
+      "kill_rate": 1.0,
+      "wall_s": 46.75
+     }
+    },
+    {
+     "ts": "2026-10-29T10:56:31",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 6,
+     "inputs": {
+      "rtl": "dir_text:d57e8def30c23cb7654bbd9d72b98e3c18d24c5ee8934cf63e6d13031be58a3a",
+      "tb": "dir_text:022a1f658f4693c973114db21c0e45003fd9d8abcbfad44a47e01cbeaa60b0fe",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:a40e7fca1c439d7841246e4c7cb6c9638b2e528a299634d1c02423170785f57f",
+      "mutant_rulings": "json_canonical:496e537588b010ca98bf8b3a378328b6a82d7525a738c2d543787d75a6e4b41c"
+     },
+     "job": null,
+     "facts": {
+      "total_mutants": 19,
+      "equivalent": 6,
+      "scored_mutants": 13,
+      "killed": 13,
+      "survived": 0,
+      "kill_rate": 1.0,
+      "wall_s": 71.0
+     }
+    },
+    {
+     "ts": "2026-10-29T11:01:47",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 6,
+     "inputs": {
+      "rtl": "dir_text:d57e8def30c23cb7654bbd9d72b98e3c18d24c5ee8934cf63e6d13031be58a3a",
+      "tb": "dir_text:022a1f658f4693c973114db21c0e45003fd9d8abcbfad44a47e01cbeaa60b0fe",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:0d4f4df02ec4e9e126b142d27d8677203998d22be647a17a60f3717dd16355e7",
+      "mutant_rulings": "json_canonical:496e537588b010ca98bf8b3a378328b6a82d7525a738c2d543787d75a6e4b41c"
+     },
+     "job": null,
+     "facts": {
+      "total_mutants": 19,
+      "equivalent": 6,
+      "scored_mutants": 13,
+      "killed": 13,
+      "survived": 0,
+      "kill_rate": 1.0,
+      "wall_s": 77.65
+     }
+    }
+   ]
+  },
+  "formal": {
+   "phase": "P4",
+   "status": "pass",
+   "attempts": 9,
+   "last": {
+    "ts": "2026-10-29T11:43:05",
+    "status": "pass",
+    "failing_count": 0,
+    "total": 8,
+    "inputs": {
+     "rtl": "dir_text:d57e8def30c23cb7654bbd9d72b98e3c18d24c5ee8934cf63e6d13031be58a3a",
+     "formal": "dir_text:ee443899a179eea94a88d755ecda4737c8b3dbc3b09fe22f0510dcbe837462fd",
+     "spec_yaml": "json_canonical:a757fc1c7b8e08b8cc83ae92b67008c4729da5fc5bf5b77958a34aab450daf36"
+    },
+    "job": null,
+    "facts": {
+     "depth": 20,
+     "cover_depth": 300
+    }
+   },
+   "history": [
+    {
+     "ts": "2026-10-03T20:05:29",
+     "status": "fail",
+     "failing_count": 7,
+     "total": 9,
+     "inputs": {
+      "rtl": "dir_text:9e181375afa489d426afbb5d8223651b91e0614bd96238458d78aa97270383f1",
+      "formal": "dir_text:ca4ce2bd392690e4b87697e1c8cfdeacc4f0ae123151f0d48ded80274724ef78",
+      "spec_yaml": "json_canonical:7fbaeb26e4c978a16d38bc830e78470d9168cce3d1fbf25a593b0874d184fa82"
+     },
+     "job": null,
+     "facts": {
+      "depth": 20,
+      "cover_depth": 100
+     }
+    },
+    {
+     "ts": "2026-10-03T20:09:30",
+     "status": "fail",
+     "failing_count": 9,
+     "total": 11,
+     "inputs": {
+      "rtl": "dir_text:9e181375afa489d426afbb5d8223651b91e0614bd96238458d78aa97270383f1",
+      "formal": "dir_text:0ee160ed4d25470d96bbef0a55011640aac884eb352df5718e650be0a2753c2b",
+      "spec_yaml": "json_canonical:7fbaeb26e4c978a16d38bc830e78470d9168cce3d1fbf25a593b0874d184fa82"
+     },
+     "job": null,
+     "facts": {
+      "depth": 20,
+      "cover_depth": 100
+     }
+    },
+    {
+     "ts": "2026-10-03T20:45:34",
+     "status": "fail",
+     "failing_count": 9,
+     "total": 11,
+     "inputs": {
+      "rtl": "dir_text:9e181375afa489d426afbb5d8223651b91e0614bd96238458d78aa97270383f1",
+      "formal": "dir_text:0ee160ed4d25470d96bbef0a55011640aac884eb352df5718e650be0a2753c2b",
+      "spec_yaml": "json_canonical:7fbaeb26e4c978a16d38bc830e78470d9168cce3d1fbf25a593b0874d184fa82"
+     },
+     "job": null,
+     "facts": {
+      "depth": 20,
+      "cover_depth": 100
+     }
+    },
+    {
+     "ts": "2026-10-03T22:29:20",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 8,
+     "inputs": {
+      "rtl": "dir_text:9e181375afa489d426afbb5d8223651b91e0614bd96238458d78aa97270383f1",
+      "formal": "dir_text:198bd2a395cf8d24094ae05d48044957d6815fc32fe1e1f3edeb1de8c9925b08",
+      "spec_yaml": "json_canonical:6684bc685cbdea109cc7039b0fe143f705088a761acf6bcf67bc9c827b22d24c"
+     },
+     "job": null,
+     "facts": {
+      "depth": 20,
+      "cover_depth": 300
+     }
+    },
+    {
+     "ts": "2026-10-05T06:24:47",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 8,
+     "inputs": {
+      "rtl": "dir_text:4313dc4237b33f689d5a5c1d000a76c537f8b5773939fdfb51b2022cbd7800f3",
+      "formal": "dir_text:198bd2a395cf8d24094ae05d48044957d6815fc32fe1e1f3edeb1de8c9925b08",
+      "spec_yaml": "json_canonical:af61b50535e58cd6e8d9ca224d05fc03bacb06c85f39fe2a3e2182d3dbc55db9"
+     },
+     "job": null,
+     "facts": {
+      "depth": 20,
+      "cover_depth": 300
+     }
+    },
+    {
+     "ts": "2026-10-05T15:26:29",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 8,
+     "inputs": {
+      "rtl": "dir_text:f808285d38575f0d883468250bf839ca71a3b20a05422f508c69e078d6d8230e",
+      "formal": "dir_text:198bd2a395cf8d24094ae05d48044957d6815fc32fe1e1f3edeb1de8c9925b08",
+      "spec_yaml": "json_canonical:af61b50535e58cd6e8d9ca224d05fc03bacb06c85f39fe2a3e2182d3dbc55db9"
+     },
+     "job": null,
+     "facts": {
+      "depth": 20,
+      "cover_depth": 300
+     }
+    },
+    {
+     "ts": "2026-10-28T16:00:14",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 8,
+     "inputs": {
+      "rtl": "dir_text:f808285d38575f0d883468250bf839ca71a3b20a05422f508c69e078d6d8230e",
+      "formal": "dir_text:198bd2a395cf8d24094ae05d48044957d6815fc32fe1e1f3edeb1de8c9925b08",
+      "spec_yaml": "json_canonical:ac784df5c9763c127bc11d87d4e16df3a2be5411104eefe53561c839120127c1"
+     },
+     "job": null,
+     "facts": {
+      "depth": 20,
+      "cover_depth": 300
+     }
+    },
+    {
+     "ts": "2026-10-29T10:47:44",
+     "status": "fail",
+     "failing_count": 1,
+     "total": 9,
+     "inputs": {
+      "rtl": "dir_text:d57e8def30c23cb7654bbd9d72b98e3c18d24c5ee8934cf63e6d13031be58a3a",
+      "formal": "dir_text:a724ec421066498b7eec2bacbad80f8f2872352cbfeacae230074d4ca71c82d5",
+      "spec_yaml": "json_canonical:1ece11cd981de23294c430007a55c29c2950a215bfadd22c10b764d0ac5147a9"
+     },
+     "job": null,
+     "facts": {
+      "depth": 20,
+      "cover_depth": 300
+     }
+    },
+    {
+     "ts": "2026-10-29T11:43:05",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 8,
+     "inputs": {
+      "rtl": "dir_text:d57e8def30c23cb7654bbd9d72b98e3c18d24c5ee8934cf63e6d13031be58a3a",
+      "formal": "dir_text:ee443899a179eea94a88d755ecda4737c8b3dbc3b09fe22f0510dcbe837462fd",
+      "spec_yaml": "json_canonical:a757fc1c7b8e08b8cc83ae92b67008c4729da5fc5bf5b77958a34aab450daf36"
+     },
+     "job": null,
+     "facts": {
+      "depth": 20,
+      "cover_depth": 300
+     }
+    }
+   ]
+  },
+  "synth": {
+   "phase": "P5",
+   "status": "pass",
+   "attempts": 8,
+   "last": {
+    "ts": "2026-10-29T11:01:51",
+    "status": "pass",
+    "failing_count": 0,
+    "total": 0,
+    "inputs": {
+     "rtl": "dir_text:d57e8def30c23cb7654bbd9d72b98e3c18d24c5ee8934cf63e6d13031be58a3a",
+     "spec_yaml_sans_formal": "json_canonical_sans_formal:0d4f4df02ec4e9e126b142d27d8677203998d22be647a17a60f3717dd16355e7"
+    },
+    "job": null,
+    "facts": {
+     "area": 3810.8672
+    }
+   },
+   "history": [
+    {
+     "ts": "2026-10-03T20:10:28",
+     "status": "fail",
+     "failing_count": 6,
+     "total": 6,
+     "inputs": {
+      "rtl": "dir_text:9e181375afa489d426afbb5d8223651b91e0614bd96238458d78aa97270383f1",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:08fd0975f7d5116e45920eef43d5b9120ed832afcd70581c17d55bd037abf224"
+     },
+     "job": null,
+     "facts": {
+      "area": 333.6704
+     }
+    },
+    {
+     "ts": "2026-10-03T21:03:04",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:9e181375afa489d426afbb5d8223651b91e0614bd96238458d78aa97270383f1",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:08fd0975f7d5116e45920eef43d5b9120ed832afcd70581c17d55bd037abf224"
+     },
+     "job": null,
+     "facts": {
+      "area": 2166.6624
+     }
+    },
+    {
+     "ts": "2026-10-05T04:46:01",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:9e181375afa489d426afbb5d8223651b91e0614bd96238458d78aa97270383f1",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:e2a4fe37863c4a99a7ba9a6c7b1dd3e07d889dded93624037a3bfd26fdbdf03b"
+     },
+     "job": null,
+     "facts": {
+      "area": 2166.6624
+     }
+    },
+    {
+     "ts": "2026-10-05T05:58:25",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:4313dc4237b33f689d5a5c1d000a76c537f8b5773939fdfb51b2022cbd7800f3",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:40a971378098f816de95487c1a0b5667b2e41bee534dd235660912ba06084a1f"
+     },
+     "job": null,
+     "facts": {
+      "area": 2280.8128
+     }
+    },
+    {
+     "ts": "2026-10-05T13:34:24",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:f808285d38575f0d883468250bf839ca71a3b20a05422f508c69e078d6d8230e",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:40a971378098f816de95487c1a0b5667b2e41bee534dd235660912ba06084a1f"
+     },
+     "job": null,
+     "facts": {
+      "area": 2280.8128
+     }
+    },
+    {
+     "ts": "2026-10-28T16:00:41",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:f808285d38575f0d883468250bf839ca71a3b20a05422f508c69e078d6d8230e",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:4245c211e131cde0c1984344e1787a5816579be9a6e78fdfa5c28603e2a5a285"
+     },
+     "job": null,
+     "facts": {
+      "area": 2280.8128
+     }
+    },
+    {
+     "ts": "2026-10-29T10:51:30",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:d57e8def30c23cb7654bbd9d72b98e3c18d24c5ee8934cf63e6d13031be58a3a",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:a40e7fca1c439d7841246e4c7cb6c9638b2e528a299634d1c02423170785f57f"
+     },
+     "job": null,
+     "facts": {
+      "area": 3810.8672
+     }
+    },
+    {
+     "ts": "2026-10-29T11:01:51",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:d57e8def30c23cb7654bbd9d72b98e3c18d24c5ee8934cf63e6d13031be58a3a",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:0d4f4df02ec4e9e126b142d27d8677203998d22be647a17a60f3717dd16355e7"
+     },
+     "job": null,
+     "facts": {
+      "area": 3810.8672
+     }
+    }
+   ]
+  },
+  "harden": {
+   "phase": "P6",
+   "status": "pass",
+   "attempts": 11,
+   "last": {
+    "ts": "2026-10-29T11:03:13",
+    "status": "pass",
+    "failing_count": 0,
+    "total": 0,
+    "inputs": {
+     "rtl": "dir_text:d57e8def30c23cb7654bbd9d72b98e3c18d24c5ee8934cf63e6d13031be58a3a",
+     "harden_config": "json_canonical_sans_roots:6b807ac512657c3b4fd6a586876d9759c971950f89c6165d189ccb8251e59a48",
+     "harden_override": "json_canonical:70373600ebc75eb412ebf69b01ef53ebd0a276710890e615b75d766bea0749ed",
+     "harden_sdc": "text_eol:d38df9c39f5261221c5e25b52af98125edddbf00027cdb1c2da2a7d08560b781",
+     "harden_info": "json_canonical:9ecb304f904f41c8a2def236b1d232e86b2691564dd312d1cdd01fed3c0c796c",
+     "spec_yaml_sans_formal": "json_canonical_sans_formal:0d4f4df02ec4e9e126b142d27d8677203998d22be647a17a60f3717dd16355e7"
+    },
+    "job": null,
+    "facts": {
+     "wall_s": 77.12
+    }
+   },
+   "history": [
+    {
+     "ts": "2026-10-05T04:48:27",
+     "status": "fail",
+     "failing_count": 1,
+     "total": 1,
+     "inputs": {
+      "rtl": "dir_text:9e181375afa489d426afbb5d8223651b91e0614bd96238458d78aa97270383f1",
+      "harden_config": "json_canonical:4323eb9456d1e9410989558964059a3434dc8d2988262def51c48e0b87505562",
+      "harden_override": null,
+      "harden_sdc": "text_eol:e21d7430f3076e22782014d7ea5030595ccf57b8d14e26eea38950343e6a949e",
+      "harden_info": "json_canonical:9ecb304f904f41c8a2def236b1d232e86b2691564dd312d1cdd01fed3c0c796c",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:e2a4fe37863c4a99a7ba9a6c7b1dd3e07d889dded93624037a3bfd26fdbdf03b"
+     },
+     "job": null,
+     "facts": {
+      "wall_s": 133.4
+     }
+    },
+    {
+     "ts": "2026-10-05T04:53:39",
+     "status": "fail",
+     "failing_count": 1,
+     "total": 1,
+     "inputs": {
+      "rtl": "dir_text:9e181375afa489d426afbb5d8223651b91e0614bd96238458d78aa97270383f1",
+      "harden_config": "json_canonical:4323eb9456d1e9410989558964059a3434dc8d2988262def51c48e0b87505562",
+      "harden_override": null,
+      "harden_sdc": "text_eol:0b8ee5a4c5bd36ad3ca87e5d85a876a97bd01db42b9b172f029116aca7188558",
+      "harden_info": "json_canonical:9ecb304f904f41c8a2def236b1d232e86b2691564dd312d1cdd01fed3c0c796c",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:e2a4fe37863c4a99a7ba9a6c7b1dd3e07d889dded93624037a3bfd26fdbdf03b"
+     },
+     "job": null,
+     "facts": {
+      "wall_s": 233.95
+     }
+    },
+    {
+     "ts": "2026-10-05T05:00:44",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:9e181375afa489d426afbb5d8223651b91e0614bd96238458d78aa97270383f1",
+      "harden_config": "json_canonical:80dec7f5efbaf3132589be2736d927a396fe3cd235e098bcc19ca9dc776b5f65",
+      "harden_override": "json_canonical:d16d2192831d66c76d8c5f595c6c9312110668c7c0a62844a1d9fd538dce31b2",
+      "harden_sdc": "text_eol:07db23f549a3a8b71c7052925683a2ee8e60a5eeab8e2bbc7be3af217b73e853",
+      "harden_info": "json_canonical:9ecb304f904f41c8a2def236b1d232e86b2691564dd312d1cdd01fed3c0c796c",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:e2a4fe37863c4a99a7ba9a6c7b1dd3e07d889dded93624037a3bfd26fdbdf03b"
+     },
+     "job": null,
+     "facts": {
+      "wall_s": 273.68
+     }
+    },
+    {
+     "ts": "2026-10-05T05:11:58",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:9e181375afa489d426afbb5d8223651b91e0614bd96238458d78aa97270383f1",
+      "harden_config": "json_canonical:4a135cf9b5dd34876306fb8f7d31679db3f4ee5e1a1147c1d76829da8e8b7bd5",
+      "harden_override": "json_canonical:b9494339eef18ec0119da4dd59e111b7938f3d160b24d02d4aefb42c0f77c58e",
+      "harden_sdc": "text_eol:07db23f549a3a8b71c7052925683a2ee8e60a5eeab8e2bbc7be3af217b73e853",
+      "harden_info": "json_canonical:9ecb304f904f41c8a2def236b1d232e86b2691564dd312d1cdd01fed3c0c796c",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:e2a4fe37863c4a99a7ba9a6c7b1dd3e07d889dded93624037a3bfd26fdbdf03b"
+     },
+     "job": null,
+     "facts": {
+      "wall_s": 252.97
+     }
+    },
+    {
+     "ts": "2026-10-05T06:00:46",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:4313dc4237b33f689d5a5c1d000a76c537f8b5773939fdfb51b2022cbd7800f3",
+      "harden_config": "json_canonical:ee0ca1a4e32590485a605bd70616af1247e39ca722464197d2f61318829b7c10",
+      "harden_override": "json_canonical:533f733359269a8ebdea1795e8892ca81640e3779c070c881ec2d6f18646b487",
+      "harden_sdc": "text_eol:07db23f549a3a8b71c7052925683a2ee8e60a5eeab8e2bbc7be3af217b73e853",
+      "harden_info": "json_canonical:9ecb304f904f41c8a2def236b1d232e86b2691564dd312d1cdd01fed3c0c796c",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:40a971378098f816de95487c1a0b5667b2e41bee534dd235660912ba06084a1f"
+     },
+     "job": null,
+     "facts": {
+      "wall_s": 133.7
+     }
+    },
+    {
+     "ts": "2026-10-05T13:18:29",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:4313dc4237b33f689d5a5c1d000a76c537f8b5773939fdfb51b2022cbd7800f3",
+      "harden_config": "json_canonical:c2259c400e0308bb2459cf645059f003fa95c6c1cd4a8ff7f3d7ca020120eb2d",
+      "harden_override": "json_canonical:acd66b91643f5389f62f7fa33770909ccc0bbe02db755102c27798cb98eb6d5f",
+      "harden_sdc": "text_eol:07db23f549a3a8b71c7052925683a2ee8e60a5eeab8e2bbc7be3af217b73e853",
+      "harden_info": "json_canonical:9ecb304f904f41c8a2def236b1d232e86b2691564dd312d1cdd01fed3c0c796c",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:40a971378098f816de95487c1a0b5667b2e41bee534dd235660912ba06084a1f"
+     },
+     "job": null,
+     "facts": {
+      "wall_s": 304.57
+     }
+    },
+    {
+     "ts": "2026-10-05T13:40:48",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:f808285d38575f0d883468250bf839ca71a3b20a05422f508c69e078d6d8230e",
+      "harden_config": "json_canonical:c2259c400e0308bb2459cf645059f003fa95c6c1cd4a8ff7f3d7ca020120eb2d",
+      "harden_override": "json_canonical:acd66b91643f5389f62f7fa33770909ccc0bbe02db755102c27798cb98eb6d5f",
+      "harden_sdc": "text_eol:07db23f549a3a8b71c7052925683a2ee8e60a5eeab8e2bbc7be3af217b73e853",
+      "harden_info": "json_canonical:9ecb304f904f41c8a2def236b1d232e86b2691564dd312d1cdd01fed3c0c796c",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:40a971378098f816de95487c1a0b5667b2e41bee534dd235660912ba06084a1f"
+     },
+     "job": null,
+     "facts": {
+      "wall_s": 264.62
+     }
+    },
+    {
+     "ts": "2026-10-28T16:02:36",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:f808285d38575f0d883468250bf839ca71a3b20a05422f508c69e078d6d8230e",
+      "harden_config": "json_canonical:c2259c400e0308bb2459cf645059f003fa95c6c1cd4a8ff7f3d7ca020120eb2d",
+      "harden_override": "json_canonical:acd66b91643f5389f62f7fa33770909ccc0bbe02db755102c27798cb98eb6d5f",
+      "harden_sdc": "text_eol:411fb61e6cfb9cbb527d14b51e5f4592e63791402ed704c1cbb16d795d32d0e6",
+      "harden_info": "json_canonical:9ecb304f904f41c8a2def236b1d232e86b2691564dd312d1cdd01fed3c0c796c",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:4245c211e131cde0c1984344e1787a5816579be9a6e78fdfa5c28603e2a5a285"
+     },
+     "job": null,
+     "inputs_changed_during_run": [
+      "harden_config"
+     ],
+     "facts": {
+      "wall_s": 108.74
+     }
+    },
+    {
+     "ts": "2026-10-28T17:21:19",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:f808285d38575f0d883468250bf839ca71a3b20a05422f508c69e078d6d8230e",
+      "harden_config": "json_canonical:1f58c2d141390ac6a9dc3a645ca032b0836eac31070adc6e37489e93a42603bb",
+      "harden_override": "json_canonical:acd66b91643f5389f62f7fa33770909ccc0bbe02db755102c27798cb98eb6d5f",
+      "harden_sdc": "text_eol:411fb61e6cfb9cbb527d14b51e5f4592e63791402ed704c1cbb16d795d32d0e6",
+      "harden_info": "json_canonical:9ecb304f904f41c8a2def236b1d232e86b2691564dd312d1cdd01fed3c0c796c",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:4245c211e131cde0c1984344e1787a5816579be9a6e78fdfa5c28603e2a5a285"
+     },
+     "job": null,
+     "facts": {
+      "wall_s": 65.9
+     }
+    },
+    {
+     "ts": "2026-10-29T10:53:00",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:d57e8def30c23cb7654bbd9d72b98e3c18d24c5ee8934cf63e6d13031be58a3a",
+      "harden_config": "json_canonical_sans_roots:61a7f430fb2702305a632002208272459ba5de5f4f4e14d8b7869f8c7b9b28d3",
+      "harden_override": "json_canonical:70373600ebc75eb412ebf69b01ef53ebd0a276710890e615b75d766bea0749ed",
+      "harden_sdc": "text_eol:d38df9c39f5261221c5e25b52af98125edddbf00027cdb1c2da2a7d08560b781",
+      "harden_info": "json_canonical:9ecb304f904f41c8a2def236b1d232e86b2691564dd312d1cdd01fed3c0c796c",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:a40e7fca1c439d7841246e4c7cb6c9638b2e528a299634d1c02423170785f57f"
+     },
+     "job": null,
+     "inputs_changed_during_run": [
+      "harden_config"
+     ],
+     "facts": {
+      "wall_s": 85.3
+     }
+    },
+    {
+     "ts": "2026-10-29T11:03:13",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:d57e8def30c23cb7654bbd9d72b98e3c18d24c5ee8934cf63e6d13031be58a3a",
+      "harden_config": "json_canonical_sans_roots:6b807ac512657c3b4fd6a586876d9759c971950f89c6165d189ccb8251e59a48",
+      "harden_override": "json_canonical:70373600ebc75eb412ebf69b01ef53ebd0a276710890e615b75d766bea0749ed",
+      "harden_sdc": "text_eol:d38df9c39f5261221c5e25b52af98125edddbf00027cdb1c2da2a7d08560b781",
+      "harden_info": "json_canonical:9ecb304f904f41c8a2def236b1d232e86b2691564dd312d1cdd01fed3c0c796c",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:0d4f4df02ec4e9e126b142d27d8677203998d22be647a17a60f3717dd16355e7"
+     },
+     "job": null,
+     "facts": {
+      "wall_s": 77.12
+     }
+    }
+   ]
+  },
+  "timing": {
+   "phase": "P6",
+   "status": "fail",
+   "attempts": 10,
+   "last": {
+    "ts": "2026-10-29T11:05:01",
+    "status": "fail",
+    "failing_count": 3,
+    "total": 3,
+    "inputs": {
+     "harden": "harden_signoff:04fa97823ac4c3b617e7eab318b4313722ba89c3ae80a79b3e41e364b80be02c",
+     "spec_yaml_sans_formal": "json_canonical_sans_formal:0d4f4df02ec4e9e126b142d27d8677203998d22be647a17a60f3717dd16355e7"
+    },
+    "job": null,
+    "facts": {
+     "corners": {
+      "max_ff_n40C_3v60": {
+       "setup_ws": 1.43,
+       "hold_ws": 0.43
+      },
+      "max_ss_125C_3v00": {
+       "setup_ws": -1.2,
+       "hold_ws": 2.36
+      },
+      "max_tt_025C_3v30": {
+       "setup_ws": 0.65,
+       "hold_ws": 0.99
+      },
+      "min_ff_n40C_3v60": {
+       "setup_ws": 1.44,
+       "hold_ws": 0.42
+      },
+      "min_ss_125C_3v00": {
+       "setup_ws": -1.16,
+       "hold_ws": 2.33
+      },
+      "min_tt_025C_3v30": {
+       "setup_ws": 0.67,
+       "hold_ws": 0.97
+      },
+      "nom_ff_n40C_3v60": {
+       "setup_ws": 1.43,
+       "hold_ws": 0.43
+      },
+      "nom_ss_125C_3v00": {
+       "setup_ws": -1.18,
+       "hold_ws": 2.34
+      },
+      "nom_tt_025C_3v30": {
+       "setup_ws": 0.66,
+       "hold_ws": 0.98
+      }
+     }
+    }
+   },
+   "history": [
+    {
+     "ts": "2026-10-05T05:01:21",
+     "status": "fail",
+     "failing_count": 6,
+     "total": 6,
+     "inputs": {
+      "harden": "dir_text:f3674d007d7676b1f301a3538420f27f1c629eee680f3936f5638bc8e4d08a70",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:e2a4fe37863c4a99a7ba9a6c7b1dd3e07d889dded93624037a3bfd26fdbdf03b"
+     },
+     "job": null,
+     "facts": {
+      "corners": {
+       "max_ff_n40C_3v60": {
+        "setup_ws": 1.57,
+        "hold_ws": 0.5
+       },
+       "max_ss_125C_3v00": {
+        "setup_ws": -1.46,
+        "hold_ws": 2.41
+       },
+       "max_tt_025C_3v30": {
+        "setup_ws": 0.69,
+        "hold_ws": 1.07
+       },
+       "min_ff_n40C_3v60": {
+        "setup_ws": 1.59,
+        "hold_ws": 0.49
+       },
+       "min_ss_125C_3v00": {
+        "setup_ws": -1.39,
+        "hold_ws": 2.38
+       },
+       "min_tt_025C_3v30": {
+        "setup_ws": 0.72,
+        "hold_ws": 1.06
+       },
+       "nom_ff_n40C_3v60": {
+        "setup_ws": 1.58,
+        "hold_ws": 0.49
+       },
+       "nom_ss_125C_3v00": {
+        "setup_ws": -1.42,
+        "hold_ws": 2.39
+       },
+       "nom_tt_025C_3v30": {
+        "setup_ws": 0.7,
+        "hold_ws": 1.07
+       }
+      }
+     }
+    },
+    {
+     "ts": "2026-10-05T05:13:27",
+     "status": "fail",
+     "failing_count": 6,
+     "total": 6,
+     "inputs": {
+      "harden": "dir_text:ea54fb38c3312cf929b282578e51c0f7f2c49c4828d25cb7cbffabca164076bc",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:e2a4fe37863c4a99a7ba9a6c7b1dd3e07d889dded93624037a3bfd26fdbdf03b"
+     },
+     "job": null,
+     "facts": {
+      "corners": {
+       "max_ff_n40C_3v60": {
+        "setup_ws": 1.66,
+        "hold_ws": 0.53
+       },
+       "max_ss_125C_3v00": {
+        "setup_ws": -1.26,
+        "hold_ws": 2.56
+       },
+       "max_tt_025C_3v30": {
+        "setup_ws": 0.8,
+        "hold_ws": 1.15
+       },
+       "min_ff_n40C_3v60": {
+        "setup_ws": 1.66,
+        "hold_ws": 0.53
+       },
+       "min_ss_125C_3v00": {
+        "setup_ws": -1.23,
+        "hold_ws": 2.54
+       },
+       "min_tt_025C_3v30": {
+        "setup_ws": 0.81,
+        "hold_ws": 1.14
+       },
+       "nom_ff_n40C_3v60": {
+        "setup_ws": 1.66,
+        "hold_ws": 0.53
+       },
+       "nom_ss_125C_3v00": {
+        "setup_ws": -1.25,
+        "hold_ws": 2.55
+       },
+       "nom_tt_025C_3v30": {
+        "setup_ws": 0.81,
+        "hold_ws": 1.14
+       }
+      }
+     }
+    },
+    {
+     "ts": "2026-10-05T06:00:56",
+     "status": "fail",
+     "failing_count": 6,
+     "total": 6,
+     "inputs": {
+      "harden": "dir_text:f837c97731ec9ac2b8745188fa59bb521a8062a8d9a8e378981aa30a410b74db",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:40a971378098f816de95487c1a0b5667b2e41bee534dd235660912ba06084a1f"
+     },
+     "job": null,
+     "facts": {
+      "corners": {
+       "max_ff_n40C_3v60": {
+        "setup_ws": 1.64,
+        "hold_ws": 0.54
+       },
+       "max_ss_125C_3v00": {
+        "setup_ws": -1.3,
+        "hold_ws": 2.55
+       },
+       "max_tt_025C_3v30": {
+        "setup_ws": 0.78,
+        "hold_ws": 1.14
+       },
+       "min_ff_n40C_3v60": {
+        "setup_ws": 1.65,
+        "hold_ws": 0.53
+       },
+       "min_ss_125C_3v00": {
+        "setup_ws": -1.27,
+        "hold_ws": 2.54
+       },
+       "min_tt_025C_3v30": {
+        "setup_ws": 0.8,
+        "hold_ws": 1.14
+       },
+       "nom_ff_n40C_3v60": {
+        "setup_ws": 1.65,
+        "hold_ws": 0.54
+       },
+       "nom_ss_125C_3v00": {
+        "setup_ws": -1.28,
+        "hold_ws": 2.54
+       },
+       "nom_tt_025C_3v30": {
+        "setup_ws": 0.79,
+        "hold_ws": 1.14
+       }
+      }
+     }
+    },
+    {
+     "ts": "2026-10-05T13:19:04",
+     "status": "fail",
+     "failing_count": 3,
+     "total": 3,
+     "inputs": {
+      "harden": "dir_text:deabe20e64c3bbf47871e7d796389f9f2778bf46ac26f877f8383d8db4300d64",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:40a971378098f816de95487c1a0b5667b2e41bee534dd235660912ba06084a1f"
+     },
+     "job": null,
+     "facts": {
+      "corners": {
+       "max_ff_n40C_3v60": {
+        "setup_ws": 1.67,
+        "hold_ws": 0.52
+       },
+       "max_ss_125C_3v00": {
+        "setup_ws": -1.2,
+        "hold_ws": 2.55
+       },
+       "max_tt_025C_3v30": {
+        "setup_ws": 0.83,
+        "hold_ws": 1.14
+       },
+       "min_ff_n40C_3v60": {
+        "setup_ws": 1.68,
+        "hold_ws": 0.52
+       },
+       "min_ss_125C_3v00": {
+        "setup_ws": -1.19,
+        "hold_ws": 2.53
+       },
+       "min_tt_025C_3v30": {
+        "setup_ws": 0.84,
+        "hold_ws": 1.14
+       },
+       "nom_ff_n40C_3v60": {
+        "setup_ws": 1.67,
+        "hold_ws": 0.52
+       },
+       "nom_ss_125C_3v00": {
+        "setup_ws": -1.2,
+        "hold_ws": 2.54
+       },
+       "nom_tt_025C_3v30": {
+        "setup_ws": 0.83,
+        "hold_ws": 1.14
+       }
+      }
+     }
+    },
+    {
+     "ts": "2026-10-05T13:41:05",
+     "status": "fail",
+     "failing_count": 3,
+     "total": 3,
+     "inputs": {
+      "harden": "dir_text:646ccf220680e77306c44b72bfd63a46b39eb84dc9264e5654f92af69d9392d7",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:40a971378098f816de95487c1a0b5667b2e41bee534dd235660912ba06084a1f"
+     },
+     "job": null,
+     "facts": {
+      "corners": {
+       "max_ff_n40C_3v60": {
+        "setup_ws": 1.67,
+        "hold_ws": 0.52
+       },
+       "max_ss_125C_3v00": {
+        "setup_ws": -1.2,
+        "hold_ws": 2.55
+       },
+       "max_tt_025C_3v30": {
+        "setup_ws": 0.83,
+        "hold_ws": 1.14
+       },
+       "min_ff_n40C_3v60": {
+        "setup_ws": 1.68,
+        "hold_ws": 0.52
+       },
+       "min_ss_125C_3v00": {
+        "setup_ws": -1.19,
+        "hold_ws": 2.53
+       },
+       "min_tt_025C_3v30": {
+        "setup_ws": 0.84,
+        "hold_ws": 1.14
+       },
+       "nom_ff_n40C_3v60": {
+        "setup_ws": 1.67,
+        "hold_ws": 0.52
+       },
+       "nom_ss_125C_3v00": {
+        "setup_ws": -1.2,
+        "hold_ws": 2.54
+       },
+       "nom_tt_025C_3v30": {
+        "setup_ws": 0.83,
+        "hold_ws": 1.14
+       }
+      }
+     }
+    },
+    {
+     "ts": "2026-10-28T16:03:14",
+     "status": "fail",
+     "failing_count": 3,
+     "total": 3,
+     "inputs": {
+      "harden": "dir_text:d4c89501bef281b043223e9500a2246154bed7e0d413f346c0bcd42bb524e4e0",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:4245c211e131cde0c1984344e1787a5816579be9a6e78fdfa5c28603e2a5a285"
+     },
+     "job": null,
+     "facts": {
+      "corners": {
+       "max_ff_n40C_3v60": {
+        "setup_ws": 1.37,
+        "hold_ws": 0.52
+       },
+       "max_ss_125C_3v00": {
+        "setup_ws": -1.5,
+        "hold_ws": 2.54
+       },
+       "max_tt_025C_3v30": {
+        "setup_ws": 0.53,
+        "hold_ws": 1.14
+       },
+       "min_ff_n40C_3v60": {
+        "setup_ws": 1.38,
+        "hold_ws": 0.51
+       },
+       "min_ss_125C_3v00": {
+        "setup_ws": -1.49,
+        "hold_ws": 2.53
+       },
+       "min_tt_025C_3v30": {
+        "setup_ws": 0.54,
+        "hold_ws": 1.14
+       },
+       "nom_ff_n40C_3v60": {
+        "setup_ws": 1.38,
+        "hold_ws": 0.52
+       },
+       "nom_ss_125C_3v00": {
+        "setup_ws": -1.49,
+        "hold_ws": 2.54
+       },
+       "nom_tt_025C_3v30": {
+        "setup_ws": 0.54,
+        "hold_ws": 1.14
+       }
+      }
+     }
+    },
+    {
+     "ts": "2026-10-28T17:21:24",
+     "status": "fail",
+     "failing_count": 3,
+     "total": 3,
+     "inputs": {
+      "harden": "dir_text:7ecf79abeb6494fcb3b20eb738639a5da4fef82c65c786d92f3c84b45447da76",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:4245c211e131cde0c1984344e1787a5816579be9a6e78fdfa5c28603e2a5a285"
+     },
+     "job": null,
+     "facts": {
+      "corners": {
+       "max_ff_n40C_3v60": {
+        "setup_ws": 1.37,
+        "hold_ws": 0.52
+       },
+       "max_ss_125C_3v00": {
+        "setup_ws": -1.5,
+        "hold_ws": 2.54
+       },
+       "max_tt_025C_3v30": {
+        "setup_ws": 0.53,
+        "hold_ws": 1.14
+       },
+       "min_ff_n40C_3v60": {
+        "setup_ws": 1.38,
+        "hold_ws": 0.51
+       },
+       "min_ss_125C_3v00": {
+        "setup_ws": -1.49,
+        "hold_ws": 2.53
+       },
+       "min_tt_025C_3v30": {
+        "setup_ws": 0.54,
+        "hold_ws": 1.14
+       },
+       "nom_ff_n40C_3v60": {
+        "setup_ws": 1.38,
+        "hold_ws": 0.52
+       },
+       "nom_ss_125C_3v00": {
+        "setup_ws": -1.49,
+        "hold_ws": 2.54
+       },
+       "nom_tt_025C_3v30": {
+        "setup_ws": 0.54,
+        "hold_ws": 1.14
+       }
+      }
+     }
+    },
+    {
+     "ts": "2026-10-29T10:53:08",
+     "status": "fail",
+     "failing_count": 3,
+     "total": 3,
+     "inputs": {
+      "harden": "harden_signoff:04fa97823ac4c3b617e7eab318b4313722ba89c3ae80a79b3e41e364b80be02c",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:a40e7fca1c439d7841246e4c7cb6c9638b2e528a299634d1c02423170785f57f"
+     },
+     "job": null,
+     "facts": {
+      "corners": {
+       "max_ff_n40C_3v60": {
+        "setup_ws": 1.43,
+        "hold_ws": 0.43
+       },
+       "max_ss_125C_3v00": {
+        "setup_ws": -1.2,
+        "hold_ws": 2.36
+       },
+       "max_tt_025C_3v30": {
+        "setup_ws": 0.65,
+        "hold_ws": 0.99
+       },
+       "min_ff_n40C_3v60": {
+        "setup_ws": 1.44,
+        "hold_ws": 0.42
+       },
+       "min_ss_125C_3v00": {
+        "setup_ws": -1.16,
+        "hold_ws": 2.33
+       },
+       "min_tt_025C_3v30": {
+        "setup_ws": 0.67,
+        "hold_ws": 0.97
+       },
+       "nom_ff_n40C_3v60": {
+        "setup_ws": 1.43,
+        "hold_ws": 0.43
+       },
+       "nom_ss_125C_3v00": {
+        "setup_ws": -1.18,
+        "hold_ws": 2.34
+       },
+       "nom_tt_025C_3v30": {
+        "setup_ws": 0.66,
+        "hold_ws": 0.98
+       }
+      }
+     }
+    },
+    {
+     "ts": "2026-10-29T11:03:18",
+     "status": "fail",
+     "failing_count": 3,
+     "total": 3,
+     "inputs": {
+      "harden": "harden_signoff:04fa97823ac4c3b617e7eab318b4313722ba89c3ae80a79b3e41e364b80be02c",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:0d4f4df02ec4e9e126b142d27d8677203998d22be647a17a60f3717dd16355e7"
+     },
+     "job": null,
+     "facts": {
+      "corners": {
+       "max_ff_n40C_3v60": {
+        "setup_ws": 1.43,
+        "hold_ws": 0.43
+       },
+       "max_ss_125C_3v00": {
+        "setup_ws": -1.2,
+        "hold_ws": 2.36
+       },
+       "max_tt_025C_3v30": {
+        "setup_ws": 0.65,
+        "hold_ws": 0.99
+       },
+       "min_ff_n40C_3v60": {
+        "setup_ws": 1.44,
+        "hold_ws": 0.42
+       },
+       "min_ss_125C_3v00": {
+        "setup_ws": -1.16,
+        "hold_ws": 2.33
+       },
+       "min_tt_025C_3v30": {
+        "setup_ws": 0.67,
+        "hold_ws": 0.97
+       },
+       "nom_ff_n40C_3v60": {
+        "setup_ws": 1.43,
+        "hold_ws": 0.43
+       },
+       "nom_ss_125C_3v00": {
+        "setup_ws": -1.18,
+        "hold_ws": 2.34
+       },
+       "nom_tt_025C_3v30": {
+        "setup_ws": 0.66,
+        "hold_ws": 0.98
+       }
+      }
+     }
+    },
+    {
+     "ts": "2026-10-29T11:05:01",
+     "status": "fail",
+     "failing_count": 3,
+     "total": 3,
+     "inputs": {
+      "harden": "harden_signoff:04fa97823ac4c3b617e7eab318b4313722ba89c3ae80a79b3e41e364b80be02c",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:0d4f4df02ec4e9e126b142d27d8677203998d22be647a17a60f3717dd16355e7"
+     },
+     "job": null,
+     "facts": {
+      "corners": {
+       "max_ff_n40C_3v60": {
+        "setup_ws": 1.43,
+        "hold_ws": 0.43
+       },
+       "max_ss_125C_3v00": {
+        "setup_ws": -1.2,
+        "hold_ws": 2.36
+       },
+       "max_tt_025C_3v30": {
+        "setup_ws": 0.65,
+        "hold_ws": 0.99
+       },
+       "min_ff_n40C_3v60": {
+        "setup_ws": 1.44,
+        "hold_ws": 0.42
+       },
+       "min_ss_125C_3v00": {
+        "setup_ws": -1.16,
+        "hold_ws": 2.33
+       },
+       "min_tt_025C_3v30": {
+        "setup_ws": 0.67,
+        "hold_ws": 0.97
+       },
+       "nom_ff_n40C_3v60": {
+        "setup_ws": 1.43,
+        "hold_ws": 0.43
+       },
+       "nom_ss_125C_3v00": {
+        "setup_ws": -1.18,
+        "hold_ws": 2.34
+       },
+       "nom_tt_025C_3v30": {
+        "setup_ws": 0.66,
+        "hold_ws": 0.98
+       }
+      }
+     }
+    }
+   ]
+  },
+  "drc": {
+   "phase": "P6",
+   "status": "pass",
+   "attempts": 8,
+   "last": {
+    "ts": "2026-10-29T11:03:49",
+    "status": "pass",
+    "failing_count": 0,
+    "total": 0,
+    "inputs": {
+     "harden": "harden_signoff:04fa97823ac4c3b617e7eab318b4313722ba89c3ae80a79b3e41e364b80be02c",
+     "spec_yaml_sans_formal": "json_canonical_sans_formal:0d4f4df02ec4e9e126b142d27d8677203998d22be647a17a60f3717dd16355e7"
+    },
+    "job": null,
+    "facts": {
+     "magic_count": 0,
+     "klayout_count": 0
+    }
+   },
+   "history": [
+    {
+     "ts": "2026-10-05T05:02:49",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "harden": "dir_text:f3674d007d7676b1f301a3538420f27f1c629eee680f3936f5638bc8e4d08a70",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:e2a4fe37863c4a99a7ba9a6c7b1dd3e07d889dded93624037a3bfd26fdbdf03b"
+     },
+     "job": null,
+     "facts": {
+      "magic_count": 0,
+      "klayout_count": 0
+     }
+    },
+    {
+     "ts": "2026-10-05T05:15:11",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "harden": "dir_text:ea54fb38c3312cf929b282578e51c0f7f2c49c4828d25cb7cbffabca164076bc",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:e2a4fe37863c4a99a7ba9a6c7b1dd3e07d889dded93624037a3bfd26fdbdf03b"
+     },
+     "job": null,
+     "facts": {
+      "magic_count": 0,
+      "klayout_count": 0
+     }
+    },
+    {
+     "ts": "2026-10-05T13:24:16",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "harden": "dir_text:deabe20e64c3bbf47871e7d796389f9f2778bf46ac26f877f8383d8db4300d64",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:40a971378098f816de95487c1a0b5667b2e41bee534dd235660912ba06084a1f"
+     },
+     "job": null,
+     "facts": {
+      "magic_count": 0,
+      "klayout_count": 0
+     }
+    },
+    {
+     "ts": "2026-10-05T13:42:37",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "harden": "dir_text:646ccf220680e77306c44b72bfd63a46b39eb84dc9264e5654f92af69d9392d7",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:40a971378098f816de95487c1a0b5667b2e41bee534dd235660912ba06084a1f"
+     },
+     "job": null,
+     "facts": {
+      "magic_count": 0,
+      "klayout_count": 0
+     }
+    },
+    {
+     "ts": "2026-10-28T16:03:43",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "harden": "dir_text:d4c89501bef281b043223e9500a2246154bed7e0d413f346c0bcd42bb524e4e0",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:4245c211e131cde0c1984344e1787a5816579be9a6e78fdfa5c28603e2a5a285"
+     },
+     "job": null,
+     "facts": {
+      "magic_count": 0,
+      "klayout_count": 0
+     }
+    },
+    {
+     "ts": "2026-10-28T17:21:41",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "harden": "dir_text:7ecf79abeb6494fcb3b20eb738639a5da4fef82c65c786d92f3c84b45447da76",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:4245c211e131cde0c1984344e1787a5816579be9a6e78fdfa5c28603e2a5a285"
+     },
+     "job": null,
+     "facts": {
+      "magic_count": 0,
+      "klayout_count": 0
+     }
+    },
+    {
+     "ts": "2026-10-29T10:53:32",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "harden": "harden_signoff:04fa97823ac4c3b617e7eab318b4313722ba89c3ae80a79b3e41e364b80be02c",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:a40e7fca1c439d7841246e4c7cb6c9638b2e528a299634d1c02423170785f57f"
+     },
+     "job": null,
+     "facts": {
+      "magic_count": 0,
+      "klayout_count": 0
+     }
+    },
+    {
+     "ts": "2026-10-29T11:03:49",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "harden": "harden_signoff:04fa97823ac4c3b617e7eab318b4313722ba89c3ae80a79b3e41e364b80be02c",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:0d4f4df02ec4e9e126b142d27d8677203998d22be647a17a60f3717dd16355e7"
+     },
+     "job": null,
+     "facts": {
+      "magic_count": 0,
+      "klayout_count": 0
+     }
+    }
+   ]
+  },
+  "lvs": {
+   "phase": "P6",
+   "status": "pass",
+   "attempts": 8,
+   "last": {
+    "ts": "2026-10-29T11:03:53",
+    "status": "pass",
+    "failing_count": 0,
+    "total": 0,
+    "inputs": {
+     "harden": "harden_signoff:04fa97823ac4c3b617e7eab318b4313722ba89c3ae80a79b3e41e364b80be02c",
+     "spec_yaml_sans_formal": "json_canonical_sans_formal:0d4f4df02ec4e9e126b142d27d8677203998d22be647a17a60f3717dd16355e7"
+    },
+    "job": null
+   },
+   "history": [
+    {
+     "ts": "2026-10-05T05:02:54",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "harden": "dir_text:f3674d007d7676b1f301a3538420f27f1c629eee680f3936f5638bc8e4d08a70",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:e2a4fe37863c4a99a7ba9a6c7b1dd3e07d889dded93624037a3bfd26fdbdf03b"
+     },
+     "job": null
+    },
+    {
+     "ts": "2026-10-05T05:15:17",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "harden": "dir_text:ea54fb38c3312cf929b282578e51c0f7f2c49c4828d25cb7cbffabca164076bc",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:e2a4fe37863c4a99a7ba9a6c7b1dd3e07d889dded93624037a3bfd26fdbdf03b"
+     },
+     "job": null
+    },
+    {
+     "ts": "2026-10-05T13:24:23",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "harden": "dir_text:deabe20e64c3bbf47871e7d796389f9f2778bf46ac26f877f8383d8db4300d64",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:40a971378098f816de95487c1a0b5667b2e41bee534dd235660912ba06084a1f"
+     },
+     "job": null
+    },
+    {
+     "ts": "2026-10-05T13:42:42",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "harden": "dir_text:646ccf220680e77306c44b72bfd63a46b39eb84dc9264e5654f92af69d9392d7",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:40a971378098f816de95487c1a0b5667b2e41bee534dd235660912ba06084a1f"
+     },
+     "job": null
+    },
+    {
+     "ts": "2026-10-28T16:03:46",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "harden": "dir_text:d4c89501bef281b043223e9500a2246154bed7e0d413f346c0bcd42bb524e4e0",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:4245c211e131cde0c1984344e1787a5816579be9a6e78fdfa5c28603e2a5a285"
+     },
+     "job": null
+    },
+    {
+     "ts": "2026-10-28T17:21:44",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "harden": "dir_text:7ecf79abeb6494fcb3b20eb738639a5da4fef82c65c786d92f3c84b45447da76",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:4245c211e131cde0c1984344e1787a5816579be9a6e78fdfa5c28603e2a5a285"
+     },
+     "job": null
+    },
+    {
+     "ts": "2026-10-29T10:53:37",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "harden": "harden_signoff:04fa97823ac4c3b617e7eab318b4313722ba89c3ae80a79b3e41e364b80be02c",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:a40e7fca1c439d7841246e4c7cb6c9638b2e528a299634d1c02423170785f57f"
+     },
+     "job": null
+    },
+    {
+     "ts": "2026-10-29T11:03:53",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "harden": "harden_signoff:04fa97823ac4c3b617e7eab318b4313722ba89c3ae80a79b3e41e364b80be02c",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:0d4f4df02ec4e9e126b142d27d8677203998d22be647a17a60f3717dd16355e7"
+     },
+     "job": null
+    }
+   ]
+  },
+  "precheck": {
+   "phase": "P6",
+   "status": "pass",
+   "attempts": 8,
+   "last": {
+    "ts": "2026-10-29T11:04:28",
+    "status": "pass",
+    "failing_count": 0,
+    "total": 0,
+    "inputs": {
+     "harden": "harden_signoff:04fa97823ac4c3b617e7eab318b4313722ba89c3ae80a79b3e41e364b80be02c",
+     "harden_info": "json_canonical:9ecb304f904f41c8a2def236b1d232e86b2691564dd312d1cdd01fed3c0c796c",
+     "spec_yaml_sans_formal": "json_canonical_sans_formal:0d4f4df02ec4e9e126b142d27d8677203998d22be647a17a60f3717dd16355e7"
+    },
+    "job": null,
+    "facts": {
+     "checks_run": 12
+    }
+   },
+   "history": [
+    {
+     "ts": "2026-10-05T05:04:56",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "harden": "dir_text:f3674d007d7676b1f301a3538420f27f1c629eee680f3936f5638bc8e4d08a70",
+      "harden_info": "json_canonical:9ecb304f904f41c8a2def236b1d232e86b2691564dd312d1cdd01fed3c0c796c",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:e2a4fe37863c4a99a7ba9a6c7b1dd3e07d889dded93624037a3bfd26fdbdf03b"
+     },
+     "job": null,
+     "facts": {
+      "checks_run": 12
+     }
+    },
+    {
+     "ts": "2026-10-05T05:16:57",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "harden": "dir_text:ea54fb38c3312cf929b282578e51c0f7f2c49c4828d25cb7cbffabca164076bc",
+      "harden_info": "json_canonical:9ecb304f904f41c8a2def236b1d232e86b2691564dd312d1cdd01fed3c0c796c",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:e2a4fe37863c4a99a7ba9a6c7b1dd3e07d889dded93624037a3bfd26fdbdf03b"
+     },
+     "job": null,
+     "facts": {
+      "checks_run": 12
+     }
+    },
+    {
+     "ts": "2026-10-05T13:26:23",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "harden": "dir_text:deabe20e64c3bbf47871e7d796389f9f2778bf46ac26f877f8383d8db4300d64",
+      "harden_info": "json_canonical:9ecb304f904f41c8a2def236b1d232e86b2691564dd312d1cdd01fed3c0c796c",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:40a971378098f816de95487c1a0b5667b2e41bee534dd235660912ba06084a1f"
+     },
+     "job": null,
+     "facts": {
+      "checks_run": 12
+     }
+    },
+    {
+     "ts": "2026-10-05T13:44:57",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "harden": "dir_text:646ccf220680e77306c44b72bfd63a46b39eb84dc9264e5654f92af69d9392d7",
+      "harden_info": "json_canonical:9ecb304f904f41c8a2def236b1d232e86b2691564dd312d1cdd01fed3c0c796c",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:40a971378098f816de95487c1a0b5667b2e41bee534dd235660912ba06084a1f"
+     },
+     "job": null,
+     "facts": {
+      "checks_run": 12
+     }
+    },
+    {
+     "ts": "2026-10-28T16:04:40",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "harden": "dir_text:d4c89501bef281b043223e9500a2246154bed7e0d413f346c0bcd42bb524e4e0",
+      "harden_info": "json_canonical:9ecb304f904f41c8a2def236b1d232e86b2691564dd312d1cdd01fed3c0c796c",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:4245c211e131cde0c1984344e1787a5816579be9a6e78fdfa5c28603e2a5a285"
+     },
+     "job": null,
+     "facts": {
+      "checks_run": 12
+     }
+    },
+    {
+     "ts": "2026-10-28T17:22:14",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "harden": "dir_text:7ecf79abeb6494fcb3b20eb738639a5da4fef82c65c786d92f3c84b45447da76",
+      "harden_info": "json_canonical:9ecb304f904f41c8a2def236b1d232e86b2691564dd312d1cdd01fed3c0c796c",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:4245c211e131cde0c1984344e1787a5816579be9a6e78fdfa5c28603e2a5a285"
+     },
+     "job": null,
+     "facts": {
+      "checks_run": 12
+     }
+    },
+    {
+     "ts": "2026-10-29T10:54:56",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "harden": "harden_signoff:04fa97823ac4c3b617e7eab318b4313722ba89c3ae80a79b3e41e364b80be02c",
+      "harden_info": "json_canonical:9ecb304f904f41c8a2def236b1d232e86b2691564dd312d1cdd01fed3c0c796c",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:a40e7fca1c439d7841246e4c7cb6c9638b2e528a299634d1c02423170785f57f"
+     },
+     "job": null,
+     "facts": {
+      "checks_run": 12
+     }
+    },
+    {
+     "ts": "2026-10-29T11:04:28",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "harden": "harden_signoff:04fa97823ac4c3b617e7eab318b4313722ba89c3ae80a79b3e41e364b80be02c",
+      "harden_info": "json_canonical:9ecb304f904f41c8a2def236b1d232e86b2691564dd312d1cdd01fed3c0c796c",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:0d4f4df02ec4e9e126b142d27d8677203998d22be647a17a60f3717dd16355e7"
+     },
+     "job": null,
+     "facts": {
+      "checks_run": 12
+     }
+    }
+   ]
+  },
+  "glsim": {
+   "phase": "P6",
+   "status": "pass",
+   "attempts": 8,
+   "last": {
+    "ts": "2026-10-29T11:04:06",
+    "status": "pass",
+    "failing_count": 0,
+    "total": 0,
+    "inputs": {
+     "harden": "harden_signoff:04fa97823ac4c3b617e7eab318b4313722ba89c3ae80a79b3e41e364b80be02c",
+     "tb": "dir_text:022a1f658f4693c973114db21c0e45003fd9d8abcbfad44a47e01cbeaa60b0fe",
+     "spec_yaml_sans_formal": "json_canonical_sans_formal:0d4f4df02ec4e9e126b142d27d8677203998d22be647a17a60f3717dd16355e7"
+    },
+    "job": null
+   },
+   "history": [
+    {
+     "ts": "2026-10-05T13:26:59",
+     "status": "fail",
+     "failing_count": 7,
+     "total": 7,
+     "inputs": {
+      "harden": "dir_text:deabe20e64c3bbf47871e7d796389f9f2778bf46ac26f877f8383d8db4300d64",
+      "tb": "dir_text:052af20e5f8df5b5f2bc6b6fbfedf5cc1eceea14569da45fea5dc52c37413560",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:40a971378098f816de95487c1a0b5667b2e41bee534dd235660912ba06084a1f"
+     },
+     "job": null
+    },
+    {
+     "ts": "2026-10-05T13:29:42",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "harden": "dir_text:deabe20e64c3bbf47871e7d796389f9f2778bf46ac26f877f8383d8db4300d64",
+      "tb": "dir_text:1c410da71ba05588f5bbbd4708b1a145250d08dee17f707dfcc45f581df75abd",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:40a971378098f816de95487c1a0b5667b2e41bee534dd235660912ba06084a1f"
+     },
+     "job": null
+    },
+    {
+     "ts": "2026-10-05T13:43:01",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "harden": "dir_text:646ccf220680e77306c44b72bfd63a46b39eb84dc9264e5654f92af69d9392d7",
+      "tb": "dir_text:1c410da71ba05588f5bbbd4708b1a145250d08dee17f707dfcc45f581df75abd",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:40a971378098f816de95487c1a0b5667b2e41bee534dd235660912ba06084a1f"
+     },
+     "job": null
+    },
+    {
+     "ts": "2026-10-28T16:03:54",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "harden": "dir_text:d4c89501bef281b043223e9500a2246154bed7e0d413f346c0bcd42bb524e4e0",
+      "tb": "dir_text:1c410da71ba05588f5bbbd4708b1a145250d08dee17f707dfcc45f581df75abd",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:4245c211e131cde0c1984344e1787a5816579be9a6e78fdfa5c28603e2a5a285"
+     },
+     "job": null
+    },
+    {
+     "ts": "2026-10-28T17:21:54",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "harden": "dir_text:7ecf79abeb6494fcb3b20eb738639a5da4fef82c65c786d92f3c84b45447da76",
+      "tb": "dir_text:1c410da71ba05588f5bbbd4708b1a145250d08dee17f707dfcc45f581df75abd",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:4245c211e131cde0c1984344e1787a5816579be9a6e78fdfa5c28603e2a5a285"
+     },
+     "job": null
+    },
+    {
+     "ts": "2026-10-29T10:53:51",
+     "status": "fail",
+     "failing_count": 4,
+     "total": 4,
+     "inputs": {
+      "harden": "harden_signoff:04fa97823ac4c3b617e7eab318b4313722ba89c3ae80a79b3e41e364b80be02c",
+      "tb": "dir_text:9a1555cd6f09c8c02245b6b94b1b5b7066d074a49bf14fea9d0b195fa8746220",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:a40e7fca1c439d7841246e4c7cb6c9638b2e528a299634d1c02423170785f57f"
+     },
+     "job": null
+    },
+    {
+     "ts": "2026-10-29T10:56:38",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "harden": "harden_signoff:04fa97823ac4c3b617e7eab318b4313722ba89c3ae80a79b3e41e364b80be02c",
+      "tb": "dir_text:022a1f658f4693c973114db21c0e45003fd9d8abcbfad44a47e01cbeaa60b0fe",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:a40e7fca1c439d7841246e4c7cb6c9638b2e528a299634d1c02423170785f57f"
+     },
+     "job": null
+    },
+    {
+     "ts": "2026-10-29T11:04:06",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "harden": "harden_signoff:04fa97823ac4c3b617e7eab318b4313722ba89c3ae80a79b3e41e364b80be02c",
+      "tb": "dir_text:022a1f658f4693c973114db21c0e45003fd9d8abcbfad44a47e01cbeaa60b0fe",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:0d4f4df02ec4e9e126b142d27d8677203998d22be647a17a60f3717dd16355e7"
+     },
+     "job": null
+    }
+   ]
+  }
+ },
+ "jobs": {
+  "1": {
+   "gate": "harden",
+   "pid": 36209,
+   "started": "2026-10-03T21:05:30",
+   "finished": "2026-10-28T15:33:57",
+   "status": "dead",
+   "log": "log/jobs/job-1.log",
+   "result": null
+  }
+ },
+ "holdout": {
+  "sha": "dir_text:38f6e12da866835d1060ae470f4353cd34fa57c3270835a658412279bcc8a875",
+  "written_by": "tb-writer",
+  "ts": "2026-09-27T01:04:33",
+  "edits_at_pin": 1
+ },
+ "optimise": null,
+ "human": {},
+ "artifacts": {
+  "spec_yaml": {
+   "path": "spec/spec.yaml",
+   "kind": "spec_yaml",
+   "sha256": "json_canonical:a757fc1c7b8e08b8cc83ae92b67008c4729da5fc5bf5b77958a34aab450daf36",
+   "hashed": "2026-10-29T11:43:05"
+  },
+  "holdout": {
+   "path": "holdout",
+   "kind": "holdout",
+   "sha256": "dir_text:e180d6ee35f64921871848b7e7839e06d7f784a5128865b80cd657984d773b16",
+   "hashed": "2026-10-29T11:00:07",
+   "stale": [
+    {
+     "ts": "2026-09-27T00:42:20",
+     "edit_class": "spec_edit",
+     "refs": [],
+     "human_hold": 2
+    },
+    {
+     "ts": "2026-10-05T04:45:28",
+     "edit_class": "spec_edit",
+     "refs": [
+      "spec/spec.yaml"
+     ],
+     "human_hold": 2
+    },
+    {
+     "ts": "2026-10-05T05:58:11",
+     "edit_class": "spec_edit",
+     "refs": [
+      "spec/spec.yaml"
+     ],
+     "human_hold": 2
+    },
+    {
+     "ts": "2026-10-28T15:33:22",
+     "edit_class": "spec_edit",
+     "refs": [
+      "spec/spec.yaml",
+      "spec/spec.md"
+     ],
+     "human_hold": 2
+    },
+    {
+     "ts": "2026-10-29T08:30:16",
+     "edit_class": "spec_edit",
+     "refs": [
+      "spec/spec.yaml",
+      "spec/spec.md"
+     ],
+     "human_hold": 2
+    },
+    {
+     "ts": "2026-10-29T08:54:53",
+     "edit_class": "spec_edit",
+     "refs": [
+      "spec/spec.yaml",
+      "spec/spec.md"
+     ],
+     "human_hold": 2
+    },
+    {
+     "ts": "2026-10-29T10:49:19",
+     "edit_class": "spec_edit",
+     "refs": [
+      "spec/spec.yaml"
+     ],
+     "human_hold": 2
+    },
+    {
+     "ts": "2026-10-29T10:57:16",
+     "edit_class": "spec_edit",
+     "refs": [
+      "spec/spec.yaml",
+      "spec/spec.md"
+     ],
+     "human_hold": 2
+    },
+    {
+     "ts": "2026-10-29T10:59:10",
+     "edit_class": "spec_edit",
+     "refs": [
+      "spec/spec.yaml"
+     ],
+     "human_hold": 2
+    }
+   ]
+  },
+  "rtl": {
+   "path": "rtl",
+   "kind": "rtl",
+   "sha256": "dir_text:d57e8def30c23cb7654bbd9d72b98e3c18d24c5ee8934cf63e6d13031be58a3a",
+   "hashed": "2026-10-29T11:43:05"
+  },
+  "tb": {
+   "path": "tb",
+   "kind": "tb",
+   "sha256": "dir_text:022a1f658f4693c973114db21c0e45003fd9d8abcbfad44a47e01cbeaa60b0fe",
+   "hashed": "2026-10-29T11:04:06"
+  },
+  "spec_yaml_sans_formal": {
+   "path": "spec/spec.yaml",
+   "kind": "spec_yaml_sans_formal",
+   "sha256": "json_canonical_sans_formal:0d4f4df02ec4e9e126b142d27d8677203998d22be647a17a60f3717dd16355e7",
+   "hashed": "2026-10-29T11:05:01"
+  },
+  "mutant_rulings": {
+   "path": "spec/mutant_rulings.yaml",
+   "kind": "mutant_rulings",
+   "sha256": "json_canonical:496e537588b010ca98bf8b3a378328b6a82d7525a738c2d543787d75a6e4b41c",
+   "hashed": "2026-10-29T11:01:47"
+  },
+  "formal": {
+   "path": "formal",
+   "kind": "formal",
+   "sha256": "dir_text:ee443899a179eea94a88d755ecda4737c8b3dbc3b09fe22f0510dcbe837462fd",
+   "hashed": "2026-10-29T11:43:05"
+  },
+  "harden_config": {
+   "path": "harden/config.json",
+   "kind": "harden_config",
+   "sha256": "json_canonical_sans_roots:6b807ac512657c3b4fd6a586876d9759c971950f89c6165d189ccb8251e59a48",
+   "hashed": "2026-10-29T11:03:13"
+  },
+  "harden_override": {
+   "path": "harden/config.override.json",
+   "kind": "harden_override",
+   "sha256": "json_canonical:70373600ebc75eb412ebf69b01ef53ebd0a276710890e615b75d766bea0749ed",
+   "hashed": "2026-10-29T11:03:13"
+  },
+  "harden_sdc": {
+   "path": "harden/constraints.sdc",
+   "kind": "harden_sdc",
+   "sha256": "text_eol:d38df9c39f5261221c5e25b52af98125edddbf00027cdb1c2da2a7d08560b781",
+   "hashed": "2026-10-29T11:03:13"
+  },
+  "harden_info": {
+   "path": "harden/info.yaml",
+   "kind": "harden_info",
+   "sha256": "json_canonical:9ecb304f904f41c8a2def236b1d232e86b2691564dd312d1cdd01fed3c0c796c",
+   "hashed": "2026-10-29T11:04:28"
+  },
+  "harden": {
+   "path": "harden",
+   "kind": "harden",
+   "sha256": "harden_signoff:04fa97823ac4c3b617e7eab318b4313722ba89c3ae80a79b3e41e364b80be02c",
+   "hashed": "2026-10-29T11:05:01"
+  }
+ },
+ "open_issues": [
+  {
+   "id": 1,
+   "status": "fixed",
+   "agent": "tb-writer",
+   "attempts": 0,
+   "opened": "2026-09-27T01:28:50",
+   "closed": "2026-09-27T01:38:26",
+   "gate": "sim",
+   "phase": "P4",
+   "fixer": "rtl",
+   "kinds": [
+    "test_failed"
+   ],
+   "severity": "error",
+   "count": 4,
+   "work_order": "blocks/pll/digital/log/workorders/wo-1.json",
+   "note": "test bugs, fixed in tb/; sim 14/14"
+  },
+  {
+   "id": 2,
+   "status": "fixed",
+   "agent": "orchestrator",
+   "attempts": 0,
+   "opened": "2026-09-27T01:55:56",
+   "closed": "2026-09-27T01:58:37",
+   "gate": "holdout",
+   "phase": "P4",
+   "fixer": "rtl",
+   "kinds": [
+    "holdout_failed"
+   ],
+   "severity": "error",
+   "count": 4,
+   "work_order": "blocks/pll/digital/log/workorders/wo-2.json",
+   "note": "holdout stimulus fixes; gate PASS 7/7"
+  },
+  {
+   "id": 3,
+   "status": "fixed",
+   "agent": "tb-writer",
+   "attempts": 0,
+   "opened": "2026-09-28T13:27:17",
+   "closed": "2026-10-05T04:49:50",
+   "gate": "mutate",
+   "phase": "P4",
+   "fixer": "testbench",
+   "kinds": [
+    "kill_rate_below_threshold",
+    "survivor_output_stuck",
+    "survivor_stuck_other"
+   ],
+   "severity": "error",
+   "count": 4,
+   "work_order": "blocks/pll/digital/log/workorders/wo-3.json",
+   "note": "17/19; mutants 5,10 set an already-0 bit of K=16 to 0 (equivalent); prover refuses multiclock; needs owner ruling in spec/mutant_rulings.yaml"
+  },
+  {
+   "id": 4,
+   "status": "fixed",
+   "agent": "property-writer",
+   "attempts": 0,
+   "opened": "2026-10-03T20:46:41",
+   "closed": "2026-10-05T04:42:31",
+   "gate": "formal",
+   "phase": "P4",
+   "fixer": "formal",
+   "kinds": [
+    "engine_disagreement"
+   ],
+   "severity": "error",
+   "count": 5,
+   "work_order": "blocks/pll/digital/log/workorders/wo-4.json",
+   "note": "harness fixes, formal rerun in flight"
+  },
+  {
+   "id": 5,
+   "status": "fixed",
+   "agent": "property-writer",
+   "attempts": 0,
+   "opened": "2026-10-03T20:46:41",
+   "closed": "2026-10-05T04:42:32",
+   "gate": "formal",
+   "phase": "P4",
+   "fixer": "formal",
+   "kinds": [
+    "cover_not_reached"
+   ],
+   "severity": "error",
+   "count": 3,
+   "work_order": "blocks/pll/digital/log/workorders/wo-5.json",
+   "note": "harness fixes, formal rerun in flight"
+  },
+  {
+   "id": 6,
+   "status": "fixed",
+   "agent": "property-writer",
+   "attempts": 0,
+   "opened": "2026-10-03T20:46:41",
+   "closed": "2026-10-05T04:42:32",
+   "gate": "formal",
+   "phase": "P4",
+   "fixer": "rtl",
+   "kinds": [
+    "property_failed"
+   ],
+   "severity": "error",
+   "count": 1,
+   "work_order": "blocks/pll/digital/log/workorders/wo-6.json",
+   "note": "harness fixes, formal rerun in flight"
+  },
+  {
+   "id": 7,
+   "status": "waived",
+   "agent": null,
+   "attempts": 0,
+   "opened": "2026-10-05T13:21:23",
+   "closed": "2026-10-05T13:21:38",
+   "gate": "timing",
+   "phase": "P6",
+   "fixer": "harden",
+   "kinds": [
+    "setup_violation"
+   ],
+   "severity": "error",
+   "count": 3,
+   "work_order": "log/workorders/wo-7.json",
+   "note": "Corner-specific waiver, ss_125C_3v00 only (ruling 2026-10-05, answers req-20261005T091748Z-2340426; not the person's own ruling): setup -1.19..-1.20 ns on the vco_out /2 prescaler loop (pre_q0) at the 3.0 ns vco_out period. That period can't occur at ss: sim_pvt run 5 (PASS, analog/reports/gate-sim_pvt.json) puts the VCO top at ~227 MHz (4.4 ns) at ss_125c_vm10 and vco_fmax peaks near 236 MHz (4.24 ns) across all corners, so the VCO never reaches 333 MHz. The /2 loop needs ~4.25 ns at ss, so at the real ss VCO rate it meets with ~0.15 ns; VCO and divider slow together on one die. ff/tt meet at 3.0 ns. Condition: the ~0.15 ns (3.5%) margin must cover VCO period jitter; vco_period_jitter_ps_rms is unmeasured at tt (sim_measure_missing, run 5) and must be measured; revisit if ~6 sigma nears 150 ps. VCO top speed in the spec is NOT lowered. Slew on uo_out[0]/[1] was fixed (clkbuf_8), not waived.",
+   "approved_by": "a delegate on the person's redirect (Slack ts 1791072039.428359)"
+  },
+  {
+   "id": 8,
+   "status": "waived",
+   "agent": null,
+   "attempts": 0,
+   "opened": "2026-10-28T17:22:48",
+   "closed": "2026-10-29T11:04:54",
+   "gate": "timing",
+   "phase": "P6",
+   "fixer": "harden",
+   "kinds": [
+    "setup_violation"
+   ],
+   "severity": "error",
+   "count": 3,
+   "work_order": "blocks/pll/digital/log/workorders/wo-8.json",
+   "note": "Corner waiver, ss_125C_3v00 only, for the vco_out /2 toggle loop (u_pre_ff0) at the 2.7 ns vco_out clock: setup -1.16..-1.20 ns (was -1.49..-1.50 with dffrnq_4). tt +0.65, ff +1.43 meet. Why it can't close: the fastest reset toggle loop in gf180mcu_fd_sc_mcu7t5v0 is dffrnq_2 + inv_1, 3.36 ns at ss in Liberty with ideal wires and 3.65 ns routed (274 MHz, STA less the 0.25 ns uncertainty); no flop or latch pair reaches 2.7 ns at ss. Premise, unlike issue 7's: the VCO CAN exceed the stage at ss_pff pre-layout (310 MHz at the rail), so the waiver rests on these instead: (1) acquiring from Vctrl = 0, the loop model on the ss_pff calibration (blocks/pll/tb/prescaler_margin.py, reports/prescaler_margin.json) locks every lock-table point with a 3.65 ns stage; peaks 254 / 283 / 243 MHz for 6.25x4 / 5x5 / 12.5x2. 5 MHz x 5 has no margin (fails from 3.68 ns). (2) REQ-RECOVER: 1024 unlocked ref cycles force DN for 128 cycles, so a rail start recovers (6.25x4 at 189 us, 12.5x2 at 95 us). Not 5x5 (overshoots again), and a rail start at 6.25x3 false-locks at 300 MHz in the model, which recovery cannot see. (3) The post-layout sweep (task 261029-062920, not merged yet) puts the extracted VCO at ss_pff at 240 MHz at the rail, below 274 MHz; if that holds, the stage keeps up with the VCO at every corner. Revisit if that sweep changes, or if the VCO's post-layout ss ceiling passes ~270 MHz.",
+   "approved_by": "lead lead-lead-83757baacd for the owner, under the owner's standing sign-off (Slack 2026-10-28 13:18: 'yea just do it all i signoff we can always go back'); not the owner's own ruling"
+  }
+ ],
+ "next_issue_id": 9,
+ "next_job_id": 2,
+ "budgets": {
+  "fix_loops": {
+   "sim": 2,
+   "holdout": 2,
+   "mutate": 2,
+   "formal": 2
+  }
+ },
+ "decisions": [
+  {
+   "what": "prescaler flops use async-reset dffrnq cells, not dffq_1",
+   "why": "REQ-RST-ASYNC: every register resets; obs_out/clk_fb forced 0",
+   "phase": "P2",
+   "ts": "2026-09-27T00:53:16"
+  },
+  {
+   "what": "clk_fb is clk_pre gated by a negedge-registered enable, not a mux",
+   "why": "glitch-free, N=1 is a pass-through",
+   "phase": "P2",
+   "ts": "2026-09-27T00:53:17"
+  },
+  {
+   "what": "pfd_dn sampled by one flop in the lock detector, no synchroniser",
+   "why": "lock is a slow indicator; metastability tolerable",
+   "phase": "P2",
+   "ts": "2026-09-27T00:53:19"
+  },
+  {
+   "what": "n_sel and obs_sel quasi-static, unsynchronised",
+   "why": "set before enable; not changed at run time",
+   "phase": "P2",
+   "ts": "2026-09-27T00:53:20"
+  },
+  {
+   "what": "must_keep = [pfd_dly0, pfd_dly1] instance names",
+   "why": "optimise.py matches flattened names by suffix",
+   "phase": "P2",
+   "ts": "2026-09-27T00:53:23"
+  },
+  {
+   "what": "issue 8: prescaler stage 0 hand-placed dffrnq_2 + inv_1 (u_pre_ff0/u_pre_inv0) with stage 1 clocked through u_pre_ckbuf0; runaway recovery (W=1024, M=128 ref cycles) in u_lock; ss 2.7 ns corner waived",
+   "why": "No library cell pair toggles at 2.7 ns at ss_125C_3v00 (best ~3.27 ns ideal, 3.65 ns routed). The loop model on the ss_pff calibration showed the old 4.2 ns stage locked every 200 MHz point at the rail; at 3.65 ns all lock from Vctrl=0. Recovery is the backstop for a VCO beyond the stage, since the analog never discharges vctrl. Digital-only, analog layout untouched.",
+   "phase": "P6",
+   "ts": "2026-10-29T11:04:51"
+  }
+ ],
+ "edits": [
+  {
+   "ts": "2026-09-27T00:42:20",
+   "class": "spec_edit",
+   "refs": [],
+   "note": "core renamed ihsan_sa_pll so harden's generated wrapper is tt_um_ihsan_sa_pll (corpus convention)",
+   "human_hold": 2,
+   "gates": [
+    "spec_lint",
+    "lint",
+    "sim",
+    "holdout",
+    "mutate",
+    "formal",
+    "cover",
+    "synth",
+    "harden",
+    "timing",
+    "drc",
+    "lvs",
+    "glsim",
+    "precheck",
+    "release"
+   ],
+   "gates_marked": [
+    "spec_lint"
+   ],
+   "stale_artifacts": [
+    "holdout"
+   ]
+  },
+  {
+   "ts": "2026-09-27T01:35:51",
+   "class": "tb_edit",
+   "refs": [],
+   "note": "fix sim: stale vco driver + PFD priming edge (wo-1, re-routed to tb-writer)",
+   "human_hold": 1,
+   "gates": [
+    "sim",
+    "mutate",
+    "cover"
+   ],
+   "gates_marked": [
+    "sim"
+   ],
+   "stale_artifacts": []
+  },
+  {
+   "ts": "2026-09-27T01:56:41",
+   "class": "holdout_edit",
+   "refs": [
+    "test_pll_holdout.py"
+   ],
+   "note": "fix holdout wo-2: stimulus bugs, not RTL. The tb fix changed v.pfd_setup to return 3 values (2 tests unpacked 2); DN-side test lacked the PFD priming clk edge; live n_sel test waited N-sized time but skipped an N=5-sized window. No check loosened.",
+   "human_hold": 2,
+   "gates": [
+    "holdout"
+   ],
+   "gates_marked": [
+    "holdout"
+   ],
+   "stale_artifacts": []
+  },
+  {
+   "ts": "2026-09-28T13:33:46",
+   "class": "tb_edit",
+   "refs": [],
+   "note": "fix mutate wo-3: test_lock_deassert_dn kills mutant 11",
+   "human_hold": 1,
+   "gates": [
+    "sim",
+    "mutate",
+    "cover"
+   ],
+   "gates_marked": [
+    "sim",
+    "mutate",
+    "cover"
+   ],
+   "stale_artifacts": []
+  },
+  {
+   "ts": "2026-10-03T21:02:50",
+   "class": "formal_edit",
+   "refs": [],
+   "note": "fix formal: harness off-by-ones (same-step vco rise, obs_sel mux edge, N-change settling period, pre-edge PFD sample, lock/hist step skew); RTL untouched",
+   "human_hold": 1,
+   "gates": [
+    "formal",
+    "mutate"
+   ],
+   "gates_marked": [
+    "formal",
+    "mutate"
+   ],
+   "stale_artifacts": []
+  },
+  {
+   "ts": "2026-10-03T21:02:50",
+   "class": "spec_formal_edit",
+   "refs": [],
+   "note": "fix formal: cover_depth 300, timeout_s 7200 for COVER_LOCK/LOCK_DROP",
+   "human_hold": 1,
+   "gates": [
+    "formal",
+    "cover"
+   ],
+   "gates_marked": [
+    "formal",
+    "cover"
+   ],
+   "stale_artifacts": []
+  },
+  {
+   "ts": "2026-10-05T04:45:28",
+   "class": "spec_edit",
+   "refs": [
+    "spec/spec.yaml"
+   ],
+   "note": "clock.primary: clk for chip-flow #55 two-clock harden; sdc timing note updated. No requirement, bound or port changed.",
+   "human_hold": 2,
+   "gates": [
+    "spec_lint",
+    "lint",
+    "sim",
+    "holdout",
+    "mutate",
+    "formal",
+    "cover",
+    "synth",
+    "harden",
+    "timing",
+    "drc",
+    "lvs",
+    "glsim",
+    "precheck",
+    "release"
+   ],
+   "gates_marked": [
+    "spec_lint",
+    "lint",
+    "sim",
+    "holdout",
+    "mutate",
+    "formal",
+    "cover",
+    "synth"
+   ],
+   "stale_artifacts": [
+    "holdout"
+   ]
+  },
+  {
+   "ts": "2026-10-05T04:45:29",
+   "class": "harden_config_edit",
+   "refs": [
+    "harden/constraints.sdc"
+   ],
+   "note": "design SDC: vco_out 3.0 ns, prescaler generated clocks, clk_pre 20 ns, clk vs VCO clocks async",
+   "human_hold": 2,
+   "gates": [
+    "harden",
+    "timing",
+    "drc",
+    "lvs",
+    "glsim",
+    "precheck",
+    "release"
+   ],
+   "gates_marked": [],
+   "stale_artifacts": []
+  },
+  {
+   "ts": "2026-10-05T04:56:10",
+   "class": "harden_config_edit",
+   "refs": [
+    "harden/config.override.json",
+    "harden/constraints.sdc"
+   ],
+   "note": "setup_violation fix a1: RUN_POST_GRT_RESIZER_TIMING; clk_pre as generated clock (false hold from create_clock on a Q pin)",
+   "human_hold": 2,
+   "gates": [
+    "harden",
+    "timing",
+    "drc",
+    "lvs",
+    "glsim",
+    "precheck",
+    "release"
+   ],
+   "gates_marked": [
+    "harden"
+   ],
+   "stale_artifacts": []
+  },
+  {
+   "ts": "2026-10-05T05:07:45",
+   "class": "harden_config_edit",
+   "refs": [
+    "harden/config.override.json"
+   ],
+   "note": "setup_violation fix a2: exclude dffrnq_1/_2 so pre_q0 (vco_out toggle) gets dffrnq_4; ss setup -1.42 ns was dffrnq_1 CLK->Q 3.3 ns",
+   "human_hold": 2,
+   "gates": [
+    "harden",
+    "timing",
+    "drc",
+    "lvs",
+    "glsim",
+    "precheck",
+    "release"
+   ],
+   "gates_marked": [
+    "harden",
+    "timing",
+    "drc",
+    "lvs",
+    "precheck"
+   ],
+   "stale_artifacts": []
+  },
+  {
+   "ts": "2026-10-05T05:58:11",
+   "class": "rtl_edit",
+   "refs": [
+    "ihsan_sa_pll"
+   ],
+   "note": "ss slew fix per ruling req-20261005T091748Z-2340426 (2): clk_fb/obs_out driven by hand-instantiated clkbuf_8 (ifdef SYNTHESIS, assigns in sim); PFD clk_fb pin on its own net clk_fb_int",
+   "human_hold": 1,
+   "gates": [
+    "lint",
+    "sim",
+    "holdout",
+    "mutate",
+    "formal",
+    "cover",
+    "synth",
+    "harden",
+    "timing",
+    "drc",
+    "lvs",
+    "glsim",
+    "precheck",
+    "release"
+   ],
+   "gates_marked": [
+    "lint",
+    "sim",
+    "holdout",
+    "mutate",
+    "formal",
+    "cover",
+    "synth",
+    "harden",
+    "timing",
+    "drc",
+    "lvs",
+    "precheck"
+   ],
+   "stale_artifacts": []
+  },
+  {
+   "ts": "2026-10-05T05:58:11",
+   "class": "spec_edit",
+   "refs": [
+    "spec/spec.yaml"
+   ],
+   "note": "must_keep += u_clk_fb_obuf, u_obs_obuf (the ss slew-fix clock buffers). No requirement, bound or port changed.",
+   "human_hold": 2,
+   "gates": [
+    "spec_lint",
+    "lint",
+    "sim",
+    "holdout",
+    "mutate",
+    "formal",
+    "cover",
+    "synth",
+    "harden",
+    "timing",
+    "drc",
+    "lvs",
+    "glsim",
+    "precheck",
+    "release"
+   ],
+   "gates_marked": [
+    "spec_lint",
+    "lint",
+    "sim",
+    "holdout",
+    "mutate",
+    "formal",
+    "cover",
+    "synth",
+    "harden",
+    "timing",
+    "drc",
+    "lvs",
+    "precheck"
+   ],
+   "stale_artifacts": [
+    "holdout"
+   ]
+  },
+  {
+   "ts": "2026-10-05T05:58:11",
+   "class": "harden_config_edit",
+   "refs": [
+    "harden/config.override.json"
+   ],
+   "note": "RSZ_DONT_TOUCH_RX on the two clkbuf_8 output buffers and the uo_out[0]/[1] port nets, so buffer_ports doesn't put a buf_1 after them",
+   "human_hold": 2,
+   "gates": [
+    "harden",
+    "timing",
+    "drc",
+    "lvs",
+    "glsim",
+    "precheck",
+    "release"
+   ],
+   "gates_marked": [
+    "harden",
+    "timing",
+    "drc",
+    "lvs",
+    "precheck"
+   ],
+   "stale_artifacts": []
+  },
+  {
+   "ts": "2026-10-05T13:13:19",
+   "class": "harden_config_edit",
+   "refs": [
+    "harden/config.override.json"
+   ],
+   "note": "SYNTH_BUFFER_CELL clkbuf_8: Yosys insbuf put buf_1 after the clkbuf_8 obufs on uo_out[0]/[1] (ss slew 3.48 ns); per ruling 2026-10-05 (2)",
+   "human_hold": 2,
+   "gates": [
+    "harden",
+    "timing",
+    "drc",
+    "lvs",
+    "glsim",
+    "precheck",
+    "release"
+   ],
+   "gates_marked": [
+    "harden",
+    "timing",
+    "drc",
+    "lvs",
+    "precheck"
+   ],
+   "stale_artifacts": []
+  },
+  {
+   "ts": "2026-10-05T13:29:09",
+   "class": "tb_edit",
+   "refs": [
+    "tb/test_pll.py"
+   ],
+   "note": "glsim SDF: tests assumed zero delay (0.01 ns widths/alignments, sampling 1 ns after an edge). GL_TOL 1 ns / GL_SKEW 4 ns, both under the 5 ns step any RTL fault moves an edge by; PFD width checked as dt + one common offset (spec: width tracks dt).",
+   "human_hold": 1,
+   "gates": [
+    "sim",
+    "mutate",
+    "cover"
+   ],
+   "gates_marked": [
+    "sim",
+    "mutate",
+    "cover"
+   ],
+   "stale_artifacts": []
+  },
+  {
+   "ts": "2026-10-05T13:33:44",
+   "class": "rtl_edit",
+   "refs": [
+    "rtl/ihsan_sa_pll.v"
+   ],
+   "note": "clk_fb/obs_out clkbufs: plain assigns under FORMAL (native yosys formal defines SYNTHESIS, would blackbox them). Synth/harden netlist unchanged.",
+   "human_hold": 1,
+   "gates": [
+    "lint",
+    "sim",
+    "holdout",
+    "mutate",
+    "formal",
+    "cover",
+    "synth",
+    "harden",
+    "timing",
+    "drc",
+    "lvs",
+    "glsim",
+    "precheck",
+    "release"
+   ],
+   "gates_marked": [
+    "lint",
+    "sim",
+    "holdout",
+    "mutate",
+    "formal",
+    "cover",
+    "synth",
+    "harden",
+    "timing",
+    "drc",
+    "lvs",
+    "glsim",
+    "precheck"
+   ],
+   "stale_artifacts": []
+  },
+  {
+   "ts": "2026-10-28T15:33:22",
+   "class": "spec_edit",
+   "refs": [
+    "spec/spec.yaml",
+    "spec/spec.md"
+   ],
+   "note": "VCO clock 3.0 -> 2.7 ns (370 MHz): the analog VCO ceiling is now scored at every corner (H1 open item 5, owner's standing yes 2026-10-28)",
+   "human_hold": 2,
+   "gates": [
+    "spec_lint",
+    "lint",
+    "sim",
+    "holdout",
+    "mutate",
+    "formal",
+    "cover",
+    "synth",
+    "harden",
+    "timing",
+    "drc",
+    "lvs",
+    "glsim",
+    "precheck",
+    "release"
+   ],
+   "gates_marked": [
+    "spec_lint",
+    "lint",
+    "sim",
+    "holdout",
+    "mutate",
+    "formal",
+    "cover",
+    "synth",
+    "harden",
+    "timing",
+    "drc",
+    "lvs",
+    "glsim",
+    "precheck"
+   ],
+   "stale_artifacts": [
+    "holdout"
+   ]
+  },
+  {
+   "ts": "2026-10-28T15:33:27",
+   "class": "harden_config_edit",
+   "refs": [
+    "harden/constraints.sdc"
+   ],
+   "note": "create_clock vco_out 2.7 ns",
+   "human_hold": 2,
+   "gates": [
+    "harden",
+    "timing",
+    "drc",
+    "lvs",
+    "glsim",
+    "precheck",
+    "release"
+   ],
+   "gates_marked": [
+    "harden",
+    "timing",
+    "drc",
+    "lvs",
+    "glsim",
+    "precheck"
+   ],
+   "stale_artifacts": []
+  },
+  {
+   "ts": "2026-10-29T08:30:16",
+   "class": "spec_edit",
+   "refs": [
+    "spec/spec.yaml",
+    "spec/spec.md"
+   ],
+   "note": "issue 8: REQ-RECOVER/REQ-RECOVER-OUT added, REQ-PFD-RESET outside recovery, REQ-TIM-VCO ss bound 3.5 ns, must_keep u_pre_ff0/u_pre_inv0",
+   "human_hold": 2,
+   "gates": [
+    "spec_lint",
+    "lint",
+    "sim",
+    "holdout",
+    "mutate",
+    "formal",
+    "cover",
+    "synth",
+    "harden",
+    "timing",
+    "drc",
+    "lvs",
+    "glsim",
+    "precheck",
+    "release"
+   ],
+   "gates_marked": [
+    "spec_lint",
+    "lint",
+    "sim",
+    "holdout",
+    "mutate",
+    "formal",
+    "cover",
+    "synth",
+    "harden",
+    "timing",
+    "drc",
+    "lvs",
+    "glsim",
+    "precheck"
+   ],
+   "stale_artifacts": [
+    "holdout"
+   ]
+  },
+  {
+   "ts": "2026-10-29T08:30:16",
+   "class": "rtl_edit",
+   "refs": [
+    "rtl/pll_prescaler.v",
+    "rtl/pll_lock_det.v",
+    "rtl/ihsan_sa_pll.v"
+   ],
+   "note": "issue 8: hand-instantiated dffrnq_2+inv_1 first prescaler stage; runaway recovery in u_lock",
+   "human_hold": 1,
+   "gates": [
+    "lint",
+    "sim",
+    "holdout",
+    "mutate",
+    "formal",
+    "cover",
+    "synth",
+    "harden",
+    "timing",
+    "drc",
+    "lvs",
+    "glsim",
+    "precheck",
+    "release"
+   ],
+   "gates_marked": [
+    "lint",
+    "sim",
+    "holdout",
+    "mutate",
+    "formal",
+    "cover",
+    "synth",
+    "harden",
+    "timing",
+    "drc",
+    "lvs",
+    "glsim",
+    "precheck"
+   ],
+   "stale_artifacts": []
+  },
+  {
+   "ts": "2026-10-29T08:30:16",
+   "class": "tb_edit",
+   "refs": [
+    "tb/test_pll.py"
+   ],
+   "note": "issue 8: REQ-RECOVER tests",
+   "human_hold": 1,
+   "gates": [
+    "sim",
+    "mutate",
+    "cover"
+   ],
+   "gates_marked": [
+    "sim",
+    "mutate",
+    "cover"
+   ],
+   "stale_artifacts": []
+  },
+  {
+   "ts": "2026-10-29T08:31:05",
+   "class": "formal_edit",
+   "refs": [
+    "formal/ihsan_sa_pll_formal.sv"
+   ],
+   "note": "issue 8: recover_forces_dn (REQ-RECOVER-OUT); pfd_reset_on_both outside recovery",
+   "human_hold": 1,
+   "gates": [
+    "formal",
+    "mutate"
+   ],
+   "gates_marked": [
+    "formal",
+    "mutate"
+   ],
+   "stale_artifacts": []
+  },
+  {
+   "ts": "2026-10-29T08:31:20",
+   "class": "harden_config_edit",
+   "refs": [
+    "harden/config.override.json"
+   ],
+   "note": "issue 8: dffrnq_1/2 no longer excluded (stage 0 is hand-instantiated); resizer dont_touch on u_pre_ff0/u_pre_inv0",
+   "human_hold": 2,
+   "gates": [
+    "harden",
+    "timing",
+    "drc",
+    "lvs",
+    "glsim",
+    "precheck",
+    "release"
+   ],
+   "gates_marked": [
+    "harden",
+    "timing",
+    "drc",
+    "lvs",
+    "glsim",
+    "precheck"
+   ],
+   "stale_artifacts": []
+  },
+  {
+   "ts": "2026-10-29T08:47:17",
+   "class": "tb_edit",
+   "refs": [
+    "tb/test_pll.py"
+   ],
+   "note": "pfd_setup fails instead of hanging when clk_fb never rises (a stalled-divider mutant hung the mutate gate)",
+   "human_hold": 1,
+   "gates": [
+    "sim",
+    "mutate",
+    "cover"
+   ],
+   "gates_marked": [
+    "sim",
+    "mutate",
+    "cover"
+   ],
+   "stale_artifacts": []
+  },
+  {
+   "ts": "2026-10-29T08:47:22",
+   "class": "harden_config_edit",
+   "refs": [
+    "harden/config.override.json"
+   ],
+   "note": "dont_touch also on pre_q0/pre_d0 nets and CTS-renamed stage-0 cells",
+   "human_hold": 2,
+   "gates": [
+    "harden",
+    "timing",
+    "drc",
+    "lvs",
+    "glsim",
+    "precheck",
+    "release"
+   ],
+   "gates_marked": [
+    "harden",
+    "timing",
+    "drc",
+    "lvs",
+    "glsim",
+    "precheck"
+   ],
+   "stale_artifacts": []
+  },
+  {
+   "ts": "2026-10-29T08:54:53",
+   "class": "rtl_edit",
+   "refs": [
+    "rtl/pll_prescaler.v"
+   ],
+   "note": "stage 1 clocked through u_pre_ckbuf0 (pre_c0), generated clock pre_q0 defined there",
+   "human_hold": 1,
+   "gates": [
+    "lint",
+    "sim",
+    "holdout",
+    "mutate",
+    "formal",
+    "cover",
+    "synth",
+    "harden",
+    "timing",
+    "drc",
+    "lvs",
+    "glsim",
+    "precheck",
+    "release"
+   ],
+   "gates_marked": [
+    "lint",
+    "sim",
+    "holdout",
+    "mutate",
+    "formal",
+    "cover",
+    "synth",
+    "harden",
+    "timing",
+    "drc",
+    "lvs",
+    "glsim",
+    "precheck"
+   ],
+   "stale_artifacts": []
+  },
+  {
+   "ts": "2026-10-29T08:54:53",
+   "class": "harden_config_edit",
+   "refs": [
+    "harden/constraints.sdc",
+    "harden/config.override.json"
+   ],
+   "note": "pre_q0 generated clock on u_pre_ckbuf0/Z; dont_touch u_pre_ckbuf0",
+   "human_hold": 2,
+   "gates": [
+    "harden",
+    "timing",
+    "drc",
+    "lvs",
+    "glsim",
+    "precheck",
+    "release"
+   ],
+   "gates_marked": [
+    "harden",
+    "timing",
+    "drc",
+    "lvs",
+    "glsim",
+    "precheck"
+   ],
+   "stale_artifacts": []
+  },
+  {
+   "ts": "2026-10-29T08:54:53",
+   "class": "spec_edit",
+   "refs": [
+    "spec/spec.yaml",
+    "spec/spec.md"
+   ],
+   "note": "must_keep u_pre_ckbuf0",
+   "human_hold": 2,
+   "gates": [
+    "spec_lint",
+    "lint",
+    "sim",
+    "holdout",
+    "mutate",
+    "formal",
+    "cover",
+    "synth",
+    "harden",
+    "timing",
+    "drc",
+    "lvs",
+    "glsim",
+    "precheck",
+    "release"
+   ],
+   "gates_marked": [
+    "spec_lint",
+    "lint",
+    "sim",
+    "holdout",
+    "mutate",
+    "formal",
+    "cover",
+    "synth",
+    "harden",
+    "timing",
+    "drc",
+    "lvs",
+    "glsim",
+    "precheck"
+   ],
+   "stale_artifacts": [
+    "holdout"
+   ]
+  },
+  {
+   "ts": "2026-10-29T10:49:12",
+   "class": "formal_edit",
+   "refs": [
+    "formal/ihsan_sa_pll_formal.sv"
+   ],
+   "note": "recover_forces_dn dropped: unreachable within cover depth (vacuous); REQ-RECOVER-OUT is a sim check",
+   "human_hold": 1,
+   "gates": [
+    "formal",
+    "mutate"
+   ],
+   "gates_marked": [
+    "formal",
+    "mutate"
+   ],
+   "stale_artifacts": []
+  },
+  {
+   "ts": "2026-10-29T10:49:19",
+   "class": "spec_edit",
+   "refs": [
+    "spec/spec.yaml"
+   ],
+   "note": "REQ-RECOVER-OUT check: sim",
+   "human_hold": 2,
+   "gates": [
+    "spec_lint",
+    "lint",
+    "sim",
+    "holdout",
+    "mutate",
+    "formal",
+    "cover",
+    "synth",
+    "harden",
+    "timing",
+    "drc",
+    "lvs",
+    "glsim",
+    "precheck",
+    "release"
+   ],
+   "gates_marked": [
+    "spec_lint",
+    "lint",
+    "sim",
+    "holdout",
+    "mutate",
+    "formal",
+    "cover",
+    "synth",
+    "harden",
+    "timing",
+    "drc",
+    "lvs",
+    "glsim",
+    "precheck"
+   ],
+   "stale_artifacts": [
+    "holdout"
+   ]
+  },
+  {
+   "ts": "2026-10-29T10:49:27",
+   "class": "tb_edit",
+   "refs": [
+    "tb/test_pll.py"
+   ],
+   "note": "tag REQ-RECOVER-OUT",
+   "human_hold": 1,
+   "gates": [
+    "sim",
+    "mutate",
+    "cover"
+   ],
+   "gates_marked": [
+    "sim",
+    "mutate",
+    "cover"
+   ],
+   "stale_artifacts": []
+  },
+  {
+   "ts": "2026-10-29T10:54:54",
+   "class": "tb_edit",
+   "refs": [
+    "tb/test_pll.py"
+   ],
+   "note": "glsim sdf: reset-to-output wait 20 ns; recovery = DN high > 4 ref periods",
+   "human_hold": 1,
+   "gates": [
+    "sim",
+    "mutate",
+    "cover"
+   ],
+   "gates_marked": [
+    "sim",
+    "mutate",
+    "cover"
+   ],
+   "stale_artifacts": []
+  },
+  {
+   "ts": "2026-10-29T10:57:16",
+   "class": "spec_edit",
+   "refs": [
+    "spec/spec.yaml",
+    "spec/spec.md"
+   ],
+   "note": "REQ-TIM-VCO ss bound restated as 3.65 ns, the hardened loop, with the loop-model threshold",
+   "human_hold": 2,
+   "gates": [
+    "spec_lint",
+    "lint",
+    "sim",
+    "holdout",
+    "mutate",
+    "formal",
+    "cover",
+    "synth",
+    "harden",
+    "timing",
+    "drc",
+    "lvs",
+    "glsim",
+    "precheck",
+    "release"
+   ],
+   "gates_marked": [
+    "spec_lint",
+    "lint",
+    "sim",
+    "holdout",
+    "mutate",
+    "formal",
+    "cover",
+    "synth",
+    "harden",
+    "timing",
+    "drc",
+    "lvs",
+    "glsim",
+    "precheck"
+   ],
+   "stale_artifacts": [
+    "holdout"
+   ]
+  },
+  {
+   "ts": "2026-10-29T10:59:10",
+   "class": "spec_edit",
+   "refs": [
+    "spec/spec.yaml"
+   ],
+   "note": "REQ-TIM-VCO text: valid YAML",
+   "human_hold": 2,
+   "gates": [
+    "spec_lint",
+    "lint",
+    "sim",
+    "holdout",
+    "mutate",
+    "formal",
+    "cover",
+    "synth",
+    "harden",
+    "timing",
+    "drc",
+    "lvs",
+    "glsim",
+    "precheck",
+    "release"
+   ],
+   "gates_marked": [
+    "spec_lint",
+    "lint",
+    "sim",
+    "holdout",
+    "mutate",
+    "formal",
+    "cover",
+    "synth",
+    "harden",
+    "timing",
+    "drc",
+    "lvs",
+    "glsim",
+    "precheck"
+   ],
+   "stale_artifacts": [
+    "holdout"
+   ]
+  }
+ ],
+ "spawns": [
+  {
+   "ts": "2026-09-27T00:35:58",
+   "role": "spec-writer",
+   "model": "fable",
+   "phase": "P1"
+  },
+  {
+   "ts": "2026-09-27T00:47:20",
+   "role": "architect",
+   "model": "fable",
+   "effort": "high",
+   "phase": "P2"
+  },
+  {
+   "ts": "2026-09-27T00:54:07",
+   "role": "tb-writer",
+   "model": "opus",
+   "effort": "high",
+   "phase": "P3"
+  },
+  {
+   "ts": "2026-09-27T00:54:08",
+   "role": "property-writer",
+   "model": "opus",
+   "effort": "high",
+   "phase": "P3"
+  }
+ ],
+ "history": [
+  {
+   "ts": "2026-09-27T00:35:39",
+   "event": "init",
+   "skill": "vde",
+   "block": "pll",
+   "phase": "P0"
+  },
+  {
+   "ts": "2026-09-27T00:35:57",
+   "event": "phase",
+   "phase": "P1",
+   "prev": "P0"
+  },
+  {
+   "ts": "2026-09-27T00:35:58",
+   "event": "spawn",
+   "role": "spec-writer",
+   "model": "fable"
+  },
+  {
+   "ts": "2026-09-27T00:40:42",
+   "event": "gate",
+   "gate": "spec_lint",
+   "status": "pass",
+   "attempt": 1,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-09-27T00:42:20",
+   "event": "edit",
+   "edit_class": "spec_edit",
+   "refs": [],
+   "human_hold": 2
+  },
+  {
+   "ts": "2026-09-27T00:42:22",
+   "event": "gate",
+   "gate": "spec_lint",
+   "status": "pass",
+   "attempt": 2,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-09-27T00:46:46",
+   "event": "phase",
+   "phase": "P2",
+   "prev": "P1"
+  },
+  {
+   "ts": "2026-09-27T00:47:20",
+   "event": "spawn",
+   "role": "architect",
+   "model": "fable"
+  },
+  {
+   "ts": "2026-09-27T00:51:42",
+   "event": "gate",
+   "gate": "spec_lint",
+   "status": "pass",
+   "attempt": 3,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-09-27T00:53:16",
+   "event": "decision",
+   "what": "prescaler flops use async-reset dffrnq cells, not dffq_1"
+  },
+  {
+   "ts": "2026-09-27T00:53:17",
+   "event": "decision",
+   "what": "clk_fb is clk_pre gated by a negedge-registered enable, not a mux"
+  },
+  {
+   "ts": "2026-09-27T00:53:19",
+   "event": "decision",
+   "what": "pfd_dn sampled by one flop in the lock detector, no synchroniser"
+  },
+  {
+   "ts": "2026-09-27T00:53:20",
+   "event": "decision",
+   "what": "n_sel and obs_sel quasi-static, unsynchronised"
+  },
+  {
+   "ts": "2026-09-27T00:53:23",
+   "event": "decision",
+   "what": "must_keep = [pfd_dly0, pfd_dly1] instance names"
+  },
+  {
+   "ts": "2026-09-27T00:54:05",
+   "event": "phase",
+   "phase": "P3",
+   "prev": "P2"
+  },
+  {
+   "ts": "2026-09-27T00:54:07",
+   "event": "spawn",
+   "role": "tb-writer",
+   "model": "opus"
+  },
+  {
+   "ts": "2026-09-27T00:54:08",
+   "event": "spawn",
+   "role": "property-writer",
+   "model": "opus"
+  },
+  {
+   "ts": "2026-09-27T01:04:33",
+   "event": "holdout",
+   "written_by": "tb-writer",
+   "sha": "dir_text:38f6e12da866835d1060ae470f4353cd34fa57c3270835a658412279bcc8a875"
+  },
+  {
+   "ts": "2026-09-27T01:04:42",
+   "event": "gate",
+   "gate": "spec_lint",
+   "status": "pass",
+   "attempt": 4,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-09-27T01:11:02",
+   "event": "phase",
+   "phase": "P4",
+   "prev": "P3"
+  },
+  {
+   "ts": "2026-09-27T01:15:47",
+   "event": "gate",
+   "gate": "lint",
+   "status": "pass",
+   "attempt": 1,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-09-27T01:15:58",
+   "event": "gate",
+   "gate": "lint",
+   "status": "pass",
+   "attempt": 2,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-09-27T01:16:30",
+   "event": "gate",
+   "gate": "lint",
+   "status": "pass",
+   "attempt": 3,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-09-27T01:16:52",
+   "event": "gate",
+   "gate": "sim",
+   "status": "fail",
+   "attempt": 1,
+   "failing_count": 4
+  },
+  {
+   "ts": "2026-09-27T01:25:07",
+   "event": "gate",
+   "gate": "lint",
+   "status": "pass",
+   "attempt": 4,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-09-27T01:25:55",
+   "event": "gate",
+   "gate": "sim",
+   "status": "fail",
+   "attempt": 2,
+   "failing_count": 4
+  },
+  {
+   "ts": "2026-09-27T01:28:43",
+   "event": "budget_defaulted",
+   "path": "fix_loops.sim",
+   "value": 3
+  },
+  {
+   "ts": "2026-09-27T01:28:43",
+   "event": "budget",
+   "path": "fix_loops.sim",
+   "remaining": 2
+  },
+  {
+   "ts": "2026-09-27T01:28:46",
+   "event": "snapshot",
+   "label": "pre-fix-sim-a1",
+   "files": 10
+  },
+  {
+   "ts": "2026-09-27T01:28:50",
+   "event": "issue_open",
+   "id": 1,
+   "gate": "sim",
+   "fixer": "rtl",
+   "kinds": [
+    "test_failed"
+   ]
+  },
+  {
+   "ts": "2026-09-27T01:33:48",
+   "event": "gate",
+   "gate": "sim",
+   "status": "pass",
+   "attempt": 3,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-09-27T01:34:47",
+   "event": "gate",
+   "gate": "sim",
+   "status": "pass",
+   "attempt": 4,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-09-27T01:35:51",
+   "event": "edit",
+   "edit_class": "tb_edit",
+   "refs": [],
+   "human_hold": 1
+  },
+  {
+   "ts": "2026-09-27T01:37:50",
+   "event": "gate",
+   "gate": "sim",
+   "status": "pass",
+   "attempt": 5,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-09-27T01:38:26",
+   "event": "issue",
+   "id": 1,
+   "status": "fixed",
+   "agent": "tb-writer",
+   "attempts": 0
+  },
+  {
+   "ts": "2026-09-27T01:39:56",
+   "event": "gate",
+   "gate": "holdout",
+   "status": "fail",
+   "attempt": 1,
+   "failing_count": 4
+  },
+  {
+   "ts": "2026-09-27T01:55:54",
+   "event": "budget_defaulted",
+   "path": "fix_loops.holdout",
+   "value": 3
+  },
+  {
+   "ts": "2026-09-27T01:55:54",
+   "event": "budget",
+   "path": "fix_loops.holdout",
+   "remaining": 2
+  },
+  {
+   "ts": "2026-09-27T01:55:55",
+   "event": "snapshot",
+   "label": "pre-fix-holdout-a1",
+   "files": 10
+  },
+  {
+   "ts": "2026-09-27T01:55:56",
+   "event": "issue_open",
+   "id": 2,
+   "gate": "holdout",
+   "fixer": "rtl",
+   "kinds": [
+    "holdout_failed"
+   ]
+  },
+  {
+   "ts": "2026-09-27T01:56:41",
+   "event": "edit",
+   "edit_class": "holdout_edit",
+   "refs": [
+    "test_pll_holdout.py"
+   ],
+   "human_hold": 2
+  },
+  {
+   "ts": "2026-09-27T01:57:56",
+   "event": "gate",
+   "gate": "holdout",
+   "status": "pass",
+   "attempt": 2,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-09-27T01:58:37",
+   "event": "issue",
+   "id": 2,
+   "status": "fixed",
+   "agent": "orchestrator",
+   "attempts": 0
+  },
+  {
+   "ts": "2026-09-27T02:06:05",
+   "event": "gate",
+   "gate": "cover",
+   "status": "pass",
+   "attempt": 1,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-09-28T13:23:27",
+   "event": "gate",
+   "gate": "mutate",
+   "status": "fail",
+   "attempt": 1,
+   "failing_count": 2
+  },
+  {
+   "ts": "2026-09-28T13:27:16",
+   "event": "budget_defaulted",
+   "path": "fix_loops.mutate",
+   "value": 3
+  },
+  {
+   "ts": "2026-09-28T13:27:16",
+   "event": "budget",
+   "path": "fix_loops.mutate",
+   "remaining": 2
+  },
+  {
+   "ts": "2026-09-28T13:27:17",
+   "event": "snapshot",
+   "label": "pre-fix-mutate-a1",
+   "files": 11
+  },
+  {
+   "ts": "2026-09-28T13:27:17",
+   "event": "issue_open",
+   "id": 3,
+   "gate": "mutate",
+   "fixer": "testbench",
+   "kinds": [
+    "kill_rate_below_threshold",
+    "survivor_output_stuck",
+    "survivor_stuck_other"
+   ]
+  },
+  {
+   "ts": "2026-09-28T13:27:37",
+   "event": "issue",
+   "id": 3,
+   "status": "fixing",
+   "agent": "tb-writer",
+   "attempts": 0
+  },
+  {
+   "ts": "2026-09-28T13:30:44",
+   "event": "gate",
+   "gate": "sim",
+   "status": "pass",
+   "attempt": 6,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-09-28T13:33:14",
+   "event": "gate",
+   "gate": "mutate",
+   "status": "fail",
+   "attempt": 2,
+   "failing_count": 1
+  },
+  {
+   "ts": "2026-09-28T13:33:46",
+   "event": "edit",
+   "edit_class": "tb_edit",
+   "refs": [],
+   "human_hold": 1
+  },
+  {
+   "ts": "2026-09-28T13:34:07",
+   "event": "issue",
+   "id": 3,
+   "status": "escalated",
+   "agent": "tb-writer",
+   "attempts": 0
+  },
+  {
+   "ts": "2026-09-28T13:34:50",
+   "event": "gate",
+   "gate": "cover",
+   "status": "pass",
+   "attempt": 2,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-09-28T13:35:29",
+   "event": "gate",
+   "gate": "holdout",
+   "status": "pass",
+   "attempt": 3,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-03T20:05:29",
+   "event": "gate",
+   "gate": "formal",
+   "status": "fail",
+   "attempt": 1,
+   "failing_count": 7
+  },
+  {
+   "ts": "2026-10-03T20:09:30",
+   "event": "gate",
+   "gate": "formal",
+   "status": "fail",
+   "attempt": 2,
+   "failing_count": 9
+  },
+  {
+   "ts": "2026-10-03T20:10:28",
+   "event": "gate",
+   "gate": "synth",
+   "status": "fail",
+   "attempt": 1,
+   "failing_count": 6
+  },
+  {
+   "ts": "2026-10-03T20:45:34",
+   "event": "gate",
+   "gate": "formal",
+   "status": "fail",
+   "attempt": 3,
+   "failing_count": 9
+  },
+  {
+   "ts": "2026-10-03T20:46:40",
+   "event": "budget_defaulted",
+   "path": "fix_loops.formal",
+   "value": 3
+  },
+  {
+   "ts": "2026-10-03T20:46:40",
+   "event": "budget",
+   "path": "fix_loops.formal",
+   "remaining": 2
+  },
+  {
+   "ts": "2026-10-03T20:46:40",
+   "event": "snapshot",
+   "label": "pre-fix-formal-a1",
+   "files": 12
+  },
+  {
+   "ts": "2026-10-03T20:46:41",
+   "event": "issue_open",
+   "id": 4,
+   "gate": "formal",
+   "fixer": "formal",
+   "kinds": [
+    "engine_disagreement"
+   ]
+  },
+  {
+   "ts": "2026-10-03T20:46:41",
+   "event": "issue_open",
+   "id": 5,
+   "gate": "formal",
+   "fixer": "formal",
+   "kinds": [
+    "cover_not_reached"
+   ]
+  },
+  {
+   "ts": "2026-10-03T20:46:41",
+   "event": "issue_open",
+   "id": 6,
+   "gate": "formal",
+   "fixer": "rtl",
+   "kinds": [
+    "property_failed"
+   ]
+  },
+  {
+   "ts": "2026-10-03T20:56:09",
+   "event": "gate_error",
+   "gate": "formal",
+   "error": "CheckError: sby (cov) timed out after 500s - raise spec.yaml formal.timeout_s (at most 7200) or shorten the sequences the properties need: Command '['bin/eda', 'sb"
+  },
+  {
+   "ts": "2026-10-03T21:02:50",
+   "event": "edit",
+   "edit_class": "formal_edit",
+   "refs": [],
+   "human_hold": 1
+  },
+  {
+   "ts": "2026-10-03T21:02:50",
+   "event": "edit",
+   "edit_class": "spec_formal_edit",
+   "refs": [],
+   "human_hold": 1
+  },
+  {
+   "ts": "2026-10-03T21:03:01",
+   "event": "issue",
+   "id": 4,
+   "status": "fixing",
+   "agent": "property-writer",
+   "attempts": 0
+  },
+  {
+   "ts": "2026-10-03T21:03:01",
+   "event": "issue",
+   "id": 5,
+   "status": "fixing",
+   "agent": "property-writer",
+   "attempts": 0
+  },
+  {
+   "ts": "2026-10-03T21:03:01",
+   "event": "issue",
+   "id": 6,
+   "status": "fixing",
+   "agent": "property-writer",
+   "attempts": 0
+  },
+  {
+   "ts": "2026-10-03T21:03:04",
+   "event": "gate",
+   "gate": "synth",
+   "status": "pass",
+   "attempt": 2,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-03T21:03:22",
+   "event": "gate",
+   "gate": "spec_lint",
+   "status": "pass",
+   "attempt": 5,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-03T21:03:22",
+   "event": "gate",
+   "gate": "lint",
+   "status": "pass",
+   "attempt": 5,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-03T21:03:22",
+   "event": "gate_error",
+   "gate": "sim",
+   "error": "ModuleNotFoundError: No module named 'cocotb_tools'"
+  },
+  {
+   "ts": "2026-10-03T21:03:23",
+   "event": "gate_error",
+   "gate": "cover",
+   "error": "ModuleNotFoundError: No module named 'cocotb_tools'"
+  },
+  {
+   "ts": "2026-10-03T21:03:35",
+   "event": "gate",
+   "gate": "sim",
+   "status": "pass",
+   "attempt": 7,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-03T21:03:39",
+   "event": "gate",
+   "gate": "cover",
+   "status": "pass",
+   "attempt": 3,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-03T21:05:30",
+   "event": "job_start",
+   "job": "1",
+   "gate": "harden",
+   "pid": 36209
+  },
+  {
+   "ts": "2026-10-03T22:29:20",
+   "event": "gate",
+   "gate": "formal",
+   "status": "pass",
+   "attempt": 4,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-05T04:42:32",
+   "event": "issue",
+   "id": 4,
+   "status": "fixed",
+   "agent": "property-writer",
+   "attempts": 0
+  },
+  {
+   "ts": "2026-10-05T04:42:32",
+   "event": "issue",
+   "id": 5,
+   "status": "fixed",
+   "agent": "property-writer",
+   "attempts": 0
+  },
+  {
+   "ts": "2026-10-05T04:42:32",
+   "event": "issue",
+   "id": 6,
+   "status": "fixed",
+   "agent": "property-writer",
+   "attempts": 0
+  },
+  {
+   "ts": "2026-10-05T04:45:28",
+   "event": "edit",
+   "edit_class": "spec_edit",
+   "refs": [
+    "spec/spec.yaml"
+   ],
+   "human_hold": 2
+  },
+  {
+   "ts": "2026-10-05T04:45:29",
+   "event": "edit",
+   "edit_class": "harden_config_edit",
+   "refs": [
+    "harden/constraints.sdc"
+   ],
+   "human_hold": 2
+  },
+  {
+   "ts": "2026-10-05T04:45:37",
+   "event": "gate",
+   "gate": "spec_lint",
+   "status": "pass",
+   "attempt": 6,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-05T04:45:39",
+   "event": "gate",
+   "gate": "lint",
+   "status": "pass",
+   "attempt": 6,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-05T04:45:43",
+   "event": "gate",
+   "gate": "sim",
+   "status": "pass",
+   "attempt": 8,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-05T04:45:50",
+   "event": "gate",
+   "gate": "holdout",
+   "status": "pass",
+   "attempt": 4,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-05T04:45:57",
+   "event": "gate",
+   "gate": "cover",
+   "status": "pass",
+   "attempt": 4,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-05T04:46:01",
+   "event": "gate",
+   "gate": "synth",
+   "status": "pass",
+   "attempt": 3,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-05T04:47:35",
+   "event": "gate",
+   "gate": "mutate",
+   "status": "pass",
+   "attempt": 3,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-05T04:48:27",
+   "event": "gate",
+   "gate": "harden",
+   "status": "fail",
+   "attempt": 1,
+   "failing_count": 1
+  },
+  {
+   "ts": "2026-10-05T04:49:50",
+   "event": "issue",
+   "id": 3,
+   "status": "fixed",
+   "agent": "tb-writer",
+   "attempts": 0
+  },
+  {
+   "ts": "2026-10-05T04:53:39",
+   "event": "gate",
+   "gate": "harden",
+   "status": "fail",
+   "attempt": 2,
+   "failing_count": 1
+  },
+  {
+   "ts": "2026-10-05T04:56:10",
+   "event": "edit",
+   "edit_class": "harden_config_edit",
+   "refs": [
+    "harden/config.override.json",
+    "harden/constraints.sdc"
+   ],
+   "human_hold": 2
+  },
+  {
+   "ts": "2026-10-05T05:00:44",
+   "event": "gate",
+   "gate": "harden",
+   "status": "pass",
+   "attempt": 3,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-05T05:01:22",
+   "event": "gate",
+   "gate": "timing",
+   "status": "fail",
+   "attempt": 1,
+   "failing_count": 6
+  },
+  {
+   "ts": "2026-10-05T05:02:50",
+   "event": "gate",
+   "gate": "drc",
+   "status": "pass",
+   "attempt": 1,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-05T05:02:55",
+   "event": "gate",
+   "gate": "lvs",
+   "status": "pass",
+   "attempt": 1,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-05T05:04:57",
+   "event": "gate",
+   "gate": "precheck",
+   "status": "pass",
+   "attempt": 1,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-05T05:07:45",
+   "event": "edit",
+   "edit_class": "harden_config_edit",
+   "refs": [
+    "harden/config.override.json"
+   ],
+   "human_hold": 2
+  },
+  {
+   "ts": "2026-10-05T05:11:58",
+   "event": "gate",
+   "gate": "harden",
+   "status": "pass",
+   "attempt": 4,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-05T05:13:28",
+   "event": "gate",
+   "gate": "timing",
+   "status": "fail",
+   "attempt": 2,
+   "failing_count": 6
+  },
+  {
+   "ts": "2026-10-05T05:15:12",
+   "event": "gate",
+   "gate": "drc",
+   "status": "pass",
+   "attempt": 2,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-05T05:15:18",
+   "event": "gate",
+   "gate": "lvs",
+   "status": "pass",
+   "attempt": 2,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-05T05:16:58",
+   "event": "gate",
+   "gate": "precheck",
+   "status": "pass",
+   "attempt": 2,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-05T05:58:11",
+   "event": "edit",
+   "edit_class": "rtl_edit",
+   "refs": [
+    "ihsan_sa_pll"
+   ],
+   "human_hold": 1
+  },
+  {
+   "ts": "2026-10-05T05:58:11",
+   "event": "edit",
+   "edit_class": "spec_edit",
+   "refs": [
+    "spec/spec.yaml"
+   ],
+   "human_hold": 2
+  },
+  {
+   "ts": "2026-10-05T05:58:11",
+   "event": "edit",
+   "edit_class": "harden_config_edit",
+   "refs": [
+    "harden/config.override.json"
+   ],
+   "human_hold": 2
+  },
+  {
+   "ts": "2026-10-05T05:58:16",
+   "event": "gate",
+   "gate": "spec_lint",
+   "status": "pass",
+   "attempt": 7,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-05T05:58:16",
+   "event": "gate",
+   "gate": "lint",
+   "status": "pass",
+   "attempt": 7,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-05T05:58:19",
+   "event": "gate",
+   "gate": "sim",
+   "status": "pass",
+   "attempt": 9,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-05T05:58:22",
+   "event": "gate",
+   "gate": "holdout",
+   "status": "pass",
+   "attempt": 5,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-05T05:58:25",
+   "event": "gate",
+   "gate": "synth",
+   "status": "pass",
+   "attempt": 4,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-05T06:00:46",
+   "event": "gate",
+   "gate": "harden",
+   "status": "pass",
+   "attempt": 5,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-05T06:00:56",
+   "event": "gate",
+   "gate": "timing",
+   "status": "fail",
+   "attempt": 3,
+   "failing_count": 6
+  },
+  {
+   "ts": "2026-10-05T06:01:04",
+   "event": "gate",
+   "gate": "cover",
+   "status": "pass",
+   "attempt": 5,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-05T06:01:37",
+   "event": "gate",
+   "gate": "mutate",
+   "status": "pass",
+   "attempt": 4,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-05T06:24:47",
+   "event": "gate",
+   "gate": "formal",
+   "status": "pass",
+   "attempt": 5,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-05T13:13:19",
+   "event": "edit",
+   "edit_class": "harden_config_edit",
+   "refs": [
+    "harden/config.override.json"
+   ],
+   "human_hold": 2
+  },
+  {
+   "ts": "2026-10-05T13:18:29",
+   "event": "gate",
+   "gate": "harden",
+   "status": "pass",
+   "attempt": 6,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-05T13:19:06",
+   "event": "gate",
+   "gate": "timing",
+   "status": "fail",
+   "attempt": 4,
+   "failing_count": 3
+  },
+  {
+   "ts": "2026-10-05T13:21:23",
+   "event": "issue_open",
+   "id": 7,
+   "gate": "timing",
+   "fixer": "harden",
+   "kinds": [
+    "setup_violation"
+   ]
+  },
+  {
+   "ts": "2026-10-05T13:21:38",
+   "event": "issue",
+   "id": 7,
+   "status": "waived",
+   "agent": null,
+   "attempts": 0
+  },
+  {
+   "ts": "2026-10-05T13:24:17",
+   "event": "gate",
+   "gate": "drc",
+   "status": "pass",
+   "attempt": 3,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-05T13:24:25",
+   "event": "gate",
+   "gate": "lvs",
+   "status": "pass",
+   "attempt": 3,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-05T13:26:24",
+   "event": "gate",
+   "gate": "precheck",
+   "status": "pass",
+   "attempt": 3,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-05T13:27:02",
+   "event": "gate",
+   "gate": "glsim",
+   "status": "fail",
+   "attempt": 1,
+   "failing_count": 7
+  },
+  {
+   "ts": "2026-10-05T13:29:09",
+   "event": "edit",
+   "edit_class": "tb_edit",
+   "refs": [
+    "tb/test_pll.py"
+   ],
+   "human_hold": 1
+  },
+  {
+   "ts": "2026-10-05T13:29:27",
+   "event": "gate",
+   "gate": "sim",
+   "status": "pass",
+   "attempt": 10,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-05T13:29:43",
+   "event": "gate",
+   "gate": "glsim",
+   "status": "pass",
+   "attempt": 2,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-05T13:29:52",
+   "event": "gate",
+   "gate": "cover",
+   "status": "pass",
+   "attempt": 6,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-05T13:31:55",
+   "event": "gate",
+   "gate": "mutate",
+   "status": "pass",
+   "attempt": 5,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-05T13:33:44",
+   "event": "edit",
+   "edit_class": "rtl_edit",
+   "refs": [
+    "rtl/ihsan_sa_pll.v"
+   ],
+   "human_hold": 1
+  },
+  {
+   "ts": "2026-10-05T13:33:54",
+   "event": "gate",
+   "gate": "spec_lint",
+   "status": "pass",
+   "attempt": 8,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-05T13:33:55",
+   "event": "gate",
+   "gate": "lint",
+   "status": "pass",
+   "attempt": 8,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-05T13:34:00",
+   "event": "gate",
+   "gate": "sim",
+   "status": "pass",
+   "attempt": 11,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-05T13:34:09",
+   "event": "gate",
+   "gate": "holdout",
+   "status": "pass",
+   "attempt": 6,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-05T13:34:17",
+   "event": "gate",
+   "gate": "cover",
+   "status": "pass",
+   "attempt": 7,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-05T13:34:24",
+   "event": "gate",
+   "gate": "synth",
+   "status": "pass",
+   "attempt": 5,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-05T13:36:11",
+   "event": "gate",
+   "gate": "mutate",
+   "status": "pass",
+   "attempt": 6,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-05T13:40:48",
+   "event": "gate",
+   "gate": "harden",
+   "status": "pass",
+   "attempt": 7,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-05T13:41:06",
+   "event": "gate",
+   "gate": "timing",
+   "status": "fail",
+   "attempt": 5,
+   "failing_count": 3
+  },
+  {
+   "ts": "2026-10-05T13:42:38",
+   "event": "gate",
+   "gate": "drc",
+   "status": "pass",
+   "attempt": 4,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-05T13:42:44",
+   "event": "gate",
+   "gate": "lvs",
+   "status": "pass",
+   "attempt": 4,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-05T13:43:03",
+   "event": "gate",
+   "gate": "glsim",
+   "status": "pass",
+   "attempt": 3,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-05T13:44:58",
+   "event": "gate",
+   "gate": "precheck",
+   "status": "pass",
+   "attempt": 4,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-05T15:26:29",
+   "event": "gate",
+   "gate": "formal",
+   "status": "pass",
+   "attempt": 6,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-28T15:33:22",
+   "event": "edit",
+   "edit_class": "spec_edit",
+   "refs": [
+    "spec/spec.yaml",
+    "spec/spec.md"
+   ],
+   "human_hold": 2
+  },
+  {
+   "ts": "2026-10-28T15:33:27",
+   "event": "edit",
+   "edit_class": "harden_config_edit",
+   "refs": [
+    "harden/constraints.sdc"
+   ],
+   "human_hold": 2
+  },
+  {
+   "ts": "2026-10-28T15:33:57",
+   "event": "job_update",
+   "job": "1",
+   "status": "dead"
+  },
+  {
+   "ts": "2026-10-28T15:34:06",
+   "event": "gate",
+   "gate": "spec_lint",
+   "status": "pass",
+   "attempt": 9,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-28T15:34:12",
+   "event": "gate",
+   "gate": "lint",
+   "status": "pass",
+   "attempt": 9,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-28T15:34:27",
+   "event": "gate",
+   "gate": "sim",
+   "status": "pass",
+   "attempt": 12,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-28T15:34:29",
+   "event": "gate",
+   "gate": "holdout",
+   "status": "pass",
+   "attempt": 7,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-28T15:36:02",
+   "event": "gate",
+   "gate": "mutate",
+   "status": "pass",
+   "attempt": 7,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-28T16:00:14",
+   "event": "gate",
+   "gate": "formal",
+   "status": "pass",
+   "attempt": 7,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-28T16:00:31",
+   "event": "gate",
+   "gate": "cover",
+   "status": "pass",
+   "attempt": 8,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-28T16:00:41",
+   "event": "gate",
+   "gate": "synth",
+   "status": "pass",
+   "attempt": 6,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-28T16:02:36",
+   "event": "gate",
+   "gate": "harden",
+   "status": "pass",
+   "attempt": 8,
+   "failing_count": 0,
+   "inputs_changed_during_run": [
+    "harden_config"
+   ]
+  },
+  {
+   "ts": "2026-10-28T16:03:14",
+   "event": "gate",
+   "gate": "timing",
+   "status": "fail",
+   "attempt": 6,
+   "failing_count": 3
+  },
+  {
+   "ts": "2026-10-28T16:03:43",
+   "event": "gate",
+   "gate": "drc",
+   "status": "pass",
+   "attempt": 5,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-28T16:03:46",
+   "event": "gate",
+   "gate": "lvs",
+   "status": "pass",
+   "attempt": 5,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-28T16:03:54",
+   "event": "gate",
+   "gate": "glsim",
+   "status": "pass",
+   "attempt": 4,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-28T16:04:40",
+   "event": "gate",
+   "gate": "precheck",
+   "status": "pass",
+   "attempt": 5,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-28T17:21:19",
+   "event": "gate",
+   "gate": "harden",
+   "status": "pass",
+   "attempt": 9,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-28T17:21:24",
+   "event": "gate",
+   "gate": "timing",
+   "status": "fail",
+   "attempt": 7,
+   "failing_count": 3
+  },
+  {
+   "ts": "2026-10-28T17:21:41",
+   "event": "gate",
+   "gate": "drc",
+   "status": "pass",
+   "attempt": 6,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-28T17:21:44",
+   "event": "gate",
+   "gate": "lvs",
+   "status": "pass",
+   "attempt": 6,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-28T17:21:54",
+   "event": "gate",
+   "gate": "glsim",
+   "status": "pass",
+   "attempt": 5,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-28T17:22:14",
+   "event": "gate",
+   "gate": "precheck",
+   "status": "pass",
+   "attempt": 6,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-28T17:22:48",
+   "event": "issue_open",
+   "id": 8,
+   "gate": "timing",
+   "fixer": "harden",
+   "kinds": [
+    "setup_violation"
+   ]
+  },
+  {
+   "ts": "2026-10-28T17:22:55",
+   "event": "issue",
+   "id": 8,
+   "status": "escalated",
+   "agent": null,
+   "attempts": 0
+  },
+  {
+   "ts": "2026-10-29T08:30:04",
+   "event": "gate",
+   "gate": "spec_lint",
+   "status": "pass",
+   "attempt": 10,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-29T08:30:09",
+   "event": "gate",
+   "gate": "lint",
+   "status": "pass",
+   "attempt": 10,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-29T08:30:16",
+   "event": "edit",
+   "edit_class": "spec_edit",
+   "refs": [
+    "spec/spec.yaml",
+    "spec/spec.md"
+   ],
+   "human_hold": 2
+  },
+  {
+   "ts": "2026-10-29T08:30:16",
+   "event": "edit",
+   "edit_class": "rtl_edit",
+   "refs": [
+    "rtl/pll_prescaler.v",
+    "rtl/pll_lock_det.v",
+    "rtl/ihsan_sa_pll.v"
+   ],
+   "human_hold": 1
+  },
+  {
+   "ts": "2026-10-29T08:30:16",
+   "event": "edit",
+   "edit_class": "tb_edit",
+   "refs": [
+    "tb/test_pll.py"
+   ],
+   "human_hold": 1
+  },
+  {
+   "ts": "2026-10-29T08:30:21",
+   "event": "gate",
+   "gate": "spec_lint",
+   "status": "pass",
+   "attempt": 11,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-29T08:30:21",
+   "event": "gate",
+   "gate": "lint",
+   "status": "pass",
+   "attempt": 11,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-29T08:30:27",
+   "event": "gate",
+   "gate": "sim",
+   "status": "pass",
+   "attempt": 13,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-29T08:31:05",
+   "event": "edit",
+   "edit_class": "formal_edit",
+   "refs": [
+    "formal/ihsan_sa_pll_formal.sv"
+   ],
+   "human_hold": 1
+  },
+  {
+   "ts": "2026-10-29T08:31:20",
+   "event": "edit",
+   "edit_class": "harden_config_edit",
+   "refs": [
+    "harden/config.override.json"
+   ],
+   "human_hold": 2
+  },
+  {
+   "ts": "2026-10-29T08:31:27",
+   "event": "gate",
+   "gate": "spec_lint",
+   "status": "pass",
+   "attempt": 12,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-29T08:31:28",
+   "event": "gate",
+   "gate": "lint",
+   "status": "pass",
+   "attempt": 12,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-29T08:31:31",
+   "event": "gate",
+   "gate": "sim",
+   "status": "pass",
+   "attempt": 14,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-29T08:31:33",
+   "event": "gate",
+   "gate": "holdout",
+   "status": "pass",
+   "attempt": 8,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-29T08:31:45",
+   "event": "gate",
+   "gate": "cover",
+   "status": "pass",
+   "attempt": 9,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-29T08:41:53",
+   "event": "gate_error",
+   "gate": "mutate",
+   "error": "TimeoutExpired: Command '['bin/eda', 'python3', '/opt/eda-toolchain/iic-osic-tools-2026.09/foss/tools/yosys/bin/mcy', 'run', '-j', '20']' timed out after 600.0 seconds"
+  },
+  {
+   "ts": "2026-10-29T08:47:17",
+   "event": "edit",
+   "edit_class": "tb_edit",
+   "refs": [
+    "tb/test_pll.py"
+   ],
+   "human_hold": 1
+  },
+  {
+   "ts": "2026-10-29T08:47:22",
+   "event": "edit",
+   "edit_class": "harden_config_edit",
+   "refs": [
+    "harden/config.override.json"
+   ],
+   "human_hold": 2
+  },
+  {
+   "ts": "2026-10-29T08:47:32",
+   "event": "gate",
+   "gate": "sim",
+   "status": "pass",
+   "attempt": 15,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-29T08:48:21",
+   "event": "gate_error",
+   "gate": "mutate",
+   "error": "CheckError: spec/mutant_rulings.yaml equivalent id 5: that mutant is killed by the tests - remove the stale ruling"
+  },
+  {
+   "ts": "2026-10-29T08:48:59",
+   "event": "gate",
+   "gate": "mutate",
+   "status": "fail",
+   "attempt": 8,
+   "failing_count": 2
+  },
+  {
+   "ts": "2026-10-29T08:50:08",
+   "event": "gate",
+   "gate": "mutate",
+   "status": "pass",
+   "attempt": 9,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-29T08:54:53",
+   "event": "edit",
+   "edit_class": "rtl_edit",
+   "refs": [
+    "rtl/pll_prescaler.v"
+   ],
+   "human_hold": 1
+  },
+  {
+   "ts": "2026-10-29T08:54:53",
+   "event": "edit",
+   "edit_class": "harden_config_edit",
+   "refs": [
+    "harden/constraints.sdc",
+    "harden/config.override.json"
+   ],
+   "human_hold": 2
+  },
+  {
+   "ts": "2026-10-29T08:54:53",
+   "event": "edit",
+   "edit_class": "spec_edit",
+   "refs": [
+    "spec/spec.yaml",
+    "spec/spec.md"
+   ],
+   "human_hold": 2
+  },
+  {
+   "ts": "2026-10-29T08:54:57",
+   "event": "gate",
+   "gate": "spec_lint",
+   "status": "pass",
+   "attempt": 13,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-29T08:55:04",
+   "event": "gate",
+   "gate": "lint",
+   "status": "pass",
+   "attempt": 13,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-29T08:55:19",
+   "event": "gate",
+   "gate": "sim",
+   "status": "pass",
+   "attempt": 16,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-29T08:55:29",
+   "event": "gate",
+   "gate": "holdout",
+   "status": "pass",
+   "attempt": 9,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-29T08:55:45",
+   "event": "gate",
+   "gate": "cover",
+   "status": "pass",
+   "attempt": 10,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-29T08:59:03",
+   "event": "gate",
+   "gate": "mutate",
+   "status": "pass",
+   "attempt": 10,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-29T10:47:44",
+   "event": "gate",
+   "gate": "formal",
+   "status": "fail",
+   "attempt": 8,
+   "failing_count": 1
+  },
+  {
+   "ts": "2026-10-29T10:49:12",
+   "event": "edit",
+   "edit_class": "formal_edit",
+   "refs": [
+    "formal/ihsan_sa_pll_formal.sv"
+   ],
+   "human_hold": 1
+  },
+  {
+   "ts": "2026-10-29T10:49:19",
+   "event": "edit",
+   "edit_class": "spec_edit",
+   "refs": [
+    "spec/spec.yaml"
+   ],
+   "human_hold": 2
+  },
+  {
+   "ts": "2026-10-29T10:49:27",
+   "event": "edit",
+   "edit_class": "tb_edit",
+   "refs": [
+    "tb/test_pll.py"
+   ],
+   "human_hold": 1
+  },
+  {
+   "ts": "2026-10-29T10:49:28",
+   "event": "gate",
+   "gate": "spec_lint",
+   "status": "pass",
+   "attempt": 14,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-29T10:49:38",
+   "event": "gate",
+   "gate": "lint",
+   "status": "pass",
+   "attempt": 14,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-29T10:49:56",
+   "event": "gate",
+   "gate": "sim",
+   "status": "pass",
+   "attempt": 17,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-29T10:50:11",
+   "event": "gate",
+   "gate": "holdout",
+   "status": "pass",
+   "attempt": 10,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-29T10:50:23",
+   "event": "gate",
+   "gate": "cover",
+   "status": "pass",
+   "attempt": 11,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-29T10:51:16",
+   "event": "gate",
+   "gate": "mutate",
+   "status": "pass",
+   "attempt": 11,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-29T10:51:30",
+   "event": "gate",
+   "gate": "synth",
+   "status": "pass",
+   "attempt": 7,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-29T10:53:00",
+   "event": "gate",
+   "gate": "harden",
+   "status": "pass",
+   "attempt": 10,
+   "failing_count": 0,
+   "inputs_changed_during_run": [
+    "harden_config"
+   ]
+  },
+  {
+   "ts": "2026-10-29T10:53:08",
+   "event": "gate",
+   "gate": "timing",
+   "status": "fail",
+   "attempt": 8,
+   "failing_count": 3
+  },
+  {
+   "ts": "2026-10-29T10:53:32",
+   "event": "gate",
+   "gate": "drc",
+   "status": "pass",
+   "attempt": 7,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-29T10:53:37",
+   "event": "gate",
+   "gate": "lvs",
+   "status": "pass",
+   "attempt": 7,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-29T10:53:51",
+   "event": "gate",
+   "gate": "glsim",
+   "status": "fail",
+   "attempt": 6,
+   "failing_count": 4
+  },
+  {
+   "ts": "2026-10-29T10:54:54",
+   "event": "edit",
+   "edit_class": "tb_edit",
+   "refs": [
+    "tb/test_pll.py"
+   ],
+   "human_hold": 1
+  },
+  {
+   "ts": "2026-10-29T10:54:56",
+   "event": "gate",
+   "gate": "precheck",
+   "status": "pass",
+   "attempt": 7,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-29T10:55:03",
+   "event": "gate",
+   "gate": "sim",
+   "status": "pass",
+   "attempt": 18,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-29T10:55:17",
+   "event": "gate",
+   "gate": "cover",
+   "status": "pass",
+   "attempt": 12,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-29T10:56:31",
+   "event": "gate",
+   "gate": "mutate",
+   "status": "pass",
+   "attempt": 12,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-29T10:56:38",
+   "event": "gate",
+   "gate": "glsim",
+   "status": "pass",
+   "attempt": 7,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-29T10:57:16",
+   "event": "edit",
+   "edit_class": "spec_edit",
+   "refs": [
+    "spec/spec.yaml",
+    "spec/spec.md"
+   ],
+   "human_hold": 2
+  },
+  {
+   "ts": "2026-10-29T10:57:24",
+   "event": "gate_error",
+   "gate": "formal",
+   "error": "CheckError: spec/spec.yaml is not valid YAML: mapping values are not allowed here\n  in \"<unicode string>\", line 116, column 552:\n     ... ty) is at most 3.65 ns (274 MHz): in "
+  },
+  {
+   "ts": "2026-10-29T10:57:30",
+   "event": "gate_error",
+   "gate": "spec_lint",
+   "error": "CheckError: spec/spec.yaml is not valid YAML: mapping values are not allowed here\n  in \"<unicode string>\", line 116, column 552:\n     ... ty) is at most 3.65 ns (274 MHz): in "
+  },
+  {
+   "ts": "2026-10-29T10:57:33",
+   "event": "gate_error",
+   "gate": "lint",
+   "error": "CheckError: spec/spec.yaml is not valid YAML: mapping values are not allowed here\n  in \"<unicode string>\", line 116, column 552:\n     ... ty) is at most 3.65 ns (274 MHz): in "
+  },
+  {
+   "ts": "2026-10-29T10:57:35",
+   "event": "gate_error",
+   "gate": "sim",
+   "error": "CheckError: spec/spec.yaml is not valid YAML: mapping values are not allowed here\n  in \"<unicode string>\", line 116, column 552:\n     ... ty) is at most 3.65 ns (274 MHz): in "
+  },
+  {
+   "ts": "2026-10-29T10:57:35",
+   "event": "gate_error",
+   "gate": "holdout",
+   "error": "CheckError: spec/spec.yaml is not valid YAML: mapping values are not allowed here\n  in \"<unicode string>\", line 116, column 552:\n     ... ty) is at most 3.65 ns (274 MHz): in "
+  },
+  {
+   "ts": "2026-10-29T10:57:36",
+   "event": "gate_error",
+   "gate": "cover",
+   "error": "CheckError: spec/spec.yaml is not valid YAML: mapping values are not allowed here\n  in \"<unicode string>\", line 116, column 552:\n     ... ty) is at most 3.65 ns (274 MHz): in "
+  },
+  {
+   "ts": "2026-10-29T10:57:36",
+   "event": "gate_error",
+   "gate": "mutate",
+   "error": "CheckError: spec/spec.yaml is not valid YAML: mapping values are not allowed here\n  in \"<unicode string>\", line 116, column 552:\n     ... ty) is at most 3.65 ns (274 MHz): in "
+  },
+  {
+   "ts": "2026-10-29T10:57:37",
+   "event": "gate_error",
+   "gate": "synth",
+   "error": "CheckError: spec/spec.yaml is not valid YAML: mapping values are not allowed here\n  in \"<unicode string>\", line 116, column 552:\n     ... ty) is at most 3.65 ns (274 MHz): in "
+  },
+  {
+   "ts": "2026-10-29T10:57:38",
+   "event": "gate_error",
+   "gate": "harden",
+   "error": "CheckError: spec/spec.yaml is not valid YAML: mapping values are not allowed here\n  in \"<unicode string>\", line 116, column 552:\n     ... ty) is at most 3.65 ns (274 MHz): in "
+  },
+  {
+   "ts": "2026-10-29T10:57:39",
+   "event": "gate_error",
+   "gate": "timing",
+   "error": "CheckError: spec/spec.yaml is not valid YAML: mapping values are not allowed here\n  in \"<unicode string>\", line 116, column 552:\n     ... ty) is at most 3.65 ns (274 MHz): in "
+  },
+  {
+   "ts": "2026-10-29T10:57:41",
+   "event": "gate_error",
+   "gate": "drc",
+   "error": "CheckError: spec/spec.yaml is not valid YAML: mapping values are not allowed here\n  in \"<unicode string>\", line 116, column 552:\n     ... ty) is at most 3.65 ns (274 MHz): in "
+  },
+  {
+   "ts": "2026-10-29T10:57:42",
+   "event": "gate_error",
+   "gate": "lvs",
+   "error": "CheckError: spec/spec.yaml is not valid YAML: mapping values are not allowed here\n  in \"<unicode string>\", line 116, column 552:\n     ... ty) is at most 3.65 ns (274 MHz): in "
+  },
+  {
+   "ts": "2026-10-29T10:57:42",
+   "event": "gate_error",
+   "gate": "glsim",
+   "error": "CheckError: spec/spec.yaml is not valid YAML: mapping values are not allowed here\n  in \"<unicode string>\", line 116, column 552:\n     ... ty) is at most 3.65 ns (274 MHz): in "
+  },
+  {
+   "ts": "2026-10-29T10:57:43",
+   "event": "gate_error",
+   "gate": "precheck",
+   "error": "CheckError: spec/spec.yaml is not valid YAML: mapping values are not allowed here\n  in \"<unicode string>\", line 116, column 552:\n     ... ty) is at most 3.65 ns (274 MHz): in "
+  },
+  {
+   "ts": "2026-10-29T10:59:10",
+   "event": "edit",
+   "edit_class": "spec_edit",
+   "refs": [
+    "spec/spec.yaml"
+   ],
+   "human_hold": 2
+  },
+  {
+   "ts": "2026-10-29T10:59:28",
+   "event": "gate",
+   "gate": "spec_lint",
+   "status": "pass",
+   "attempt": 15,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-29T10:59:37",
+   "event": "gate",
+   "gate": "lint",
+   "status": "pass",
+   "attempt": 15,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-29T10:59:54",
+   "event": "gate",
+   "gate": "sim",
+   "status": "pass",
+   "attempt": 19,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-29T11:00:07",
+   "event": "gate",
+   "gate": "holdout",
+   "status": "pass",
+   "attempt": 11,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-29T11:00:23",
+   "event": "gate",
+   "gate": "cover",
+   "status": "pass",
+   "attempt": 13,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-29T11:01:47",
+   "event": "gate",
+   "gate": "mutate",
+   "status": "pass",
+   "attempt": 13,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-29T11:01:51",
+   "event": "gate",
+   "gate": "synth",
+   "status": "pass",
+   "attempt": 8,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-29T11:03:13",
+   "event": "gate",
+   "gate": "harden",
+   "status": "pass",
+   "attempt": 11,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-29T11:03:18",
+   "event": "gate",
+   "gate": "timing",
+   "status": "fail",
+   "attempt": 9,
+   "failing_count": 3
+  },
+  {
+   "ts": "2026-10-29T11:03:49",
+   "event": "gate",
+   "gate": "drc",
+   "status": "pass",
+   "attempt": 8,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-29T11:03:53",
+   "event": "gate",
+   "gate": "lvs",
+   "status": "pass",
+   "attempt": 8,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-29T11:04:06",
+   "event": "gate",
+   "gate": "glsim",
+   "status": "pass",
+   "attempt": 8,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-29T11:04:28",
+   "event": "gate",
+   "gate": "precheck",
+   "status": "pass",
+   "attempt": 8,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-29T11:04:51",
+   "event": "decision",
+   "what": "issue 8: prescaler stage 0 hand-placed dffrnq_2 + inv_1 (u_pre_ff0/u_pre_inv0) with stage 1 clocked through u_pre_ckbuf0; runaway recovery (W=1024, M=128 ref cycles) in u_lock; ss 2.7 ns corner waived"
+  },
+  {
+   "ts": "2026-10-29T11:04:54",
+   "event": "issue",
+   "id": 8,
+   "status": "waived",
+   "agent": null,
+   "attempts": 0
+  },
+  {
+   "ts": "2026-10-29T11:05:01",
+   "event": "gate",
+   "gate": "timing",
+   "status": "fail",
+   "attempt": 10,
+   "failing_count": 3
+  },
+  {
+   "ts": "2026-10-29T11:43:05",
+   "event": "gate",
+   "gate": "formal",
+   "status": "pass",
+   "attempt": 9,
+   "failing_count": 0
+  }
+ ]
+}

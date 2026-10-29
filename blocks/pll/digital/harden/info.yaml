@@ -1,0 +1,5 @@
+project:
+  title: ihsan_sa_pll
+  top_module: tt_um_ihsan_sa_pll
+  tiles: 1x1
+pinout: {}
