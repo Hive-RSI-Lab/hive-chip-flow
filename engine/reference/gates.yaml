@@ -257,7 +257,10 @@ gates:
       description: "Match."
     pex_sim:
       # M9: magic's extraction with every capacitor and extresist's wire
-      # resistance (a netlist with neither is refused), then the block's
+      # resistance (a netlist with neither is refused; every net magic
+      # would name itself is labelled first, since extresist drops an
+      # unlabelled net's coupling C, and a netlist that still lost a pair's
+      # coupling C against magic's .ext is refused), then the block's
       # post-layout bench at typical, measuring what parasitics move (the
       # mirror's output pole). klayout_pex as a second extractor and the
       # worst-corner sweep are not wired up yet - out of scope until the

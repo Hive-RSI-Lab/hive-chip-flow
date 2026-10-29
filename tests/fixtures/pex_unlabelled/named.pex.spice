@@ -1,0 +1,26 @@
+* NGSPICE file created from current_mirror.ext - technology: gf180mcuD
+
+.subckt current_mirror iout vdd vss
+X0 iout a_38_n132.t2 vss.t3 vss.t2 nfet_03v3 ad=4.88p pd=17.22u as=4.88p ps=17.22u w=8u l=0.5u
+X1 a_38_n132.t1 a_38_n132.t0 vss.t1 vss.t0 nfet_03v3 ad=2.44p pd=9.22u as=2.44p ps=9.22u w=4u l=0.5u
+R0 vss vss.n0 0.2705
+R1 vss.n0 vss.t3 1.95741
+R2 vss vss.t1 3.52234
+R3 vss.t2 vss.t0 912.067
+R4 vss.n0 vss.t2 1026.54
+R5 a_38_n132.t1 a_38_n132.n1 2.07287
+R6 a_38_n132.n0 a_38_n132.n1 8.15445
+R7 a_38_n132 a_38_n132.n0 2.6285
+R8 a_38_n132.n0 a_38_n132.t0 36.2085
+R9 a_38_n132.n1 a_38_n132.t2 73.9651
+C0 iout a_38_n132 0.09435f
+C1 vdd vss 0.12983f
+C2 iout vss 0.55748f
+C3 a_38_n132 vss 1.34815f
+C4 a_38_n132.t1 vss 0.02402f
+C5 a_38_n132.n0 vss 0.00491f
+C6 a_38_n132.n1 vss 0.02997f
+C7 vss.t1 vss 0.00768f
+C8 vss.t3 vss 0.01372f
+.ends
+

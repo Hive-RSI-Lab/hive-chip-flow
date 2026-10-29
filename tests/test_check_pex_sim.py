@@ -386,6 +386,43 @@ def test_long_output_line_fails_pex_sim(tmp_path):
     assert gate_result["status"] == "fail"
 
 
+def _unlabelled_mirror(tmp_path):
+    """The mirror with iref_node's label taken out: magic names that net
+    itself (a_38_n132#), which extresist used to strip of its couplings."""
+    ws = make_ws(tmp_path, "mirror")
+    gen = ws / "layout" / "gen_mirror.py"
+    text = gen.read_text(encoding="utf-8")
+    line = next(ln for ln in text.splitlines(keepends=True)
+                if 'labels.append(("iref_node"' in ln)
+    gen.write_text(text.replace(line, ""), encoding="utf-8")
+    import layout_gen
+    gds, top, _p, _a = layout_gen.build(ws, "mirror")
+    (ws / "log").mkdir()
+    return ws, gds.resolve(), top
+
+
+@pytest.mark.slow
+def test_unlabelled_net_keeps_its_coupling_through_extresist(tmp_path):
+    import layoutlib
+    ws, gds, top = _unlabelled_mirror(tmp_path)
+    out, _log = layoutlib.run_magic_extract(ws / "log", gds, top,
+                                            parasitics=True)
+    text = out.read_text(encoding="utf-8")
+    assert any(ln.split()[1:3] in (["a_38_n132", "iout"],
+                                   ["iout", "a_38_n132"])
+               for ln in text.splitlines() if ln.startswith("C"))
+
+
+@pytest.mark.slow
+def test_unnamed_net_losing_its_coupling_is_a_refusal(tmp_path, monkeypatch):
+    # the planted fault: the naming pass off, extresist drops the net's C
+    import layoutlib
+    ws, gds, top = _unlabelled_mirror(tmp_path)
+    monkeypatch.setattr(layoutlib, "name_unlabelled_nets", lambda ext: [])
+    with pytest.raises(layoutlib.LayoutError, match="a_38_n132-iout"):
+        layoutlib.run_magic_extract(ws / "log", gds, top, parasitics=True)
+
+
 def _rc_extract(monkeypatch):
     import layoutlib
 

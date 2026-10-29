@@ -467,6 +467,121 @@ def magic_tech(work_dir) -> Path | None:
     return out
 
 
+# a node line of a magic .ext: node "name" R C x y type ... - C in aF,
+# (x, y) the lower-left corner of one of the net's tiles, in internal units
+_EXT_NODE_RE = re.compile(
+    r'^node\s+"([^"]+)"\s+\S+\s+(\S+)\s+(-?\d+)\s+(-?\d+)\s+(\S+)')
+_EXT_CAP_RE = re.compile(r'^cap\s+"([^"]+)"\s+"([^"]+)"\s+(\S+)')
+# extresist's sub-nodes of a net: name.t0 (a device terminal), name.n0
+_SUBNODE_RE = re.compile(r"\.[tn]\d+$")
+
+
+def _magic_head(tech, gds_path, topcell: str) -> list[str]:
+    head = [f"tech load {tech}"] if tech else []
+    return head + [f"gds read {gds_path}", f"load {topcell}",
+                   "select top cell"]
+
+
+def _ext_net(name: str) -> str:
+    # magic marks a name it made up with '#' and a global one with '!';
+    # ext2spice writes neither into a net's SPICE name
+    return name.rstrip("#!")
+
+
+def ext_nodes(ext_text: str) -> list[dict]:
+    """The nets one magic .ext file defines, one per distinct node line:
+    [{name, cap (aF, to substrate), x, y, type}]. magic can write the same
+    node line twice (a port and its label); that is one net, not two."""
+    seen, nodes = set(), []
+    for line in ext_text.splitlines():
+        m = _EXT_NODE_RE.match(line)
+        if not m or m.groups() in seen:
+            continue
+        seen.add(m.groups())
+        name, cap, x, y, typ = m.groups()
+        nodes.append({"name": name, "cap": float(cap), "x": int(x),
+                      "y": int(y), "type": typ})
+    return nodes
+
+
+def name_unlabelled_nets(ext_text: str) -> list[str]:
+    """magic commands that put a text label on every net the .ext calls by
+    a name magic made up (`a_38_n132#`), at one of that net's own tiles,
+    naming it the same without the '#'. extresist drops every coupling and
+    lumped C line of a net that has no label - only the C of its split
+    sub-nodes stays - so an unlabelled net would reach the post-layout
+    bench with a fraction of its real wire C. A label on a drawing layer is
+    a name, not a port, so the pin set stays the same."""
+    nodes = ext_nodes(ext_text)
+    taken = {_ext_net(n["name"]) for n in nodes
+             if not n["name"].endswith("#")}
+    cmds, named = ["snap internal"], set()
+    for n in nodes:
+        if not n["name"].endswith("#") or n["name"] in named:
+            continue
+        named.add(n["name"])
+        label = base = _ext_net(n["name"])
+        i = 0
+        while label in taken:
+            i += 1
+            label = f"{base}_{i}"
+        taken.add(label)
+        cmds += [f"box values {n['x']} {n['y']} {n['x'] + 1} {n['y'] + 1}",
+                 f"label {label} c {n['type']}"]
+    return cmds + ["snap lambda"] if named else []
+
+
+def _pex_net(node: str) -> str:
+    return _SUBNODE_RE.sub("", node)
+
+
+def lost_couplings(ext_text: str, pex_text: str,
+                   tolerance: float = 0.1) -> list[dict]:
+    """The coupling capacitors magic's own .ext gives a pair of nets that a
+    resist-extracted netlist does not carry: [{nets, ext_ff, pex_ff}].
+
+    A pair's C in the SPICE is every C line between one of a net's nodes
+    (the net or its extresist sub-nodes, name.tN/name.nN) and one of the
+    other's. extresist spreads a net's C over its sub-nodes but keeps the
+    total, and folds a device's own body node (an rm1's resistor body) into
+    the device's terminals, so a pair's SPICE C is at least its .ext C
+    unless lines were dropped; a pair under (1 - tolerance) of it was. A
+    net the netlist never names (that body node) has no C of its own to
+    keep and is not compared. Substrate C is not compared: magic hands a
+    shielded plate's (a MIM's top plate) to its device, not the netlist."""
+    import netlistlib
+
+    want: dict[tuple[str, str], float] = {}
+    for line in ext_text.splitlines():
+        m = _EXT_CAP_RE.match(line)
+        if m:
+            a, b = sorted((_ext_net(m.group(1)), _ext_net(m.group(2))))
+            if a != b:
+                want[(a, b)] = want.get((a, b), 0.0) + float(m.group(3)) / 1e3
+    named: set[str] = set()
+    got: dict[tuple[str, str], float] = {}
+    for line in netlistlib.join_continuations(pex_text):
+        parts = netlistlib.strip_comment(line).split()
+        if not parts or parts[0][:1].lower() not in "xrcmdq":
+            continue
+        named.update(_pex_net(tok) for tok in parts[1:] if "=" not in tok)
+        if parts[0][:1].lower() != "c" or len(parts) < 4:
+            continue
+        value = netlistlib.spice_number(parts[3])
+        a, b = sorted(_pex_net(node) for node in parts[1:3])
+        if value is not None and a != b:
+            got[(a, b)] = got.get((a, b), 0.0) + value * 1e15
+    lost = []
+    for pair, ff in sorted(want.items()):
+        if not set(pair) <= named:
+            continue
+        have = got.get(pair, 0.0)
+        if have < ff * (1.0 - tolerance) and ff - have > 1e-3:
+            lost.append({"nets": list(pair), "ext_ff": round(ff, 5),
+                         "pex_ff": round(have, 5)})
+    return lost
+
+
 def run_magic_extract(work_dir, gds_path, topcell: str, *, parasitics: bool,
                       timeout: float = 180.0) -> tuple[Path, str]:
     """Extract the GDS to SPICE with magic. Without parasitics this is the
@@ -475,18 +590,37 @@ def run_magic_extract(work_dir, gds_path, topcell: str, *, parasitics: bool,
     coupling and substrate capacitor (cthresh 0) and splits each net that
     reaches a transistor into its real wire resistances (extresist).
 
+    extresist keeps a net's coupling C only when the net has a label, so a
+    parasitic extraction first extracts plainly and labels every net magic
+    had to name itself (name_unlabelled_nets), then checks that each
+    pair of top-cell nets came back with the coupling C the .ext gives it
+    (lost_couplings); a pair that did not is a refusal, never an
+    optimistic netlist.
+
     Order matters: `ext2spice lvs` resets cthresh and rthresh to infinity,
     so it must come before the thresholds, never after them."""
     work_dir = Path(work_dir)
     base = work_dir / topcell
     out_path = work_dir / (f"{topcell}.pex.spice" if parasitics
                            else f"{topcell}.spice")
+    ext_path = base.with_suffix(".ext")
     fresh(out_path, *(base.with_suffix(s) for s in
                       (".ext", ".res.ext", ".sim", ".nodes")))
     tech = magic_tech(work_dir)
-    lines = [f"tech load {tech}"] if tech else []
-    lines += [f"gds read {gds_path}", f"load {topcell}", "select top cell"]
+    lines = _magic_head(tech, gds_path, topcell)
+    naming_log = ""
     if parasitics:
+        proc = run_eda(["magic", "-noconsole", "-dnull"], cwd=work_dir,
+                       timeout=timeout, stdin_text="\n".join(
+                           lines + ["extract all", "quit -noprompt"]) + "\n")
+        naming_log = require_ok(proc, "magic extraction (net naming pass)")
+        if not ext_path.is_file():
+            raise LayoutError(
+                f"magic's naming pass wrote no {ext_path.name} - the run did "
+                f"not complete: {naming_log[-2000:]}")
+        lines += name_unlabelled_nets(
+            ext_path.read_text(encoding="utf-8", errors="replace"))
+        fresh(ext_path)
         lines += ["extract do resistance", "extract all",
                   "ext2sim labels on", "ext2sim",
                   "extresist tolerance 0.01", "extresist simplify off",
@@ -498,11 +632,31 @@ def run_magic_extract(work_dir, gds_path, topcell: str, *, parasitics: bool,
     lines += [f"ext2spice -o {out_path.name}", "quit -noprompt"]
     proc = run_eda(["magic", "-noconsole", "-dnull"], cwd=work_dir,
                    timeout=timeout, stdin_text="\n".join(lines) + "\n")
-    out = require_ok(proc, "magic extraction")
+    out = naming_log + require_ok(proc, "magic extraction")
     if not out_path.is_file():
         raise LayoutError(
             f"magic extraction produced no {out_path.name} - the run did "
             f"not complete: {out[-2000:]}")
+    if parasitics:
+        if not ext_path.is_file():
+            raise LayoutError(
+                f"magic extraction wrote no {ext_path.name} to check "
+                f"{out_path.name}'s capacitance against: {out[-2000:]}")
+        lost = lost_couplings(
+            ext_path.read_text(encoding="utf-8", errors="replace"),
+            out_path.read_text(encoding="utf-8", errors="replace"))
+        if lost:
+            shown = ", ".join(f"{a}-{b} ({d['pex_ff']:g} of "
+                              f"{d['ext_ff']:g} fF)"
+                              for d in lost[:10] for a, b in [d["nets"]])
+            raise LayoutError(
+                f"{out_path.name} lost coupling C that magic's "
+                f"{ext_path.name} gives {len(lost)} pair(s) of nets: "
+                f"{shown} - extresist drops the coupling C of a net with "
+                "no label, so a bench on this netlist would read an "
+                "optimistic layout. Put a text label on a drawing layer "
+                "(not a pin layer) on each of these nets in the layout "
+                "generator")
     return out_path, out
 
 
