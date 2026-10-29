@@ -13,11 +13,11 @@ and, when it fails, prints as waived: release judges that waiver against
 this run's result. Then it runs every probe in tests/workarounds/ against
 docs/workarounds.md (score.probes).
 
-With --record, each block's scratch copy, as the run left it (its
-state.json and reports, its layouts), is copied back over blocks/<name>,
-and blocks/<name>/check-all.json records the run: when, on which tree, and
-each step's outcome (pass, fail, or waived: failed under a waiver). That
-record is what the score reads (bin/score.py): commit it with the block.
+With --record, blocks/<name>/check-all.json records each block's run: when,
+on which tree, a hash of what it ran from (score.sources: the block's
+files, engine/, bin/eda) and each step's outcome (pass, fail, or waived:
+failed under a waiver). The block itself stays as it was. That record is
+what the score reads (bin/score.py): commit it.
 
 Exit 0 when every step passes and the table matches the probes, else 1.
 Run by bin/chip-flow (bin/eda's python, EDA_TOOLCHAIN set).
@@ -81,13 +81,13 @@ def waivers(ws: Path) -> list[str]:
         if isinstance(data, list) else []
 
 
-def record(b: score.Block, dst: Path, outcomes: dict[str, str]) -> None:
-    """Copy the block's run back over blocks/<name> and write its record."""
-    shutil.copytree(dst, b.path, symlinks=True, dirs_exist_ok=True)
+def record(b: score.Block, sources: str, outcomes: dict[str, str]) -> None:
+    """Write the block's run to blocks/<name>/check-all.json."""
     tree = Path(os.environ.get("EDA_TOOLCHAIN") or "").name or None
     (b.path / score.RECORD).write_text(json.dumps({
         "ran": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "toolchain": tree,
+        "sources": sources,
         "steps": outcomes,
     }, indent=1) + "\n", encoding="utf-8")
     print(f"  recorded in {b.path / score.RECORD}", flush=True)
@@ -99,7 +99,7 @@ def main() -> int:
     ap.add_argument("--no-probes", action="store_true")
     ap.add_argument("--keep", help="scratch dir to use and keep, for reading after")
     ap.add_argument("--record", action="store_true",
-                    help="copy each block's run back over blocks/<name> and write its check-all.json")
+                    help="write each block's run to blocks/<name>/check-all.json, for the score")
     a = ap.parse_args()
 
     blocks = score.read_blocks(ROOT / "blocks")
@@ -116,6 +116,7 @@ def main() -> int:
         dst = scratch / b.name
         if dst.exists():
             shutil.rmtree(dst)
+        sources = score.sources(b) if a.record else ""
         shutil.copytree(b.path, dst, symlinks=True,
                         ignore=shutil.ignore_patterns("state_snapshots", "__pycache__"))
         logs = scratch / f"{b.name}-logs"
@@ -141,7 +142,7 @@ def main() -> int:
                       flush=True)
                 failed += not ok
         if a.record:
-            record(b, dst, outcomes)
+            record(b, sources, outcomes)
     if not a.no_probes:
         table = score.read_workarounds(ROOT / "docs" / "workarounds.md")
         for p in score.probes(table):

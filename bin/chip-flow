@@ -26,6 +26,12 @@
 set -e
 here=$(cd "$(dirname "$0")/.." && pwd)
 
+# The score reads and hashes files only: no toolchain.
+if [ "${1:-}" = score ]; then
+	shift
+	exec python3 "$here/bin/score.py" "$@"
+fi
+
 # The tree: an explicit pin wins; else the newest IIC-OSIC-TOOLS tree in the
 # Hive's tools folder, then in /opt/eda-toolchain, where H0 keeps it.
 if [ -z "${EDA_TOOLCHAIN:-}" ]; then
@@ -61,10 +67,6 @@ test)
 	bash tests/check-engine.sh
 	exec timeout 1200 "$eda" python -m pytest -q -p no:cacheprovider \
 		tests/test_corpus_faults.py -m "slow and not harden_faults"
-	;;
-score)
-	shift
-	exec "$eda" python "$here/bin/score.py" "$@"
 	;;
 check-all)
 	shift

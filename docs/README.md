@@ -100,15 +100,16 @@ fails while a row and its probe disagree.
   first, then its top), then the probes. Hardens included, so it takes a
   while (about 20 minutes for r2r_dac): run it as a job on a change to the
   gates, `bin/` or a block. `--block NAME`, `--keep DIR` to read the logs
-  after, and `--record` to copy the run back over the block and write its
-  `check-all.json`; commit both.
+  after, and `--record` to write the run to the block's `check-all.json`;
+  commit it.
 - **Score**, `chip-flow score`, higher is better: how much of the known
   blocks passes every gate in the Hive. `blocks/known.json` pins them
   (ihsan-sa/ece298a-r2r-dac and ece298a-counter, each at the commit its
   block came from). Each scores the share of its `check-all.json` steps
-  that that run passed (or failed under the block's waiver), whose inputs
-  still hash as the run read them, and that no workaround names; the score
-  is 100 x the mean. A known block not under `blocks/` yet, or with no
+  that that run passed (or failed under the block's waiver) and that no
+  workaround names, while the block's files, `engine/` and `bin/eda` hash
+  as the run had them (a change to any of them needs a new `--record` run,
+  committed with it, or the block scores 0); the score is 100 x the mean. A known block not under `blocks/` yet, or with no
   record, scores 0, so bringing the counter in and taking it through its
   gates raises it, and so does any fix that gets a step to pass. It reads
   and hashes files, so it runs in seconds; check-all is what runs the

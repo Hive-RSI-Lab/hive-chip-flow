@@ -33,13 +33,14 @@ person signs off between stages. Submitting a tile is always the person's.
 - **Blocks**, `bin/chip-flow check-all`: re-runs every gate each block under
   `blocks/` records, from a scratch copy, through `bin/eda`, then the
   probes. Slow (it hardens); run it on a change to the gates, `bin/` or a
-  block. `--record` copies the run back and writes the block's
-  `check-all.json`, which the score reads.
+  block. `--record` writes the run to the block's `check-all.json`, which
+  the score reads.
 - **Score**, `bin/chip-flow score`, higher is better: for the known blocks
   ([blocks/known.json](blocks/known.json): ihsan-sa/ece298a-r2r-dac and
   ece298a-counter at their pinned commits), the mean share of gate steps
-  that passed check-all's last recorded run in the Hive, are still fresh
-  against the block's files, and have no workaround listed in
+  that passed check-all's last recorded run in the Hive, while the block's
+  files, `engine/` and `bin/eda` are as that run had them, with no
+  workaround listed in
   [docs/workarounds.md](docs/workarounds.md). A known block not brought in
   yet scores 0.
 

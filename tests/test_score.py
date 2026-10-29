@@ -32,13 +32,24 @@ def test_no_record_scores_zero(tmp_path):
     assert share == 0 and "check-all --record" in line
 
 
-def test_a_pass_with_no_inputs_to_check_is_not_clean(tmp_path):
-    # a recorded pass whose inputs can't be hashed against the files now
-    # (none recorded) is not fresh, so it doesn't count
-    b = _block(tmp_path, {"lint": {"status": "pass", "last": {"inputs": {}}}},
-               {"top/lint": "pass"})
+def test_a_record_from_other_sources_scores_zero(tmp_path, monkeypatch):
+    monkeypatch.setattr(score, "sources", lambda b: "now")
+    b = _block(tmp_path, {"lint": {"status": "pass"}}, {"top/lint": "pass"})
     share, line = score.block_share(b, {})
-    assert share == 0 and "stale since" in line
+    assert share == 0 and "changed since check-all ran" in line
+
+
+def test_share_counts_passed_and_waived_steps_with_no_workaround(tmp_path, monkeypatch):
+    monkeypatch.setattr(score, "sources", lambda b: "now")
+    steps = {"top/lint": "pass", "top/sim": "waived", "top/synth": "fail", "top/harden": "pass"}
+    b = _block(tmp_path, {g.split("/")[1]: {"status": "pass"} for g in steps}, steps)
+    rec = json.loads((b.path / score.RECORD).read_text())
+    (b.path / score.RECORD).write_text(json.dumps({**rec, "sources": "now"}))
+    share, line = score.block_share(b, {})
+    assert share == 0.75 and "top/synth (fail)" in line
+    shim = score.Workaround("w", "shim", ["b"], ["top/harden"])
+    share, line = score.block_share(b, {"w": shim})
+    assert share == 0.5 and "top/harden (w)" in line
 
 
 def test_failed_step_stays_a_step(tmp_path):

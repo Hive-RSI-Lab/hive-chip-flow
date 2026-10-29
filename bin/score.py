@@ -1,6 +1,6 @@
 """chip-flow score: how much of the known blocks passes every gate in the Hive.
 
-    chip-flow score       (bin/eda's python: it hashes the blocks' inputs)
+    chip-flow score       (or: python3 bin/score.py)
 
 The known blocks are the ones blocks/known.json pins (a repository and the
 commit chip-flow's block came from): designs that passed their gates once,
@@ -12,26 +12,28 @@ A block under blocks/ is a workspace (a dir with state.json) and, for an
 msde block, its analog/ and digital/ sides, each a workspace of its own.
 Its gate steps are named `<side>/<gate>` (`top` for the block's own
 workspace). They are the steps blocks/<name>/check-all.json records:
-`chip-flow check-all --record` re-runs every gate the block owes, from a
-scratch copy, in the Hive's sandbox through bin/eda, copies the run back
-and writes that record. A step is clean when:
+`chip-flow check-all --record` re-runs every gate the block records, from
+a scratch copy, in the Hive's sandbox through bin/eda, and writes that
+record. A step is clean when:
 
 - that run passed it, or failed it under the block's waiver (release then
   judged that waiver, and is a step of its own);
-- it is still fresh: the inputs the gate read then hash the same now
-  (state.py freshness), so a change to a block's files counts only once
-  check-all has run over it again; and
+- the run still stands: the block's files, engine/ and bin/eda are as
+  they were when it ran (the record's `sources`, a hash of them as git
+  tracks them), so a change to a block or to the gates counts only once
+  check-all has run over it again and its record is committed with it; and
 - no row of docs/workarounds.md names it for that block: its input came
   through a shim in bin/ or an edit made by hand in the block's files.
 
 A known block not under blocks/ yet, or with no record, scores 0. Blocks
 under blocks/ that known.json doesn't list are printed, not scored. The
-score reads files and hashes them; check-all is what runs the gates, and the
+score reads files and hashes them, in seconds; check-all is what runs the gates, and the
 test holds docs/workarounds.md to its probes. Prints one line per block,
 then the number alone.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import subprocess
@@ -158,18 +160,20 @@ def read_known(path: Path) -> list[dict]:
     return rows
 
 
-def fresh_steps(b: Block) -> set[str]:
-    """The block's steps whose recorded result is fresh against its files now."""
-    sys.path.insert(0, str(ROOT / "engine" / "lib"))
-    import statelib  # yaml: run under bin/eda's python
-    imap = statelib.load_map()
-    out = set()
-    for w in b.workspaces:
-        ws = b.path / w.rel if w.rel != "." else b.path
-        data = json.loads((ws / "state.json").read_text(encoding="utf-8"))
-        rep = statelib.freshness_report(data, ws, imap)
-        out |= {f"{w.tag}/{g}" for g, r in rep["gates"].items() if r.get("fresh")}
-    return out
+def sources(b: Block) -> str:
+    """sha256 over what a run of the block's gates reads: the block's files
+    and the engine with its launcher (engine/, bin/eda), as git tracks them
+    and as they are on disk now, less the record itself. check-all records
+    it before it runs."""
+    rels = [str(b.path.relative_to(ROOT)), "engine", "bin/eda"]
+    files = subprocess.run(["git", "ls-files", "-z", "--", *rels], cwd=ROOT,
+                           capture_output=True, check=True).stdout.split(b"\0")
+    h = hashlib.sha256()
+    for f in sorted(x for x in files if x and not x.endswith(b"/" + RECORD.encode())):
+        path = ROOT / f.decode()
+        h.update(f + b"\0")
+        h.update(hashlib.sha256(path.read_bytes()).digest() if path.is_file() else b"-")
+    return h.hexdigest()
 
 
 def block_share(b: Block, table: dict[str, Workaround]) -> tuple[float, str]:
@@ -181,12 +185,12 @@ def block_share(b: Block, table: dict[str, Workaround]) -> tuple[float, str]:
     steps: dict[str, str] = rec.get("steps") or {}
     if not steps:
         return 0.0, f"{RECORD} records no step"
-    fresh = fresh_steps(b)
+    if rec.get("sources") != sources(b):
+        return 0.0, (f"block, engine/ or bin/eda changed since check-all ran "
+                     f"({rec.get('ran', '?')}): run check-all --record --block {b.name}")
     bad = []
     for s, outcome in steps.items():
         why = [] if outcome in ("pass", "waived") else [outcome]
-        if s not in fresh:
-            why.append("stale since")
         why += [w.id for w in table.values() if w.charges(b.name, s)]
         if why:
             bad.append(f"{s} ({', '.join(why)})")
