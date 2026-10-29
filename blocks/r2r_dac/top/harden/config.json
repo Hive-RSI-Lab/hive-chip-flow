@@ -24,15 +24,14 @@
   "MAGIC_WRITE_LEF_PINONLY": 1,
   "DESIGN_NAME": "tt_um_r2r_dac_digital",
   "VERILOG_FILES": [
-    "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/top/rtl/r2r_dac_digital.v",
-    "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/top/harden/tt_um_r2r_dac_digital.v"
+    "dir::../rtl/r2r_dac_digital.v",
+    "dir::tt_um_r2r_dac_digital.v"
   ],
   "DIE_AREA": "0 0 346.64 325.36",
-  "FP_DEF_TEMPLATE": "/home/ihsan/.claude/skills/chip-flow/engine/reference/tt/tt-support-tools/tech/gf180mcuD/def/analog/tt_analog_1x2.def",
+  "FP_DEF_TEMPLATE": "dir::tt_analog_1x2.def",
   "VDD_PIN": "VPWR",
   "GND_PIN": "VGND",
   "RT_MAX_LAYER": "Metal4",
-  "PDK_ROOT": "/home/ihsan/.cc/toolchains/iic-osic-tools-2026.09/foss/pdks",
   "TIMING_VIOLATION_CORNERS": [
     ""
   ],
@@ -68,16 +67,16 @@
   "MACROS": {
     "r2r_dac_analog": {
       "gds": [
-        "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/top/macros/r2r_dac_analog.gds"
+        "dir::../macros/r2r_dac_analog.gds"
       ],
       "lef": [
-        "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/top/macros/r2r_dac_analog.lef"
+        "dir::../macros/r2r_dac_analog.lef"
       ],
       "vh": [
-        "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/top/macros/r2r_dac_analog.v"
+        "dir::../macros/r2r_dac_analog.v"
       ],
       "spice": [
-        "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/top/macros/r2r_dac_analog.spice"
+        "dir::../macros/r2r_dac_analog.spice"
       ],
       "instances": {
         "u_analog": {
@@ -93,10 +92,10 @@
   "PDN_MACRO_CONNECTIONS": [
     "u_analog VPWR VGND vdd vss"
   ],
-  "PDN_CFG": "/home/ihsan/.claude/skills/chip-flow/engine/lib/macro_pdn.tcl",
+  "PDN_CFG": "dir::macro_pdn.tcl",
   "MAGIC_EXT_USE_GDS": true,
   "EXTRA_SPICE_MODELS": [
-    "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/top/macros/r2r_dac_analog.spice"
+    "dir::../macros/r2r_dac_analog.spice"
   ],
   "RSZ_DONT_TOUCH_RX": "^ua\\[\\d+\\]$"
 }
