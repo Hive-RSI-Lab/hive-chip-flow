@@ -388,6 +388,10 @@ METALS = {"Metal1": 34, "Metal2": 36, "Metal3": 42, "Metal4": 46,
           "Metal5": 81}
 VIAS_UP = {"Metal1": 35, "Metal2": 38, "Metal3": 40, "Metal4": 41}
 LABEL_DATATYPE = 10
+# gf180mcu's FuseTop, a MIM cap's top plate: it sits between Metal4 (the
+# bottom plate) and Metal5, and the Via4 on it joins the top plate to
+# Metal5, never the Metal4 under it
+MIM_TOP = (75, 0)
 # gf180's narrowest metal (Metal1, 0.23 um): a pin narrower than this is
 # magic's 10 nm label point, not metal a router can land on.
 MIN_PIN_UM = 0.23
@@ -427,6 +431,9 @@ def pin_lines(gds: Path, cell: str, ports: dict[str, bool]) -> list[str]:
 
     metal = {m: region(n) for m, n in METALS.items()}
     via_up = {m: region(n) for m, n in VIAS_UP.items()}
+    # a Via4 on a MIM's top plate is no Metal4-Metal5 via: counted as one
+    # it joins the cap's two nets (the PLL's vss took vctrl's Metal3)
+    via_up["Metal4"] -= via_up["Metal4"].interacting(region(*MIM_TOP))
     names = list(METALS)
 
     def net_metal3(layer: str, start) -> list:
