@@ -1,5 +1,5 @@
 {
- "ran": "2026-10-29T14:44:12Z",
+ "ran": "2026-10-29T16:27:19Z",
  "toolchain": "iic-osic-tools-2026.09",
  "steps": {
   "analog/spec_lint": "pass",
@@ -9,8 +9,8 @@
   "analog/bench_strength": "pass",
   "analog/drc": "pass",
   "analog/lvs": "pass",
-  "analog/pex_sim": "fail",
-  "analog/release": "fail",
+  "analog/pex_sim": "pass",
+  "analog/release": "pass",
   "digital/spec_lint": "pass",
   "digital/lint": "pass",
   "digital/sim": "pass",
