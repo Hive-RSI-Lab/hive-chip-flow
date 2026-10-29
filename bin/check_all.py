@@ -128,8 +128,8 @@ def main() -> int:
             order = [g for _, g in state_mod.applicable_gate_order(w.skill)]
             # a gate the block carries a waiver for runs too: release reads
             # its result against the waiver, so it must be this run's.
-            waived = [g for g in waivers(ws) if g not in w.gates]
-            for g in sorted(w.gates + waived,
+            waived = waivers(ws)
+            for g in sorted(set(w.gates) | set(waived),
                             key=lambda g: order.index(g) if g in order else len(order)):
                 t0 = time.monotonic()
                 ok, why = run_gate(ws, w.skill, g, logs, w.tag)
