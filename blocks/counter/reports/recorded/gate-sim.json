@@ -1,0 +1,44 @@
+{
+ "script": "gate",
+ "gate": "sim",
+ "phase": "P4",
+ "tool": "sim",
+ "input_digest": "dir_text:76d0d45a5f2e829e5f862f5a22721b24d3fd4936126ddf971e6f241e20027591",
+ "status": "pass",
+ "criteria": {
+  "fail_severities": [
+   "error"
+  ],
+  "max_count": 0
+ },
+ "counts": {
+  "total": 0,
+  "by_severity": {},
+  "by_source": {}
+ },
+ "failing_count": 0,
+ "failing": [],
+ "violations": [],
+ "facts": {
+  "top": "ece298a_counter",
+  "tests_run": [
+   "test_async_reset",
+   "test_count_enable_holds",
+   "test_count_up_from_loaded_value",
+   "test_load_beats_count",
+   "test_load_ignored_while_driving",
+   "test_sync_load",
+   "test_tristate_bus",
+   "test_unused_inputs",
+   "test_wraparound"
+  ],
+  "tests_passed": 9
+ },
+ "inputs_at_start": {
+  "rtl": "dir_text:76d0d45a5f2e829e5f862f5a22721b24d3fd4936126ddf971e6f241e20027591",
+  "tb": "dir_text:046f330442f57502d8041e15f22ad512664b589612acb04472c739010036463d",
+  "spec_yaml_sans_formal": "json_canonical_sans_formal:9cd947b44c33253dec630a4cdf770696ba55c1f631025236036335a3e34ed69f"
+ },
+ "recorded_ts": "2026-10-29T10:01:20",
+ "attempts": 1
+}

@@ -27,14 +27,17 @@ in the expr itself) and <expr> is one of:
     clk | ena | rst_n | ~rst_n
     ui_in[<n>] | ui_in[<hi>:<lo>] | uio_in[<n>] | uio_in[<hi>:<lo>]
     uo_out[<n>] | uo_out[<hi>:<lo>] | uio_out[<n>] | uio_out[<hi>:<lo>]
+    uio_oe[<n>] | uio_oe[<hi>:<lo>]
 An input-direction port may use a leading `~` (the only transform this
 generator supports - a reset polarity flip, the one real case in the
 corpus); an output-direction port may not (you cannot inject a NOT gate
 into an output net through a bare port connection the way you can invert a
-bare input wire, and no corpus design has needed it). `uio_out`/`uio_oe`
-are wired but never driven high by anything this module builds today - the
-corpus uses `uio_in` only as extra input bits (9-bit UART data+start),
-never as a true bidirectional pin; `uio_oe` is tied to all-zero.
+bare input wire, and no corpus design has needed it). A `uio_oe` bit no
+port drives is constant: high where a port drives that `uio_out` bit, low
+otherwise. A port mapped to `uio_oe` drives those enables itself, which
+is how a design turns a uio pin around at run time (a tri-state bus: the
+same bits mapped to `uio_in` and `uio_out` too); each `uio_oe` bit it
+drives needs its `uio_out` bit driven by a port as well.
 
 macros (M10, docs/design.md "### M10.": "the digital side hardens with the
 analog GDS as a LibreLane macro") - an optional spec.yaml list, written by
@@ -92,15 +95,14 @@ _BUS_KIND = {
     "uio_in": ("in", None),
     "uo_out": ("out", None),
     "uio_out": ("out", "uio_oe"),
+    "uio_oe": ("out", None),
 }
-# every bus the DEF template places pins for - one more than _BUS_KIND
-# (uio_oe is never a tt_pins target, this module always drives it itself,
-# but pin_budget() still needs its width to size that all-zero assign).
-_ALL_BUSES = (*_BUS_KIND, "uio_oe")
+# every bus the DEF template places pins for
+_ALL_BUSES = tuple(_BUS_KIND)
 _SCALAR_IN = {"clk", "ena", "rst_n"}
 
 PIN_EXPR_RE = re.compile(
-    r"\A(?P<inv>~)?(?P<base>clk|ena|rst_n|ui_in|uo_out|uio_in|uio_out)"
+    r"\A(?P<inv>~)?(?P<base>clk|ena|rst_n|ui_in|uo_out|uio_in|uio_out|uio_oe)"
     r"(?:\[(?P<hi>\d+)(?::(?P<lo>\d+))?\])?\Z")
 
 
@@ -264,7 +266,8 @@ def parse_pin_expr(expr: str) -> dict:
     if not m:
         raise TTError(f"tt_pins expression {expr!r} does not match the "
                       "grammar (clk|ena|rst_n|ui_in[..]|uo_out[..]|"
-                      "uio_in[..]|uio_out[..], optionally ~-prefixed)")
+                      "uio_in[..]|uio_out[..]|uio_oe[..], optionally "
+                      "~-prefixed)")
     base = m.group("base")
     invert = bool(m.group("inv"))
     if base in _SCALAR_IN and m.group("hi") is not None:
@@ -364,6 +367,10 @@ def validate_tt_pins(spec: dict, tiles: str | None = None) -> list[str]:
             problems.append(f"port {name!r} claims {base}{sorted(overlap)} "
                             "already used by another port")
         claimed[base].update(range(lo, hi + 1))
+    for b in sorted(claimed["uio_oe"] - claimed["uio_out"]):
+        problems.append(f"uio_oe[{b}] is driven by a port but no port "
+                        f"drives uio_out[{b}]: the pin would only ever "
+                        "output 0")
     extra = set(tt_pins) - set(ports)
     if extra:
         problems.append(f"tt_pins names ports not in spec.yaml 'ports': "
@@ -391,7 +398,8 @@ def generate_tt_wrapper(spec: dict, tiles: str | None = None) -> str:
 
     conns: list[str] = []
     in_assigns: list[str] = []
-    out_bits: dict[str, dict[int, str]] = {"uo_out": {}, "uio_out": {}}
+    out_bits: dict[str, dict[int, str]] = {"uo_out": {}, "uio_out": {},
+                                           "uio_oe": {}}
     used_ui_bits: set[int] = set()
     used_uio_in_bits: set[int] = set()
     bound = macro_bound_ports(spec)
@@ -441,12 +449,19 @@ def generate_tt_wrapper(spec: dict, tiles: str | None = None) -> str:
     unused_uio_in = [f"uio_in[{b}]" for b in range(budget["uio_in"])
                     if b not in used_uio_in_bits]
     unused = ["ena", *unused_ui, *unused_uio_in]
-    # uio_oe: high for every uio_out bit a port actually drives (TT: 0 =
-    # input, 1 = output on that pin) - low, otherwise every uio_out[n] this
-    # module writes would be silently ignored downstream (the pin stays
-    # configured as an input no matter what this module drives it to).
-    uio_oe_bits = "".join("1" if b in out_bits["uio_out"] else "0"
-                          for b in reversed(range(budget["uio_oe"])))
+    # uio_oe: a port's where tt_pins maps one there; else high for every
+    # uio_out bit a port actually drives (TT: 0 = input, 1 = output on that
+    # pin) - low, otherwise every uio_out[n] this module writes would be
+    # silently ignored downstream (the pin stays configured as an input no
+    # matter what this module drives it to).
+    if out_bits["uio_oe"]:
+        for b in out_bits["uio_out"]:
+            out_bits["uio_oe"].setdefault(b, "1'b1")
+        uio_oe_expr = bus_expr("uio_oe", budget["uio_oe"])
+    else:
+        uio_oe_expr = f"{budget['uio_oe']}'b" + "".join(
+            "1" if b in out_bits["uio_out"] else "0"
+            for b in reversed(range(budget["uio_oe"])))
 
     lines = [
         "/* generated by engine/lib/ttlib.py::generate_tt_wrapper - do not "
@@ -481,7 +496,7 @@ def generate_tt_wrapper(spec: dict, tiles: str | None = None) -> str:
             "")],
         f"  assign uo_out = {bus_expr('uo_out', budget['uo_out'])};",
         f"  assign uio_out = {bus_expr('uio_out', budget['uio_out'])};",
-        f"  assign uio_oe = {budget['uio_oe']}'b{uio_oe_bits};",
+        f"  assign uio_oe = {uio_oe_expr};",
         f"  wire _unused = &{{{', '.join(unused)}, 1'b0}};",
         "endmodule",
         # see generate_glsim_harness's matching comment: `default_nettype

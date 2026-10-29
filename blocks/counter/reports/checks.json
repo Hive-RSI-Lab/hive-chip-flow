@@ -1,0 +1,243 @@
+{
+ "skill": "vde",
+ "block": "counter",
+ "ts": "2026-10-29T10:36:26",
+ "checks": [
+  {
+   "gate": "cover",
+   "applies": true,
+   "ran": true,
+   "ok": true,
+   "tool": "cover",
+   "version": 1,
+   "status": "pass",
+   "attempts": 1,
+   "ts": "2026-10-29T10:10:39",
+   "inputs": {
+    "rtl": "dir_text:76d0d45a5f2e829e5f862f5a22721b24d3fd4936126ddf971e6f241e20027591",
+    "tb": "dir_text:046f330442f57502d8041e15f22ad512664b589612acb04472c739010036463d",
+    "spec_yaml": "json_canonical:035dc2a7da7c3eac5b620c4052f5a3b8506ac0592e6e9b9505162542dba6c2d4"
+   },
+   "reason": null
+  },
+  {
+   "gate": "drc",
+   "applies": true,
+   "ran": true,
+   "ok": true,
+   "tool": "drc",
+   "version": 1,
+   "status": "pass",
+   "attempts": 2,
+   "ts": "2026-10-29T10:35:20",
+   "inputs": {
+    "harden": "harden_signoff:9b38529e41c1bf0edc3115ef81b6e0a399f5e415db1b06c30c6204bbd729523c",
+    "spec_yaml_sans_formal": "json_canonical_sans_formal:9cd947b44c33253dec630a4cdf770696ba55c1f631025236036335a3e34ed69f"
+   },
+   "reason": null
+  },
+  {
+   "gate": "formal",
+   "applies": true,
+   "ran": true,
+   "ok": true,
+   "tool": "formal",
+   "version": 1,
+   "status": "pass",
+   "attempts": 1,
+   "ts": "2026-10-29T10:03:37",
+   "inputs": {
+    "rtl": "dir_text:76d0d45a5f2e829e5f862f5a22721b24d3fd4936126ddf971e6f241e20027591",
+    "formal": "dir_text:02279b0cf4db97f9c14d9395c95b046926101685d3decba1f9d6de945c381668",
+    "spec_yaml": "json_canonical:035dc2a7da7c3eac5b620c4052f5a3b8506ac0592e6e9b9505162542dba6c2d4"
+   },
+   "reason": null
+  },
+  {
+   "gate": "glsim",
+   "applies": true,
+   "ran": true,
+   "ok": true,
+   "tool": "glsim",
+   "version": 1,
+   "status": "pass",
+   "attempts": 2,
+   "ts": "2026-10-29T10:35:34",
+   "inputs": {
+    "harden": "harden_signoff:9b38529e41c1bf0edc3115ef81b6e0a399f5e415db1b06c30c6204bbd729523c",
+    "tb": "dir_text:046f330442f57502d8041e15f22ad512664b589612acb04472c739010036463d",
+    "spec_yaml_sans_formal": "json_canonical_sans_formal:9cd947b44c33253dec630a4cdf770696ba55c1f631025236036335a3e34ed69f"
+   },
+   "reason": null
+  },
+  {
+   "gate": "harden",
+   "applies": true,
+   "ran": true,
+   "ok": true,
+   "tool": "harden",
+   "version": 1,
+   "status": "pass",
+   "attempts": 2,
+   "ts": "2026-10-29T10:34:28",
+   "inputs": {
+    "rtl": "dir_text:76d0d45a5f2e829e5f862f5a22721b24d3fd4936126ddf971e6f241e20027591",
+    "harden_config": "json_canonical_sans_roots:6e13695bc0a74efe43294d81fe9417de3568bcd6c884c05d20e6c73a00a6272f",
+    "harden_override": null,
+    "harden_sdc": null,
+    "harden_info": "json_canonical:f695957862502907d834adb8801ec93f4f59eaf89bf74f8192f72bb3c514eba1",
+    "spec_yaml_sans_formal": "json_canonical_sans_formal:9cd947b44c33253dec630a4cdf770696ba55c1f631025236036335a3e34ed69f"
+   },
+   "reason": null
+  },
+  {
+   "gate": "holdout",
+   "applies": true,
+   "ran": true,
+   "ok": true,
+   "tool": "holdout",
+   "version": 1,
+   "status": "pass",
+   "attempts": 1,
+   "ts": "2026-10-29T10:02:09",
+   "inputs": {
+    "rtl": "dir_text:76d0d45a5f2e829e5f862f5a22721b24d3fd4936126ddf971e6f241e20027591",
+    "holdout": "dir_text:e69637cc36b8a173630e06d341bc4186ae2990986112fca224b3c2971d5405c1",
+    "spec_yaml_sans_formal": "json_canonical_sans_formal:9cd947b44c33253dec630a4cdf770696ba55c1f631025236036335a3e34ed69f"
+   },
+   "reason": null
+  },
+  {
+   "gate": "lint",
+   "applies": true,
+   "ran": true,
+   "ok": true,
+   "tool": "lint",
+   "version": 1,
+   "status": "pass",
+   "attempts": 1,
+   "ts": "2026-10-29T09:58:52",
+   "inputs": {
+    "rtl": "dir_text:76d0d45a5f2e829e5f862f5a22721b24d3fd4936126ddf971e6f241e20027591",
+    "spec_yaml_sans_formal": "json_canonical_sans_formal:9cd947b44c33253dec630a4cdf770696ba55c1f631025236036335a3e34ed69f"
+   },
+   "reason": null
+  },
+  {
+   "gate": "lvs",
+   "applies": true,
+   "ran": true,
+   "ok": true,
+   "tool": "lvs",
+   "version": 1,
+   "status": "pass",
+   "attempts": 2,
+   "ts": "2026-10-29T10:35:27",
+   "inputs": {
+    "harden": "harden_signoff:9b38529e41c1bf0edc3115ef81b6e0a399f5e415db1b06c30c6204bbd729523c",
+    "spec_yaml_sans_formal": "json_canonical_sans_formal:9cd947b44c33253dec630a4cdf770696ba55c1f631025236036335a3e34ed69f"
+   },
+   "reason": null
+  },
+  {
+   "gate": "mutate",
+   "applies": true,
+   "ran": true,
+   "ok": true,
+   "tool": "mutate",
+   "version": 1,
+   "status": "pass",
+   "attempts": 1,
+   "ts": "2026-10-29T10:07:58",
+   "inputs": {
+    "rtl": "dir_text:76d0d45a5f2e829e5f862f5a22721b24d3fd4936126ddf971e6f241e20027591",
+    "tb": "dir_text:046f330442f57502d8041e15f22ad512664b589612acb04472c739010036463d",
+    "spec_yaml_sans_formal": "json_canonical_sans_formal:9cd947b44c33253dec630a4cdf770696ba55c1f631025236036335a3e34ed69f",
+    "mutant_rulings": null
+   },
+   "reason": null
+  },
+  {
+   "gate": "precheck",
+   "applies": true,
+   "ran": true,
+   "ok": true,
+   "tool": "precheck",
+   "version": 1,
+   "status": "pass",
+   "attempts": 2,
+   "ts": "2026-10-29T10:36:18",
+   "inputs": {
+    "harden": "harden_signoff:9b38529e41c1bf0edc3115ef81b6e0a399f5e415db1b06c30c6204bbd729523c",
+    "harden_info": "json_canonical:f695957862502907d834adb8801ec93f4f59eaf89bf74f8192f72bb3c514eba1",
+    "spec_yaml_sans_formal": "json_canonical_sans_formal:9cd947b44c33253dec630a4cdf770696ba55c1f631025236036335a3e34ed69f"
+   },
+   "reason": null
+  },
+  {
+   "gate": "sim",
+   "applies": true,
+   "ran": true,
+   "ok": true,
+   "tool": "sim",
+   "version": 1,
+   "status": "pass",
+   "attempts": 1,
+   "ts": "2026-10-29T10:01:20",
+   "inputs": {
+    "rtl": "dir_text:76d0d45a5f2e829e5f862f5a22721b24d3fd4936126ddf971e6f241e20027591",
+    "tb": "dir_text:046f330442f57502d8041e15f22ad512664b589612acb04472c739010036463d",
+    "spec_yaml_sans_formal": "json_canonical_sans_formal:9cd947b44c33253dec630a4cdf770696ba55c1f631025236036335a3e34ed69f"
+   },
+   "reason": null
+  },
+  {
+   "gate": "spec_lint",
+   "applies": true,
+   "ran": true,
+   "ok": true,
+   "tool": "spec_lint",
+   "version": 1,
+   "status": "pass",
+   "attempts": 1,
+   "ts": "2026-10-29T09:57:47",
+   "inputs": {
+    "spec_yaml": "json_canonical:035dc2a7da7c3eac5b620c4052f5a3b8506ac0592e6e9b9505162542dba6c2d4"
+   },
+   "reason": null
+  },
+  {
+   "gate": "synth",
+   "applies": true,
+   "ran": true,
+   "ok": true,
+   "tool": "synth",
+   "version": 1,
+   "status": "pass",
+   "attempts": 1,
+   "ts": "2026-10-29T10:11:18",
+   "inputs": {
+    "rtl": "dir_text:76d0d45a5f2e829e5f862f5a22721b24d3fd4936126ddf971e6f241e20027591",
+    "spec_yaml_sans_formal": "json_canonical_sans_formal:9cd947b44c33253dec630a4cdf770696ba55c1f631025236036335a3e34ed69f"
+   },
+   "reason": null
+  },
+  {
+   "gate": "timing",
+   "applies": true,
+   "ran": true,
+   "ok": true,
+   "tool": "timing",
+   "version": 1,
+   "status": "pass",
+   "attempts": 2,
+   "ts": "2026-10-29T10:34:44",
+   "inputs": {
+    "harden": "harden_signoff:9b38529e41c1bf0edc3115ef81b6e0a399f5e415db1b06c30c6204bbd729523c",
+    "spec_yaml_sans_formal": "json_canonical_sans_formal:9cd947b44c33253dec630a4cdf770696ba55c1f631025236036335a3e34ed69f"
+   },
+   "reason": null
+  }
+ ],
+ "attestation_sha256": "97fb4b1311d88041f1d452bb339163d1c50aabbe67902b7c4a7875ed0a04be15"
+}

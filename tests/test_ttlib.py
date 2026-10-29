@@ -132,6 +132,42 @@ def test_generate_tt_wrapper_drives_uio_oe_for_used_uio_out_bits():
     assert "uio_oe = 8'b00001000;" in v
 
 
+BUS_SPEC = {
+    "top": "bus",
+    "ports": {"d": {"dir": "input", "width": 2},
+              "q": {"dir": "output", "width": 2},
+              "q_oe": {"dir": "output", "width": 1},
+              "x": {"dir": "output", "width": 1}},
+    "tt_pins": {"d": "uio_in[1:0]", "q": "uio_out[1:0]",
+                "q_oe": "uio_oe[0]", "x": "uio_out[5]"},
+}
+
+
+def test_generate_tt_wrapper_lets_a_port_drive_uio_oe():
+    # a tri-state bus: the design turns uio[0] around itself; uio[1] and
+    # uio[5] are driven with no port on their enables, so they stay outputs
+    assert ttlib.validate_tt_pins(BUS_SPEC) == []
+    v = ttlib.generate_tt_wrapper(BUS_SPEC)
+    assert ("assign uio_oe = {1'b0, 1'b0, 1'b1, 1'b0, 1'b0, 1'b0, 1'b1, "
+            "w_q_oe};") in v
+    h = ttlib.generate_glsim_harness(BUS_SPEC)
+    assert "assign q_oe = tt_uio_oe[0];" in h
+
+
+def test_uio_oe_with_no_uio_out_is_a_problem():
+    spec = {**BUS_SPEC, "tt_pins": {**BUS_SPEC["tt_pins"], "q_oe": "uio_oe[3]"}}
+    problems = ttlib.validate_tt_pins(spec)
+    assert any("uio_oe[3] is driven by a port but no port drives uio_out[3]"
+               in p for p in problems)
+
+
+def test_uio_oe_is_an_output_bus():
+    spec = {**BUS_SPEC, "tt_pins": {**BUS_SPEC["tt_pins"], "d": "uio_oe[1:0]",
+                                    "q_oe": "uio_in[0]"}}
+    problems = ttlib.validate_tt_pins(spec)
+    assert any("'d' is 'input' but maps to uio_oe" in p for p in problems)
+
+
 def test_generate_glsim_harness_is_the_reverse_wrapper():
     v = ttlib.generate_glsim_harness(COUNTER8_SPEC)
     assert "module counter8 (" in v

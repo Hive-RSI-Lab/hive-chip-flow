@@ -1,0 +1,39 @@
+{
+ "script": "gate",
+ "gate": "holdout",
+ "phase": "P4",
+ "tool": "holdout",
+ "input_digest": "dir_text:76d0d45a5f2e829e5f862f5a22721b24d3fd4936126ddf971e6f241e20027591",
+ "status": "pass",
+ "criteria": {
+  "fail_severities": [
+   "error"
+  ],
+  "max_count": 0
+ },
+ "counts": {
+  "total": 0,
+  "by_severity": {},
+  "by_source": {}
+ },
+ "failing_count": 0,
+ "failing": [],
+ "violations": [],
+ "facts": {
+  "top": "ece298a_counter",
+  "tests_run": [
+   "test_full_lap_on_the_bus",
+   "test_load_every_value",
+   "test_oe_turned_around_every_edge",
+   "test_reset_with_no_clock"
+  ],
+  "tests_passed": 4
+ },
+ "inputs_at_start": {
+  "rtl": "dir_text:76d0d45a5f2e829e5f862f5a22721b24d3fd4936126ddf971e6f241e20027591",
+  "holdout": "dir_text:e69637cc36b8a173630e06d341bc4186ae2990986112fca224b3c2971d5405c1",
+  "spec_yaml_sans_formal": "json_canonical_sans_formal:9cd947b44c33253dec630a4cdf770696ba55c1f631025236036335a3e34ed69f"
+ },
+ "recorded_ts": "2026-10-29T10:02:09",
+ "attempts": 1
+}

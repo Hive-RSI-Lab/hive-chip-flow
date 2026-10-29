@@ -1,0 +1,75 @@
+{
+ "script": "gate",
+ "gate": "harden",
+ "phase": "P6",
+ "tool": "harden",
+ "input_digest": "dir_text:76d0d45a5f2e829e5f862f5a22721b24d3fd4936126ddf971e6f241e20027591",
+ "status": "pass",
+ "criteria": {
+  "fail_severities": [
+   "error"
+  ],
+  "max_count": 0
+ },
+ "counts": {
+  "total": 0,
+  "by_severity": {},
+  "by_source": {}
+ },
+ "failing_count": 0,
+ "failing": [],
+ "violations": [],
+ "facts": {
+  "top": "ece298a_counter",
+  "run_tag": "run",
+  "resumed": true,
+  "wall_s": 122.36,
+  "run_dir": "/work/blocks/counter/harden/runs/run",
+  "metrics": {
+   "design__instance__count": 1383,
+   "design__instance__area": 51967,
+   "design__instance_unmapped__count": 0,
+   "timing__hold__ws": 0.492385424147951,
+   "timing__setup__ws": 7.116559987183585,
+   "timing__hold__tns": 0,
+   "timing__setup__tns": 0,
+   "timing__hold__wns": 0,
+   "timing__setup__wns": 0,
+   "timing__hold_vio__count": 0,
+   "timing__hold_r2r__ws": 0.492385,
+   "timing__hold_r2r_vio__count": 0,
+   "timing__setup_vio__count": 0,
+   "timing__setup_r2r__ws": 9.546086,
+   "timing__setup_r2r_vio__count": 0,
+   "design__die__bbox": "0.0 0.0 346.64 160.72",
+   "design__core__bbox": "3.36 3.92 343.28 156.8",
+   "design__die__area": 55712,
+   "design__core__area": 51967,
+   "design__instance__count__stdcell": 524,
+   "design__instance__area__stdcell": 4181.86,
+   "design__instance__count__macros": 0,
+   "design__instance__area__macros": 0,
+   "design__instance__count__padcells": 0,
+   "design__instance__area__padcells": 0,
+   "design__instance__count__cover": 0,
+   "design__instance__area__cover": 0,
+   "design__instance__utilization": 0.0804714,
+   "design__instance__utilization__stdcell": 0.0804714,
+   "design__instance__displacement__total": 0,
+   "design__instance__displacement__mean": 0,
+   "design__instance__displacement__max": 0,
+   "design__instance__count__setup_buffer": 0,
+   "design__instance__count__hold_buffer": 0
+  }
+ },
+ "inputs_at_start": {
+  "rtl": "dir_text:76d0d45a5f2e829e5f862f5a22721b24d3fd4936126ddf971e6f241e20027591",
+  "harden_config": "json_canonical_sans_roots:6e13695bc0a74efe43294d81fe9417de3568bcd6c884c05d20e6c73a00a6272f",
+  "harden_override": null,
+  "harden_sdc": null,
+  "harden_info": "json_canonical:f695957862502907d834adb8801ec93f4f59eaf89bf74f8192f72bb3c514eba1",
+  "spec_yaml_sans_formal": "json_canonical_sans_formal:9cd947b44c33253dec630a4cdf770696ba55c1f631025236036335a3e34ed69f"
+ },
+ "recorded_ts": "2026-10-29T10:34:28",
+ "attempts": 2
+}

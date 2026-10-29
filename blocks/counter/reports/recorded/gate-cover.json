@@ -1,0 +1,97 @@
+{
+ "script": "gate",
+ "gate": "cover",
+ "phase": "P4",
+ "tool": "cover",
+ "input_digest": "dir_text:76d0d45a5f2e829e5f862f5a22721b24d3fd4936126ddf971e6f241e20027591",
+ "status": "pass",
+ "criteria": {
+  "fail_severities": [
+   "error"
+  ],
+  "max_count": 0
+ },
+ "counts": {
+  "total": 3,
+  "by_severity": {
+   "info": 3
+  },
+  "by_source": {
+   "verilator": 3
+  }
+ },
+ "failing_count": 0,
+ "failing": [],
+ "violations": [
+  {
+   "check": "cover",
+   "severity": "info",
+   "file": "ece298a_counter.v",
+   "module": null,
+   "line": 28,
+   "kind": "toggle_not_covered",
+   "refs": [],
+   "msg": "ece298a_counter.v:28 ui_in[3]:1->0 never toggled",
+   "source": "verilator",
+   "items": [
+    {
+     "msg": "ece298a_counter.v:28 ui_in[3]:1->0 never toggled",
+     "file": "ece298a_counter.v",
+     "line": 28
+    }
+   ]
+  },
+  {
+   "check": "cover",
+   "severity": "info",
+   "file": "ece298a_counter.v",
+   "module": null,
+   "line": 28,
+   "kind": "toggle_not_covered",
+   "refs": [],
+   "msg": "ece298a_counter.v:28 ui_in[5]:1->0 never toggled",
+   "source": "verilator",
+   "items": [
+    {
+     "msg": "ece298a_counter.v:28 ui_in[5]:1->0 never toggled",
+     "file": "ece298a_counter.v",
+     "line": 28
+    }
+   ]
+  },
+  {
+   "check": "cover",
+   "severity": "info",
+   "file": "ece298a_counter.v",
+   "module": null,
+   "line": 28,
+   "kind": "toggle_not_covered",
+   "refs": [],
+   "msg": "ece298a_counter.v:28 ui_in[7]:1->0 never toggled",
+   "source": "verilator",
+   "items": [
+    {
+     "msg": "ece298a_counter.v:28 ui_in[7]:1->0 never toggled",
+     "file": "ece298a_counter.v",
+     "line": 28
+    }
+   ]
+  }
+ ],
+ "facts": {
+  "top": "ece298a_counter",
+  "line_pct": 100.0,
+  "toggle_pct": 97.619,
+  "line_covered": 22,
+  "line_total": 22,
+  "toggle_covered": 123,
+  "toggle_total": 126
+ },
+ "inputs_at_start": {
+  "rtl": "dir_text:76d0d45a5f2e829e5f862f5a22721b24d3fd4936126ddf971e6f241e20027591",
+  "tb": "dir_text:046f330442f57502d8041e15f22ad512664b589612acb04472c739010036463d",
+  "spec_yaml": "json_canonical:035dc2a7da7c3eac5b620c4052f5a3b8506ac0592e6e9b9505162542dba6c2d4"
+ },
+ "recorded_ts": "2026-10-29T10:10:39",
+ "attempts": 1
+}
