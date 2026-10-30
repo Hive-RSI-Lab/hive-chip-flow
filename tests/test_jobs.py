@@ -148,6 +148,9 @@ def test_start_with_a_relative_workspace_runs_to_done(tmp_path, monkeypatch):
     final = poll_until_not_running(ws, rec["job"])
     assert final["status"] == "done"
     assert Path(rec["log"]).is_file()
+    # state.json names it relative to the workspace, not by this machine's path
+    data = json.loads((ws / "state.json").read_text(encoding="utf-8"))
+    assert data["jobs"][rec["job"]]["log"] == f"log/jobs/job-{rec['job']}.log"
 
 
 def test_status_reports_dead_on_unexpected_exit_code(tmp_path):
@@ -231,7 +234,7 @@ def test_job_status_trusts_exit_sidecar_over_a_live_pid(tmp_path):
     # os.getpid() (this test process) is always "alive" - if the pid check
     # ran before the sidecar, this would report "running" forever even
     # though the sidecar already says the real job finished.
-    status_, extra = jobs_mod._job_status({"pid": os.getpid(), "log": str(log)})
+    status_, extra = jobs_mod._job_status(tmp_path, {"pid": os.getpid(), "log": log.name})
     assert status_ == "done"
     assert extra == {"exit_code": 0}
 
@@ -240,7 +243,7 @@ def test_job_status_dead_sidecar_wins_over_a_live_pid(tmp_path):
     log = tmp_path / "job-2.log"
     exit_path = tmp_path / "job-2.exit"
     exit_path.write_text("137\n", encoding="utf-8")  # e.g. SIGKILL'd
-    status_, extra = jobs_mod._job_status({"pid": os.getpid(), "log": str(log)})
+    status_, extra = jobs_mod._job_status(tmp_path, {"pid": os.getpid(), "log": log.name})
     assert status_ == "dead"
     assert extra == {"exit_code": 137}
 
@@ -337,5 +340,5 @@ def test_concurrent_starts_get_distinct_ids_and_logs(tmp_path):
     # than "done"; that is not the id/log reservation race this test covers.
     for r, jid in zip(results, ids):
         assert data["jobs"][jid]["pid"] == r["pid"]
-        assert data["jobs"][jid]["log"] == r["log"]
+        assert ws / data["jobs"][jid]["log"] == Path(r["log"])
         assert data["jobs"][jid]["status"] in ("done", "dead")

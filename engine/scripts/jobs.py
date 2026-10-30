@@ -130,12 +130,21 @@ def start(gate: str, workspace: Path, skill: str | None,
             raise CheckError(f"could not launch job: {launch.stderr.strip()}")
         pid = int(launch.stdout.strip())
 
-        jid, rec = st.start_job(gate, pid, str(log_path))
+        # state.json names the log relative to the workspace, as it names
+        # everything else in it; the caller gets it as it can open it
+        jid, rec = st.start_job(gate, pid,
+                                log_path.relative_to(ws).as_posix())
         st.save()
-    return {"job": jid, **rec}
+    return {"job": jid, **rec, "log": str(log_path)}
 
 
-def _job_status(job: dict) -> tuple[str, dict | None]:
+def _log_path(ws: Path, job: dict) -> Path:
+    """The job's log: recorded relative to the workspace (an older
+    state.json's absolute path still reads as itself)."""
+    return Path(ws) / job["log"]
+
+
+def _job_status(ws: Path, job: dict) -> tuple[str, dict | None]:
     """(status, updates|None), independent of what state.json currently
     says (the caller reconciles). The exit-code sidecar is read FIRST and
     trusted over the pid whenever it exists: the job's own shell wrapper
@@ -147,7 +156,7 @@ def _job_status(job: dict) -> tuple[str, dict | None]:
     to something else entirely (and PermissionError, "exists, owned by
     someone else", is exactly the shape that recycling takes across a
     privilege boundary)."""
-    exit_path = Path(job["log"]).with_suffix(".exit")
+    exit_path = _log_path(ws, job).with_suffix(".exit")
     if exit_path.is_file():
         try:
             code = int(exit_path.read_text(encoding="utf-8").strip())
@@ -187,7 +196,7 @@ def status(workspace: Path, job_id: str | None, all_jobs: bool,
                 raise CheckError(f"no job {jid!r}")
             cur_status = job["status"]
             if cur_status == "running":
-                new_status, extra = _job_status(job)
+                new_status, extra = _job_status(ws, job)
                 if new_status != "running":
                     st.update_job(jid, status=new_status, result=extra)
                     changed = True

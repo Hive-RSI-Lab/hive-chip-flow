@@ -13,7 +13,7 @@ with M4's own harden (check_harden.run, the same LibreLane job):
                       each of those signals to the analog cell's pin of the
                       same name, or a width-N signal to its N pins
                       <name>[N-1]..<name>[0] (engine/lib/ttlib.py's macros
-                      schema)
+                      schema), its files named relative to top/
   top/rtl/            a copy of digital/rtl
   top/harden/constraints.sdc
                       the top's design SDC (ttlib.prepare_harden_sdc), for
@@ -63,6 +63,11 @@ Metal4 stripes join the macro on Metal3 only, so a supply pin with no
 Metal3 shape is a `macro_power_unreachable` finding (no harden runs); a
 supply's Metal3 the cell's own Metal4/Metal5 wholly covers (a via pad under
 its strap) is not offered as a pin, since the PDN refuses a buried pin.
+After the harden, each tile power port the macro cuts short (a Metal4
+stripe stopped at its halo, not running within 10 um of both the tile's
+bottom and top edges, which the precheck's pin check fails) moves from the
+tile LEF's pins to its OBS (trim_power_pins; `power_ports_to_obs` lists
+them); the metal stays, tied to the full stripes by the cell rails.
 
 Refuses (exit 2) when either nested workspace or a piece the assembly needs
 is missing. An analog macro larger than the tile - by its LEF SIZE or by
@@ -76,6 +81,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import shutil
 import sys
@@ -241,6 +247,20 @@ def fill_macro(gds: Path, cell: str) -> int:
     scratch.fill_region(region, square.cell_index(), box,
                         db.Vector(pitch, skew), db.Vector(skew, pitch),
                         db.Point(), None, db.Vector(), None)
+    # the fixed grid misses a strip narrower than its pitch (pll_analog's
+    # 9 um strip beside its VCO well, DCF.1a at the tile): what it left,
+    # kept FILL_SPACE off the squares placed, is filled again on a square
+    # grid from an origin klayout picks for each part
+    space = round(FILL_SPACE * um)
+    for _ in range(3):
+        placed = db.Region(scratch.begin_shapes_rec(dummy)).merged()
+        rest = region - placed.sized(space)
+        scratch.fill_region(rest, square.cell_index(), box,
+                            db.Vector(pitch, 0), db.Vector(0, pitch),
+                            None, None, db.Vector(), None)
+        if (db.Region(scratch.begin_shapes_rec(dummy)).merged().count()
+                == placed.count()):
+            break
     scratch.flatten(True)
     # a skewed fill_region can place one square more than once; merged,
     # each is drawn once (none touch another: they are 3 um apart)
@@ -383,11 +403,16 @@ def analog_macro(analog: Path, signals: dict[str, str], out_dir: Path,
 
 
 # gf180mcuD's routing stack in GDS layer numbers: each metal (its labels on
-# datatype 10) and the via up from it.
+# datatype 10, some generators' on the drawing datatype 0) and the via up
+# from it.
 METALS = {"Metal1": 34, "Metal2": 36, "Metal3": 42, "Metal4": 46,
           "Metal5": 81}
 VIAS_UP = {"Metal1": 35, "Metal2": 38, "Metal3": 40, "Metal4": 41}
 LABEL_DATATYPE = 10
+# gf180mcu's FuseTop, a MIM cap's top plate: it sits between Metal4 (the
+# bottom plate) and Metal5, and the Via4 on it joins the top plate to
+# Metal5, never the Metal4 under it
+MIM_TOP = (75, 0)
 # gf180's narrowest metal (Metal1, 0.23 um): a pin narrower than this is
 # magic's 10 nm label point, not metal a router can land on.
 MIN_PIN_UM = 0.23
@@ -427,6 +452,9 @@ def pin_lines(gds: Path, cell: str, ports: dict[str, bool]) -> list[str]:
 
     metal = {m: region(n) for m, n in METALS.items()}
     via_up = {m: region(n) for m, n in VIAS_UP.items()}
+    # a Via4 on a MIM's top plate is no Metal4-Metal5 via: counted as one
+    # it joins the cap's two nets (the PLL's vss took vctrl's Metal3)
+    via_up["Metal4"] -= via_up["Metal4"].interacting(region(*MIM_TOP))
     names = list(METALS)
 
     def net_metal3(layer: str, start) -> list:
@@ -455,10 +483,17 @@ def pin_lines(gds: Path, cell: str, ports: dict[str, bool]) -> list[str]:
     wanted = {p.lower(): p for p in ports}
     lines, supply_rects = [], {}
     for layer, gds_layer in METALS.items():
-        li = layout.find_layer(gds_layer, LABEL_DATATYPE)
-        texts = [] if li is None else [
-            s.text for s in top.shapes(li).each() if s.is_text()]
-        for text in texts:
+        # a generator may label a metal on its drawing datatype as well as
+        # the label one; magic reads both as labels and -pinonly would
+        # write each one as a pin, so both are read (once per point)
+        texts = {}
+        for datatype in (LABEL_DATATYPE, 0):
+            li = layout.find_layer(gds_layer, datatype)
+            for s in [] if li is None else top.shapes(li).each():
+                if s.is_text():
+                    texts.setdefault(
+                        (s.text.string, s.text.x, s.text.y), s.text)
+        for text in texts.values():
             at = db.Box(text.x - 5, text.y - 5, text.x + 5, text.y + 5)
             lines += ["select clear", f"box {um(at)}", "select area labels"]
             pin = wanted.get(text.string.lower())
@@ -937,9 +972,105 @@ def assemble(ws: Path) -> tuple[Path, dict]:
         (top / "harden" / ttlib.HARDEN_SDC_NAME).write_text(
             sdc, encoding="utf-8")
     import yaml
+    # the macro's files relative to top/, as check_harden and top_lvs read
+    # them: the spec is committed with the block, the machine's path is not
+    on_disk = {**tspec, "macros": [
+        {**m, "files": {k: os.path.relpath(v, top)
+                        for k, v in m["files"].items()}}
+        for m in tspec["macros"]]}
     (top / "spec" / "spec.yaml").write_text(
-        yaml.safe_dump(tspec, sort_keys=False), encoding="utf-8")
+        yaml.safe_dump(on_disk, sort_keys=False), encoding="utf-8")
     return top, tspec
+
+
+# Tiny Tapeout's pin check (tt-support-tools precheck/pin_check.py): every
+# power port runs from within this far of the tile's bottom edge to within
+# this far of its top
+POWER_PORT_EDGE_UM = 10.0
+POWER_PINS = ("VPWR", "VGND", "VDPWR", "VAPWR")
+
+
+def trim_power_pins(lef: Path) -> list[str]:
+    """Move each power port the macro cuts short to the LEF's OBS, in place,
+    and return what moved ("<pin> <layer> x0 y0 x1 y1").
+
+    The tile's Metal4 stripes stop at the analog macro's halo, so a stripe
+    over the macro comes out of the PDN as two ports, one from each edge to
+    the macro, and the precheck fails every power port that does not run
+    edge to edge. The short pieces stay power metal (the standard-cell rails
+    tie them to the full stripes) but are no longer pins: their rectangles
+    go to OBS so nothing routes over them. A pin all of whose ports are
+    short is left as it is, for the precheck to name."""
+    lines = lef.read_text(encoding="utf-8").splitlines(keepends=True)
+    height = None
+    for line in lines:
+        m = re.match(r"\s*SIZE\s+([\d.]+)\s+BY\s+([\d.]+)", line)
+        if m:
+            height = float(m.group(2))
+            break
+    if height is None:
+        return []
+
+    def short(port: list[str]) -> bool:
+        ys = [(float(m.group(2)), float(m.group(4))) for line in port
+              for m in [re.match(r"\s*RECT\s+([\d.-]+)\s+([\d.-]+)\s+"
+                                 r"([\d.-]+)\s+([\d.-]+)", line)] if m]
+        return bool(ys) and not (
+            min(y0 for y0, _ in ys) <= POWER_PORT_EDGE_UM
+            and max(y1 for _, y1 in ys) >= height - POWER_PORT_EDGE_UM)
+
+    out, obs, moved = [], [], []
+    i = 0
+    while i < len(lines):
+        m = re.match(r"\s*PIN\s+(\S+)\s*$", lines[i])
+        if not m or m.group(1) not in POWER_PINS:
+            out.append(lines[i])
+            i += 1
+            continue
+        name = m.group(1)
+        end = next(j for j in range(i, len(lines))
+                   if re.match(rf"\s*END\s+{re.escape(name)}\s*$", lines[j]))
+        head, ports, j = [], [], i
+        while j < end:
+            if re.match(r"\s*PORT\s*$", lines[j]):
+                k = next(k for k in range(j, end)
+                         if re.match(r"\s*END\s*$", lines[k]))
+                ports.append(lines[j:k + 1])
+                j = k + 1
+            else:
+                head.append(lines[j])
+                j += 1
+        keep = [p for p in ports if not short(p)]
+        if not keep:
+            keep = ports
+        out += head + [line for p in keep for line in p] + [lines[end]]
+        for p in ports:
+            if any(p is k for k in keep):
+                continue
+            layer = None
+            for line in p:
+                lm = re.match(r"\s*LAYER\s+(\S+)", line)
+                if lm:
+                    layer = lm.group(1)
+                    obs.append(f"      LAYER {layer} ;\n")
+                rm = re.match(r"\s*RECT\s+(.*?)\s*;", line)
+                if rm:
+                    obs.append(f"        RECT {rm.group(1)} ;\n")
+                    moved.append(f"{name} {layer} {rm.group(1)}")
+        i = end + 1
+    if not moved:
+        return []
+    at = next((n for n, line in enumerate(out)
+               if re.match(r"\s*OBS\s*$", line)), None)
+    if at is not None:
+        out[at + 1:at + 1] = obs
+    else:
+        at = next(n for n in range(len(out) - 1, -1, -1)
+                  if re.match(r"END\s+\S+\s*$", out[n])
+                  and not out[n].startswith("END LIBRARY"))
+        out[at:at] = ["  OBS\n", *obs, "  END\n"]
+    lef.write_text("".join(out), encoding="utf-8")
+    return moved
 
 
 def run(argv=None):
@@ -1018,6 +1149,12 @@ def run(argv=None):
     inner, _out = check_harden.run(["--workspace", str(top)])
     facts = {k: inner[k] for k in ("top", "run_tag", "resumed", "wall_s",
                                    "run_dir", "metrics") if k in inner}
+    lef = (top / "harden" / "runs" / check_harden.RUN_TAG / "final" / "lef"
+           / f"{ttlib.wrapper_name(spec)}.lef")
+    if lef.is_file():
+        moved = trim_power_pins(lef)
+        if moved:
+            facts["power_ports_to_obs"] = moved
     payload = checklib.report(SCRIPT, ws / "digital" / "rtl",
                               inner.get("violations", []), macros=macros,
                               **facts)

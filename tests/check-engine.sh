@@ -68,6 +68,12 @@ for v in "$CPU_S" "$STALL_S" "$POLL_S" "$wall_v"; do
       exit 2 ;;
   esac
 done
+# Scratch in memory and fsync off: tests/lib/scratch.sh.
+# shellcheck source=tests/lib/scratch.sh
+. "$REPO_ROOT/tests/lib/scratch.sh"
+test_scratch
+if [ -n "$TEST_SCRATCH" ]; then trap 'rm -rf "$TEST_SCRATCH"' EXIT; fi
+
 # The CPU/wall monitor is tests/lib/cpu-cap.sh, shared with tests/check.sh.
 # shellcheck source=tests/lib/cpu-cap.sh
 . "$REPO_ROOT/tests/lib/cpu-cap.sh"

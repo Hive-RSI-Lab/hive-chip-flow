@@ -395,6 +395,25 @@ def test_pin_lines_grow_each_port_to_its_metal_and_drop_other_labels(
     assert lines.count("delete") == 1
 
 
+def test_pin_lines_drop_a_label_on_a_metals_drawing_datatype(tmp_path):
+    """A generator's label on a metal's drawing datatype (0), not its label
+    one (10): magic reads it as a label too, so unless it is deleted
+    -pinonly writes it as a pin the macro's interface does not have."""
+    gds = _pinned_gds(tmp_path)
+    layout = db.Layout()
+    layout.read(str(gds))
+    cell = layout.cell("mac")
+    cell.shapes(layout.layer(34, 0)).insert(db.DText("net2", 30, 12.5))
+    cell.shapes(layout.layer(36, 0)).insert(db.DText("a", 0.5, 10.5))
+    layout.write(str(gds))
+    lines = check_top_harden.pin_lines(gds, "mac", PINNED)
+    i = lines.index("box 29.995um 12.495um 30.005um 12.505um")
+    assert lines[i + 1:i + 3] == ["select area labels", "delete"]
+    assert lines.count("delete") == 2
+    # a's label on both datatypes at one point is grown once
+    assert lines.count("setlabel box 0.000um 10.000um 2.000um 11.000um") == 1
+
+
 def test_pin_lines_offer_no_supply_metal3_its_own_metal4_buries(tmp_path):
     """The PLL's vdd via pad (breakage: PDN-0006, "vdd on Metal3 is blocked
     by obstructions on Metal4"): a 0.4 um Metal3 pad of vss's net under the
@@ -415,6 +434,42 @@ def test_pin_lines_offer_no_supply_metal3_its_own_metal4_buries(tmp_path):
     i = lines.index("box 0.000um 0.000um 40.000um 2.000um")
     assert lines[i + 1] == "label {vss} c metal3"
     assert "box 30.000um 5.000um 30.400um 5.400um" not in lines
+
+
+def test_pin_lines_keep_a_mim_caps_plates_apart(tmp_path):
+    """The PLL's loop-filter cap (breakage: top LVS shorted vss to vctrl):
+    a MIM's top plate (FuseTop) sits on its bottom plate's Metal4 and its
+    Via4 goes up to vss's Metal5. That Via4 joins the top plate, not the
+    Metal4 under it, so the bottom plate's net (vctrl, on a Metal3 pad) is
+    no vss pin; the bottom plate's own Via4 column, off the top plate,
+    still joins Metal4 to Metal5."""
+    gds = _pinned_gds(tmp_path)
+    layout = db.Layout()
+    layout.read(str(gds))
+    cell = layout.cell("mac")
+    for layer, b in ((81, (10, 8, 20, 14)),            # vss's Metal5 strap
+                     (41, (10.1, 8.1, 10.36, 8.36)),   # Via4 down to ...
+                     (46, (10, 0, 10.5, 8.5)),         # ... vss's Metal4
+                     (40, (10.1, 0.1, 10.36, 0.36)),   # Via3 to the rail
+                     (46, (12, 6, 18, 12)),            # bottom plate
+                     (75, (13, 7, 17, 11)),            # top plate, FuseTop
+                     (41, (14.87, 8.87, 15.13, 9.13)),  # Via4 on it
+                     (40, (12.1, 6.1, 12.36, 6.36)),   # Via3 to vctrl's
+                     (42, (11, 6, 12.5, 6.5))):        # Metal3 pad
+        cell.shapes(layout.layer(layer, 0)).insert(db.DBox(*b))
+    layout.write(str(gds))
+    lines = check_top_harden.pin_lines(gds, "mac", PINNED)
+    i = lines.index("box 0.000um 0.000um 40.000um 2.000um")
+    assert lines[i + 1] == "label {vss} c metal3"
+    assert "box 11.000um 6.000um 12.500um 6.500um" not in lines
+    # the same pad joined to vss's Metal5 by a Via4 off the top plate is
+    # vss's: the cut is FuseTop's, not every Via4 on a bottom plate
+    cell.shapes(layout.layer(41, 0)).insert(
+        db.DBox(12.1, 11.6, 12.36, 11.86))
+    layout.write(str(gds))
+    lines = check_top_harden.pin_lines(gds, "mac", PINNED)
+    i = lines.index("box 11.000um 6.000um 12.500um 6.500um")
+    assert lines[i + 1] == "label {vss} c metal3"
 
 
 def test_pin_lines_refuse_a_port_label_on_no_metal(tmp_path):
@@ -550,6 +605,120 @@ def test_fill_macro_fills_the_comp_gap_and_keeps_off_the_circuit(tmp_path):
     assert (fill - db.Region(box)).is_empty()
     with pytest.raises(CheckError, match="no cell 'nope'"):
         check_top_harden.fill_macro(gds, "nope")
+
+
+def test_fill_macro_reaches_a_strip_its_grid_misses(tmp_path):
+    """pll_analog's 9 um strip beside its VCO well (DCF.1a at the tile):
+    a strip 6 um wide placed off the skewed grid's columns takes no square
+    from it, so the fill goes round again on a grid of its own there, and
+    keeps the PDK's spaces doing it."""
+    layout = db.Layout()
+    layout.dbu = 0.001
+    cell = layout.create_cell("mac")
+    # COMP either side leaves x 13..19 (DCF.4's 3.5 um off each); the
+    # skewed grid's columns sit at multiples of 1.6 um, none in 13..14
+    for box in ((0, 0, 9.5, 60), (22.5, 0, 60, 60)):
+        cell.shapes(layout.layer(22, 0)).insert(db.DBox(*box))
+    gds = tmp_path / "mac.gds"
+    layout.write(str(gds))
+    squares = check_top_harden.fill_macro(gds, "mac")
+    ly = db.Layout()
+    ly.read(str(gds))
+    top = ly.cell("mac")
+    fill = db.Region(top.begin_shapes_rec(ly.find_layer(22, 4))).merged()
+    comp = db.Region(top.begin_shapes_rec(ly.find_layer(22, 0))).merged()
+    assert squares == fill.count() >= 5
+    assert (fill - db.Region(db.Box(13000, 0, 19000, 60000))).is_empty()
+    assert fill.space_check(1900).is_empty()                      # DCF.2b
+    assert fill.separation_check(comp, 3500).is_empty()           # DCF.4
+
+
+LEF_HEAD = """VERSION 5.7 ;
+MACRO tt_um_x
+  CLASS BLOCK ;
+  SIZE 346.640 BY 325.360 ;
+  PIN VGND
+    DIRECTION INOUT ;
+    USE GROUND ;
+    PORT
+      LAYER Metal4 ;
+        RECT 22.180 3.620 23.780 321.740 ;
+    END
+    PORT
+      LAYER Metal4 ;
+        RECT 138.790 3.620 140.390 80.000 ;
+    END
+    PORT
+      LAYER Metal4 ;
+        RECT 138.790 210.000 140.390 321.740 ;
+    END
+  END VGND
+  PIN VPWR
+    DIRECTION INOUT ;
+    USE POWER ;
+    PORT
+      LAYER Metal4 ;
+        RECT 18.180 3.620 19.780 321.740 ;
+    END
+  END VPWR
+  PIN clk
+    DIRECTION INPUT ;
+    PORT
+      LAYER Metal4 ;
+        RECT 140.000 324.360 140.300 325.360 ;
+    END
+  END clk
+"""
+
+
+def test_trim_power_pins_moves_the_ports_the_macro_cuts_to_obs(tmp_path):
+    """The tile's VGND stripe over the macro comes out of the PDN as two
+    ports, each stopping at the macro's halo, and the precheck fails a
+    power port that doesn't run within 10 um of both edges: the two go to
+    OBS (the metal stays), the full stripes and the signal pins stay pins,
+    and running it again changes nothing."""
+    lef = tmp_path / "tt_um_x.lef"
+    lef.write_text(LEF_HEAD + """  OBS
+      LAYER Metal1 ;
+        RECT 0.000 0.000 346.640 325.360 ;
+  END
+END tt_um_x
+END LIBRARY
+""", encoding="utf-8")
+    moved = check_top_harden.trim_power_pins(lef)
+    assert moved == ["VGND Metal4 138.790 3.620 140.390 80.000",
+                     "VGND Metal4 138.790 210.000 140.390 321.740"]
+    text = lef.read_text(encoding="utf-8")
+    vgnd = text[text.index("PIN VGND"):text.index("END VGND")]
+    assert "22.180 3.620 23.780 321.740" in vgnd
+    assert "138.790" not in vgnd and vgnd.count("PORT") == 1
+    obs = text[text.index("  OBS"):]
+    assert "RECT 138.790 3.620 140.390 80.000 ;" in obs
+    assert "RECT 138.790 210.000 140.390 321.740 ;" in obs
+    assert "RECT 0.000 0.000 346.640 325.360 ;" in obs
+    assert "PIN clk" in text and "PIN VPWR" in text
+    assert check_top_harden.trim_power_pins(lef) == []
+    assert lef.read_text(encoding="utf-8") == text
+
+
+def test_trim_power_pins_writes_an_obs_and_leaves_a_pin_with_no_full_port(
+        tmp_path):
+    lef = tmp_path / "tt_um_x.lef"
+    lef.write_text(LEF_HEAD + "END tt_um_x\nEND LIBRARY\n",
+                   encoding="utf-8")
+    assert len(check_top_harden.trim_power_pins(lef)) == 2
+    text = lef.read_text(encoding="utf-8")
+    assert text.endswith("  END clk\n  OBS\n      LAYER Metal4 ;\n"
+                         "        RECT 138.790 3.620 140.390 80.000 ;\n"
+                         "      LAYER Metal4 ;\n"
+                         "        RECT 138.790 210.000 140.390 321.740 ;\n"
+                         "  END\nEND tt_um_x\nEND LIBRARY\n")
+    # every VGND port short: the pin stays, for the precheck to name
+    only_short = LEF_HEAD.replace(
+        "RECT 22.180 3.620 23.780 321.740", "RECT 22.180 3.620 23.780 90.0")
+    lef.write_text(only_short + "END tt_um_x\nEND LIBRARY\n",
+                   encoding="utf-8")
+    assert check_top_harden.trim_power_pins(lef) == []
 
 
 def test_lef_origin_reads_the_macro_origin(tmp_path):
