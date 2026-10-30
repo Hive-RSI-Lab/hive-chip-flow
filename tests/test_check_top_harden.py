@@ -395,6 +395,25 @@ def test_pin_lines_grow_each_port_to_its_metal_and_drop_other_labels(
     assert lines.count("delete") == 1
 
 
+def test_pin_lines_drop_a_label_on_a_metals_drawing_datatype(tmp_path):
+    """A generator's label on a metal's drawing datatype (0), not its label
+    one (10): magic reads it as a label too, so unless it is deleted
+    -pinonly writes it as a pin the macro's interface does not have."""
+    gds = _pinned_gds(tmp_path)
+    layout = db.Layout()
+    layout.read(str(gds))
+    cell = layout.cell("mac")
+    cell.shapes(layout.layer(34, 0)).insert(db.DText("net2", 30, 12.5))
+    cell.shapes(layout.layer(36, 0)).insert(db.DText("a", 0.5, 10.5))
+    layout.write(str(gds))
+    lines = check_top_harden.pin_lines(gds, "mac", PINNED)
+    i = lines.index("box 29.995um 12.495um 30.005um 12.505um")
+    assert lines[i + 1:i + 3] == ["select area labels", "delete"]
+    assert lines.count("delete") == 2
+    # a's label on both datatypes at one point is grown once
+    assert lines.count("setlabel box 0.000um 10.000um 2.000um 11.000um") == 1
+
+
 def test_pin_lines_offer_no_supply_metal3_its_own_metal4_buries(tmp_path):
     """The PLL's vdd via pad (breakage: PDN-0006, "vdd on Metal3 is blocked
     by obstructions on Metal4"): a 0.4 um Metal3 pad of vss's net under the

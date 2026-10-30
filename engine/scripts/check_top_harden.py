@@ -384,7 +384,8 @@ def analog_macro(analog: Path, signals: dict[str, str], out_dir: Path,
 
 
 # gf180mcuD's routing stack in GDS layer numbers: each metal (its labels on
-# datatype 10) and the via up from it.
+# datatype 10, some generators' on the drawing datatype 0) and the via up
+# from it.
 METALS = {"Metal1": 34, "Metal2": 36, "Metal3": 42, "Metal4": 46,
           "Metal5": 81}
 VIAS_UP = {"Metal1": 35, "Metal2": 38, "Metal3": 40, "Metal4": 41}
@@ -456,10 +457,17 @@ def pin_lines(gds: Path, cell: str, ports: dict[str, bool]) -> list[str]:
     wanted = {p.lower(): p for p in ports}
     lines, supply_rects = [], {}
     for layer, gds_layer in METALS.items():
-        li = layout.find_layer(gds_layer, LABEL_DATATYPE)
-        texts = [] if li is None else [
-            s.text for s in top.shapes(li).each() if s.is_text()]
-        for text in texts:
+        # a generator may label a metal on its drawing datatype as well as
+        # the label one; magic reads both as labels and -pinonly would
+        # write each one as a pin, so both are read (once per point)
+        texts = {}
+        for datatype in (LABEL_DATATYPE, 0):
+            li = layout.find_layer(gds_layer, datatype)
+            for s in [] if li is None else top.shapes(li).each():
+                if s.is_text():
+                    texts.setdefault(
+                        (s.text.string, s.text.x, s.text.y), s.text)
+        for text in texts.values():
             at = db.Box(text.x - 5, text.y - 5, text.x + 5, text.y + 5)
             lines += ["select clear", f"box {um(at)}", "select area labels"]
             pin = wanted.get(text.string.lower())
