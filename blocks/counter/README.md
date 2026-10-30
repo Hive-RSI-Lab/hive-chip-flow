@@ -54,7 +54,7 @@ it started), so release read it as stale until harden ran a second time.
 
 From the module: `bin/chip-flow check-all --block counter` copies the
 block to a scratch dir and re-runs every gate `state.json` records,
-harden included; `--record` writes `check-all.json`, which the score
-reads. One gate by hand: `bin/chip-flow gate --gate <g> --skill vde
+harden included, into the step cache the score reads; `--record` also
+writes `check-all.json`, a seed. One gate by hand: `bin/chip-flow gate --gate <g> --skill vde
 --workspace blocks/counter`. Gate logs (`log/`) and LibreLane's
 `harden/runs/` aren't committed; the gates write them again.

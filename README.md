@@ -33,17 +33,20 @@ person signs off between stages. Submitting a tile is always the person's.
   (`tests/test_corpus_faults.py`).
 - **Blocks**, `bin/chip-flow check-all`: re-runs every gate each block under
   `blocks/` records, from a scratch copy, through `bin/eda`, then the
-  probes. Slow (it hardens); run it on a change to the gates, `bin/` or a
-  block. `--record` writes the run to the block's `check-all.json`, which
-  the score reads.
+  probes. Slow (it hardens). Each step's outcome goes into a step cache
+  outside git, keyed by the hash of what that step read; `--stale` runs
+  only the blocks with a step no run covers, `--budget S` stops at S
+  seconds. `--record` also writes the block's `check-all.json`, a seed the
+  score falls back on where the cache is empty.
 - **Score**, `bin/chip-flow score`, higher is better: for the known blocks
   ([blocks/known.json](blocks/known.json): ihsan-sa/ece298a-r2r-dac,
   ece298a-counter and Hive-RSI-Lab/ece298a-pll at their pinned commits), the mean share of gate steps
-  that passed check-all's last recorded run in the Hive, while the block's
-  files, `engine/` and `bin/eda` are as that run had them, with no
-  workaround listed in
-  [docs/workarounds.md](docs/workarounds.md). A known block not brought in
-  yet scores 0.
+  that passed a run on what each step reads now (the block's files,
+  `bin/eda` and the engine files that gate reads), with no workaround
+  listed in [docs/workarounds.md](docs/workarounds.md). It first runs, within
+  a budget (`CHIP_FLOW_SCORE_BUDGET`, 1500 s), the steps no cached or seeded
+  run covers; a step that didn't run counts as not clean. `--no-run` reads
+  only. A known block not brought in yet scores 0.
 
 MIT, like upstream (LICENSE); the vendored Tiny Tapeout templates and tools
 under `engine/reference/tt/` keep their own licences (VENDORED.md there).

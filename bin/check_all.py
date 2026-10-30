@@ -1,24 +1,29 @@
 """chip-flow check-all: re-run every block's gates inside the Hive.
 
-    chip-flow check-all [--block NAME ...] [--no-probes] [--keep DIR] [--record]
+    chip-flow check-all [--block NAME ...] [--stale] [--budget SECONDS]
+                        [--no-probes] [--keep DIR] [--record]
 
 Copies each block under blocks/ to a scratch dir, so the clone stays as it
-was, and re-runs there, through engine/scripts/gate.py, every gate each of
-its workspaces records in state.json, passed or failed: an msde block's
-analog/ (ade) and digital/ (vde) sides first, then its top. Gates run in pipeline
-order and record into the scratch copy's state.json, so a later gate
-(timing after harden, release after all) reads what this run made, not what
-was committed. A gate the workspace's reports/waivers.json waives runs too
-and, when it fails, prints as waived: release judges that waiver against
-this run's result. Then it runs every probe in tests/workarounds/ against
-docs/workarounds.md (score.probes).
+was, and re-runs there, through engine/scripts/gate.py, every step of its
+plan (score.plan): every gate each of its workspaces records in state.json,
+passed or failed, and every gate its reports/waivers.json waives: an msde
+block's analog/ (ade) and digital/ (vde) sides first, then its top. Gates
+run in pipeline order and record into the scratch copy's state.json, so a
+later gate (timing after harden, release after all) reads what this run
+made, not what was committed. A waived gate that fails prints as waived:
+release judges that waiver against this run's result. Then it runs every
+probe in tests/workarounds/ against docs/workarounds.md (score.probes).
 
-With --record, blocks/<name>/check-all.json records each block's run: when,
-on which tree, each step's outcome (pass, fail, or waived: failed under a
-waiver) and a hash per step of what it ran from (score.step_sources: the
-block's files, bin/eda and the engine files that gate reads). The block
-itself stays as it was. That record is what the score reads (bin/score.py):
-commit it.
+Each step's outcome (pass, fail, or waived: failed under a waiver) goes
+into the step cache (score.cache_dir, outside git), keyed by the hash of
+what the step read (score.step_sources): that is what the score reads.
+
+--stale runs only the blocks with a step neither the cache nor the block's
+committed seed covers, fewest such steps first. --budget stops at that many
+seconds: the gate running then is killed and it and every step not reached
+stay uncovered, so they count as not clean, never as passed; the exit is 1.
+--record also writes blocks/<name>/check-all.json, the seed the score falls
+back on where its cache is empty: commit it only to seed a fresh cache.
 
 Exit 0 when every step passes and the table matches the probes, else 1.
 Run by bin/chip-flow (bin/eda's python, EDA_TOOLCHAIN set).
@@ -29,6 +34,7 @@ import argparse
 import json
 import os
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -38,22 +44,36 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 sys.path.insert(0, str(HERE))
-sys.path[:0] = [str(ROOT / "engine" / "scripts"), str(ROOT / "engine" / "lib")]
-import score  # noqa: E402  (one reader of blocks/ and docs/workarounds.md)
-import state as state_mod  # noqa: E402  (the engine's pipeline order)
+import score  # noqa: E402  (one reader of blocks/, the step cache and docs/workarounds.md)
 
 EDA = str(ROOT / "bin" / "eda")
 GATE = str(ROOT / "engine" / "scripts" / "gate.py")
 
 
-def run_gate(ws: Path, skill: str, gate: str, logs: Path, tag: str) -> tuple[bool, str]:
+class OutOfTime(Exception):
+    pass
+
+
+def run_gate(ws: Path, skill: str, gate: str, logs: Path, tag: str,
+             timeout: float | None = None) -> tuple[bool, str]:
+    """Run one gate; OutOfTime when it is still running at `timeout`
+    seconds (it and its process group are killed)."""
     out = logs / f"{tag}-{gate}.json"
     log = logs / f"{tag}-{gate}.log"
     with log.open("w") as f:
-        rc = subprocess.run([EDA, "python", GATE, "--gate", gate, "--skill", skill,
-                             "--workspace", str(ws), "--out", str(out)],
-                            cwd=ws, stdout=f, stderr=subprocess.STDOUT,
-                            stdin=subprocess.DEVNULL).returncode
+        p = subprocess.Popen([EDA, "python", GATE, "--gate", gate, "--skill", skill,
+                              "--workspace", str(ws), "--out", str(out)],
+                             cwd=ws, stdout=f, stderr=subprocess.STDOUT,
+                             stdin=subprocess.DEVNULL, start_new_session=True)
+        try:
+            rc = p.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            try:
+                os.killpg(p.pid, signal.SIGKILL)
+            except OSError:
+                pass
+            p.wait()
+            raise OutOfTime from None
     try:
         res = json.loads(out.read_text())
     except (OSError, ValueError):
@@ -72,19 +92,9 @@ def run_gate(ws: Path, skill: str, gate: str, logs: Path, tag: str) -> tuple[boo
         "".join(f"\n      - {m[:300]}" for m in msgs[:8])
 
 
-def waivers(ws: Path) -> list[str]:
-    """The gates the workspace's reports/waivers.json waives (attest.py)."""
-    try:
-        data = json.loads((ws / "reports" / "waivers.json").read_text())
-    except (OSError, ValueError):
-        return []
-    return [w["gate"] for w in data if isinstance(w, dict) and w.get("gate")] \
-        if isinstance(data, list) else []
-
-
-def record(b: score.Block, sources: dict[str, str], outcomes: dict[str, str]) -> None:
-    """Write the block's run to blocks/<name>/check-all.json."""
-    tree = Path(os.environ.get("EDA_TOOLCHAIN") or "").name or None
+def record(b: score.Block, sources: dict[str, str], outcomes: dict[str, str],
+           tree: str | None) -> None:
+    """Write the block's run to blocks/<name>/check-all.json, a seed."""
     (b.path / score.RECORD).write_text(json.dumps({
         "ran": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "toolchain": tree,
@@ -100,7 +110,11 @@ def main() -> int:
     ap.add_argument("--no-probes", action="store_true")
     ap.add_argument("--keep", help="scratch dir to use and keep, for reading after")
     ap.add_argument("--record", action="store_true",
-                    help="write each block's run to blocks/<name>/check-all.json, for the score")
+                    help="also write each block's run to blocks/<name>/check-all.json, a seed")
+    ap.add_argument("--stale", action="store_true",
+                    help="only the blocks with a step no cached or committed run covers")
+    ap.add_argument("--budget", type=float,
+                    help="stop after this many seconds; what didn't run stays not clean")
     a = ap.parse_args()
 
     blocks = score.read_blocks(ROOT / "blocks")
@@ -110,25 +124,31 @@ def main() -> int:
         if missing:
             print(f"check-all: no block {', '.join(sorted(missing))} under blocks/", file=sys.stderr)
             return 1
+    if a.stale:
+        todo = []
+        for b in blocks:
+            n = sum(o is None for o in score.outcomes(b).values())
+            if n:
+                todo.append((n, b))
+            else:
+                print(f"{b.name}: every step covered on what it reads now", flush=True)
+        blocks = [b for _, b in sorted(todo, key=lambda x: (x[0], x[1].name))]
+    deadline = time.monotonic() + a.budget if a.budget else None
+    tree = Path(os.environ.get("EDA_TOOLCHAIN") or "").name or None
     scratch = Path(a.keep) if a.keep else Path(tempfile.mkdtemp(prefix="chip-flow-check-all-"))
     scratch.mkdir(parents=True, exist_ok=True)
     failed = 0
     for b in blocks:
+        if deadline and time.monotonic() >= deadline:
+            print(f"{b.name}: not run, out of budget ({a.budget:.0f} s)", flush=True)
+            failed += 1
+            continue
         dst = scratch / b.name
         if dst.exists():
             shutil.rmtree(dst)
-        plan = []
-        for w in b.workspaces:
-            order = [g for _, g in state_mod.applicable_gate_order(w.skill)]
-            # a gate the block carries a waiver for runs too: release reads
-            # its result against the waiver, so it must be this run's.
-            waived = waivers(b.path / w.rel)
-            plan += [(w, g, g in waived) for g in sorted(
-                set(w.gates) | set(waived),
-                key=lambda g: order.index(g) if g in order else len(order))]
+        plan = score.plan(b)
         # what each step reads, hashed before anything runs
-        sources = score.step_sources(b, [f"{w.tag}/{g}" for w, g, _ in plan]) \
-            if a.record else {}
+        sources = score.step_sources(b, [f"{w.tag}/{g}" for w, g, _ in plan])
         shutil.copytree(b.path, dst, symlinks=True,
                         ignore=shutil.ignore_patterns("state_snapshots", "__pycache__"))
         logs = scratch / f"{b.name}-logs"
@@ -136,19 +156,30 @@ def main() -> int:
         print(f"{b.name}:", flush=True)
         outcomes: dict[str, str] = {}
         for w, g, waived in plan:
+            step = f"{w.tag}/{g}"
             ws = dst / w.rel if w.rel != "." else dst
+            left = deadline - time.monotonic() if deadline else None
             t0 = time.monotonic()
-            ok, why = run_gate(ws, w.skill, g, logs, w.tag)
+            try:
+                if left is not None and left <= 0:
+                    raise OutOfTime
+                ok, why = run_gate(ws, w.skill, g, logs, w.tag, left)
+            except OutOfTime:
+                print(f"  out of budget at {step}: it and the steps after it did not run",
+                      flush=True)
+                failed += 1
+                break
             dt = time.monotonic() - t0
-            outcomes[f"{w.tag}/{g}"] = "pass" if ok else "waived" if waived else "fail"
+            outcomes[step] = "pass" if ok else "waived" if waived else "fail"
+            score.cache_put(b.name, step, sources[step], outcomes[step], dt, tree)
             if not ok and waived:
-                print(f"  waived {w.tag}/{g} ({dt:.0f} s): {why}", flush=True)
+                print(f"  waived {step} ({dt:.0f} s): {why}", flush=True)
                 continue
-            print(f"  {'ok  ' if ok else 'FAIL'} {w.tag}/{g} ({dt:.0f} s){'' if ok else ': ' + why}",
+            print(f"  {'ok  ' if ok else 'FAIL'} {step} ({dt:.0f} s){'' if ok else ': ' + why}",
                   flush=True)
             failed += not ok
-        if a.record:
-            record(b, sources, outcomes)
+        if a.record and len(outcomes) == len(plan):
+            record(b, sources, outcomes, tree)
     if not a.no_probes:
         table = score.read_workarounds(ROOT / "docs" / "workarounds.md")
         for p in score.probes(table):
