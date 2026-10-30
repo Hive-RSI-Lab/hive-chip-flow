@@ -1,0 +1,91 @@
+{
+ "script": "gate",
+ "gate": "mutate",
+ "phase": "P4",
+ "tool": "mutate",
+ "input_digest": "dir_text:76d0d45a5f2e829e5f862f5a22721b24d3fd4936126ddf971e6f241e20027591",
+ "status": "pass",
+ "criteria": {
+  "fail_severities": [
+   "error"
+  ],
+  "max_count": 0
+ },
+ "counts": {
+  "total": 2,
+  "by_severity": {
+   "info": 2
+  },
+  "by_source": {
+   "yosys": 2
+  }
+ },
+ "failing_count": 0,
+ "failing": [],
+ "violations": [
+  {
+   "check": "mutate",
+   "severity": "info",
+   "file": "rtl/ece298a_counter.v:66.9-66.15",
+   "module": null,
+   "line": null,
+   "kind": "equivalent_stuck_other",
+   "refs": [],
+   "msg": "mutant 7 (stuck_other) is proven equivalent to the design and left out of the kill rate: mutate -mode const1 -module ece298a_counter -cell $logic_not$rtl/ece298a_counter.v:66$4 -port Y -portbit 0 -src rtl/ece298a_counter.v:66.9-66.15",
+   "source": "yosys",
+   "items": [
+    {
+     "msg": "mutant 7 (stuck_other) is proven equivalent to the design and left out of the kill rate: mutate -mode const1 -module ece298a_counter -cell $logic_not$rtl/ece298a_counter.v:66$4 -port Y -portbit 0 -src rtl/ece298a_counter.v:66.9-66.15",
+     "file": "rtl/ece298a_counter.v:66.9-66.15",
+     "line": null
+    }
+   ]
+  },
+  {
+   "check": "mutate",
+   "severity": "info",
+   "file": "rtl/ece298a_counter.v:66.9-66.15",
+   "module": null,
+   "line": null,
+   "kind": "equivalent_condition_inverted",
+   "refs": [],
+   "msg": "mutant 18 (condition_inverted) is proven equivalent to the design and left out of the kill rate: mutate -mode inv -module ece298a_counter -cell $logic_not$rtl/ece298a_counter.v:66$4 -port A -portbit 0 -src rtl/ece298a_counter.v:66.9-66.15",
+   "source": "yosys",
+   "items": [
+    {
+     "msg": "mutant 18 (condition_inverted) is proven equivalent to the design and left out of the kill rate: mutate -mode inv -module ece298a_counter -cell $logic_not$rtl/ece298a_counter.v:66$4 -port A -portbit 0 -src rtl/ece298a_counter.v:66.9-66.15",
+     "file": "rtl/ece298a_counter.v:66.9-66.15",
+     "line": null
+    }
+   ]
+  }
+ ],
+ "facts": {
+  "top": "ece298a_counter",
+  "total_mutants": 23,
+  "equivalent": 2,
+  "equivalent_ids": [
+   7,
+   18
+  ],
+  "scored_mutants": 21,
+  "killed": 21,
+  "survived": 0,
+  "kill_rate": 1.0,
+  "survivors_by_class": {},
+  "equivalent_by": {
+   "7": "signal induction",
+   "18": "signal induction"
+  },
+  "unproven_survivors": {},
+  "wall_s": 646.18
+ },
+ "inputs_at_start": {
+  "rtl": "dir_text:76d0d45a5f2e829e5f862f5a22721b24d3fd4936126ddf971e6f241e20027591",
+  "tb": "dir_text:046f330442f57502d8041e15f22ad512664b589612acb04472c739010036463d",
+  "spec_yaml_sans_formal": "json_canonical_sans_formal:9cd947b44c33253dec630a4cdf770696ba55c1f631025236036335a3e34ed69f",
+  "mutant_rulings": null
+ },
+ "recorded_ts": "2026-10-29T22:32:56",
+ "attempts": 2
+}

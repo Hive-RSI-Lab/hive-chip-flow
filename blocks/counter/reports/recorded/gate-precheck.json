@@ -1,0 +1,33 @@
+{
+ "script": "gate",
+ "gate": "precheck",
+ "phase": "P6",
+ "tool": "precheck",
+ "input_digest": "harden_signoff:b4863ae9e97e298503dd6b60d5febc415ed25ef2fafa2e4edab39efd58aaab21",
+ "status": "pass",
+ "criteria": {
+  "fail_severities": [
+   "error"
+  ],
+  "max_count": 0
+ },
+ "counts": {
+  "total": 0,
+  "by_severity": {},
+  "by_source": {}
+ },
+ "failing_count": 0,
+ "failing": [],
+ "violations": [],
+ "facts": {
+  "top": "tt_um_ece298a_counter",
+  "checks_run": 12
+ },
+ "inputs_at_start": {
+  "harden": "harden_signoff:b4863ae9e97e298503dd6b60d5febc415ed25ef2fafa2e4edab39efd58aaab21",
+  "harden_info": "json_canonical:f695957862502907d834adb8801ec93f4f59eaf89bf74f8192f72bb3c514eba1",
+  "spec_yaml_sans_formal": "json_canonical_sans_formal:9cd947b44c33253dec630a4cdf770696ba55c1f631025236036335a3e34ed69f"
+ },
+ "recorded_ts": "2026-10-29T22:47:08",
+ "attempts": 4
+}

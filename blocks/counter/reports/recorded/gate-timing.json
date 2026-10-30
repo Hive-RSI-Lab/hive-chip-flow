@@ -1,0 +1,69 @@
+{
+ "script": "gate",
+ "gate": "timing",
+ "phase": "P6",
+ "tool": "timing",
+ "input_digest": "harden_signoff:b4863ae9e97e298503dd6b60d5febc415ed25ef2fafa2e4edab39efd58aaab21",
+ "status": "pass",
+ "criteria": {
+  "fail_severities": [
+   "error"
+  ],
+  "max_count": 0
+ },
+ "counts": {
+  "total": 0,
+  "by_severity": {},
+  "by_source": {}
+ },
+ "failing_count": 0,
+ "failing": [],
+ "violations": [],
+ "facts": {
+  "top": "tt_um_ece298a_counter",
+  "corners": {
+   "max_ff_n40C_3v60": {
+    "setup_ws": 10.54,
+    "hold_ws": 0.51
+   },
+   "max_ss_125C_3v00": {
+    "setup_ws": 7.12,
+    "hold_ws": 2.09
+   },
+   "max_tt_025C_3v30": {
+    "setup_ws": 9.75,
+    "hold_ws": 1.07
+   },
+   "min_ff_n40C_3v60": {
+    "setup_ws": 10.57,
+    "hold_ws": 0.49
+   },
+   "min_ss_125C_3v00": {
+    "setup_ws": 7.26,
+    "hold_ws": 2.1
+   },
+   "min_tt_025C_3v30": {
+    "setup_ws": 9.8,
+    "hold_ws": 1.05
+   },
+   "nom_ff_n40C_3v60": {
+    "setup_ws": 10.56,
+    "hold_ws": 0.5
+   },
+   "nom_ss_125C_3v00": {
+    "setup_ws": 7.19,
+    "hold_ws": 2.1
+   },
+   "nom_tt_025C_3v30": {
+    "setup_ws": 9.78,
+    "hold_ws": 1.06
+   }
+  }
+ },
+ "inputs_at_start": {
+  "harden": "harden_signoff:b4863ae9e97e298503dd6b60d5febc415ed25ef2fafa2e4edab39efd58aaab21",
+  "spec_yaml_sans_formal": "json_canonical_sans_formal:9cd947b44c33253dec630a4cdf770696ba55c1f631025236036335a3e34ed69f"
+ },
+ "recorded_ts": "2026-10-29T22:45:10",
+ "attempts": 4
+}
