@@ -16,11 +16,13 @@
 #                              hardens included); --stale only what no run
 #                              covers, --budget S stops at S seconds
 #   chip-flow score            how much of the known blocks (blocks/known.json)
-#                              passes every gate in the Hive: the score. It
-#                              first runs check-all --stale within
-#                              $CHIP_FLOW_SCORE_BUDGET seconds (1500; under
-#                              the Hive's 30 min check), then reads the cache;
-#                              --no-run reads only
+#                              passes every gate in the Hive, plus the share
+#                              of planted faults caught and check-all's
+#                              speed: the score. Within $CHIP_FLOW_SCORE_BUDGET
+#                              seconds (1500; under the Hive's 30 min check)
+#                              it first runs check-all --stale (half of it),
+#                              then the corpus rungs a change staled, then
+#                              reads the caches; --no-run reads only
 #   chip-flow eda <tool> ...   bin/eda: any tool from the tree (ngspice,
 #                              xschem, magic, netgen, klayout, yosys, ...)
 #   chip-flow <script> [args]  engine/scripts/<script>.py with the tree's
@@ -33,7 +35,7 @@ here=$(cd "$(dirname "$0")/.." && pwd)
 
 # The score with --no-run reads and hashes files only: no toolchain.
 if [ "${1:-}" = score ] && [ "${2:-}" = --no-run ]; then
-	exec python3 "$here/bin/score.py"
+	CHIP_FLOW_SCORE_FAULT_BUDGET=0 exec python3 "$here/bin/score.py"
 fi
 
 # The tree: an explicit pin wins; else the newest IIC-OSIC-TOOLS tree in the
@@ -46,8 +48,8 @@ if [ -z "${EDA_TOOLCHAIN:-}" ]; then
 fi
 if [ "${1:-}" = score ] && { [ -z "${EDA_TOOLCHAIN:-}" ] || [ ! -d "$EDA_TOOLCHAIN" ]; }; then
 	# nothing can run: what no run covers stays not clean
-	echo "chip-flow score: no IIC-OSIC-TOOLS tree, so no step runs; reading the cache and seeds only" >&2
-	exec python3 "$here/bin/score.py"
+	echo "chip-flow score: no IIC-OSIC-TOOLS tree, so no gate runs; reading the caches and seeds only" >&2
+	CHIP_FLOW_SCORE_FAULT_BUDGET=0 exec python3 "$here/bin/score.py"
 fi
 if [ -z "${EDA_TOOLCHAIN:-}" ] || [ ! -d "$EDA_TOOLCHAIN" ]; then
 	echo "chip-flow: no IIC-OSIC-TOOLS tree (looked in ${HIVE_TOOLS:-/hive/tools} and /opt/eda-toolchain); ask a warden, or set EDA_TOOLCHAIN" >&2
@@ -91,17 +93,23 @@ check-all)
 score)
 	# Runs what the cache and the seeds don't cover, fewest steps first, and
 	# scores whatever it got: a step cut off by the budget is not clean.
-	# Its outcome doesn't decide the score, so its exit doesn't either.
+	# Its outcome doesn't decide the score, so its exit doesn't either. The
+	# planted-fault rungs (score_faults.py) get what's left of the budget.
+	budget=${CHIP_FLOW_SCORE_BUDGET:-1500}
+	start=$(date +%s)
 	"$eda" python "$here/bin/check_all.py" --stale --no-probes \
-		--budget "${CHIP_FLOW_SCORE_BUDGET:-1500}" >&2 || true
-	exec python3 "$here/bin/score.py"
+		--budget "${CHIP_FLOW_SCORE_STEP_BUDGET:-$((budget / 2))}" >&2 || true
+	left=$((budget - ($(date +%s) - start)))
+	[ "$left" -gt 0 ] || left=0
+	CHIP_FLOW_SCORE_FAULT_BUDGET=${CHIP_FLOW_SCORE_FAULT_BUDGET:-$left} \
+		exec python3 "$here/bin/score.py"
 	;;
 eda)
 	shift
 	exec "$eda" "$@"
 	;;
 "" | -h | --help)
-	sed -n '2,30p' "$0" | sed 's/^# \{0,1\}//'
+	sed -n '2,32p' "$0" | sed 's/^# \{0,1\}//'
 	;;
 *)
 	s=$1

@@ -29,12 +29,29 @@ when:
 
 `bin/chip-flow score` first re-runs, through check-all, the blocks with a
 step no run covers, within a budget, and fills the cache; then it reads.
-`python3 bin/score.py` reads only, in seconds.
+`python3 bin/score.py` with CHIP_FLOW_SCORE_FAULT_BUDGET=0 reads only.
 
 A known block not under blocks/ yet scores 0. Blocks under blocks/ that
 known.json doesn't list are printed, not scored. The test holds
-docs/workarounds.md to its probes. Prints one line per block, then the
-number alone.
+docs/workarounds.md to its probes.
+
+That pass share is the first of three terms, each out of 100, so the score
+keeps showing a gain once every known block is clean:
+
+- pass: 100 x the mean clean share above;
+- faults: 100 x the share of the corpus's planted faults (corpus/<skill>/
+  <rung>/faults/manifest.yaml) their gates catch, from faults.py's runs,
+  cached outside git by a hash of what each rung's run reads and re-run
+  only when that changes (bin/score_faults.py); and
+- speed: per known block, its clean share x 100 x R / (R + its check-all
+  CPU seconds, summed over its steps' runs on what they read now, from
+  the cache, else the seed's step_cpu_s), R = SPEED_R, averaged: a
+  check-all half as costly scores closer to 100, never past it, and a
+  block with a step no timed run covers scores 0 here. CPU, not wall,
+  seconds: the machine is shared, and a gate's wall time swings with its
+  load.
+
+Prints one line per block and rung, each term, then the score alone.
 """
 from __future__ import annotations
 
@@ -55,6 +72,7 @@ KNOWN = ROOT / "blocks" / "known.json"
 RECORD = "check-all.json"   # in each block's dir, written by check-all --record: a seed
 PROBES = ROOT / "tests" / "workarounds"
 SIDES = (("analog", "ade"), ("digital", "vde"))
+SPEED_R = 3600.0   # CPU seconds at which a clean block's speed term is 50
 _ROW = re.compile(r"^\|\s*([a-z0-9][a-z0-9-]*)\s*\|(.*)\|\s*$")
 
 
@@ -323,15 +341,20 @@ def plan(b: Block) -> list[tuple[Workspace, str, bool]]:
     return out
 
 
-def cache_dir() -> Path:
-    """Where step outcomes are kept, outside git: $CHIP_FLOW_CACHE, else
+def cache_root() -> Path:
+    """The score's caches, outside git: $CHIP_FLOW_CACHE, else
     $HIVE_SCORE_CACHE (a folder the Hive keeps for a project's score across
-    measures, where it gives one), else chip-flow/steps in the user's cache."""
+    measures, where it gives one), else chip-flow in the user's cache."""
     for k in ("CHIP_FLOW_CACHE", "HIVE_SCORE_CACHE"):
         if os.environ.get(k):
             return Path(os.environ[k])
     base = os.environ.get("XDG_CACHE_HOME") or str(Path.home() / ".cache")
-    return Path(base) / "chip-flow" / "steps"
+    return Path(base) / "chip-flow"
+
+
+def cache_dir() -> Path:
+    """Where step outcomes are kept: steps/ under cache_root."""
+    return cache_root() / "steps"
 
 
 def _key(block: str, step: str, src: str) -> str:
@@ -349,7 +372,7 @@ def cached(block: str, step: str, src: str) -> dict | None:
 
 
 def cache_put(block: str, step: str, src: str, outcome: str, seconds: float,
-              toolchain: str | None) -> None:
+              toolchain: str | None, cpu: float | None = None) -> None:
     """Keep a step's outcome on these inputs: pass, fail or waived only (a
     run cut short is no outcome)."""
     k = _key(block, step, src)
@@ -358,6 +381,7 @@ def cache_put(block: str, step: str, src: str, outcome: str, seconds: float,
     tmp = d / f".{k}.{os.getpid()}"
     tmp.write_text(json.dumps({
         "block": block, "step": step, "outcome": outcome, "seconds": round(seconds, 1),
+        "cpu_s": None if cpu is None else round(cpu, 1),
         "ran": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "toolchain": toolchain}) + "\n", encoding="utf-8")
     os.replace(tmp, d / f"{k}.json")
@@ -444,6 +468,33 @@ def block_share(b: Block, table: dict[str, Workaround]) -> tuple[float, str]:
     return ok / len(got), line + (f"; not: {'; '.join(bad)}" if bad else "")
 
 
+def block_cpu(b: Block) -> float | None:
+    """The CPU seconds the block's steps took, run on what each reads now:
+    from the cache, else the seed's step_cpu_s where its step still stands;
+    None when a step has no such time."""
+    steps = [f"{w.tag}/{g}" for w, g, _ in plan(b)]
+    if not steps:
+        return None
+    now = step_sources(b, steps)
+    rec = _seed(b)
+    srcs = rec.get("step_sources") if isinstance(rec.get("step_sources"), dict) else {}
+    cpu = rec.get("step_cpu_s") if isinstance(rec.get("step_cpu_s"), dict) else {}
+    total = 0.0
+    for s in steps:
+        e = cached(b.name, s, now[s])
+        if e and isinstance(e.get("cpu_s"), (int, float)):
+            total += e["cpu_s"]
+        elif not e and srcs.get(s) == now[s] and isinstance(cpu.get(s), (int, float)):
+            total += cpu[s]
+        else:
+            return None
+    return total
+
+
+def speed(share: float, cpu: float | None) -> float:
+    return 0.0 if cpu is None else share * 100 * SPEED_R / (SPEED_R + cpu)
+
+
 def main() -> int:
     try:
         table = read_workarounds(ROOT / "docs" / "workarounds.md")
@@ -452,22 +503,38 @@ def main() -> int:
     except (OSError, ValueError) as e:
         print(f"score: {e}", file=sys.stderr)
         return 1
-    shares = []
+    shares, speeds = [], []
     for k in known:
         b = blocks.get(k["name"])
         if b is None:
             share, line = 0.0, f"not under blocks/ yet ({k['repo']} at {k['commit']})"
+            cpu = None
         else:
             share, line = block_share(b, table)
+            cpu = block_cpu(b)
         shares.append(share)
-        print(f"{k['name']}: {line}")
+        speeds.append(speed(share, cpu))
+        print(f"{k['name']}: {line}; " + ("no step times" if cpu is None else f"{cpu:.0f} CPU s"))
+    import score_faults   # it imports this module: here, not at the top
+    try:
+        caught, planted, rungs = score_faults.fault_share()
+    except (OSError, ValueError) as e:
+        print(f"score: {e}", file=sys.stderr)
+        return 1
+    for line in rungs:
+        print(line)
     for name in sorted(set(blocks) - {k["name"] for k in known}):
         print(f"{name}: not scored (not in blocks/known.json)")
     print(f"known blocks through every gate: {sum(s == 1 for s in shares)}/{len(shares)}")
     print(f"workarounds listed: {len(table)} "
           f"({sum(w.kind == 'shim' for w in table.values())} shim, "
           f"{sum(w.kind == 'hand' for w in table.values())} by hand)")
-    print(f"{100 * sum(shares) / len(shares):.2f}")
+    terms = {"pass": 100 * sum(shares) / len(shares),
+             "faults": 100 * caught / planted if planted else 0.0,
+             "speed": sum(speeds) / len(speeds)}
+    print(f"planted faults caught: {caught}/{planted}")
+    print("terms: " + ", ".join(f"{k} {v:.2f}" for k, v in terms.items()))
+    print(f"{sum(terms.values()):.2f}")
     return 0
 
 
