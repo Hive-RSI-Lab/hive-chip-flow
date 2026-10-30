@@ -12,7 +12,20 @@ standard-cell liberty for that corner (engine/lib/ttlib.py's
 `stdcell_liberty_path` - NOT the per-corner file under that same `lib/`
 directory, which is the hardened macro's own abstracted timing view, not
 the cell library) with the matching SPEF for parasitics and the flow's own
-SDC for constraints.
+signoff SDC for constraints.
+
+The SDC is evaluated per corner, as LibreLane's own signoff STA
+(OpenROAD.STAPostPNR) evaluates it: the file its config names
+(SIGNOFF_SDC_FILE, else PNR_SDC_FILE, else FALLBACK_SDC - LibreLane's
+base.sdc), read with every key of the run's resolved config
+(`harden/runs/run/resolved.json`) set in `::env` the way LibreLane's
+TclStep exports it, plus SCRIPTS_DIR, OPENLANE_SDC_IDEAL_CLOCKS=0 and
+read_current_sdc's compatibility names. Never `final/sdc`: that is one
+step's write_sdc of the constraints as they came out for whichever corner
+that step loaded, so an SDC that picks a value per corner (a clock period
+from the loaded liberty's name) would be frozen at one corner's value and
+timed wrong at the others. A path under the run's DESIGN_DIR is read from
+this workspace's harden/ (the workspace may have moved since harden ran).
 
 Passes when every corner's worst setup AND hold slack is >= 0 and
 `report_check_types` finds no max-slew/max-cap/max-fanout violator
@@ -41,6 +54,7 @@ Failure classification (the same three-way split check_harden.py uses):
 from __future__ import annotations
 
 import argparse
+import json
 import math
 import re
 import subprocess
@@ -115,12 +129,111 @@ def _pdk_root() -> Path:
     return Path(proc.stdout.strip()) / "foss" / "pdks"
 
 
+# LibreLane's common/tcl.py: what Tcl reads as one word unquoted.
+_TCL_UNSAFE = re.compile(r"[^\w@%+=:,./-]", re.ASCII).search
+_TCL_IN_QUOTES = re.compile(r"([\\$\"\[])")
+_ENV_KEY = re.compile(r"^\w+$", re.ASCII)
+# read_current_sdc's (scripts/openroad/common/io.tcl) compatibility layer
+# for deprecated names a user SDC may still read.
+COMPAT_TCL = """\
+set ::env(IO_PCT) [expr $::env(IO_DELAY_CONSTRAINT) / 100.0]
+set ::env(SYNTH_TIMING_DERATE) [expr $::env(TIME_DERATING_CONSTRAINT) / 100.0]
+set ::env(SYNTH_MAX_FANOUT) $::env(MAX_FANOUT_CONSTRAINT)
+set ::env(SYNTH_CLOCK_UNCERTAINTY) $::env(CLOCK_UNCERTAINTY_CONSTRAINT)
+set ::env(SYNTH_CLOCK_TRANSITION) $::env(CLOCK_TRANSITION_CONSTRAINT)
+set ::env(SYNTH_CAP_LOAD) $::env(OUTPUT_CAP_LOAD)
+if { [info exists ::env(MAX_TRANSITION_CONSTRAINT)] } {
+    set ::env(SYNTH_MAX_TRAN) $::env(MAX_TRANSITION_CONSTRAINT)
+}
+"""
+
+
+def tcl_escape(s: str) -> str:
+    """LibreLane's TclUtils.escape: `s` verbatim when Tcl reads it as one
+    word, else double-quoted with $ [ " \\ escaped."""
+    if s == "":
+        return '""'
+    if not _TCL_UNSAFE(s):
+        return s
+    return '"' + _TCL_IN_QUOTES.sub(r"\\\1", s).replace("\n", r"\n") + '"'
+
+
+def value_to_tcl(value) -> str:
+    """LibreLane's TclStep.value_to_tcl on a value as resolved.json holds
+    it: a dict or list joined as a Tcl list, a bool 1/0, else str()."""
+    if isinstance(value, dict):
+        return " ".join(tcl_escape(value_to_tcl(x))
+                        for kv in value.items() for x in kv)
+    if isinstance(value, list):
+        return " ".join(tcl_escape(value_to_tcl(x)) for x in value)
+    if isinstance(value, bool):
+        return "1" if value else "0"
+    return str(value)
+
+
+def _scripts_dir(pdk_root: Path) -> Path:
+    """LibreLane's scripts/ in the toolchain tree (pdk_root is
+    <tree>/foss/pdks): what SCRIPTS_DIR names in its own steps."""
+    tree = pdk_root.parent.parent
+    found = sorted(tree.glob(
+        "usr/local/lib/python3*/dist-packages/librelane/scripts"))
+    if not found:
+        raise CheckError(f"no librelane/scripts under {tree} - the toolchain "
+                         "tree has no LibreLane to read base.sdc from")
+    return found[-1]
+
+
+def signoff_sdc(ws: Path, run_dir: Path, pdk_root: Path) -> tuple[Path, str]:
+    """The SDC LibreLane's signoff STA read and the Tcl that sets up the
+    ::env it read it under (everything but the corner's own name)."""
+    resolved = run_dir / "resolved.json"
+    try:
+        config = json.loads(resolved.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise CheckError(f"cannot read the harden run's config {resolved} "
+                         f"({exc}) - re-run the harden gate") from exc
+    config.pop("meta", None)
+    harden_dir = ws / "harden"
+    design_dir = str(config.get("DESIGN_DIR") or "").rstrip("/")
+
+    def rebase(v):
+        if isinstance(v, list):
+            return [rebase(x) for x in v]
+        if isinstance(v, dict):
+            return {k: rebase(x) for k, x in v.items()}
+        if (isinstance(v, str) and design_dir
+                and (v == design_dir or v.startswith(design_dir + "/"))):
+            return str(harden_dir) + v[len(design_dir):]
+        return v
+
+    config = {k: rebase(v) for k, v in config.items()}
+    config["DESIGN_DIR"] = str(harden_dir)
+    scripts = _scripts_dir(pdk_root)
+    sdc = (config.get("SIGNOFF_SDC_FILE") or config.get("PNR_SDC_FILE")
+           or config.get("FALLBACK_SDC") or str(scripts / "base.sdc"))
+    sdc = Path(sdc)
+    if not sdc.is_file():
+        # a FALLBACK_SDC recorded from another toolchain tree: the same
+        # base.sdc in this one.
+        if sdc.name == "base.sdc" and (scripts / "base.sdc").is_file():
+            sdc = scripts / "base.sdc"
+        else:
+            raise CheckError(f"the harden run's signoff SDC {sdc} does not "
+                             "exist - re-run the harden gate")
+    lines = [f"set ::env({k}) {tcl_escape(value_to_tcl(v))}"
+             for k, v in config.items()
+             if v is not None and _ENV_KEY.match(k)]
+    lines += [f"set ::env(SCRIPTS_DIR) {tcl_escape(str(scripts))}",
+              f"set ::env(_SDC_IN) {tcl_escape(str(sdc))}",
+              "set ::env(OPENLANE_SDC_IDEAL_CLOCKS) 0"]
+    return sdc, "\n".join(lines) + "\n" + COMPAT_TCL
+
+
 def run_corner(final_dir: Path, top: str, corner: str, pdk_root: Path,
-              work_dir: Path) -> dict:
+              work_dir: Path, sdc: Path, env_tcl: str) -> dict:
     bucket = corner.split("_", 1)[0]
     lib = ttlib.stdcell_liberty_path(corner, pdk_root)
     netlist = final_dir / "nl" / f"{top}.nl.v"
-    sdc = final_dir / "sdc" / f"{top}.sdc"
     spef = final_dir / "spef" / bucket / f"{top}.{bucket}.spef"
     for label, p in (("liberty", lib), ("netlist", netlist), ("sdc", sdc),
                      ("spef", spef)):
@@ -138,7 +251,9 @@ def run_corner(final_dir: Path, top: str, corner: str, pdk_root: Path,
         f"read_liberty {lib}\n"
         f"read_verilog {netlist}\n"
         f"link_design {top}\n"
-        f"read_sdc {sdc}\n"
+        + env_tcl
+        + f"set ::env(_CURRENT_CORNER_NAME) {tcl_escape(corner)}\n"
+        f"read_sdc {tcl_escape(str(sdc))}\n"
         f"read_spef {spef}\n"
         "report_worst_slack -max\n"
         "report_worst_slack -min\n"
@@ -192,9 +307,11 @@ def run(argv=None):
         raise CheckError(f"{lib_dir} has no corner subdirectories")
 
     pdk_root = _pdk_root()
+    sdc, env_tcl = signoff_sdc(ws, final_dir.parent, pdk_root)
     work_dir = ws / "log" / "timing_work"
     work_dir.mkdir(parents=True, exist_ok=True)
-    results = [run_corner(final_dir, top, corner, pdk_root, work_dir)
+    results = [run_corner(final_dir, top, corner, pdk_root, work_dir,
+                          sdc, env_tcl)
               for corner in corners]
 
     violations = []
