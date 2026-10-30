@@ -436,6 +436,42 @@ def test_pin_lines_offer_no_supply_metal3_its_own_metal4_buries(tmp_path):
     assert "box 30.000um 5.000um 30.400um 5.400um" not in lines
 
 
+def test_pin_lines_keep_a_mim_caps_plates_apart(tmp_path):
+    """The PLL's loop-filter cap (breakage: top LVS shorted vss to vctrl):
+    a MIM's top plate (FuseTop) sits on its bottom plate's Metal4 and its
+    Via4 goes up to vss's Metal5. That Via4 joins the top plate, not the
+    Metal4 under it, so the bottom plate's net (vctrl, on a Metal3 pad) is
+    no vss pin; the bottom plate's own Via4 column, off the top plate,
+    still joins Metal4 to Metal5."""
+    gds = _pinned_gds(tmp_path)
+    layout = db.Layout()
+    layout.read(str(gds))
+    cell = layout.cell("mac")
+    for layer, b in ((81, (10, 8, 20, 14)),            # vss's Metal5 strap
+                     (41, (10.1, 8.1, 10.36, 8.36)),   # Via4 down to ...
+                     (46, (10, 0, 10.5, 8.5)),         # ... vss's Metal4
+                     (40, (10.1, 0.1, 10.36, 0.36)),   # Via3 to the rail
+                     (46, (12, 6, 18, 12)),            # bottom plate
+                     (75, (13, 7, 17, 11)),            # top plate, FuseTop
+                     (41, (14.87, 8.87, 15.13, 9.13)),  # Via4 on it
+                     (40, (12.1, 6.1, 12.36, 6.36)),   # Via3 to vctrl's
+                     (42, (11, 6, 12.5, 6.5))):        # Metal3 pad
+        cell.shapes(layout.layer(layer, 0)).insert(db.DBox(*b))
+    layout.write(str(gds))
+    lines = check_top_harden.pin_lines(gds, "mac", PINNED)
+    i = lines.index("box 0.000um 0.000um 40.000um 2.000um")
+    assert lines[i + 1] == "label {vss} c metal3"
+    assert "box 11.000um 6.000um 12.500um 6.500um" not in lines
+    # the same pad joined to vss's Metal5 by a Via4 off the top plate is
+    # vss's: the cut is FuseTop's, not every Via4 on a bottom plate
+    cell.shapes(layout.layer(41, 0)).insert(
+        db.DBox(12.1, 11.6, 12.36, 11.86))
+    layout.write(str(gds))
+    lines = check_top_harden.pin_lines(gds, "mac", PINNED)
+    i = lines.index("box 11.000um 6.000um 12.500um 6.500um")
+    assert lines[i + 1] == "label {vss} c metal3"
+
+
 def test_pin_lines_refuse_a_port_label_on_no_metal(tmp_path):
     gds = _pinned_gds(tmp_path, a_label_on_metal=False)
     with pytest.raises(CheckError, match="the label a at .* no Metal2"):
