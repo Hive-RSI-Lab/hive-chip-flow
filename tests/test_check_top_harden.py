@@ -571,6 +571,120 @@ def test_fill_macro_fills_the_comp_gap_and_keeps_off_the_circuit(tmp_path):
         check_top_harden.fill_macro(gds, "nope")
 
 
+def test_fill_macro_reaches_a_strip_its_grid_misses(tmp_path):
+    """pll_analog's 9 um strip beside its VCO well (DCF.1a at the tile):
+    a strip 6 um wide placed off the skewed grid's columns takes no square
+    from it, so the fill goes round again on a grid of its own there, and
+    keeps the PDK's spaces doing it."""
+    layout = db.Layout()
+    layout.dbu = 0.001
+    cell = layout.create_cell("mac")
+    # COMP either side leaves x 13..19 (DCF.4's 3.5 um off each); the
+    # skewed grid's columns sit at multiples of 1.6 um, none in 13..14
+    for box in ((0, 0, 9.5, 60), (22.5, 0, 60, 60)):
+        cell.shapes(layout.layer(22, 0)).insert(db.DBox(*box))
+    gds = tmp_path / "mac.gds"
+    layout.write(str(gds))
+    squares = check_top_harden.fill_macro(gds, "mac")
+    ly = db.Layout()
+    ly.read(str(gds))
+    top = ly.cell("mac")
+    fill = db.Region(top.begin_shapes_rec(ly.find_layer(22, 4))).merged()
+    comp = db.Region(top.begin_shapes_rec(ly.find_layer(22, 0))).merged()
+    assert squares == fill.count() >= 5
+    assert (fill - db.Region(db.Box(13000, 0, 19000, 60000))).is_empty()
+    assert fill.space_check(1900).is_empty()                      # DCF.2b
+    assert fill.separation_check(comp, 3500).is_empty()           # DCF.4
+
+
+LEF_HEAD = """VERSION 5.7 ;
+MACRO tt_um_x
+  CLASS BLOCK ;
+  SIZE 346.640 BY 325.360 ;
+  PIN VGND
+    DIRECTION INOUT ;
+    USE GROUND ;
+    PORT
+      LAYER Metal4 ;
+        RECT 22.180 3.620 23.780 321.740 ;
+    END
+    PORT
+      LAYER Metal4 ;
+        RECT 138.790 3.620 140.390 80.000 ;
+    END
+    PORT
+      LAYER Metal4 ;
+        RECT 138.790 210.000 140.390 321.740 ;
+    END
+  END VGND
+  PIN VPWR
+    DIRECTION INOUT ;
+    USE POWER ;
+    PORT
+      LAYER Metal4 ;
+        RECT 18.180 3.620 19.780 321.740 ;
+    END
+  END VPWR
+  PIN clk
+    DIRECTION INPUT ;
+    PORT
+      LAYER Metal4 ;
+        RECT 140.000 324.360 140.300 325.360 ;
+    END
+  END clk
+"""
+
+
+def test_trim_power_pins_moves_the_ports_the_macro_cuts_to_obs(tmp_path):
+    """The tile's VGND stripe over the macro comes out of the PDN as two
+    ports, each stopping at the macro's halo, and the precheck fails a
+    power port that doesn't run within 10 um of both edges: the two go to
+    OBS (the metal stays), the full stripes and the signal pins stay pins,
+    and running it again changes nothing."""
+    lef = tmp_path / "tt_um_x.lef"
+    lef.write_text(LEF_HEAD + """  OBS
+      LAYER Metal1 ;
+        RECT 0.000 0.000 346.640 325.360 ;
+  END
+END tt_um_x
+END LIBRARY
+""", encoding="utf-8")
+    moved = check_top_harden.trim_power_pins(lef)
+    assert moved == ["VGND Metal4 138.790 3.620 140.390 80.000",
+                     "VGND Metal4 138.790 210.000 140.390 321.740"]
+    text = lef.read_text(encoding="utf-8")
+    vgnd = text[text.index("PIN VGND"):text.index("END VGND")]
+    assert "22.180 3.620 23.780 321.740" in vgnd
+    assert "138.790" not in vgnd and vgnd.count("PORT") == 1
+    obs = text[text.index("  OBS"):]
+    assert "RECT 138.790 3.620 140.390 80.000 ;" in obs
+    assert "RECT 138.790 210.000 140.390 321.740 ;" in obs
+    assert "RECT 0.000 0.000 346.640 325.360 ;" in obs
+    assert "PIN clk" in text and "PIN VPWR" in text
+    assert check_top_harden.trim_power_pins(lef) == []
+    assert lef.read_text(encoding="utf-8") == text
+
+
+def test_trim_power_pins_writes_an_obs_and_leaves_a_pin_with_no_full_port(
+        tmp_path):
+    lef = tmp_path / "tt_um_x.lef"
+    lef.write_text(LEF_HEAD + "END tt_um_x\nEND LIBRARY\n",
+                   encoding="utf-8")
+    assert len(check_top_harden.trim_power_pins(lef)) == 2
+    text = lef.read_text(encoding="utf-8")
+    assert text.endswith("  END clk\n  OBS\n      LAYER Metal4 ;\n"
+                         "        RECT 138.790 3.620 140.390 80.000 ;\n"
+                         "      LAYER Metal4 ;\n"
+                         "        RECT 138.790 210.000 140.390 321.740 ;\n"
+                         "  END\nEND tt_um_x\nEND LIBRARY\n")
+    # every VGND port short: the pin stays, for the precheck to name
+    only_short = LEF_HEAD.replace(
+        "RECT 22.180 3.620 23.780 321.740", "RECT 22.180 3.620 23.780 90.0")
+    lef.write_text(only_short + "END tt_um_x\nEND LIBRARY\n",
+                   encoding="utf-8")
+    assert check_top_harden.trim_power_pins(lef) == []
+
+
 def test_lef_origin_reads_the_macro_origin(tmp_path):
     lef = tmp_path / "mac.lef"
     lef.write_text("MACRO mac\n  ORIGIN 2.040 3.200 ;\n"
