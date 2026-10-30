@@ -107,22 +107,27 @@ fails while a row and its probe disagree.
   `blocks/` to a scratch dir and re-runs there, in pipeline order, every gate
   each of its workspaces records (an msde block's analog and digital sides
   first, then its top), then the probes. Hardens included, so it takes a
-  while (about 20 minutes for r2r_dac): run it as a job on a change to the
-  gates, `bin/` or a block. `--block NAME`, `--keep DIR` to read the logs
-  after, and `--record` to write the run to the block's `check-all.json`;
-  commit it.
+  while (about 20 minutes for r2r_dac, more on a loaded machine): run it as
+  a job. Every step's outcome goes into the step cache, outside git
+  (`$CHIP_FLOW_CACHE`, else `$HIVE_SCORE_CACHE`, else
+  `~/.cache/chip-flow/steps`), keyed by the hash of what the step read.
+  `--block NAME`, `--stale` for only the blocks with a step no run covers,
+  `--budget S` to stop at S seconds, `--keep DIR` to read the logs after,
+  and `--record` to also write the run to the block's `check-all.json`, a
+  seed for a fresh cache. A PR needn't carry a record.
 - **Score**, `chip-flow score`, higher is better: how much of the known
   blocks passes every gate in the Hive. `blocks/known.json` pins them
   (ihsan-sa/ece298a-r2r-dac, ece298a-counter and Hive-RSI-Lab/ece298a-pll,
-  each at the commit its block came from). Each scores the share of its `check-all.json` steps
-  that that run passed (or failed under the block's waiver) and that no
-  workaround names, while the block's files, `engine/` and `bin/eda` hash
-  as the run had them (a change to any of them needs a new `--record` run,
-  committed with it, or the block scores 0); the score is 100 x the mean. A known block not under `blocks/` yet, or with no
-  record, scores 0, so bringing the counter in and taking it through its
-  gates raises it, and so does any fix that gets a step to pass. It reads
-  and hashes files, so it runs in seconds; check-all is what runs the
-  gates, too slow for the Hive's 30-minute check.
+  each at the commit its block came from). Each scores the share of its gate steps that a run on
+  what that step reads now passed (or failed under the block's waiver) and
+  that no workaround names; the score is 100 x the mean. A step's outcome
+  is looked up by the hash of what it reads, in the step cache, then in
+  the block's committed `check-all.json` (a seed). The score first runs
+  `check-all --stale` within `CHIP_FLOW_SCORE_BUDGET` seconds (1500, under
+  the Hive's 30-minute check), so a merge pays only for the steps it
+  changed, where the cache outlives the measure; a step that didn't run or
+  finish counts as not clean, never as passed. `chip-flow score --no-run`
+  reads only, in seconds. A known block not under `blocks/` yet scores 0.
 
 ## What it never does
 
@@ -154,8 +159,8 @@ reports, and the person's and host's names out of its rulings.
 
 The pll project keeps designing it; this copy moves only when someone
 brings it up to a newer commit: copy the block again the same way, set
-the commit in `known.json`, run `chip-flow check-all --record --block pll`
-and commit the record with it. A block can't be scored from the other
+the commit in `known.json`, and the score runs its gates (`chip-flow check-all --block pll` to see
+them first). A block can't be scored from the other
 repository without the copy: the score hashes the block's files as this
 repository's git tracks them, and the check that measures it sees this
 repository only. To drop the copy, `known.json` could name the source

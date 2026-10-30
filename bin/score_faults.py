@@ -10,8 +10,8 @@ problem names that fault. A rung that didn't run, didn't finish, or
 whose reference failed catches nothing: a gate that did not run is a
 refusal, never a pass.
 
-A rung's run is kept in a cache outside git (CHIP_FLOW_CACHE, else
-$XDG_CACHE_HOME/chip-flow, else ~/.cache/chip-flow, under faults/), keyed
+A rung's run is kept in a cache outside git (faults/ under
+score.cache_root, beside the gate steps' cache), keyed
 by a sha256 over what it reads (fault_sources: the rung's files, bin/eda,
 and the engine files faults.py, gate.py and each named gate's check script
 read, by score.Engine), so the score re-runs only the rungs a change
@@ -100,11 +100,7 @@ def fault_sources(r: Rung, eng: score.Engine | None = None,
 
 
 def cache_dir() -> Path:
-    d = os.environ.get("CHIP_FLOW_CACHE")
-    if d:
-        return Path(d) / "faults"
-    base = os.environ.get("XDG_CACHE_HOME") or str(Path.home() / ".cache")
-    return Path(base) / "chip-flow" / "faults"
+    return score.cache_root() / "faults"
 
 
 def caught(r: Rung, out: dict) -> set[str]:

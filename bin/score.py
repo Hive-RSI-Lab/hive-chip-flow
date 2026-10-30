@@ -10,29 +10,30 @@ higher is better; 100 is every known block through every gate.
 
 A block under blocks/ is a workspace (a dir with state.json) and, for an
 msde block, its analog/ and digital/ sides, each a workspace of its own.
-Its gate steps are named `<side>/<gate>` (`top` for the block's own
-workspace). They are the steps blocks/<name>/check-all.json records:
-`chip-flow check-all --record` re-runs every gate the block records, from
-a scratch copy, in the Hive's sandbox through bin/eda, and writes that
-record. A step is clean when:
+Its gate steps (`plan`) are named `<side>/<gate>` (`top` for the block's own
+workspace): every gate its state.json records, passed or failed, and every
+gate its reports/waivers.json waives, in pipeline order. A step is clean
+when:
 
-- that run passed it, or failed it under the block's waiver (release then
-  judged that waiver, and is a step of its own);
-- the step's run still stands: what that gate read is as it was when it
-  ran (the record's `step_sources`, step_sources' hash per step of the
-  block's files, bin/eda and the engine files the gate's run reads, as
-  git tracks them), so a change to a block or to that gate counts only
-  once check-all has run over it again and its record is committed with
-  it, and an engine change no gate of the block reads leaves its steps
-  standing (a record from before step_sources holds one `sources` hash
-  over the block, all of engine/ and bin/eda); and
+- a run of it on what it reads now passed it, or failed it under the
+  block's waiver (release then judged that waiver, and is a step of its
+  own). What a step reads is hashed (`step_sources`: the block's files,
+  bin/eda and the engine files the gate's run reads, as git tracks them),
+  and a step's outcome is looked up by that hash: in the step cache
+  (`cache_dir`, outside git), which `chip-flow check-all` fills with every
+  step it runs, then in a block's committed check-all.json, a seed from
+  `check-all --record`. A step no run covers is not clean: a gate that did
+  not run is a refusal, never a pass;
 - no row of docs/workarounds.md names it for that block: its input came
   through a shim in bin/ or an edit made by hand in the block's files.
 
-A known block not under blocks/ yet, or with no record, scores 0. Blocks
-under blocks/ that known.json doesn't list are printed, not scored.
-check-all is what runs the gates, and the test holds docs/workarounds.md
-to its probes.
+`bin/chip-flow score` first re-runs, through check-all, the blocks with a
+step no run covers, within a budget, and fills the cache; then it reads.
+`python3 bin/score.py` with CHIP_FLOW_SCORE_FAULT_BUDGET=0 reads only.
+
+A known block not under blocks/ yet scores 0. Blocks under blocks/ that
+known.json doesn't list are printed, not scored. The test holds
+docs/workarounds.md to its probes.
 
 That pass share is the first of three terms, each out of 100, so the score
 keeps showing a gain once every known block is clean:
@@ -43,10 +44,12 @@ keeps showing a gain once every known block is clean:
   cached outside git by a hash of what each rung's run reads and re-run
   only when that changes (bin/score_faults.py); and
 - speed: per known block, its clean share x 100 x R / (R + its check-all
-  CPU seconds, the record's step_cpu_s summed), R = SPEED_R, averaged: a
+  CPU seconds, summed over its steps' runs on what they read now, from
+  the cache, else the seed's step_cpu_s), R = SPEED_R, averaged: a
   check-all half as costly scores closer to 100, never past it, and a
-  record with no times scores 0 here. CPU, not wall, seconds: the
-  machine is shared, and a gate's wall time swings with its load.
+  block with a step no timed run covers scores 0 here. CPU, not wall,
+  seconds: the machine is shared, and a gate's wall time swings with its
+  load.
 
 Prints one line per block and rung, each term, then the score alone.
 """
@@ -55,16 +58,18 @@ from __future__ import annotations
 import ast
 import hashlib
 import json
+import os
 import re
 import subprocess
 import sys
+import time
 from dataclasses import dataclass, field
 from fnmatch import fnmatch
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 KNOWN = ROOT / "blocks" / "known.json"
-RECORD = "check-all.json"   # in each block's dir, written by check-all --record
+RECORD = "check-all.json"   # in each block's dir, written by check-all --record: a seed
 PROBES = ROOT / "tests" / "workarounds"
 SIDES = (("analog", "ade"), ("digital", "vde"))
 SPEED_R = 3600.0   # CPU seconds at which a clean block's speed term is 50
@@ -279,20 +284,107 @@ class Engine:
         return seen
 
 
-def gate_tools(path: Path) -> dict[tuple[str, str], str]:
-    """{(skill, gate): tool} from gates.yaml's rows (`gates: <skill>:
-    <gate>: tool: <tool>`), read by indentation: the score runs on the
-    host's python, with no yaml."""
-    out: dict[tuple[str, str], str] = {}
+def gate_rows(path: Path) -> dict[str, list[tuple[str, str, str]]]:
+    """{skill: [(gate, tool, phase)]} from gates.yaml's rows (`gates:
+    <skill>: <gate>: tool: <tool>`, `phase: <phase>`), in pipeline order:
+    by phase, then as declared (state.applicable_gate_order). Read by
+    indentation: the score runs on the host's python, with no yaml."""
+    rows: dict[str, dict[str, dict[str, str]]] = {}
     skill = gate = None
     for line in path.read_text(encoding="utf-8").splitlines():
         if m := re.match(r"^  ([a-z_]+):\s*$", line):
             skill, gate = m.group(1), None
-        elif m := re.match(r"^    ([a-z_]+):\s*$", line):
+            rows.setdefault(skill, {})
+        elif (m := re.match(r"^    ([a-z_]+):\s*$", line)) and skill:
             gate = m.group(1)
-        elif (m := re.match(r"^      tool:\s*([A-Za-z0-9_]+)\s*(#.*)?$", line)) and skill and gate:
-            out[(skill, gate)] = m.group(1)
+            rows[skill].setdefault(gate, {})
+        elif (m := re.match(r"^      (tool|phase):\s*([A-Za-z0-9_]+)\s*(#.*)?$", line)) \
+                and skill and gate:
+            rows[skill][gate][m.group(1)] = m.group(2)
+    out = {}
+    for sk, gs in rows.items():
+        order = list(gs)
+        out[sk] = [(g, gs[g].get("tool", ""), gs[g].get("phase", "P9")) for g in
+                   sorted(order, key=lambda g: (gs[g].get("phase", "P9"), order.index(g)))]
     return out
+
+
+def gate_tools(path: Path) -> dict[tuple[str, str], str]:
+    """{(skill, gate): tool} from gates.yaml (gate_rows)."""
+    return {(sk, g): t for sk, rows in gate_rows(path).items() for g, t, _ in rows if t}
+
+
+def waivers(ws: Path) -> list[str]:
+    """The gates the workspace's reports/waivers.json waives (attest.py)."""
+    try:
+        data = json.loads((ws / "reports" / "waivers.json").read_text())
+    except (OSError, ValueError):
+        return []
+    return [w["gate"] for w in data if isinstance(w, dict) and w.get("gate")] \
+        if isinstance(data, list) else []
+
+
+def plan(b: Block) -> list[tuple[Workspace, str, bool]]:
+    """The block's steps in the order check-all runs them: each workspace's
+    recorded gates and the gates its waivers name (a waived gate runs too:
+    release reads its result against the waiver), sides first, in pipeline
+    order; a gate gates.yaml doesn't order goes last, by name. Each is
+    (workspace, gate, waived)."""
+    rows = gate_rows(ROOT / "engine" / "reference" / "gates.yaml")
+    out = []
+    for w in b.workspaces:
+        order = [g for g, _, _ in rows.get(w.skill, [])]
+        waived = waivers(b.path / w.rel)
+        out += [(w, g, g in waived) for g in sorted(
+            set(w.gates) | set(waived),
+            key=lambda g: (order.index(g) if g in order else len(order), g))]
+    return out
+
+
+def cache_root() -> Path:
+    """The score's caches, outside git: $CHIP_FLOW_CACHE, else
+    $HIVE_SCORE_CACHE (a folder the Hive keeps for a project's score across
+    measures, where it gives one), else chip-flow in the user's cache."""
+    for k in ("CHIP_FLOW_CACHE", "HIVE_SCORE_CACHE"):
+        if os.environ.get(k):
+            return Path(os.environ[k])
+    base = os.environ.get("XDG_CACHE_HOME") or str(Path.home() / ".cache")
+    return Path(base) / "chip-flow"
+
+
+def cache_dir() -> Path:
+    """Where step outcomes are kept: steps/ under cache_root."""
+    return cache_root() / "steps"
+
+
+def _key(block: str, step: str, src: str) -> str:
+    return hashlib.sha256(f"{block}\0{step}\0{src}".encode()).hexdigest()
+
+
+def cached(block: str, step: str, src: str) -> dict | None:
+    """The cache's entry for this step run on these inputs, or None."""
+    k = _key(block, step, src)
+    try:
+        e = json.loads((cache_dir() / k[:2] / f"{k}.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return e if isinstance(e, dict) and e.get("outcome") in ("pass", "fail", "waived") else None
+
+
+def cache_put(block: str, step: str, src: str, outcome: str, seconds: float,
+              toolchain: str | None, cpu: float | None = None) -> None:
+    """Keep a step's outcome on these inputs: pass, fail or waived only (a
+    run cut short is no outcome)."""
+    k = _key(block, step, src)
+    d = cache_dir() / k[:2]
+    d.mkdir(parents=True, exist_ok=True)
+    tmp = d / f".{k}.{os.getpid()}"
+    tmp.write_text(json.dumps({
+        "block": block, "step": step, "outcome": outcome, "seconds": round(seconds, 1),
+        "cpu_s": None if cpu is None else round(cpu, 1),
+        "ran": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "toolchain": toolchain}) + "\n", encoding="utf-8")
+    os.replace(tmp, d / f"{k}.json")
 
 
 def step_sources(b: Block, steps: list[str]) -> dict[str, str]:
@@ -325,47 +417,78 @@ def step_sources(b: Block, steps: list[str]) -> dict[str, str]:
     return out
 
 
-def block_share(b: Block, table: dict[str, Workaround]) -> tuple[float, str]:
-    """The block's clean share of its recorded steps, and a line saying why."""
-    try:
-        rec = json.loads((b.path / RECORD).read_text(encoding="utf-8"))
-    except OSError:
-        return 0.0, f"no {RECORD}: run chip-flow check-all --record --block {b.name}"
-    steps: dict[str, str] = rec.get("steps") or {}
-    if not steps:
-        return 0.0, f"{RECORD} records no step"
-    bad = []
-    if isinstance(rec.get("step_sources"), dict):
-        now = step_sources(b, list(steps))
-        stale = {s for s in steps if rec["step_sources"].get(s) != now[s]}
-    elif rec.get("sources") == sources(b):
-        stale = set()
-    else:
-        return 0.0, (f"block, engine/ or bin/eda changed since check-all ran "
-                     f"({rec.get('ran', '?')}): run check-all --record --block {b.name}")
-    for s, outcome in steps.items():
-        why = [] if outcome in ("pass", "waived") else [outcome]
-        why += ["stale"] if s in stale else []
-        why += [w.id for w in table.values() if w.charges(b.name, s)]
-        if why:
-            bad.append(f"{s} ({', '.join(why)})")
-    ok = len(steps) - len(bad)
-    line = f"{ok}/{len(steps)} clean, run {rec.get('ran', '?')} on {rec.get('toolchain') or '?'}"
-    if stale:
-        line += f"; {len(stale)} stale (its inputs changed since: run check-all --record --block {b.name})"
-    return ok / len(steps), line + (f"; not: {'; '.join(bad)}" if bad else "")
-
-
-def block_cpu(b: Block) -> float | None:
-    """The CPU seconds its check-all record's steps took, None with no times."""
+def _seed(b: Block) -> dict:
     try:
         rec = json.loads((b.path / RECORD).read_text(encoding="utf-8"))
     except (OSError, ValueError):
+        return {}
+    return rec if isinstance(rec, dict) else {}
+
+
+def outcomes(b: Block) -> dict[str, str | None]:
+    """Each step of the block's plan and its outcome on what it reads now,
+    from the cache, else the committed seed; None where no run covers it."""
+    steps = [f"{w.tag}/{g}" for w, g, _ in plan(b)]
+    now = step_sources(b, steps)
+    rec = _seed(b)
+    seed = rec.get("steps") if isinstance(rec.get("steps"), dict) else {}
+    srcs = rec.get("step_sources")
+    # a record from before step_sources: one hash over block, engine, bin/eda
+    whole = bool(seed) and not isinstance(srcs, dict) and rec.get("sources") == sources(b)
+    out: dict[str, str | None] = {}
+    for s in steps:
+        e = cached(b.name, s, now[s])
+        if e:
+            out[s] = e["outcome"]
+        elif s in seed and (whole or isinstance(srcs, dict) and srcs.get(s) == now[s]):
+            out[s] = seed[s]
+        else:
+            out[s] = None
+    return out
+
+
+def block_share(b: Block, table: dict[str, Workaround]) -> tuple[float, str]:
+    """The block's clean share of its steps, and a line saying why."""
+    got = outcomes(b)
+    if not got:
+        return 0.0, "no gate step: its state.json records no gate"
+    bad = []
+    unrun = [s for s, o in got.items() if o is None]
+    for s, outcome in got.items():
+        why = [] if outcome in ("pass", "waived") else ["not run on these inputs"] \
+            if outcome is None else [outcome]
+        why += [w.id for w in table.values() if w.charges(b.name, s)]
+        if why:
+            bad.append(f"{s} ({', '.join(why)})")
+    ok = len(got) - len(bad)
+    line = f"{ok}/{len(got)} clean"
+    if unrun:
+        line += (f"; {len(unrun)} not run on what they read now "
+                 f"(chip-flow score runs them, or check-all --block {b.name})")
+    return ok / len(got), line + (f"; not: {'; '.join(bad)}" if bad else "")
+
+
+def block_cpu(b: Block) -> float | None:
+    """The CPU seconds the block's steps took, run on what each reads now:
+    from the cache, else the seed's step_cpu_s where its step still stands;
+    None when a step has no such time."""
+    steps = [f"{w.tag}/{g}" for w, g, _ in plan(b)]
+    if not steps:
         return None
-    cpu = rec.get("step_cpu_s")
-    if not isinstance(cpu, dict) or set(cpu) != set(rec.get("steps") or {}) or not cpu:
-        return None
-    return float(sum(cpu.values()))
+    now = step_sources(b, steps)
+    rec = _seed(b)
+    srcs = rec.get("step_sources") if isinstance(rec.get("step_sources"), dict) else {}
+    cpu = rec.get("step_cpu_s") if isinstance(rec.get("step_cpu_s"), dict) else {}
+    total = 0.0
+    for s in steps:
+        e = cached(b.name, s, now[s])
+        if e and isinstance(e.get("cpu_s"), (int, float)):
+            total += e["cpu_s"]
+        elif not e and srcs.get(s) == now[s] and isinstance(cpu.get(s), (int, float)):
+            total += cpu[s]
+        else:
+            return None
+    return total
 
 
 def speed(share: float, cpu: float | None) -> float:
