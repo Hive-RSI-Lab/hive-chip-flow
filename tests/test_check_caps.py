@@ -31,8 +31,10 @@ case "$1" in
     echo $! >> "$STUB_DIR/pids"; wait ;;
   netgen|check-env)
     [ "$STUB_MODE" = hang ] || exit 0
-    sleep 1000 &
-    echo $! >> "$STUB_DIR/pids"; wait ;;
+    # the pid is written before the sleep starts, so a stub its backstop
+    # ends before it plants (a starved box) leaves nothing behind unlisted
+    bash -c 'echo $$ >> "$STUB_DIR/pids"; exec sleep 1000' &
+    wait ;;
   python3)
     [ "$2" = run_cocotb.py ] && echo "TESTS=1 PASS=1 FAIL=0"; exit 0 ;;
   *) exit 0 ;;
@@ -78,9 +80,11 @@ def hang_run(tmp_path_factory):
 
 
 def gone(stub_dir: Path, count: int) -> bool:
-    """Every planted process is gone (a zombie awaiting init counts)."""
+    """Every planted process is gone (a zombie awaiting init counts). On a
+    starved box a hang's backstop can end its stub before it plants; each
+    writes its pid before it sleeps, so one not listed was never started."""
     pids = (stub_dir / "pids").read_text().split()
-    assert len(pids) == count
+    assert 1 <= len(pids) <= count
     for pid in pids:
         try:
             stat = (Path("/proc") / pid / "stat").read_text()

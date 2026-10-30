@@ -1,0 +1,61 @@
+{
+ "script": "gate",
+ "gate": "glsim",
+ "phase": "P6",
+ "tool": "glsim",
+ "input_digest": "harden_signoff:b4863ae9e97e298503dd6b60d5febc415ed25ef2fafa2e4edab39efd58aaab21",
+ "status": "pass",
+ "criteria": {
+  "fail_severities": [
+   "error"
+  ],
+  "max_count": 0
+ },
+ "counts": {
+  "total": 0,
+  "by_severity": {},
+  "by_source": {}
+ },
+ "failing_count": 0,
+ "failing": [],
+ "violations": [],
+ "facts": {
+  "top": "ece298a_counter",
+  "results": {
+   "functional": {
+    "test_async_reset": true,
+    "test_sync_load": true,
+    "test_count_up_from_loaded_value": true,
+    "test_count_enable_holds": true,
+    "test_wraparound": true,
+    "test_tristate_bus": true,
+    "test_load_beats_count": true,
+    "test_load_ignored_while_driving": true,
+    "test_unused_inputs": true
+   },
+   "sdf": {
+    "test_async_reset": true,
+    "test_sync_load": true,
+    "test_count_up_from_loaded_value": true,
+    "test_count_enable_holds": true,
+    "test_wraparound": true,
+    "test_tristate_bus": true,
+    "test_load_beats_count": true,
+    "test_load_ignored_while_driving": true,
+    "test_unused_inputs": true
+   }
+  },
+  "sdf": {
+   "zero_interconnects_dropped": 90,
+   "sdf_unannotated": [],
+   "instances_renamed": {}
+  }
+ },
+ "inputs_at_start": {
+  "harden": "harden_signoff:b4863ae9e97e298503dd6b60d5febc415ed25ef2fafa2e4edab39efd58aaab21",
+  "tb": "dir_text:046f330442f57502d8041e15f22ad512664b589612acb04472c739010036463d",
+  "spec_yaml_sans_formal": "json_canonical_sans_formal:9cd947b44c33253dec630a4cdf770696ba55c1f631025236036335a3e34ed69f"
+ },
+ "recorded_ts": "2026-10-29T22:46:20",
+ "attempts": 4
+}

@@ -112,6 +112,15 @@ def test_scan_nonconvergence_clean_log_finds_nothing():
     assert check_cosim.scan_nonconvergence(log) == []
 
 
+def test_scan_nonconvergence_gmin_failure_counts_only_unrecovered():
+    recovered = ("Warning: Dynamic gmin stepping failed\n"
+                 "Note: Starting true gmin stepping\n"
+                 "Note: True gmin stepping completed\n")
+    assert check_cosim.scan_nonconvergence(recovered) == []
+    assert check_cosim.scan_nonconvergence(
+        "Warning: Dynamic gmin stepping failed\n")
+
+
 def test_non_convergence_signature_fails_even_with_good_measures():
     # the brief's exact case: a run that logged a real non-convergence
     # signature must fail even though the measures it happened to record

@@ -1,0 +1,58 @@
+top: ece298a_counter
+requirements:
+  - id: REQ-RESET
+    text: while rst_n is low the count (uo_out) is 0, from the moment it falls with no clock edge needed, and reset beats load and count
+    check: both
+    property: REQ_RESET
+  - id: REQ-LOAD
+    text: with rst_n high, a rising clk edge that samples LOAD=1 and OE=0 makes the count the value uio_in had at that edge, whatever ENABLE is
+    check: both
+    property: REQ_LOAD
+  - id: REQ-LOAD-OE
+    text: while OE is high LOAD is ignored; the count holds, or counts when ENABLE is high
+    check: both
+    property: REQ_LOAD_OE
+  - id: REQ-COUNT
+    text: with rst_n high, a rising clk edge that samples ENABLE=1 and no load adds one to the count, 255 wrapping to 0
+    check: both
+    property: REQ_COUNT
+  - id: REQ-HOLD
+    text: with rst_n high the count changes only on a rising clk edge, and an edge that samples neither a load nor ENABLE leaves it unchanged
+    check: both
+    property: REQ_HOLD
+  - id: REQ-BUS
+    text: uio_oe is 0xFF while OE is high and 0x00 while it is low, and uio_out equals the count, at all times
+    check: both
+    property: REQ_BUS
+  - id: REQ-UNUSED
+    text: ui_in[7:3] and ena change nothing
+    check: sim
+ports:
+  ui_in: {dir: input, width: 8}
+  uo_out: {dir: output, width: 8}
+  uio_in: {dir: input, width: 8}
+  uio_out: {dir: output, width: 8}
+  uio_oe: {dir: output, width: 8}
+  ena: {dir: input, width: 1}
+  clk: {dir: input, width: 1}
+  rst_n: {dir: input, width: 1}
+clock:
+  # the design's own info.yaml: clock_hz 50000000
+  period_ns: 20
+  domains: [clk]
+mutate:
+  size: 24
+  seed: 1
+formal:
+  # solver steps are clock edges here (an async reset turns multiclock on)
+  depth: 8
+  cover_depth: 24
+tt_pins:
+  ui_in: ui_in[7:0]
+  uo_out: uo_out[7:0]
+  uio_in: uio_in[7:0]
+  uio_out: uio_out[7:0]
+  uio_oe: uio_oe[7:0]
+  ena: ena
+  clk: clk
+  rst_n: rst_n

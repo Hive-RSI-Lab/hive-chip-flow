@@ -13,12 +13,19 @@
 # runs CMD in its own process group (redirect around the call as usual)
 # and returns:
 #   * 125 if its tree used more than CPU_S of CPU - a real slowdown;
-#   * 124 if it was still running at WALL_S of wall - a hang;
+#   * 124 if it is waiting, not working - a hang: still running at WALL_S
+#     of wall, or, when CPU_CAP_STALL_S is set, its tree has not advanced
+#     for CPU_CAP_STALL_S seconds: no poll saw its CPU rise or one of its
+#     processes runnable. Runnable counts because on a starved box a
+#     working process can wait seconds for a core and gain no CPU, while a
+#     waiting one sleeps. WALL_S 0 means no wall backstop
+#     (only with CPU_CAP_STALL_S set: something must catch a hang);
 #   * otherwise CMD's own exit code.
 # On 125 or 124 the whole group is ended. Either way it sets CPU_CAP_VERDICT
 # (slow, hang or empty), CPU_CAP_USED (CPU seconds, one decimal),
 # CPU_CAP_WALL (whole wall seconds) and CPU_CAP_NOTE (one line saying which
-# of the three happened and the numbers). CPU is read from /proc every
+# of the three happened and the numbers); on a hang CPU_CAP_HANG_WHY says
+# stall or wall. CPU is read from /proc every
 # CPU_CAP_POLL_S (default 2) seconds and settled at the end from this
 # shell's own cutime. A process that leaves the tree (reparented to init)
 # stops counting. Call it in the shell that sources this or in a subshell;
@@ -26,8 +33,10 @@
 
 # _cpu_cap_tree PID: add to _CPU_CAP_TICKS the CPU ticks PID and its live
 # descendants have used, each including what it has reaped (cutime and
-# cstime), so a finished child is counted once, in its parent. No subshell
-# per poll: this runs every few seconds for the whole command.
+# cstime), so a finished child is counted once, in its parent; and set
+# _CPU_CAP_RUNNABLE when one of them is in state R (running, or queued for
+# a core it hasn't got). No subshell per poll: this runs every few seconds
+# for the whole command.
 _cpu_cap_tree() {
   local line f kid
   local -a fields kids
@@ -35,6 +44,7 @@ _cpu_cap_tree() {
   read -r -a fields <<<"${line##*) }"
   # fields[0] is stat field 3 (state); utime, stime, cutime, cstime are
   # stat fields 14-17.
+  [ "${fields[0]}" != R ] || _CPU_CAP_RUNNABLE=1
   _CPU_CAP_TICKS=$((_CPU_CAP_TICKS + fields[11] + fields[12] + fields[13] + fields[14]))
   for f in /proc/"$1"/task/*/children; do
     # The file ends without a newline, so `read` returns 1 even when it
@@ -62,18 +72,23 @@ _cpu_cap_secs() {
 
 cpu_cap() {
   local cpu_s="$1" wall_s="$2" poll_s="${CPU_CAP_POLL_S:-2}" v
+  local stall_s="${CPU_CAP_STALL_S:-}"
   shift 2
   CPU_CAP_VERDICT="" CPU_CAP_USED="" CPU_CAP_WALL="" CPU_CAP_NOTE=""
-  for v in "$cpu_s" "$wall_s" "$poll_s"; do
+  CPU_CAP_HANG_WHY=""
+  # The wall may be 0 (no backstop) only when a stall window catches hangs.
+  local wall_v="$wall_s"
+  if [ -n "$stall_s" ] && [ "$wall_s" = 0 ]; then wall_v=1; fi
+  for v in "$cpu_s" "$wall_v" "$poll_s" ${stall_s:+"$stall_s"}; do
     case "$v" in
       ''|*[!0-9]*|0)
-        CPU_CAP_NOTE="cpu_cap: the CPU budget, wall backstop and poll must be positive whole seconds (got '$v')"
+        CPU_CAP_NOTE="cpu_cap: the CPU budget, wall backstop, stall window and poll must be positive whole seconds, the wall 0 only with a stall window (got '$v')"
         echo "$CPU_CAP_NOTE" >&2
         return 2 ;;
     esac
   done
   local cpu_ticks=$((cpu_s * $(getconf CLK_TCK)))
-  local pid rc=0 used start old_trap old_cmd had_m=""
+  local pid rc=0 used start old_trap old_cmd had_m="" last=-1 moved
   _cpu_cap_reaped
   local before=$_CPU_CAP_REAPED
 
@@ -93,14 +108,26 @@ cpu_cap() {
   trap "kill -KILL -- -$pid 2>/dev/null || true${old_trap:+; eval $old_cmd}" EXIT
 
   start=$SECONDS
+  moved=$SECONDS
   while kill -0 "$pid" 2>/dev/null; do
-    _CPU_CAP_TICKS=0
+    _CPU_CAP_TICKS=0 _CPU_CAP_RUNNABLE=""
     _cpu_cap_tree "$pid"
     if [ "$_CPU_CAP_TICKS" -gt "$cpu_ticks" ]; then
       CPU_CAP_VERDICT=slow; break
     fi
-    if [ $((SECONDS - start)) -ge "$wall_s" ]; then
-      CPU_CAP_VERDICT=hang; break
+    # Advancing is any tick more than the last poll saw, or a runnable
+    # process. Against the last poll, not the most ever seen: a child that
+    # leaves the tree takes its ticks with it, and what the rest does next
+    # is still work.
+    if [ "$_CPU_CAP_TICKS" -gt "$last" ] || [ -n "$_CPU_CAP_RUNNABLE" ]; then
+      moved=$SECONDS
+    fi
+    last=$_CPU_CAP_TICKS
+    if [ -n "$stall_s" ] && [ $((SECONDS - moved)) -ge "$stall_s" ]; then
+      CPU_CAP_VERDICT=hang; CPU_CAP_HANG_WHY=stall; break
+    fi
+    if [ "$wall_s" -gt 0 ] && [ $((SECONDS - start)) -ge "$wall_s" ]; then
+      CPU_CAP_VERDICT=hang; CPU_CAP_HANG_WHY=wall; break
     fi
     sleep "$poll_s"
   done
@@ -127,7 +154,11 @@ cpu_cap() {
       CPU_CAP_NOTE="FAIL slow - used ${CPU_CAP_USED} s of CPU, over its ${cpu_s} s budget (${CPU_CAP_WALL} s wall). That is its own work, not the box's load."
       return 125 ;;
     hang)
-      CPU_CAP_NOTE="FAIL hang - still running at the ${wall_s} s wall-clock backstop, having used only ${CPU_CAP_USED} s of its ${cpu_s} s CPU budget: it is waiting, not working."
+      if [ "$CPU_CAP_HANG_WHY" = stall ]; then
+        CPU_CAP_NOTE="FAIL hang - its CPU stopped advancing for ${stall_s} s (at ${CPU_CAP_USED} s of its ${cpu_s} s CPU budget, ${CPU_CAP_WALL} s wall): it is waiting, not working."
+      else
+        CPU_CAP_NOTE="FAIL hang - still running at the ${wall_s} s wall-clock backstop, having used only ${CPU_CAP_USED} s of its ${cpu_s} s CPU budget: it is waiting, not working."
+      fi
       return 124 ;;
   esac
   CPU_CAP_NOTE="used ${CPU_CAP_USED} s CPU of its ${cpu_s} s budget in ${CPU_CAP_WALL} s wall (exit $rc)"

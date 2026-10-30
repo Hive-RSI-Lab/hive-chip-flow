@@ -18,10 +18,14 @@ record. A step is clean when:
 
 - that run passed it, or failed it under the block's waiver (release then
   judged that waiver, and is a step of its own);
-- the run still stands: the block's files, engine/ and bin/eda are as
-  they were when it ran (the record's `sources`, a hash of them as git
-  tracks them), so a change to a block or to the gates counts only once
-  check-all has run over it again and its record is committed with it; and
+- the step's run still stands: what that gate read is as it was when it
+  ran (the record's `step_sources`, step_sources' hash per step of the
+  block's files, bin/eda and the engine files the gate's run reads, as
+  git tracks them), so a change to a block or to that gate counts only
+  once check-all has run over it again and its record is committed with
+  it, and an engine change no gate of the block reads leaves its steps
+  standing (a record from before step_sources holds one `sources` hash
+  over the block, all of engine/ and bin/eda); and
 - no row of docs/workarounds.md names it for that block: its input came
   through a shim in bin/ or an edit made by hand in the block's files.
 
@@ -33,6 +37,7 @@ then the number alone.
 """
 from __future__ import annotations
 
+import ast
 import hashlib
 import json
 import re
@@ -160,20 +165,148 @@ def read_known(path: Path) -> list[dict]:
     return rows
 
 
-def sources(b: Block) -> str:
-    """sha256 over what a run of the block's gates reads: the block's files
-    and the engine with its launcher (engine/, bin/eda), as git tracks them
-    and as they are on disk now, less the record itself. check-all records
-    it before it runs."""
-    rels = [str(b.path.relative_to(ROOT)), "engine", "bin/eda"]
-    files = subprocess.run(["git", "ls-files", "-z", "--", *rels], cwd=ROOT,
-                           capture_output=True, check=True).stdout.split(b"\0")
+def _hash_files(rels: set[str]) -> str:
     h = hashlib.sha256()
-    for f in sorted(x for x in files if x and not x.endswith(b"/" + RECORD.encode())):
-        path = ROOT / f.decode()
-        h.update(f + b"\0")
+    for f in sorted(rels):
+        path = ROOT / f
+        h.update(f.encode() + b"\0")
         h.update(hashlib.sha256(path.read_bytes()).digest() if path.is_file() else b"-")
     return h.hexdigest()
+
+
+def _tracked(*rels: str) -> list[str]:
+    files = subprocess.run(["git", "ls-files", "-z", "--", *rels], cwd=ROOT,
+                           capture_output=True, check=True).stdout.decode().split("\0")
+    return [f for f in files if f]
+
+
+def _block_files(b: Block) -> list[str]:
+    return [f for f in _tracked(str(b.path.relative_to(ROOT)))
+            if not f.endswith("/" + RECORD)]
+
+
+def sources(b: Block) -> str:
+    """sha256 over everything a run of the block's gates could read: the
+    block's files and the whole engine with its launcher (engine/, bin/eda),
+    as git tracks them and as they are on disk now, less the record itself.
+    A record from before step_sources holds this; step_sources is narrower."""
+    return _hash_files(set(_block_files(b)) | set(_tracked("engine", "bin/eda")))
+
+
+class Engine:
+    """What each engine module reads of the engine, from its source: the
+    engine modules it imports (anywhere in it, lazily too) or names as a
+    file (`"sim_run.py"`, a script it runs), and the data files it names by
+    their first path part under engine/<dir>/ (`"gates.yaml"`, `"tt"`,
+    `"macro_pdn.tcl"`) in a string other than a docstring. A data file no
+    module names is read by every gate: what this can't see counts."""
+
+    def __init__(self) -> None:
+        files = _tracked("engine")
+        self.mods: dict[str, str] = {}
+        data: dict[str, list[str]] = {}   # first part under engine/<dir>/ -> files
+        for f in files:
+            parts = f.split("/")
+            if f.endswith(".py") and len(parts) == 3 and parts[1] in ("scripts", "lib"):
+                self.mods[parts[2][:-3]] = f
+            elif len(parts) >= 3:
+                data.setdefault(parts[2], []).append(f)
+            else:
+                data.setdefault(f, []).append(f)
+        self.data = data
+        self.reads: dict[str, set[str]] = {}   # module -> engine files it reads directly
+        named: set[str] = set()
+        for m, f in self.mods.items():
+            mods, keys = self._scan(ROOT / f, data)
+            named |= keys
+            self.reads[m] = {self.mods[x] for x in mods} | \
+                {d for k in keys for d in data[k]}
+        self.unnamed = {d for k, fs in data.items() if k not in named for d in fs}
+
+    def _scan(self, path: Path, data: dict) -> tuple[set[str], set[str]]:
+        try:
+            tree = ast.parse(path.read_bytes())
+        except (SyntaxError, ValueError):
+            # unreadable as python: it reads all of the engine, say
+            return set(self.mods), set(data)
+        docs = {id(n.value) for n in ast.walk(tree) if isinstance(n, ast.Expr)
+                and isinstance(n.value, ast.Constant) and isinstance(n.value.value, str)}
+        mods: set[str] = set()
+        keys: set[str] = set()
+        for n in ast.walk(tree):
+            if isinstance(n, ast.Import):
+                mods |= {a.name.split(".")[0] for a in n.names}
+            elif isinstance(n, ast.ImportFrom) and n.module and not n.level:
+                mods.add(n.module.split(".")[0])
+            elif isinstance(n, ast.Constant) and isinstance(n.value, str) \
+                    and id(n) not in docs:
+                parts = set(n.value.replace("\\", "/").split("/"))
+                mods |= {p[:-3] for p in parts if p.endswith(".py")}
+                keys |= parts & set(data)
+        return mods & set(self.mods), keys
+
+    def closure(self, roots: list[str]) -> set[str] | None:
+        """Every engine file the modules `roots` read, transitively; None
+        when one of them is not an engine module."""
+        if any(r not in self.mods for r in roots):
+            return None
+        seen: set[str] = set()
+        todo = [self.mods[r] for r in roots]
+        by_file = {f: m for m, f in self.mods.items()}
+        while todo:
+            f = todo.pop()
+            if f in seen:
+                continue
+            seen.add(f)
+            if f in by_file:
+                todo += [x for x in self.reads[by_file[f]] if x not in seen]
+        return seen
+
+
+def gate_tools(path: Path) -> dict[tuple[str, str], str]:
+    """{(skill, gate): tool} from gates.yaml's rows (`gates: <skill>:
+    <gate>: tool: <tool>`), read by indentation: the score runs on the
+    host's python, with no yaml."""
+    out: dict[tuple[str, str], str] = {}
+    skill = gate = None
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if m := re.match(r"^  ([a-z_]+):\s*$", line):
+            skill, gate = m.group(1), None
+        elif m := re.match(r"^    ([a-z_]+):\s*$", line):
+            gate = m.group(1)
+        elif (m := re.match(r"^      tool:\s*([A-Za-z0-9_]+)\s*(#.*)?$", line)) and skill and gate:
+            out[(skill, gate)] = m.group(1)
+    return out
+
+
+def step_sources(b: Block, steps: list[str]) -> dict[str, str]:
+    """For each step `<side>/<gate>`, in the order check-all runs them, a
+    sha256 over what that run of it reads: the block's files, bin/eda, the
+    engine files gate.py and the gate's check_<tool>.py read (Engine), the
+    data files no module names, and the same of every step before it that
+    could have made its input: the steps before it on its own side, and
+    for the top every side's step. An engine change stales only the steps
+    that read it; a change to gate.py, a library every gate imports, the
+    block or bin/eda stales them all. A gate whose tool can't be found
+    reads the whole engine."""
+    eng = Engine()
+    tools = gate_tools(ROOT / "engine" / "reference" / "gates.yaml")
+    skills = {w.tag: w.skill for w in b.workspaces}
+    base = set(_block_files(b)) | {"bin/eda"} | eng.unnamed
+    whole = set(_tracked("engine"))
+    own: dict[str, set[str]] = {}
+    out: dict[str, str] = {}
+    for s in steps:
+        tag, gate = s.split("/", 1)
+        tool = tools.get((skills.get(tag, ""), gate))
+        files = eng.closure(["gate", f"check_{tool}"]) if tool else None
+        own[s] = whole if files is None else files
+        reads = set(base)
+        for t, f in own.items():
+            if tag == "top" or t.split("/", 1)[0] == tag:
+                reads |= f
+        out[s] = _hash_files(reads)
+    return out
 
 
 def block_share(b: Block, table: dict[str, Workaround]) -> tuple[float, str]:
@@ -185,17 +318,25 @@ def block_share(b: Block, table: dict[str, Workaround]) -> tuple[float, str]:
     steps: dict[str, str] = rec.get("steps") or {}
     if not steps:
         return 0.0, f"{RECORD} records no step"
-    if rec.get("sources") != sources(b):
+    bad = []
+    if isinstance(rec.get("step_sources"), dict):
+        now = step_sources(b, list(steps))
+        stale = {s for s in steps if rec["step_sources"].get(s) != now[s]}
+    elif rec.get("sources") == sources(b):
+        stale = set()
+    else:
         return 0.0, (f"block, engine/ or bin/eda changed since check-all ran "
                      f"({rec.get('ran', '?')}): run check-all --record --block {b.name}")
-    bad = []
     for s, outcome in steps.items():
         why = [] if outcome in ("pass", "waived") else [outcome]
+        why += ["stale"] if s in stale else []
         why += [w.id for w in table.values() if w.charges(b.name, s)]
         if why:
             bad.append(f"{s} ({', '.join(why)})")
     ok = len(steps) - len(bad)
     line = f"{ok}/{len(steps)} clean, run {rec.get('ran', '?')} on {rec.get('toolchain') or '?'}"
+    if stale:
+        line += f"; {len(stale)} stale (its inputs changed since: run check-all --record --block {b.name})"
     return ok / len(steps), line + (f"; not: {'; '.join(bad)}" if bad else "")
 
 

@@ -136,6 +136,42 @@ def test_floating_node_detected_despite_exit_0_and_clean_prints():
     assert "source_stepping_failed" in kinds
 
 
+# A failed dynamic gmin step that true gmin stepping then recovers: the op
+# converged, so it is not an engine error (pll's PEX at tt_pss passed or
+# failed on this alone, by magic's element order between extractions).
+GMIN_RECOVERED_STDERR = """\
+Warning: can't find the initialization file spinit.
+Note: Starting dynamic gmin stepping
+Warning: Dynamic gmin stepping failed
+Note: Starting true gmin stepping
+Note: True gmin stepping completed
+Note: Transient op finished successfully
+"""
+
+
+def test_gmin_failure_recovered_by_a_later_step_is_not_an_error():
+    assert simlib.detect_engine_errors(GMIN_RECOVERED_STDERR) == []
+    assert simlib.detect_engine_errors(
+        GMIN_RECOVERED_STDERR.replace("True gmin stepping completed",
+                                      "True gmin stepping failed\n"
+                                      "Note: Starting source stepping\n"
+                                      "Note: Source stepping completed")) == []
+
+
+def test_gmin_failure_unrecovered_is_an_error():
+    unrecovered = GMIN_RECOVERED_STDERR.replace(
+        "Note: True gmin stepping completed\n", "")
+    assert simlib.detect_engine_errors(unrecovered) == ["gmin_stepping_failed"]
+
+
+def test_gmin_failure_not_recovered_by_a_later_op_search():
+    # a second op search's success says nothing about the first's failure
+    text = (GMIN_RECOVERED_STDERR.replace("Note: True gmin stepping completed\n", "")
+            + "Note: Starting dynamic gmin stepping\n"
+              "Note: Dynamic gmin stepping completed\n")
+    assert simlib.detect_engine_errors(text) == ["gmin_stepping_failed"]
+
+
 def test_unknown_model_detected():
     kinds = simlib.detect_engine_errors(UNKNOWN_MODEL_STDERR)
     assert "unknown_subckt" in kinds
