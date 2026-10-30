@@ -12,7 +12,11 @@ makes a FRESH scratch copy, imports its `plant.py` and calls `plant(ws)`,
 runs the ONE named gate, and checks the result against `expect` ({status:
 pass|fail, kind: <a kind among the failing findings>}) - "the suite passes
 when every fault is caught with the expected finding and the untouched
-reference passes every gate" (docs/design.md section 3).
+reference passes every gate" (docs/design.md section 3). A fault whose
+gate must refuse rather than run (a gate that did not run is a refusal,
+never a pass) expects {status: refused, error: <text the refusal's
+message carries>}: caught when the gate raises with that text, and a
+mismatch when it runs to a verdict instead.
 
 Runs gate.py's own evaluate() in-process (gate.run_report_for_gate +
 gate.evaluate, docs/design.md 1.5) rather than a `gate.py` subprocess: this
@@ -159,6 +163,30 @@ def check_expect(fault_name: str, result: dict, expect: dict) -> list[str]:
     return problems
 
 
+REFUSED = "refused"
+
+
+def check_refusal(fault_name: str, run, expect: dict) -> list[str]:
+    """`expect` {status: refused, error: TEXT}: the gate `run()` runs must
+    raise (its check refused: CheckError, or gate.py's RuntimeError over
+    an error report) with TEXT in its message. A verdict instead, pass or
+    fail, is a mismatch: the fault went through a gate that should not
+    have run on it."""
+    want = str(expect.get("error") or "")
+    if not want:
+        return [f"{fault_name}: expect status {REFUSED!r} needs the 'error' "
+                "text the refusal must carry"]
+    try:
+        _report, result = run()
+    except RuntimeError as exc:
+        if want in str(exc):
+            return []
+        return [f"{fault_name}: expected a refusal naming {want!r}, got: "
+                f"{str(exc)[:300]}"]
+    return [f"{fault_name}: expected a refusal naming {want!r}, got gate "
+            f"status {result.get('status')!r}"]
+
+
 def import_plant(rung_dir: Path, plant_rel: str):
     path = rung_dir / "faults" / plant_rel
     if not path.is_file():
@@ -218,8 +246,14 @@ def run_rung(tmp_root: Path, rung_dir: Path, skill: str, gates: dict) -> dict:
         # CHIP_FLOW_PRECHECK_TOP_OVERRIDE); it must not outlive that gate
         # and leak into the next fault's run in this same process.
         saved_env = dict(os.environ)
+        expect = entry.get("expect", {})
         try:
             plant(ws)
+            if expect.get("status") == REFUSED:
+                problems.extend(check_refusal(
+                    f"{rung}/{name}", lambda: run_gate(ws, gname, gates, skill),
+                    expect))
+                continue
             _report, result = run_gate(ws, gname, gates, skill)
         finally:
             os.environ.clear()
@@ -227,8 +261,7 @@ def run_rung(tmp_root: Path, rung_dir: Path, skill: str, gates: dict) -> dict:
         if gname == "mutate":
             gate_timings.setdefault("mutate_fault", round(
                 (_report or {}).get("wall_s", 0.0), 2))
-        problems.extend(check_expect(f"{rung}/{name}", result,
-                                     entry.get("expect", {})))
+        problems.extend(check_expect(f"{rung}/{name}", result, expect))
         # A holdout fault must be invisible to the visible tb/ suite - that
         # is the whole point of the `holdout` gate (gates.yaml: "... which
         # the visible tests do not look"). Without this, a fault that also
