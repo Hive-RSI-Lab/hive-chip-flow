@@ -28,7 +28,7 @@ when:
   through a shim in bin/ or an edit made by hand in the block's files.
 
 `bin/chip-flow score` first re-runs, through check-all, the blocks with a
-step no run covers, within a budget, and fills the cache; then it reads.
+step no run covers, to the end, and fills the cache; then it reads.
 `python3 bin/score.py` with CHIP_FLOW_SCORE_FAULT_BUDGET=0 reads only.
 
 A known block not under blocks/ yet scores 0. Blocks under blocks/ that

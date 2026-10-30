@@ -43,9 +43,10 @@ person signs off between stages. Submitting a tile is always the person's.
   ece298a-counter and Hive-RSI-Lab/ece298a-pll at their pinned commits), the mean share of gate steps
   that passed a run on what each step reads now (the block's files,
   `bin/eda` and the engine files that gate reads), with no workaround
-  listed in [docs/workarounds.md](docs/workarounds.md). It first runs, within
-  a budget (`CHIP_FLOW_SCORE_BUDGET`, 1500 s), the steps no cached or seeded
-  run covers; a step that didn't run counts as not clean. `--no-run` reads
+  listed in [docs/workarounds.md](docs/workarounds.md). It first runs, to the
+  end, the blocks with a step no cached or seeded run covers (a measure the
+  Hive cuts off keeps what it finished in the cache for the next try); a
+  step that didn't run counts as not clean. `--no-run` reads
   only. A known block not brought in yet scores 0.
 
 MIT, like upstream (LICENSE); the vendored Tiny Tapeout templates and tools

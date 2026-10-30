@@ -123,10 +123,14 @@ fails while a row and its probe disagree.
   that no workaround names; the score is 100 x the mean. A step's outcome
   is looked up by the hash of what it reads, in the step cache, then in
   the block's committed `check-all.json` (a seed). The score first runs
-  `check-all --stale` within `CHIP_FLOW_SCORE_BUDGET` seconds (1500, under
-  the Hive's 30-minute check), so a merge pays only for the steps it
-  changed, where the cache outlives the measure; a step that didn't run or
-  finish counts as not clean, never as passed. `chip-flow score --no-run`
+  `check-all --stale` to the end, so a stale known block is scored on its
+  gates, not on whether the score had time, and a merge pays only for the
+  blocks it changed, where the cache outlives the measure. A measure the
+  Hive's 30-minute check cuts off keeps every step it finished in the
+  cache, and the next try (60 minutes) runs only what is still uncovered;
+  the planted-fault rungs then get `CHIP_FLOW_SCORE_FAULT_BUDGET` seconds
+  (1500). A step that didn't run or finish counts as not clean, never as
+  passed. `chip-flow score --no-run`
   reads only, in seconds. A known block not under `blocks/` yet scores 0.
 
 ## What it never does
