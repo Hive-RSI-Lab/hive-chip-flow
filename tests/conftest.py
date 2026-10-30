@@ -9,6 +9,13 @@ the `slow` set separately under its own, longer hang cap. Registered here
 warns as unknown, and `pytest --markers` documents it."""
 from __future__ import annotations
 
+import os
+
+# Test scratch needs no durability: safelib skips fsync (tests/lib/
+# scratch.sh sets it for the entry points; this covers a bare pytest, and
+# the subprocesses the tests start inherit it). An explicit 0 keeps fsync.
+os.environ.setdefault("CHIP_FLOW_NO_FSYNC", "1")
+
 
 def pytest_configure(config) -> None:
     config.addinivalue_line(
