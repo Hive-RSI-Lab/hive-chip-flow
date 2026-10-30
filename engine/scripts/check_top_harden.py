@@ -13,8 +13,17 @@ with M4's own harden (check_harden.run, the same LibreLane job):
                       each of those signals to the analog cell's pin of the
                       same name, or a width-N signal to its N pins
                       <name>[N-1]..<name>[0] (engine/lib/ttlib.py's macros
-                      schema)
+                      schema), its files named relative to top/
   top/rtl/            a copy of digital/rtl
+  top/harden/constraints.sdc
+                      the top's design SDC (ttlib.prepare_harden_sdc), for
+                      a spec with more than one clock domain: the
+                      integrator's own <ws>/top.sdc when there is one, else
+                      digital/harden/constraints.sdc with each crossing
+                      signal's standalone pad bit moved onto the macro's pin
+                      ([get_ports {ui_in[3]}] -> [get_pins
+                      {u_analog/vco_out}]; top_sdc). top/ is rebuilt every
+                      run, so a file written there by hand never survives
   top/macros/         the analog cell as LibreLane takes a macro: its GDS
                       (layout_gen, rebuilt from analog/layout/gen_<block>.py
                       like every ade layout gate does), a LEF abstract magic
@@ -28,7 +37,12 @@ on the vendored analog pin template, and LibreLane routes each such pin
 to its pad (engine/lib/ttlib.py, "Analog tile").
 Analog pins that interface.yaml names nowhere are its supplies; the one
 named like vdd goes to VPWR and the one like vss to VGND (PDN macro hookup).
-The macro sits in the middle of the tile. The recipe - LEF by magic's `lef
+The macro sits in the middle of the tile, slid along x by whole sites (no
+further than one stripe pitch) to where the tile's Metal4 stripes reach
+both its supplies past the cell's own Metal4 (power_location); where none
+does, that is a `macro_power_unreachable` finding (no harden runs). With no
+PR boundary, the macro's GDS gets one over what it draws (clean_gds),
+which LibreLane's Magic.StreamOut needs. The recipe - LEF by magic's `lef
 write`, the PDN's Metal3-Metal4 connect, extraction from GDS - is
 docs/spikes/macro_harden.md's, except in two ways. The LEF abstract covers
 everything the macro draws, never a PR boundary smaller than that (one a
@@ -46,7 +60,9 @@ written the macro gets the PDK's dummy-COMP fill (fill_macro, the rules of
 the PDK's fill_comp.rb), since the top's fill skips a macro and DCF.1a
 judges the macro's inside at top_drc and the precheck. The tile's
 Metal4 stripes join the macro on Metal3 only, so a supply pin with no
-Metal3 shape is a `macro_power_unreachable` finding (no harden runs).
+Metal3 shape is a `macro_power_unreachable` finding (no harden runs); a
+supply's Metal3 the cell's own Metal4/Metal5 wholly covers (a via pad under
+its strap) is not offered as a pin, since the PDN refuses a buried pin.
 
 Refuses (exit 2) when either nested workspace or a piece the assembly needs
 is missing. An analog macro larger than the tile - by its LEF SIZE or by
@@ -60,6 +76,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import shutil
 import sys
@@ -77,11 +94,17 @@ from checklib import CheckError  # noqa: E402
 
 SCRIPT = "check_top_harden"
 TOP_DIR = "top"
+# the integrator's SDC for the assembled top, beside interface.yaml
+TOP_SDC_NAME = "top.sdc"
 INSTANCE = "u_analog"
 VDD_RE = re.compile(r"^(a?vdd|vpwr|vcc)", re.IGNORECASE)
 VSS_RE = re.compile(r"^(a?vss|gnd|vgnd)", re.IGNORECASE)
-# the layer engine/lib/macro_pdn.tcl joins to the tile's Metal4 stripes
+# the layer engine/lib/macro_pdn.tcl joins to the tile's Metal4 stripes,
+# and the stripes' own layer
 MACRO_POWER_LAYER = "Metal3"
+NEXT_UP = "Metal4"
+# Metal4's wide-metal spacing (Mn.2b), what the PDN keeps a stripe from OBS
+STRIPE_SPACING_UM = 0.3
 
 
 def _yaml(path: Path, what: str) -> dict:
@@ -112,7 +135,10 @@ def clean_gds(src: Path, dst: Path, cell: str) -> None:
     makes magic write a LEF ORIGIN: OpenROAD routes to the abstract's
     lower-left at the DEF point but the final GDS puts the cell's origin
     there, so every pin lands off its route (ece298a's R-2R DAC, a Metal3
-    vss strap below y=0, 12 LVS errors)."""
+    vss strap below y=0, 12 LVS errors). A cell with no PR boundary gets
+    one over what it draws: LibreLane's Magic.StreamOut reads the macro's
+    size from it and stops without one ("Failed to extract PR boundary"),
+    and write_lef's abstract ignores it either way."""
     import klayout.db as db
     layout = db.Layout()
     layout.read(str(src))
@@ -122,9 +148,17 @@ def clean_gds(src: Path, dst: Path, cell: str) -> None:
     box = top.bbox()
     if not box.empty() and (box.left or box.bottom):
         top.transform(db.Trans(-box.left, -box.bottom))
+    pr = layout.find_layer(*PR_BOUNDARY)
+    if not box.empty() and (pr is None or top.bbox_per_layer(pr).empty()):
+        pr = layout.layer(*PR_BOUNDARY) if pr is None else pr
+        top.shapes(pr).insert(db.Box(0, 0, box.width(), box.height()))
     opts = db.SaveLayoutOptions()
     opts.write_context_info = False
     layout.write(str(dst), opts)
+
+
+# gf180mcu's PR_bndry (GDS layer, datatype)
+PR_BOUNDARY = (0, 0)
 
 
 # Dummy-COMP fill, as the PDK's own libs.tech/klayout/tech/scripts/
@@ -368,8 +402,11 @@ def pin_lines(gds: Path, cell: str, ports: dict[str, bool]) -> list[str]:
     GDS points, so each port's label is grown to the rectangle of its own
     layer's metal under it. A label `ports` does not name is deleted, so its
     net goes out as OBS. A supply also gets a port label on each Metal3
-    rectangle of its net, where macro_pdn.tcl joins the tile's stripes.
-    Refuses a port label that sits on no metal of its layer."""
+    rectangle of its net, where macro_pdn.tcl joins the tile's stripes -
+    except one the cell's own higher metal wholly covers (buried), since
+    -pinonly writes that metal as OBS and OpenROAD's PDN stops the harden
+    on a pin its OBS covers (PDN-0006, even a via pad under the supply's
+    own Metal4). Refuses a port label that sits on no metal of its layer."""
     import klayout.db as db
     layout = db.Layout()
     layout.read(str(gds))
@@ -407,6 +444,15 @@ def pin_lines(gds: Path, cell: str, ports: dict[str, bool]) -> list[str]:
                 return rects(net["Metal3"])
             net = grown
 
+    above = names[names.index(MACRO_POWER_LAYER) + 1:]
+
+    def buried(box) -> bool:
+        # OpenROAD's InstanceGrid::checkSetup sums a pin box's overlap with
+        # every OBS rectangle above its layer and stops at >= its area;
+        # magic's OBS tiles a layer without overlap, so the sum is per layer
+        r = db.Region(box)
+        return sum((r & metal[m]).area() for m in above) >= box.area()
+
     wanted = {p.lower(): p for p in ports}
     lines, supply_rects = [], {}
     for layer, gds_layer in METALS.items():
@@ -434,7 +480,8 @@ def pin_lines(gds: Path, cell: str, ports: dict[str, bool]) -> list[str]:
             lines.append(f"setlabel box {um(pin_box)}")
             if ports[pin]:
                 supply_rects.setdefault(pin, set()).update(
-                    r for r in net_metal3(layer, shape) if r != pin_box)
+                    r for r in net_metal3(layer, shape)
+                    if r != pin_box and not buried(r))
     for pin, boxes in sorted(supply_rects.items()):
         for box in sorted(boxes, key=lambda b: (b.left, b.bottom)):
             lines += ["select clear", f"box {um(box)}",
@@ -529,6 +576,81 @@ def lef_pin_layers(lef: Path, pin: str) -> set[str]:
                           re.MULTILINE)) if m else set()
 
 
+def lef_rects(lef: Path, layer: str,
+              pin: str | None = None) -> list[tuple[float, ...]]:
+    """The RECTs on `layer` of the LEF pin `pin`, or with pin None every
+    RECT on `layer` in the macro - its pins' and its OBS."""
+    text = lef.read_text(encoding="utf-8", errors="replace")
+    out, section, on = [], None, None
+    for line in text.splitlines():
+        words = line.split()
+        if not words:
+            continue
+        if words[0] == "PIN" and len(words) > 1:
+            section = words[1]
+        elif words[0] == "OBS":
+            section = None
+        elif words[0] == "LAYER" and len(words) > 1:
+            on = words[1]
+        elif words[0] == "RECT" and on == layer and (
+                pin is None or section == pin):
+            out.append(tuple(float(v) for v in words[1:5]))
+    return out
+
+
+def supply_reach(lef: Path, pin: str, half: float,
+                 halo: float = ttlib.MACRO_PDN_HALO_UM,
+                 space: float = STRIPE_SPACING_UM
+                 ) -> list[tuple[float, float]]:
+    """The x intervals (in the cell's own frame) where the centre of one of
+    the tile's vertical Metal4 stripes, `half` um each side of it, crosses
+    one of `pin`'s Metal3 rectangles with no Metal4 of the cell within
+    `halo` + `space` of the stripe between that rectangle and the cell's
+    top or bottom edge. The PDN cuts a stripe at each of the macro's OBS
+    grown by the PDN halo and the layer's spacing (OpenROAD's
+    InstanceGrid::getInstanceObstructions), so only there does the stripe
+    reach the pin from the tile's grid and get its Metal3-Metal4 vias
+    (PDN-0232: a macro grid with no vias). Every Metal4 of the cell counts,
+    its own nets too: -pinonly writes them as OBS."""
+    metal4 = lef_rects(lef, NEXT_UP)
+    grow = halo + space
+    reach: list[tuple[float, float]] = []
+    for x0, y0, x1, y1 in lef_rects(lef, MACRO_POWER_LAYER, pin):
+        for below in (True, False):
+            free = [(x0 + half, x1 - half)]
+            for bx0, by0, bx1, by1 in metal4:
+                if (by0 - grow < y1) if below else (by1 + grow > y0):
+                    lo, hi = bx0 - half - grow, bx1 + half + grow
+                    free = [part for a, b in free for part in
+                            ((a, min(b, lo)), (max(a, hi), b))
+                            if part[0] <= part[1]]
+            reach += free
+    return sorted({(round(a, 3), round(b, 3)) for a, b in reach})
+
+
+def power_location(macro: dict, die_area: str, start: list[float],
+                   stripes: list[tuple[str, float]], half: float,
+                   pitch: float) -> list[float] | None:
+    """The macro's lower-left nearest `start` along x, on the site grid and
+    no further than one stripe `pitch`, where a stripe of VPWR reaches its
+    vdd pin and one of VGND its vss pin (supply_reach); None when no such
+    place keeps it in the die."""
+    lef = Path(macro["files"]["lef"])
+    w = macro_size(lef, Path(macro["files"]["gds"]), macro["cell"])[0]
+    reach = {net: supply_reach(lef, macro["power"][side], half)
+             for net, side in (("VPWR", "vdd"), ("VGND", "vss"))}
+    _x0, _y0, dx, _dy = (float(v) for v in die_area.split())
+    steps = int(pitch / ttlib.SITE_WIDTH_UM) + 1
+    for n in sorted(range(-steps, steps + 1), key=lambda k: (abs(k), k)):
+        x = round(start[0] + n * ttlib.SITE_WIDTH_UM, 2)
+        if x < 0 or x + w > dx:
+            continue
+        if all(any(a <= c - x <= b for net_c, c in stripes if net_c == net
+                   for a, b in spans) for net, spans in reach.items()):
+            return [x, start[1]]
+    return None
+
+
 def unpowered_supplies(macro: dict) -> list[str]:
     """The macro's supply pins with no Metal3 shape. macro_pdn.tcl connects
     the tile's Metal4 stripes to the macro on Metal3 and nowhere else, so
@@ -579,6 +701,152 @@ def centre(die_area: str, w: float, h: float) -> list[float] | None:
         return None
     return [round(round((dx - w) / 2 / 0.56) * 0.56, 2),
             round(round((dy - h) / 2 / 3.92) * 3.92, 2)]
+
+
+def crossing_pins(dspec: dict, macro: dict) -> dict[str, str]:
+    """{standalone TT pin bit: macro instance pin} for every crossing signal
+    the digital spec's tt_pins put on a pad: in the standalone harden that
+    signal enters (or leaves) on, say, ui_in[3]; in the top it is the
+    macro's pin u_analog/vco_out. A width-N port's bit k is pad bit lo+k
+    and macro pin <name>[k]. A crossing signal with no tt_pins entry has
+    nothing to rewrite."""
+    tt_pins = {k.lower(): v for k, v in (dspec.get("tt_pins") or {}).items()}
+    out: dict[str, str] = {}
+    for pin, port in macro["pins"].items():
+        expr = tt_pins.get(port.lower())
+        if expr is None:
+            continue
+        p = ttlib.parse_pin_expr(expr)
+        at = f"{macro['instance']}/{pin}"
+        if p["hi"] is None:
+            out[p["base"]] = at
+        elif p["hi"] == p["lo"]:
+            out[f"{p['base']}[{p['lo']}]"] = at
+        else:
+            out.update({f"{p['base']}[{p['lo'] + k}]": f"{at}[{k}]"
+                        for k in range(p["hi"] - p["lo"] + 1)})
+    return out
+
+
+def _tcl_words(text: str, i: int) -> tuple[list[tuple[str, str]], int]:
+    """The Tcl words of a command from text[i] to its closing `]`, as
+    (kind, word) with kind brace, quote or bare, and the index of that
+    `]`. A bare word may hold a nested [...] (it is kept whole)."""
+    words, n = [], len(text)
+    while i < n:
+        c = text[i]
+        if c in " \t\n" or text.startswith("\\\n", i):
+            i += 2 if c == "\\" else 1
+            continue
+        if c == "]":
+            return words, i
+        if c in "{\"":
+            close, depth, j = ("}" if c == "{" else "\""), 0, i + 1
+            while j < n:
+                if text[j] == "\\":
+                    j += 2
+                    continue
+                if c == "{" and text[j] == "{":
+                    depth += 1
+                elif text[j] == close:
+                    if depth == 0:
+                        break
+                    depth -= 1
+                j += 1
+            words.append(("brace" if c == "{" else "quote", text[i + 1:j]))
+            i = j + 1
+            continue
+        depth, j = 0, i
+        while j < n:
+            if text[j] == "\\":
+                j += 2
+                continue
+            if text[j] == "[":
+                depth += 1
+            elif text[j] == "]":
+                if depth == 0:
+                    break
+                depth -= 1
+            elif text[j] in " \t\n" and depth == 0:
+                break
+            j += 1
+        words.append(("bare", text[i:j]))
+        i = j
+    raise CheckError("an SDC [get_ports ...] has no closing ]")
+
+
+def rewrite_crossing_ports(text: str, cross: dict[str, str]) -> str:
+    """`text` (a design SDC against the standalone wrapper) with every
+    crossing pad bit a [get_ports ...] names exactly moved onto its macro
+    pin: [get_ports {ui_in[3]}] becomes [get_pins {u_analog/vco_out}], and
+    a list naming other ports too becomes the concat of the two. Patterns
+    (ui_in[*]) are left alone: they still match the top's own ports. A
+    crossing bit still named anywhere else in a command is a refusal, since
+    in the top that port reaches nothing."""
+    out, pos = [], 0
+    for m in re.finditer(r"\[\s*get_ports\b", text):
+        if m.start() < pos:
+            continue
+        words, end = _tcl_words(text, m.end())
+        opts = [w for k, w in words if k == "bare" and w.startswith("-")]
+        names = [name for k, w in words
+                 if not (k == "bare" and w.startswith("-"))
+                 for name in (w.split() if k == "brace"
+                              else [w.replace("\\[", "[")
+                                     .replace("\\]", "]")])]
+        pins = [cross[n] for n in names if n in cross]
+        if not pins:
+            continue
+        ports = [n for n in names if n not in cross]
+        flags = "".join(f" {o}" for o in opts)
+        got = f"[get_pins{flags} {{{' '.join(pins)}}}]"
+        if ports:
+            got = (f"[concat [get_ports{flags} {{{' '.join(ports)}}}] "
+                   f"{got}]")
+        out += [text[pos:m.start()], got]
+        pos = end + 1
+    out.append(text[pos:])
+    new = "".join(out)
+    left = [(bit, cmd) for cmd in ttlib._sdc_commands(new) for bit in cross
+            if re.search(r"(?<![\w/])" + re.escape(bit).replace(
+                r"\[", r"\\?\[").replace(r"\]", r"\\?\]") + r"(?!\w)", cmd)]
+    if left:
+        bit, cmd = left[0]
+        raise CheckError(
+            f"digital/harden/{ttlib.HARDEN_SDC_NAME} names {bit}, which in "
+            f"the top is the macro pin {cross[bit]}, outside a [get_ports "
+            f"...] top_harden can move ({cmd!r}); write the top's own SDC "
+            f"at {TOP_SDC_NAME} in the msde workspace")
+    return new
+
+
+def top_sdc(ws: Path, dspec: dict, macro: dict) -> str | None:
+    """The text of top/harden/constraints.sdc, or None when there is none
+    to write: the integrator's <ws>/top.sdc as it is, else the digital
+    side's harden/constraints.sdc with its crossing ports on the macro's
+    pins (rewrite_crossing_ports). A spec with more than one clock domain
+    and neither file is a refusal here, naming both, rather than
+    check_harden's about a file under top/ no one can write."""
+    own = ws / TOP_SDC_NAME
+    if own.is_file():
+        return own.read_text(encoding="utf-8")
+    dsdc = ws / "digital" / "harden" / ttlib.HARDEN_SDC_NAME
+    if dsdc.is_file():
+        head = (f"# Generated by check_top_harden.py from digital/harden/"
+                f"{ttlib.HARDEN_SDC_NAME}, each crossing port moved onto "
+                f"the macro's pin; write {TOP_SDC_NAME} in the msde "
+                "workspace to give the top its own.\n")
+        return head + rewrite_crossing_ports(
+            dsdc.read_text(encoding="utf-8"), crossing_pins(dspec, macro))
+    domains = (dspec.get("clock") or {}).get("domains") or []
+    if isinstance(domains, list) and len(domains) > 1:
+        raise CheckError(
+            f"the digital spec's clock.domains {domains} names more than one "
+            f"clock but neither {TOP_SDC_NAME} nor digital/harden/"
+            f"{ttlib.HARDEN_SDC_NAME} exists - write {TOP_SDC_NAME} in the "
+            "msde workspace with the other clocks against the top's "
+            f"ports and the macro's pins ({macro['instance']}/<pin>)")
+    return None
 
 
 def assemble(ws: Path) -> tuple[Path, dict]:
@@ -644,13 +912,40 @@ def assemble(ws: Path) -> tuple[Path, dict]:
     if tspec["ua_problems"]:
         return top, tspec
     del tspec["ua_problems"]
+    # a supply the tile's stripes can't reach is a design finding too
+    if not unpowered_supplies(macro):
+        die = ttlib.tile_die_area(tiles)
+        try:
+            pdn = ttlib.tile_pdn(layoutlib.pdk_root())
+            stripes = ttlib.tile_power_stripes(die, pdn)
+        except ttlib.TTError as exc:
+            raise CheckError(str(exc)) from exc
+        placed = power_location(macro, die, macro["location"], stripes,
+                                pdn["PDN_VWIDTH"] / 2, pdn["PDN_VPITCH"])
+        if placed is None:
+            tspec["power_unreached"] = {
+                "width": pdn["PDN_VWIDTH"], "halo": ttlib.MACRO_PDN_HALO_UM,
+                "step": pdn["PDN_VWIDTH"] + pdn["PDN_VSPACING"]}
+            return top, tspec
+        macro["location"] = placed
     problems = ttlib.validate_tt_pins(tspec)
     if problems:
         raise CheckError("the assembled top's pins do not fit: "
                          + "; ".join(problems))
+    sdc = top_sdc(ws, dspec, macro)
+    if sdc is not None:
+        (top / "harden").mkdir()
+        (top / "harden" / ttlib.HARDEN_SDC_NAME).write_text(
+            sdc, encoding="utf-8")
     import yaml
+    # the macro's files relative to top/, as check_harden and top_lvs read
+    # them: the spec is committed with the block, the machine's path is not
+    on_disk = {**tspec, "macros": [
+        {**m, "files": {k: os.path.relpath(v, top)
+                        for k, v in m["files"].items()}}
+        for m in tspec["macros"]]}
     (top / "spec" / "spec.yaml").write_text(
-        yaml.safe_dump(tspec, sort_keys=False), encoding="utf-8")
+        yaml.safe_dump(on_disk, sort_keys=False), encoding="utf-8")
     return top, tspec
 
 
@@ -699,6 +994,30 @@ def run(argv=None):
             f"as a {MACRO_POWER_LAYER} strap across the cell's width, as "
             "corpus/msde/dac_tile's generator does", SCRIPT)
             for m, pin in unpowered]
+        payload = checklib.report(SCRIPT, ws / "digital" / "rtl", violations,
+                                  macros=macros)
+        return payload, args.out
+    unreached = [m for m in spec["macros"] if spec.get("power_unreached")]
+    if unreached:
+        pdn = spec["power_unreached"]
+        col = pdn["width"] + 2 * (pdn["halo"] + STRIPE_SPACING_UM)
+        violations = [checklib.violation(
+            "top_harden", "error", None, m["cell"], "macro_power_unreachable",
+            [], f"no place for the analog macro {m['cell']} in the tile lets "
+            f"the tile's Metal4 power stripes reach both {m['power']['vdd']} "
+            f"and {m['power']['vss']}: the PDN cuts a stripe at each of the "
+            f"cell's own Metal4 (all of it OBS) grown by the "
+            f"{pdn['halo']:g} um PDN halo and {STRIPE_SPACING_UM} um "
+            "spacing, so a stripe joins a supply only through a column "
+            f"{col:g} um wide with no Metal4, from the cell's top or bottom "
+            "edge to one "
+            f"of that supply's {MACRO_POWER_LAYER} straps; leave one for "
+            f"{m['power']['vdd']} and one for {m['power']['vss']} "
+            f"{pdn['step']:g} um to its right (the tile's VGND stripe beside "
+            "its VPWR) - one Metal4-free column "
+            f"{col + pdn['step']:g} um wide crossing a strap of each always "
+            "fits", SCRIPT)
+            for m in unreached]
         payload = checklib.report(SCRIPT, ws / "digital" / "rtl", violations,
                                   macros=macros)
         return payload, args.out

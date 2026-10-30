@@ -146,8 +146,9 @@ released fails here as `nested_not_released`.
 ## Edit classes and the nested cascade
 
 msde's own edit classes (`invalidation.yaml`) are `spec_edit` and
-`interface_edit`; both mark `split`, `cosim`, `top_harden`, `top_drc`,
-`top_lvs` and `release`. `docs/design.md` 1.6 adds that `interface_edit` marks both
+`interface_edit`, which both mark `split`, `cosim`, `top_harden`, `top_drc`,
+`top_lvs` and `release`, and `top_sdc_edit` (the integrator's `top.sdc`),
+which marks `top_harden` onward. `docs/design.md` 1.6 adds that `interface_edit` marks both
 nested runs' `spec_edit`, and a plain `state.py edit` cannot reach a
 nested `state.json`. So after ANY interface edit, run in each nested
 workspace that exists:
@@ -168,6 +169,7 @@ Other cross-boundary edits, declared where the file lives:
 |---|---|---|
 | interface.yaml | `interface_edit`, then the cascade above | msde, then both sides |
 | a side's design, re-released | nothing to declare: `top_harden` hashes `digital/rtl` and `analog/layout`, and `top_drc`/`top_lvs` hash its GDS | msde |
+| `top.sdc` (the top's clocks) | `top_sdc_edit`; `top_harden` also hashes it and `digital/harden/constraints.sdc` | msde |
 | `tb/` (the cosim bench) | none exists for msde; `cosim`'s `tb` input hash catches it | msde |
 
 ## Run start / resume
@@ -257,9 +259,10 @@ step up and record it; never silently drop a tier.
   analog sizing does not stale a recorded pass - re-run `top_harden`, then
   `top_drc` and `top_lvs`, by hand after one.
 - **The macro sits in the middle of the tile**, placed by `top_harden`, at
-  a size the analog layout decides. A macro too large for the tile, or one
-  that leaves the standard cells no room to route, is an analog layout
-  fix, not a floorplan knob msde owns.
+  a size the analog layout decides. It moves off-centre by up to one stripe
+  pitch where that lets the tile's power stripes reach its supplies. A
+  macro too large for the tile, or one that leaves the standard cells no
+  room to route, is an analog layout fix, not a floorplan knob msde owns.
 - **`dac_spi` and `sar_adc` are specs only.** Those corpus rungs have
   interface files and `split` faults, no reference design or bench; they
   may stay red. `sensor_counted` and `ring_osc_div` are the working rungs.

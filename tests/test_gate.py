@@ -377,6 +377,32 @@ def test_relative_workspace_reaches_the_check_absolute(tmp_path, capsys,
     assert code == 0, capsys.readouterr().out
 
 
+def test_the_result_names_the_workspace_files_relative_to_it(tmp_path, capsys):
+    # The check gets the resolved workspace, so a tool's own paths (a run
+    # dir, a yosys src attribute) come back absolute; what the gate writes
+    # and records is committed with the block, so it names them relative.
+    ws = make_ws(tmp_path)
+    gates_yaml = make_gates_yaml(tmp_path)
+    checks_dir = make_checks_dir(tmp_path, FAKE_CHECK.replace(
+        '    return payload, args.out',
+        '    payload["run_dir"] = str(Path(args.workspace) / "harden" / "runs")\n'
+        '    payload["src"] = "$add$" + str(Path(args.workspace) / "rtl" / "a.v") + ":3$1"\n'
+        '    return payload, args.out'))
+    out_path = tmp_path / "gate-lint.json"
+    code = gate.main(["--gate", "lint", "--workspace", str(ws),
+                      "--gates", str(gates_yaml), "--checks-dir", str(checks_dir),
+                      "--out", str(out_path)])
+    assert code == 0
+    out = json.loads(out_path.read_text(encoding="utf-8"))
+    assert out["facts"]["run_dir"] == "harden/runs"
+    assert out["facts"]["src"] == "$add$rtl/a.v:3$1"
+    assert out["record_result"]["workspace"] == "."
+    recorded = ws / "reports" / "recorded" / "gate-lint.json"
+    gates = json.loads((ws / "state.json").read_text(encoding="utf-8"))["gates"]
+    for text in (out_path.read_text(), recorded.read_text(), json.dumps(gates)):
+        assert str(tmp_path) not in text
+
+
 def test_commit_carries_this_runs_report_and_leaves_it_clean(tmp_path, capsys):
     """`--out <ws>/reports/gate-<g>.json --commit`: the gate commit must hold
     the report of the run that passed, and leave no modified report behind

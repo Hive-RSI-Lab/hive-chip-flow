@@ -24,7 +24,7 @@
   "run_tag": "run",
   "resumed": true,
   "wall_s": 74.76,
-  "run_dir": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/harden/runs/run",
+  "run_dir": "harden/runs/run",
   "metrics": {
    "design__instance__count": 1913,
    "design__instance__area": 51967,

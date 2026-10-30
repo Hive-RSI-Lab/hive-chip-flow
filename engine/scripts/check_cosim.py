@@ -12,6 +12,13 @@ first fallback is what M10 builds on) so ONE bench genuinely drives both
 sides - the Icarus-compiled digital side reacts to real ngspice-computed
 analog transitions, not a stub.
 
+A bench should build its bridge as engine/lib/cosimlib.py's CosimBridge
+(`from cosimlib import CosimBridge` - this gate's engine/lib is on the
+bench's PYTHONPATH), MixedSignalBridge with two fixes: a sync point missed
+by a float rounding counts as reached (else ngspice's "Timestep too small"
+at the first sync), and an analog output is written on change to a `reg`,
+not Forced at every sync (which crashed vvp after a few hundred forces).
+
 `tb/cosim_bench.json` names the top module, its bounds sidecar, and the
 analog netlist it actually simulated:
     {"top": "<hdl_toplevel>", "bounds": "<name>.bounds.json",

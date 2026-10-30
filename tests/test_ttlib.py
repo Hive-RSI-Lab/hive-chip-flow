@@ -4,6 +4,7 @@ read the vendored template files (engine/reference/tt/) directly, and
 generate_tt_wrapper()/generate_glsim_harness() are text generation."""
 from __future__ import annotations
 
+import json
 import re
 import sys
 from pathlib import Path
@@ -197,6 +198,42 @@ def test_harden_override_may_not_replace_the_specs_macros(tmp_path):
     assert config["PL_TARGET_DENSITY_PCT"] == 50
 
 
+def _pdk_config(tmp_path: Path, keys: dict) -> Path:
+    pdk = tmp_path / "gf180mcuD"
+    cfg = pdk / "libs.tech" / "librelane" / "config.tcl"
+    cfg.parent.mkdir(parents=True)
+    cfg.write_text("".join(f"set ::env({k}) {v}\n" for k, v in keys.items()))
+    return pdk
+
+
+def test_tile_power_stripes_match_the_pdns_own_layout(tmp_path):
+    """The PLL's 1x2 analog tile, as LibreLane's DEF drew it: VPWR at
+    19.68 + 38.87k (the core's 6-site margin plus PDN_VOFFSET; the
+    template's FP_PDN_VPITCH over the PDK's pitch), VGND 3.3 um right."""
+    pdk = _pdk_config(tmp_path, {"PDN_VOFFSET": 16.32, "PDN_VWIDTH": 1.6,
+                                 "PDN_VSPACING": 1.7, "PDN_VPITCH": 153.6})
+    pdn = ttlib.tile_pdn(pdk)
+    assert pdn["PDN_VPITCH"] == 38.87
+    stripes = ttlib.tile_power_stripes("0 0 346.64 325.36", pdn)
+    assert stripes[:4] == [("VPWR", 19.68), ("VGND", 22.98),
+                           ("VPWR", 58.55), ("VGND", 61.85)]
+    assert stripes[-2:] == [("VPWR", 330.64), ("VGND", 333.94)]
+    assert len(stripes) == 18
+    with pytest.raises(ttlib.TTError, match="PDN_VOFFSET"):
+        ttlib.tile_pdn(_pdk_config(tmp_path / "x", {"PDN_VWIDTH": 1.6}))
+
+
+def test_macro_config_sets_the_pdn_halo_placement_counts_on(tmp_path):
+    macro = {"cell": "a", "instance": "u_analog", "location": [1, 2],
+             "power": {"vdd": "vdd", "vss": "vss"},
+             "files": {k: f"a.{k}" for k in ("gds", "lef", "vh", "spice")}}
+    config = ttlib.macro_config([macro])
+    assert config["PDN_HORIZONTAL_HALO"] == ttlib.MACRO_PDN_HALO_UM
+    assert config["PDN_VERTICAL_HALO"] == ttlib.MACRO_PDN_HALO_UM
+    assert {"PDN_VERTICAL_HALO", "PDN_VOFFSET", "FP_PDN_VWIDTH"} <= \
+        ttlib.forbidden_override_keys()
+
+
 def test_clock_port_none_when_spec_names_no_domain():
     assert ttlib.clock_port(COUNTER8_SPEC) is None
     assert ttlib.clock_port({**COUNTER8_SPEC, "clock": {"period_ns": 20}}) is None
@@ -317,8 +354,44 @@ def test_prepare_harden_sdc_writes_the_flow_sdc(tmp_path):
     assert flow == tmp_path / ttlib.FLOW_SDC_NAME
     lines = flow.read_text(encoding="utf-8").splitlines()
     base = lines.index("source $::env(SCRIPTS_DIR)/base.sdc")
-    assert lines.index(f"source {{{design.resolve()}}}") > base
+    # the design's SDC by the design directory LibreLane runs from, never
+    # by this machine's path
+    assert lines.index(f'source "$::env(DESIGN_DIR)/{design.name}"') > base
+    assert str(tmp_path) not in flow.read_text()
     assert "set_propagated_clock [all_clocks]" in flow.read_text()
+
+
+def test_portable_config_names_no_machine_path(tmp_path):
+    # harden/config.json is committed with a block: a path in it is the
+    # workspace's (dir::, relative to harden/) or a copy beside it, never
+    # this machine's
+    ws = tmp_path / "blk"
+    (ws / "rtl").mkdir(parents=True)
+    harden = ws / "harden"
+    harden.mkdir()
+    spec = {**_analog_spec({"vout": 0}), "clock": {"period_ns": 20}}
+    spec["macros"][0].update(location=[10, 10], power={"vdd": "vdd",
+                             "vss": "vss"}, files={k: str(ws / "macros" / f"m.{k}")
+                                                  for k in ("gds", "lef", "vh", "spice")})
+    config = ttlib.harden_config(spec, [ws / "rtl" / "a.v"],
+                                 harden / "tt_um_a.v", tmp_path / "pdks",
+                                 flow_sdc=harden / "flow.sdc",
+                                 override={"EXTRA_LEFS": ["/elsewhere/x.lef"]})
+    out = ttlib.portable_config(config, harden)
+    assert out["VERILOG_FILES"] == ["dir::../rtl/a.v", "dir::tt_um_a.v"]
+    assert out["PNR_SDC_FILE"] == out["SIGNOFF_SDC_FILE"] == "dir::flow.sdc"
+    assert out["FP_DEF_TEMPLATE"] == "dir::tt_analog_1x2.def"
+    assert (harden / "tt_analog_1x2.def").read_bytes() == \
+        ttlib.def_template_path("1x2", True).read_bytes()
+    assert out["PDN_CFG"] == "dir::macro_pdn.tcl"
+    assert (harden / "macro_pdn.tcl").read_bytes() == \
+        ttlib.MACRO_PDN_CFG.read_bytes()
+    macro = next(iter(out["MACROS"].values()))
+    assert macro["gds"] == ["dir::../macros/m.gds"]
+    assert out["EXTRA_SPICE_MODELS"] == ["dir::../macros/m.spice"]
+    assert "PDK_ROOT" not in out  # check_harden passes --pdk-root
+    assert out["EXTRA_LEFS"] == ["/elsewhere/x.lef"]  # not ours to move
+    assert str(tmp_path) not in json.dumps(out)
 
 
 def test_prepare_harden_sdc_one_clock_without_a_design_sdc_is_unchanged(tmp_path):

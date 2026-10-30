@@ -1,3 +1,4 @@
 {
-  "test": ""
+  "test": "bin/chip-flow test",
+  "score": {"command": "bin/chip-flow score", "direction": "higher", "tolerance": 0, "paths": ["bin/score.py", "bin/check_all.py", "blocks/known.json", "tests/workarounds/"]}
 }

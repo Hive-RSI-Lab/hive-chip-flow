@@ -76,6 +76,62 @@ def test_a_supply_with_no_metal3_is_unreachable(tmp_path):
         _lef(tmp_path, "Metal3", "Metal3")) == []
 
 
+def _power_lef(tmp_path: Path, metal4: list[tuple]) -> Path:
+    """A 100 x 100 um macro abstract: vdd's Metal3 strap across it at
+    y=50, vss's at y=40, and `metal4` as OBS."""
+    lef = tmp_path / "pwr.lef"
+    lef.write_text("MACRO pwr\n  SIZE 100.000 BY 100.000 ;\n" + "".join(
+        f"  PIN {pin}\n    PORT\n      LAYER Metal3 ;\n"
+        f"        RECT 0 {y} 100 {y + 0.4} ;\n    END\n  END {pin}\n"
+        for pin, y in (("vdd", 50), ("vss", 40))) + "  OBS\n"
+        "      LAYER Metal4 ;\n" + "".join(
+            f"        RECT {' '.join(map(str, r))} ;\n" for r in metal4)
+        + "  END\nEND pwr\n")
+    return lef
+
+
+def test_supply_reach_keeps_the_pdn_halo_off_the_cells_metal4(tmp_path):
+    """The PLL's vdd strap (breakage: PDN-0232, a macro grid with no vias):
+    OpenROAD cuts the tile's stripe at each Metal4 OBS grown by the 10 um
+    PDN halo and the 0.3 um spacing, so a stripe 1.6 um wide reaches the
+    strap only where 11.1 um clear of the cell's Metal4 on its way in from
+    the top or bottom edge."""
+    lef = _power_lef(tmp_path, [(40, 0, 41, 60)])
+    reach = check_top_harden.supply_reach(lef, "vdd", 0.8)
+    # from below and from above the wire at x=40-41 is in the way
+    assert reach == [(0.8, 28.9), (52.1, 99.2)]
+    # a wire wholly above the strap, more than the halo away, blocks only
+    # the way in from the top
+    lef = _power_lef(tmp_path, [(60, 61, 61, 90)])
+    reach = check_top_harden.supply_reach(lef, "vdd", 0.8)
+    assert reach == [(0.8, 48.9), (0.8, 99.2), (72.1, 99.2)]
+
+
+def test_power_location_moves_the_macro_until_its_supplies_are_reached(
+        tmp_path):
+    """Centred, the tile's VPWR stripe lands where the cell's Metal4 keeps
+    it off vdd; a few sites to the side both stripes of the pair get in.
+    Metal4 over the whole cell is no place at all."""
+    gds = _gds(tmp_path, 100)
+    # VPWR every 40 um at 20 + 40k, VGND 3.3 um to its right
+    stripes = [(n, x + k * 40) for k in range(9)
+               for n, x in (("VPWR", 20), ("VGND", 23.3))]
+    # free columns for a stripe centre: x 50.8-55 in the cell's frame
+    lef = _power_lef(tmp_path, [(0, 0, 39.7, 100), (66.1, 0, 100, 100)])
+    macro = {"cell": "mac", "power": {"vdd": "vdd", "vss": "vss"},
+             "files": {"lef": str(lef), "gds": str(gds)}}
+    die = "0 0 400 100"
+    # at x=160 the stripes fall at 60 / 63.3 in the cell, past 55; the
+    # nearest site that brings the VPWR at 220 into 50.8-51.7 (its VGND
+    # still under 55) is 15 sites right
+    assert check_top_harden.power_location(
+        macro, die, [160.0, 0.0], stripes, 0.8, 40) == [168.4, 0.0]
+    buried = _power_lef(tmp_path, [(0, 0, 100, 100)])
+    macro["files"]["lef"] = str(buried)
+    assert check_top_harden.power_location(macro, die, [160.0, 0.0],
+                                           stripes, 0.8, 40) is None
+
+
 # ----------------------------------------------- interface.yaml vs. spec.yaml
 
 def _iface_ws(tmp_path: Path, sig_width: int, port_width: int) -> Path:
@@ -119,6 +175,137 @@ def test_assemble_passes_the_width_check_when_widths_match(tmp_path):
     # the width check itself does not fire on a genuine match
     with pytest.raises(CheckError, match="no layout generator"):
         check_top_harden.assemble(ws)
+
+
+# ------------------------------------------------------------ the top's SDC
+
+# the PLL's shape (ece298a-pll blocks/pll): the VCO clock enters the
+# standalone harden on ui_in[3] and comes from the analog macro in the top
+PLL_DSPEC = {
+    "top": "pll", "ports": {
+        "clk": {"dir": "input"}, "vco_out": {"dir": "input"},
+        "code": {"dir": "output", "width": 2}, "lock": {"dir": "output"}},
+    "tt_pins": {"clk": "clk", "vco_out": "ui_in[3]", "code": "uo_out[5:4]",
+                "lock": "uo_out[0]"},
+    "clock": {"period_ns": 80, "domains": ["clk", "vco_out"],
+              "primary": "clk"}}
+PLL_MACRO = {"instance": "u_analog",
+             "pins": {"vco_out": "vco_out", "code": "code"}}
+PLL_SDC = """\
+# vco_out on ui_in[3]
+create_clock -name vco_out -period 2.7 [get_ports {ui_in[3]}]
+create_generated_clock -name pre -source [get_ports {ui_in[3]}] \\
+    -divide_by 2 [get_pins u_pre/q]
+set_load 0.1 [get_ports uo_out\\[4\\]]
+set_input_delay 1 -clock clk [get_ports -quiet {ui_in[2] ui_in[3]}]
+set_input_delay 2 -clock clk [get_ports {ui_in[*]}]
+"""
+
+
+def test_crossing_pins_map_each_pad_bit_to_its_macro_pin():
+    assert check_top_harden.crossing_pins(PLL_DSPEC, PLL_MACRO) == {
+        "ui_in[3]": "u_analog/vco_out",
+        "uo_out[4]": "u_analog/code[0]", "uo_out[5]": "u_analog/code[1]"}
+
+
+def test_rewrite_moves_crossing_ports_onto_the_macro_pins():
+    cross = check_top_harden.crossing_pins(PLL_DSPEC, PLL_MACRO)
+    out = check_top_harden.rewrite_crossing_ports(PLL_SDC, cross)
+    assert ("create_clock -name vco_out -period 2.7 "
+            "[get_pins {u_analog/vco_out}]") in out
+    assert "-source [get_pins {u_analog/vco_out}] \\\n" in out
+    assert "set_load 0.1 [get_pins {u_analog/code[0]}]" in out
+    assert ("[concat [get_ports -quiet {ui_in[2]}] "
+            "[get_pins -quiet {u_analog/vco_out}]]") in out
+    # a pattern still matches the top's own ports; a comment is a comment
+    assert "[get_ports {ui_in[*]}]" in out
+    assert "# vco_out on ui_in[3]" in out
+    import ttlib
+    assert not ttlib.design_sdc_problems(
+        {**PLL_DSPEC, "tt_pins": {"clk": "clk"}}, out)
+
+
+def test_rewrite_refuses_a_crossing_bit_it_cannot_move():
+    cross = check_top_harden.crossing_pins(PLL_DSPEC, PLL_MACRO)
+    with pytest.raises(CheckError, match=r"ui_in\[3\].*top\.sdc"):
+        check_top_harden.rewrite_crossing_ports(
+            "set vco ui_in[3]\ncreate_clock -name vco_out -period 2.7 "
+            "[get_ports $vco]\n", cross)
+
+
+def _sdc_ws(tmp_path: Path, digital: str | None, own: str | None) -> Path:
+    ws = tmp_path / "ws"
+    (ws / "digital" / "harden").mkdir(parents=True)
+    if digital is not None:
+        (ws / "digital" / "harden" / "constraints.sdc").write_text(digital)
+    if own is not None:
+        (ws / "top.sdc").write_text(own)
+    return ws
+
+
+def test_top_sdc_takes_the_integrators_own_first(tmp_path):
+    ws = _sdc_ws(tmp_path, PLL_SDC, "create_clock -name vco_out x\n")
+    assert check_top_harden.top_sdc(ws, PLL_DSPEC, PLL_MACRO) == \
+        "create_clock -name vco_out x\n"
+    ws = _sdc_ws(tmp_path / "b", PLL_SDC, None)
+    got = check_top_harden.top_sdc(ws, PLL_DSPEC, PLL_MACRO)
+    assert got.startswith("# Generated by check_top_harden.py")
+    assert "[get_pins {u_analog/vco_out}]" in got
+
+
+def test_top_sdc_refuses_several_clocks_with_no_sdc_and_is_none_for_one(
+        tmp_path):
+    ws = _sdc_ws(tmp_path, None, None)
+    with pytest.raises(CheckError, match="top.sdc"):
+        check_top_harden.top_sdc(ws, PLL_DSPEC, PLL_MACRO)
+    one = {**PLL_DSPEC, "clock": {"period_ns": 80, "domains": ["clk"]}}
+    assert check_top_harden.top_sdc(ws, one, PLL_MACRO) is None
+
+
+def test_assemble_writes_the_top_sdc_after_clearing_top(tmp_path,
+                                                        monkeypatch):
+    """assemble() rmtrees top/ each run, so a hand-written
+    top/harden/constraints.sdc never survives; the one it writes itself
+    is there afterwards, from the digital side's SDC."""
+    import yaml
+
+    ws = _sdc_ws(tmp_path, PLL_SDC, None)
+    (ws / "digital" / "rtl").mkdir()
+    (ws / "analog").mkdir()
+    ws.joinpath("digital", "state.json").write_text(
+        json.dumps({"skill": "vde"}), encoding="utf-8")
+    ws.joinpath("analog", "state.json").write_text(
+        json.dumps({"skill": "ade", "block": "a"}), encoding="utf-8")
+    (ws / "digital" / "spec").mkdir()
+    ws.joinpath("digital", "spec", "spec.yaml").write_text(
+        yaml.safe_dump(PLL_DSPEC), encoding="utf-8")
+    ws.joinpath("interface.yaml").write_text(yaml.safe_dump({"signals": [
+        {"name": "vco_out", "direction": "a2d"},
+        {"name": "code", "direction": "d2a", "width": 2}]}),
+        encoding="utf-8")
+    stale = ws / "top" / "harden" / "constraints.sdc"
+    stale.parent.mkdir(parents=True)
+    stale.write_text("# by hand\n")
+
+    def fake_macro(analog, signals, macros_dir, ua, widths):
+        return {"cell": "a", "instance": "u_analog", "orientation": "N",
+                "power": {"vdd": "vdd", "vss": "vss"},
+                "pins": {s: s for s in sorted(signals)},
+                "files": {"gds": "a.gds", "lef": "a.lef", "vh": "a.v",
+                          "spice": "a.spice"}}
+    monkeypatch.setattr(check_top_harden, "analog_macro", fake_macro)
+    monkeypatch.setattr(check_top_harden, "macro_size",
+                        lambda lef, gds, cell: (40.0, 40.0))
+    monkeypatch.setattr(check_top_harden, "unpowered_supplies",
+                        lambda macro: [])
+    monkeypatch.setattr(check_top_harden, "power_location",
+                        lambda macro, die, start, *_a: start)
+    top, spec = check_top_harden.assemble(ws)
+    sdc = (top / "harden" / "constraints.sdc").read_text()
+    assert "# by hand" not in sdc
+    assert "create_clock -name vco_out -period 2.7 " \
+        "[get_pins {u_analog/vco_out}]" in sdc
+    assert "vco_out" not in spec["tt_pins"]
 
 
 # ---------------------------------------------------- the magic Tcl script
@@ -208,10 +395,62 @@ def test_pin_lines_grow_each_port_to_its_metal_and_drop_other_labels(
     assert lines.count("delete") == 1
 
 
+def test_pin_lines_offer_no_supply_metal3_its_own_metal4_buries(tmp_path):
+    """The PLL's vdd via pad (breakage: PDN-0006, "vdd on Metal3 is blocked
+    by obstructions on Metal4"): a 0.4 um Metal3 pad of vss's net under the
+    Metal4 that joins it to the rail. -pinonly writes that Metal4 as OBS,
+    and OpenROAD stops on a pin its OBS covers, so the pad is no pin; the
+    rail the same Metal4 crosses only in part still is."""
+    gds = _pinned_gds(tmp_path)
+    layout = db.Layout()
+    layout.read(str(gds))
+    cell = layout.cell("mac")
+    for layer, b in ((46, (30, 0, 30.4, 5.4)),         # vss's Metal4 jumper
+                     (40, (30.07, 0.07, 30.33, 0.33)),  # Via3 to the rail
+                     (40, (30.07, 5.07, 30.33, 5.33)),  # Via3 to the pad
+                     (42, (30, 5, 30.4, 5.4))):         # the buried pad
+        cell.shapes(layout.layer(layer, 0)).insert(db.DBox(*b))
+    layout.write(str(gds))
+    lines = check_top_harden.pin_lines(gds, "mac", PINNED)
+    i = lines.index("box 0.000um 0.000um 40.000um 2.000um")
+    assert lines[i + 1] == "label {vss} c metal3"
+    assert "box 30.000um 5.000um 30.400um 5.400um" not in lines
+
+
 def test_pin_lines_refuse_a_port_label_on_no_metal(tmp_path):
     gds = _pinned_gds(tmp_path, a_label_on_metal=False)
     with pytest.raises(CheckError, match="the label a at .* no Metal2"):
         check_top_harden.pin_lines(gds, "mac", PINNED)
+
+
+def test_clean_gds_gives_a_cell_with_no_pr_boundary_one(tmp_path):
+    """The PLL's layout draws no PR boundary, and LibreLane's
+    Magic.StreamOut stopped on it ("Failed to extract PR boundary from
+    GDSII view of macro"): the cleaned cell gets one over what it draws,
+    from (0, 0); a cell that has one keeps it as it is."""
+    layout = db.Layout()
+    layout.dbu = 0.001
+    cell = layout.create_cell("mac")
+    cell.shapes(layout.layer(34, 0)).insert(db.DBox(-1, -2, 10, 20))
+    src, dst = tmp_path / "src.gds", tmp_path / "dst.gds"
+    layout.write(str(src))
+    check_top_harden.clean_gds(src, dst, "mac")
+    out = db.Layout()
+    out.read(str(dst))
+    pr = out.find_layer(*check_top_harden.PR_BOUNDARY)
+    assert [s.dbox for s in out.cell("mac").shapes(pr).each()] == [
+        db.DBox(0, 0, 11, 22)]
+
+    again = tmp_path / "again.gds"
+    out.cell("mac").shapes(pr).clear()
+    out.cell("mac").shapes(pr).insert(db.DBox(5, 5, 11, 22))
+    out.write(str(dst))
+    check_top_harden.clean_gds(dst, again, "mac")
+    kept = db.Layout()
+    kept.read(str(again))
+    pr = kept.find_layer(*check_top_harden.PR_BOUNDARY)
+    assert [s.dbox for s in kept.cell("mac").shapes(pr).each()] == [
+        db.DBox(5, 5, 11, 22)]
 
 
 def test_clean_gds_moves_a_cell_drawn_below_its_origin_to_it(tmp_path):
@@ -634,3 +873,22 @@ def test_a_macro_with_an_unfilled_comp_gap_passes_the_dummy_decks_at_top(
         payload, _ = gate.run(["--workspace", str(ws)])
         assert payload["status"] == "pass", (gate.__name__,
                                              payload.get("violations"))
+
+
+def test_top_harden_hashes_the_sdcs_the_top_is_built_from(tmp_path):
+    # editing the integrator's top.sdc or the digital side's design SDC
+    # changes the top's clocks, so it must stale top_harden
+    import statelib
+    imap = statelib.load_map()
+    kinds = imap["gate_inputs"]["msde"]["top_harden"]
+    assert kinds[0] == "digital_rtl"
+    for kind, rel in (("top_sdc", "top.sdc"),
+                      ("digital_sdc", "digital/harden/constraints.sdc")):
+        assert kind in kinds
+        path = tmp_path / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("create_clock -name a\n", encoding="utf-8")
+        before = statelib.hash_kind(tmp_path, kind, imap)[1]
+        path.write_text("create_clock -name b\n", encoding="utf-8")
+        assert statelib.hash_kind(tmp_path, kind, imap)[1] != before, kind
+    assert "top_sdc" in imap["edit_classes"]["msde"]["top_sdc_edit"]["mutates"]

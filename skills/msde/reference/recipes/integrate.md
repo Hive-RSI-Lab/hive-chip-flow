@@ -59,7 +59,10 @@ from scratch on every run:
   `analog/layout/gen_<block>.py`), a LEF abstract magic writes from it, a
   blackbox Verilog stub, and its sized `.subckt` for LVS.
 
-The macro is placed in the middle of the tile, and the top is hardened by
+The macro is placed in the middle of the tile, moved sideways by whole
+sites (at most one stripe pitch) until the tile's Metal4 power stripes
+reach both its supplies past the cell's own Metal4 (`power_location`), and
+the top is hardened by
 the digital side's own harden. The macro GDS is re-saved without
 klayout's context-info cell (`check_top_harden.clean_gds`), which magic
 would otherwise read as a second top cell - nothing for the agent to do.
@@ -70,7 +73,8 @@ analog pin, or when the analog cell's remaining pins are not one supply
 and one ground. A macro larger than the tile is a `macro_too_large`
 finding, and a `ua_pins` map off the analog template (a gap, a pad used
 twice, too many pads) is a `ua_pin_off_template` finding, and a supply
-pin with no Metal3 shape for the tile's Metal4 stripes to land on is a
+pin with no Metal3 shape for the tile's Metal4 stripes to land on, or a
+cell whose own Metal4 keeps every stripe off one of its supplies, is a
 `macro_power_unreachable` finding; none of them runs a harden. Every
 one of those is a side's fix.
 `docs/spikes/macro_harden.md` has how the recipe was found.

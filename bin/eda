@@ -127,23 +127,6 @@ if [ $# -lt 1 ]; then
 fi
 TOOL="$1"; shift
 
-# The multi-minute runs (a LibreLane harden, an OpenROAD step) go under the
-# Hive's heavy-run lease when inside a Hive run (bin/heavy.sh says when):
-# this re-runs this same script under the lease, which then finds the lease
-# held and runs the tool. A detached jobs.py harden reaches it here too.
-case "$TOOL" in
-  librelane|openroad)
-    HEAVY_SH="$(dirname "${BASH_SOURCE[0]}")/heavy.sh"
-    if [ -r "$HEAVY_SH" ]; then
-      # shellcheck source=bin/heavy.sh
-      . "$HEAVY_SH"
-      if heavy_available; then
-        heavy_exec "eda $TOOL" "${BASH_SOURCE[0]}" "$TOOL" "$@"
-      fi
-    fi
-    ;;
-esac
-
 # The shim directory used to be `mktemp -d`, rebuilt from scratch on every
 # invocation and cleaned up by an EXIT trap. Two problems with that once a
 # whole flow is calling `eda` per step, thousands of times a run: the trap
