@@ -9,7 +9,11 @@ check_analog_drc.py/check_analog_lvs.py), extracts it with magic including
 parasitics - every capacitor down to 0 fF, and the wire resistance of
 every net that reaches a transistor (layoutlib.run_magic_extract) - and
 refuses a netlist that came back with no R and no C line at all, since a
-"post-layout" run on that is the schematic again. klayout_pex as the second
+"post-layout" run on that is the schematic again. extresist drops every
+coupling C of a net with no label, so run_magic_extract labels each net
+magic would name itself (a_x_y#) before extresist runs, and refuses a
+netlist in which a pair of nets still lost the coupling C magic's .ext
+gives it: an optimistic netlist is never benched. klayout_pex as the second
 extractor is not wired up at M9.
 
 Then it runs the block's post-layout bench, `tb/<block>_pex_tb.cir` or

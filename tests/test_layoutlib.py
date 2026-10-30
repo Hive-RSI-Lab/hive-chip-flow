@@ -199,6 +199,8 @@ def test_parasitic_extraction_sets_thresholds_after_ext2spice_lvs(tmp_path, monk
 
     def fake(args, cwd=None, timeout=None, stdin_text=None):
         seen["tcl"] = stdin_text.splitlines()
+        (tmp_path / "top.ext").write_text("tech gf180mcuD\n")
+        (tmp_path / "top.res.ext").write_text("scale 1000 1 0.5\n")
         (tmp_path / "top.pex.spice").write_text(".subckt top\n.ends\n")
         return FakeProc()
 
@@ -210,6 +212,175 @@ def test_parasitic_extraction_sets_thresholds_after_ext2spice_lvs(tmp_path, monk
     assert tcl.index("ext2spice cthresh 0") > lvs
     assert tcl.index("ext2spice extresist on") > lvs
     assert tcl.index("extresist all") < lvs
+
+
+PEX_FIXTURES = REPO / "tests" / "fixtures" / "pex_unlabelled"
+
+
+def fixture_text(name):
+    return (PEX_FIXTURES / name).read_text(encoding="utf-8")
+
+
+def test_ext_nodes_reads_each_net_once():
+    ext = ('node "vdd" 0 129.8 1756 1904 m1 0 0\n'
+           'node "vdd" 0 129.8 1756 1904 m1 0 0\n'
+           'node "a_38_n132#" 273 1347.82 38 -132 p 0 0\n')
+    assert layoutlib.ext_nodes(ext) == [
+        {"name": "vdd", "cap": 129.8, "x": 1756, "y": 1904, "type": "m1"},
+        {"name": "a_38_n132#", "cap": 1347.82, "x": 38, "y": -132,
+         "type": "p"}]
+
+
+def test_name_unlabelled_nets_labels_each_made_up_name_on_its_own_tile():
+    cmds = layoutlib.name_unlabelled_nets(fixture_text("unlabelled.ext"))
+    assert cmds == ["snap internal", "box values 38 -132 39 -131",
+                    "label a_38_n132 c p", "snap lambda"]
+
+
+def test_name_unlabelled_nets_leaves_a_labelled_layout_alone():
+    assert layoutlib.name_unlabelled_nets(fixture_text("named.ext")) == []
+
+
+def test_name_unlabelled_nets_never_reuses_a_label():
+    ext = ('node "a_1_2" 0 1 0 0 m1\n'
+           'node "a_1_2#" 0 1 5 5 m1\n')
+    assert "label a_1_2_1 c m1" in layoutlib.name_unlabelled_nets(ext)
+
+
+# the planted fault: the net magic named itself lost its coupling to iout
+# through extresist; the same layout with the net labelled kept it
+def test_lost_couplings_catches_the_unlabelled_net():
+    lost = layoutlib.lost_couplings(fixture_text("unlabelled.ext"),
+                                    fixture_text("unlabelled.pex.spice"))
+    assert lost == [{"nets": ["a_38_n132", "iout"], "ext_ff": 0.09435,
+                     "pex_ff": 0.0}]
+
+
+def test_lost_couplings_passes_the_named_net():
+    assert layoutlib.lost_couplings(fixture_text("named.ext"),
+                                    fixture_text("named.pex.spice")) == []
+
+
+def test_lost_couplings_sums_a_nets_sub_nodes():
+    ext = 'cap "a" "b" 100\n'
+    pex = ("X0 a.t0 b.t0 c nfet\nC0 a.t0 b 0.06f\nC1 a.n1 b.t0 0.05f\n")
+    assert layoutlib.lost_couplings(ext, pex) == []
+    assert layoutlib.lost_couplings(ext, "X0 a b c nfet\nC0 a b 0.05f\n")
+
+
+def test_lost_couplings_skips_a_device_body_the_netlist_never_names():
+    # an rm1's body node: magic folds its C into the resistor's terminals
+    ext = 'cap "m1_0_0" "vout" 100\n'
+    assert layoutlib.lost_couplings(ext, "X0 bmsb vout rm1\n") == []
+
+
+def c_to(pex_text, net, other):
+    """fF of every C line between net (or its .tN/.nN) and other."""
+    import re
+    total = 0.0
+    for line in pex_text.splitlines():
+        parts = line.split()
+        if not parts or not parts[0].startswith("C"):
+            continue
+        ends = sorted(re.sub(r"\.[tn]\d+$", "", n) for n in parts[1:3])
+        if ends == sorted([net, other]):
+            total += float(parts[3].rstrip("f"))
+    return total
+
+
+# extresist's rnode C on the mirror's split net sums to its coupling to iout
+# (94.35 aF), and ext2spice writes it to vss besides the coupling itself
+def test_rnode_c_is_the_coupling_c_again():
+    import re
+    rnode = sum(float(m.group(1)) for m in re.finditer(
+        r'^rnode "a_38_n132[^"]*" \S+ (\S+)',
+        fixture_text("named.res.ext"), re.MULTILINE))
+    assert rnode == pytest.approx(94.3498, abs=1e-3)
+
+
+def test_uncount_rnode_caps_brings_a_split_nets_c_back_to_the_ext():
+    pex = fixture_text("named.pex.spice")
+    assert c_to(pex, "a_38_n132", "vss") == pytest.approx(1.40705)
+    out, changed = layoutlib.uncount_rnode_caps(
+        fixture_text("named.ext"), fixture_text("named.res.ext"), pex)
+    # its .ext substrate C, 1347.82 aF; the coupling and the net no
+    # extresist split are left as they were
+    assert changed == {"a_38_n132": [1.40705, 1.34782]}
+    assert c_to(out, "a_38_n132", "vss") == pytest.approx(1.34782, abs=1e-5)
+    assert c_to(out, "a_38_n132", "iout") == pytest.approx(0.09435)
+    assert c_to(out, "iout", "vss") == pytest.approx(0.55748)
+    assert layoutlib.lost_couplings(fixture_text("named.ext"), out) == []
+
+
+def test_uncount_rnode_caps_leaves_a_netlist_with_no_split_net_alone():
+    pex = "C0 a vss 1f\n"
+    assert layoutlib.uncount_rnode_caps(
+        'substrate "vss" 0 0 0 0 m1\nnode "a" 0 500 0 0 m1\n',
+        "scale 1000 1 0.5\n", pex) == (pex, {})
+
+
+def test_uncount_rnode_caps_refuses_without_one_substrate():
+    with pytest.raises(layoutlib.LayoutError, match="substrate"):
+        layoutlib.uncount_rnode_caps(
+            'node "a" 0 500 0 0 m1\n', 'rnode "a.t0" 0 10 0 0 0\n',
+            "C0 a.t0 vss 1f\n")
+
+
+def test_parasitic_extraction_labels_unlabelled_nets_before_extresist(
+        tmp_path, monkeypatch):
+    fake_pdk(tmp_path, monkeypatch)
+    runs = []
+
+    def fake(args, cwd=None, timeout=None, stdin_text=None):
+        runs.append(stdin_text.splitlines())
+        name = "unlabelled.ext" if len(runs) == 1 else "named.ext"
+        (tmp_path / "top.ext").write_text(fixture_text(name))
+        if len(runs) == 2:
+            (tmp_path / "top.res.ext").write_text(
+                fixture_text("named.res.ext"))
+            (tmp_path / "top.pex.spice").write_text(
+                fixture_text("named.pex.spice"))
+        return FakeProc()
+
+    monkeypatch.setattr(layoutlib, "run_eda", fake)
+    layoutlib.run_magic_extract(tmp_path, tmp_path / "x.gds", "top",
+                                parasitics=True)
+    assert len(runs) == 2
+    assert "extresist all" not in runs[0]
+    second = runs[1]
+    assert second.index("label a_38_n132 c p") < second.index("extract all")
+    # the netlist written is the one with the double count taken off
+    assert c_to(
+        (tmp_path / "top.pex.spice").read_text(), "a_38_n132", "vss") == \
+        pytest.approx(1.34782, abs=1e-4)
+
+
+def test_parasitic_extraction_refuses_a_netlist_that_lost_couplings(
+        tmp_path, monkeypatch):
+    fake_pdk(tmp_path, monkeypatch)
+
+    def fake(args, cwd=None, timeout=None, stdin_text=None):
+        (tmp_path / "top.ext").write_text(fixture_text("unlabelled.ext"))
+        (tmp_path / "top.res.ext").write_text(
+            fixture_text("unlabelled.res.ext"))
+        (tmp_path / "top.pex.spice").write_text(
+            fixture_text("unlabelled.pex.spice"))
+        return FakeProc()
+
+    monkeypatch.setattr(layoutlib, "run_eda", fake)
+    with pytest.raises(layoutlib.LayoutError,
+                       match=r"a_38_n132-iout \(0 of 0.09435 fF\)"):
+        layoutlib.run_magic_extract(tmp_path, tmp_path / "x.gds", "top",
+                                    parasitics=True)
+
+
+def test_parasitic_extraction_refuses_when_the_naming_pass_wrote_no_ext(
+        tmp_path, monkeypatch):
+    fake_pdk(tmp_path, monkeypatch)
+    monkeypatch.setattr(layoutlib, "run_eda", lambda *a, **k: FakeProc())
+    with pytest.raises(layoutlib.LayoutError, match="naming pass"):
+        layoutlib.run_magic_extract(tmp_path, tmp_path / "x.gds", "top",
+                                    parasitics=True)
 
 
 def test_magic_tech_fixes_the_rm1_input_typo(tmp_path, monkeypatch):
