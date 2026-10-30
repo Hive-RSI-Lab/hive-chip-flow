@@ -225,8 +225,10 @@ def _kill_group(pgid: int) -> None:
 # time out on that (tests/lib/cpu-cap.sh does the same for the suite):
 # progress is a poll seeing the CPU of one of the tool's processes rise
 # (counting what each has reaped), a new process, or one of them runnable
-# (state R: on a starved box a working process can wait seconds for a core
-# and gain no CPU, while a waiting one sleeps). No progress for STALL_S is
+# or in disk wait (state R or D: on a starved box a working process can
+# wait seconds for a core or the disk and gain no CPU - at IO pressure ~75%
+# a python took over 1.5 s just to load - while a waiting one, wedged on a
+# peer or a sync point, sleeps in S). No progress for STALL_S is
 # a hang; a wall ceiling, many times what the tool takes, stays as a
 # backstop for a tool spinning forever. CHIP_FLOW_STALL_S overrides STALL_S.
 STALL_S = 180.0
@@ -252,7 +254,8 @@ class ToolStalled(subprocess.TimeoutExpired):
 
     def __str__(self):
         return (f"Command '{self.cmd}' made no progress (no CPU used, "
-                f"nothing runnable) for {self.timeout:g}s, after "
+                f"nothing runnable or in disk wait) for {self.timeout:g}s, "
+                f"after "
                 f"{self.elapsed:.0f}s of wall: it is waiting, not working")
 
 
@@ -281,7 +284,7 @@ def _proc_tree(pid: int, skip_self: bool = False) -> dict:
         # starttime 22
         own = 0 if (skip_self and p == pid) else int(f[11]) + int(f[12])
         out[(p, f[19])] = (own + int(f[13]) + int(f[14]),
-                           f[0] == "R" and not (skip_self and p == pid))
+                           f[0] in "RD" and not (skip_self and p == pid))
         todo += kids
     return out
 
@@ -383,6 +386,7 @@ def timeout_why(exc: subprocess.TimeoutExpired) -> str:
     """One phrase for a gate's error: 'stalled ...' or 'hit its ... wall
     ceiling'."""
     if isinstance(exc, ToolStalled):
-        return (f"stalled: no progress (no CPU used, nothing runnable) for "
+        return (f"stalled: no progress (no CPU used, nothing runnable or "
+                f"in disk wait) for "
                 f"{exc.timeout:g}s after {exc.elapsed:.0f}s")
     return f"timed out at its {exc.timeout:g}s wall ceiling"

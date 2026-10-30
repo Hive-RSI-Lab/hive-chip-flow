@@ -126,10 +126,10 @@ def test_stalled_tool_is_ended_on_no_progress_not_the_wall(fast_poll):
 
 def test_working_tool_outlives_its_stall_window(fast_poll):
     # spins on CPU for twice the stall window: never a hang, however slow
-    spin = ("import time; e = time.monotonic() + 3\n"
+    spin = ("import time; e = time.monotonic() + 5\n"
             "while time.monotonic() < e: pass\nprint('done')")
     done = checklib.run_group([sys.executable, "-c", spin], timeout=600,
-                              stall=1.5, capture_output=True, text=True)
+                              stall=2.5, capture_output=True, text=True)
     assert done.returncode == 0 and done.stdout == "done\n"
 
 

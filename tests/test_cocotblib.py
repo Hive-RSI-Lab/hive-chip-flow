@@ -124,7 +124,7 @@ def test_run_cocotb_ends_a_stalled_child_well_before_its_wall(
 
 def test_run_cocotb_lets_a_working_child_run_past_its_stall_window(
         tmp_path, monkeypatch):
-    spin = ("import time; e = time.monotonic() + 3\n"
+    spin = ("import time; e = time.monotonic() + 5\n"
             "while time.monotonic() < e: pass")
 
     class _WorkingRunner:
@@ -140,4 +140,4 @@ def test_run_cocotb_lets_a_working_child_run_past_its_stall_window(
     assert cocotblib.run_cocotb(
         tmp_path / "build", tmp_path, [tmp_path / "top.v"], "top",
         ["test_top"], tmp_path / "results.xml", timeout_s=600,
-        stall_s=1.5) == tmp_path / "results.xml"
+        stall_s=2.5) == tmp_path / "results.xml"

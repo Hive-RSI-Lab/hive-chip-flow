@@ -155,7 +155,8 @@ def run_cocotb(build_dir: Path, test_dir: Path, sources: list[Path],
     stall_s, if given, ends the run sooner when it stops making progress:
     a watcher thread polls this process's children (iverilog, then vvp with
     the bench and ngspice inside it) with checklib.StallWatch, and when no
-    child has used CPU or been runnable for stall_s it raises CocotbTimeout
+    child has used CPU, been runnable or been in disk wait for stall_s it
+    raises CocotbTimeout
     the same way (timeout_s is then only a wall ceiling). A co-sim on a
     loaded box is slow, not hung, so a fixed wall alone called pll's
     working ~100 s co-sim a hang at 240 s.
@@ -177,7 +178,8 @@ def run_cocotb(build_dir: Path, test_dir: Path, sources: list[Path],
         if stalled:
             raise CocotbTimeout(
                 f"run_cocotb made no progress (no CPU used, nothing "
-                f"runnable) for {stall_s:g}s, after {stalled[0]:.0f}s of "
+                f"runnable or in disk wait) for {stall_s:g}s, after "
+                f"{stalled[0]:.0f}s of "
                 f"wall: it is waiting, not working "
                 f"(hdl_toplevel={hdl_toplevel!r})")
         raise CocotbTimeout(
