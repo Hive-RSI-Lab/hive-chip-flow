@@ -77,7 +77,7 @@
     },
     "engine_errors": [],
     "violations": [],
-    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_glitch_tb__tt.cir"
+    "deck": "log/sim/r2r_dac_glitch_tb__tt.cir"
    },
    {
     "bench": "r2r_dac_step_tb.cir",
@@ -100,7 +100,7 @@
     },
     "engine_errors": [],
     "violations": [],
-    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_step_tb__tt.cir"
+    "deck": "log/sim/r2r_dac_step_tb__tt.cir"
    },
    {
     "bench": "r2r_dac_tb.cir",
@@ -147,7 +147,7 @@
       ]
      }
     ],
-    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_tb__tt.cir"
+    "deck": "log/sim/r2r_dac_tb__tt.cir"
    }
   ],
   "not_scored": [],

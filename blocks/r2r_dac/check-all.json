@@ -1,6 +1,7 @@
 {
- "ran": "2026-10-29T16:27:19Z",
+ "ran": "2026-10-29T14:49:51Z",
  "toolchain": "iic-osic-tools-2026.09",
+ "sources": "20e32e50196169235b5b48867728bd089338683498124e2f04b11f97eedb2675",
  "steps": {
   "analog/spec_lint": "pass",
   "analog/netlist_lint": "pass",
@@ -33,38 +34,5 @@
   "top/top_lvs": "pass",
   "top/precheck": "pass",
   "top/release": "fail"
- },
- "step_sources": {
-  "analog/spec_lint": "727fa56830ed2b4a05925723edd1d28c8492788585b3567cc57fa0abe83d055b",
-  "analog/netlist_lint": "536c0b6ba3698240f159f0a194d2e10542b758b7ab8b6093611d2e8a6960fad6",
-  "analog/sim_tt": "04c9d13b43c085694b35a306a78946000452afc1005b03860645ea84ec89fb9f",
-  "analog/sim_pvt": "6055f31893a8c15aaee5e57cdd17e68f6a83e240f5afa008d5ebc0a8c704128e",
-  "analog/bench_strength": "d004d58fa5e9989a23c1af2b028e7b449fc654deacac8f7918a677b479e4a688",
-  "analog/drc": "dbd20ee3f27e6a15ebed45099f86947818acc03f8a80e81a1d0c44425a7e1b2c",
-  "analog/lvs": "920f95eb53353d1e7a11b94d5c19a249382040fad0395257f837a85409f3c906",
-  "analog/pex_sim": "8a59ee1489567fc0e61507229c44b9f763df03609fb8b50a23aed1f86ec36617",
-  "analog/release": "0420ed069fdb75bf3f5898e81019b5824d7e7a06bb50581943c4e4f1b5d1f6dd",
-  "digital/spec_lint": "abc823eb3aae22b198e9dbf027bf5c2f4c0b74ca593c5e9ddebc1c93ad931487",
-  "digital/lint": "82fdcaead85cf1a25da523f777d18785c38691396939277405c44d4d94d90e87",
-  "digital/sim": "e2a0fd71e9dfa16d4559e59172fb0f4b65df664b77775578a2d39822f1e03d5a",
-  "digital/holdout": "01d02fa28f02b06f265bab42181234d0ca46bec1b9889ab0748d25b4c5cf7cc7",
-  "digital/mutate": "2beaf6a25f82d8aa1473c73c9ffa6233e5aa2f891f9b4173ac24fedfdf3b58e2",
-  "digital/formal": "48426b20aa26f8bba7b954569750864e8d4eef899f63e6b13b15afdc44ad9a20",
-  "digital/cover": "7e673d89caa14343672f964b6a0821695a3a5cd4fda4b6df42961f023cc8bdaa",
-  "digital/synth": "fad982dd835a049b1229b0b19fc9c0c76a2ed0f259f5c831b1e1f90563f640d5",
-  "digital/harden": "531aa9018a9070f94c03361cb514a29f13f478189521c5403752e25f976e162e",
-  "digital/timing": "91e233197dccbcb0780b557a7dd6650fe6ff4b86291a9a861c8eb26035aa0abd",
-  "digital/drc": "a7dabd8f90243c65d03cce5c5d6da38fe3a507621f30c2233f70403bb2390834",
-  "digital/lvs": "45cbea1e4e78019d8cea731ccc53247a11d2d942e47284f9ebc538b6f1189a21",
-  "digital/glsim": "4a12ac507ac043b72a90f5a1e1d2f7526dc2b481d1f628137cf145eeb54b5625",
-  "digital/precheck": "38f80608bac8cf3f12cac8532279875dd6c910544b5a1db7a9f305aeff8e324f",
-  "digital/release": "75fa02eaa91a8c32abfec3b8b53d4a6a0196bf50efcf8bc4c986a2d1dc1ce3ee",
-  "top/split": "af5777df2b5bda7fd0a626e78a41e773816b7aa27b8b6ca932cb646d4bed8ebf",
-  "top/cosim": "1143942696d0c23dfd0f7d4e2d656477a045951726093a12f3fe7c55b1a8c412",
-  "top/top_harden": "1143942696d0c23dfd0f7d4e2d656477a045951726093a12f3fe7c55b1a8c412",
-  "top/top_drc": "d08c15033258d507c6005c816ce17aea4778d71662dad8cd90b9954f93529fcb",
-  "top/top_lvs": "bad36af8f6b23238087486f6e99e1d918e4c1fcf27fa8e362e4a21caf523833c",
-  "top/precheck": "bad36af8f6b23238087486f6e99e1d918e4c1fcf27fa8e362e4a21caf523833c",
-  "top/release": "bad36af8f6b23238087486f6e99e1d918e4c1fcf27fa8e362e4a21caf523833c"
  }
 }

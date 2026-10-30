@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import signal
 import subprocess
 import sys
@@ -78,6 +79,32 @@ def stamp(payload: dict, input_path) -> dict:
         except Exception:
             payload["input_digest"] = None
     return payload
+
+
+def workspace_relative(obj, ws):
+    """obj (a report, any JSON value) with every path under the workspace
+    written relative to it: `<ws>/rtl/x.v:16.13` becomes `rtl/x.v:16.13`
+    wherever it sits in a string, and `<ws>` itself `.`. gate.py runs each
+    check on the resolved workspace, so a tool's own paths (a run dir, a
+    yosys src attribute, a sim deck) come back absolute; written as they
+    are, a block's committed reports would carry the machine's home path
+    and read differently on every machine and scratch copy."""
+    roots = sorted({os.path.abspath(ws), str(Path(ws).resolve())},
+                   key=len, reverse=True)
+    # the root and what follows it: a separator (then the relative path) or
+    # nothing a path name goes on with (so `<ws>2/` is left alone)
+    rx = re.compile("(" + "|".join(re.escape(r) for r in roots)
+                    + r")(/|(?![\w.+-]))")
+
+    def sub(v):
+        if isinstance(v, str):
+            return rx.sub(lambda m: "" if m.group(2) else ".", v)
+        if isinstance(v, list):
+            return [sub(x) for x in v]
+        if isinstance(v, dict):
+            return {k: sub(x) for k, x in v.items()}
+        return v
+    return sub(obj)
 
 
 def utf8_stdout() -> None:

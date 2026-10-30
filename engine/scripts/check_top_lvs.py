@@ -209,7 +209,8 @@ def run(argv=None):
     final_dir = topdir / "harden" / "runs" / "run" / "final"
     gds = final_dir / "gds" / f"{top}.gds"
     pnl = final_dir / "pnl" / f"{top}.pnl.v"
-    macro_spice = [Path(m["files"]["spice"]) for m in spec.get("macros") or []]
+    # named relative to top/ (an older spec's absolute path reads as itself)
+    macro_spice = [topdir / m["files"]["spice"] for m in spec.get("macros") or []]
     for label, p in (("hardened GDS", gds), ("powered netlist", pnl),
                      *(("macro .subckt", s) for s in macro_spice)):
         if not p.is_file():

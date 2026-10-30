@@ -10,7 +10,12 @@ from spec.yaml's `tt_pins` (engine/lib/ttlib.py), then runs LibreLane 3
 against the vendored TT GF180 template through `bin/eda librelane`
 (never a bare `librelane` - docs/design.md 1.2). Passes when the flow
 finishes with no failing step and `runs/<tag>/final/` carries GDS, LEF,
-netlist, SDF and metrics (gates.yaml's `harden` row).
+netlist, SDF and metrics (gates.yaml's `harden` row). config.json names
+no machine's path (ttlib.portable_config): the workspace's files are
+LibreLane `dir::` paths relative to harden/, the engine files it needs (the
+tile's DEF template, macro_pdn.tcl) are copied beside it, and PDK_ROOT is
+`--pdk-root` on the command line, so a committed block reads the same on
+every machine.
 
 Per-design config: `harden/config.json` is REGENERATED on every run, so a
 hand edit to it is discarded. A design's own LibreLane keys go in
@@ -108,8 +113,13 @@ def run(argv=None):
                                                   DEFAULT_TIMEOUT_S)))
     args = ap.parse_args(argv)
 
-    ws = Path(args.workspace)
+    ws = Path(args.workspace).resolve()
     spec = speclib.load_spec(ws / "spec" / "spec.yaml")
+    # a macro's files are named relative to the workspace (top_harden writes
+    # them so); LibreLane gets them as paths
+    for m in spec.get("macros") or []:
+        if isinstance(m, dict) and isinstance(m.get("files"), dict):
+            m["files"] = {k: str(ws / v) for k, v in m["files"].items()}
     top = spec.get("top")
     if not isinstance(top, str) or not top.strip():
         raise CheckError("spec.yaml has no non-empty 'top' - run spec_lint first")
@@ -149,6 +159,7 @@ def run(argv=None):
         pdk_root = _pdk_root()
         config = ttlib.harden_config(spec, rtl_files, wrapper_path, pdk_root,
                                      override=override, flow_sdc=flow_sdc)
+        config = ttlib.portable_config(config, harden_dir)
     except ttlib.TTError as exc:
         raise CheckError(str(exc)) from exc
     config_path = harden_dir / "config.json"

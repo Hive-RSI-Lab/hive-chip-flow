@@ -1373,7 +1373,7 @@
    "started": "2026-10-13T03:52:45",
    "finished": "2026-10-13T03:54:53",
    "status": "done",
-   "log": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/log/jobs/job-1.log",
+   "log": "log/jobs/job-1.log",
    "result": {
     "exit_code": 0
    }
@@ -1384,7 +1384,7 @@
    "started": "2026-10-13T03:55:06",
    "finished": "2026-10-13T03:56:53",
    "status": "done",
-   "log": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/log/jobs/job-2.log",
+   "log": "log/jobs/job-2.log",
    "result": {
     "exit_code": 0
    }
@@ -1395,7 +1395,7 @@
    "started": "2026-10-13T03:59:55",
    "finished": "2026-10-13T04:18:59",
    "status": "done",
-   "log": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/log/jobs/job-3.log",
+   "log": "log/jobs/job-3.log",
    "result": {
     "exit_code": 0
    }
@@ -1406,7 +1406,7 @@
    "started": "2026-10-13T04:02:35",
    "finished": "2026-10-13T04:18:59",
    "status": "done",
-   "log": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/log/jobs/job-4.log",
+   "log": "log/jobs/job-4.log",
    "result": {
     "exit_code": 0
    }
@@ -1417,7 +1417,7 @@
    "started": "2026-10-13T04:10:22",
    "finished": "2026-10-13T04:18:59",
    "status": "done",
-   "log": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/log/jobs/job-5.log",
+   "log": "log/jobs/job-5.log",
    "result": {
     "exit_code": 0
    }
@@ -1428,7 +1428,7 @@
    "started": "2026-10-13T04:17:16",
    "finished": "2026-10-13T04:18:59",
    "status": "done",
-   "log": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/log/jobs/job-6.log",
+   "log": "log/jobs/job-6.log",
    "result": {
     "exit_code": 0
    }
