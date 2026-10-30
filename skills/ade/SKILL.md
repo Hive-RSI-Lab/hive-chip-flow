@@ -308,4 +308,10 @@ layout-fixer read `netlist/` and `sizing/` and edit only `layout/`.
   literal is compared as written, and an empty `facts.sizing_applied`
   still passes. The H2 reviewer checks `sizing_applied` against
   sizing.yaml.
+- **No Metal5 in a Tiny Tapeout tile.** TT's GF180 precheck fails any
+  Metal5 shape ("KLayout Checks: Forbidden layer Metal5 found"), so a
+  block bound for a tile draws nothing on Metal5 - and a MIM cap whose
+  top plate needs Metal5 (MIM option B) can't be in one. Keep the block's
+  caps and straps to Metal4 and below; the DRC gate does not check this,
+  the msde precheck does, late.
 - **The bandgap's layout row may stay red** (docs/design.md "### M9.").

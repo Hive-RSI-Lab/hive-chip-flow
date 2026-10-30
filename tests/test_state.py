@@ -1111,3 +1111,20 @@ def test_stimulus_edit_that_loosens_an_assert_is_refused(tmp_path):
         st.apply_edit("holdout_stimulus_edit")
     with pytest.raises(CheckError, match="holdout_stimulus_edit only"):
         st.apply_edit("tb_edit", baseline="pre-fix-holdout-a1")
+
+
+# ----------------------------------------------------------- fsync switch
+
+@pytest.mark.parametrize("switch, synced", [("1", False), ("0", True)])
+def test_no_fsync_switch_skips_fsync_and_keeps_writes(tmp_path, monkeypatch,
+                                                      switch, synced):
+    """CHIP_FLOW_NO_FSYNC=1 (set for the tests) skips every fsync; the
+    writes and journal appends still land. Anything else keeps fsync."""
+    calls = []
+    monkeypatch.setenv("CHIP_FLOW_NO_FSYNC", switch)
+    monkeypatch.setattr(safelib.os, "fsync", lambda fd: calls.append(fd))
+    safelib.atomic_write_json(tmp_path / "a.json", {"x": 1})
+    safelib.append_journal(tmp_path / "j.jsonl", {"y": 2})
+    assert json.loads((tmp_path / "a.json").read_text()) == {"x": 1}
+    assert safelib.read_journal(tmp_path / "j.jsonl")[0]["y"] == 2
+    assert bool(calls) is synced

@@ -14,10 +14,11 @@ this run's result. Then it runs every probe in tests/workarounds/ against
 docs/workarounds.md (score.probes).
 
 With --record, blocks/<name>/check-all.json records each block's run: when,
-on which tree, a hash of what it ran from (score.sources: the block's
-files, engine/, bin/eda) and each step's outcome (pass, fail, or waived:
-failed under a waiver). The block itself stays as it was. That record is
-what the score reads (bin/score.py): commit it.
+on which tree, each step's outcome (pass, fail, or waived: failed under a
+waiver) and a hash per step of what it ran from (score.step_sources: the
+block's files, bin/eda and the engine files that gate reads). The block
+itself stays as it was. That record is what the score reads (bin/score.py):
+commit it.
 
 Exit 0 when every step passes and the table matches the probes, else 1.
 Run by bin/chip-flow (bin/eda's python, EDA_TOOLCHAIN set).
@@ -81,14 +82,14 @@ def waivers(ws: Path) -> list[str]:
         if isinstance(data, list) else []
 
 
-def record(b: score.Block, sources: str, outcomes: dict[str, str]) -> None:
+def record(b: score.Block, sources: dict[str, str], outcomes: dict[str, str]) -> None:
     """Write the block's run to blocks/<name>/check-all.json."""
     tree = Path(os.environ.get("EDA_TOOLCHAIN") or "").name or None
     (b.path / score.RECORD).write_text(json.dumps({
         "ran": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "toolchain": tree,
-        "sources": sources,
         "steps": outcomes,
+        "step_sources": {s: sources[s] for s in outcomes},
     }, indent=1) + "\n", encoding="utf-8")
     print(f"  recorded in {b.path / score.RECORD}", flush=True)
 
@@ -116,31 +117,36 @@ def main() -> int:
         dst = scratch / b.name
         if dst.exists():
             shutil.rmtree(dst)
-        sources = score.sources(b) if a.record else ""
+        plan = []
+        for w in b.workspaces:
+            order = [g for _, g in state_mod.applicable_gate_order(w.skill)]
+            # a gate the block carries a waiver for runs too: release reads
+            # its result against the waiver, so it must be this run's.
+            waived = waivers(b.path / w.rel)
+            plan += [(w, g, g in waived) for g in sorted(
+                set(w.gates) | set(waived),
+                key=lambda g: order.index(g) if g in order else len(order))]
+        # what each step reads, hashed before anything runs
+        sources = score.step_sources(b, [f"{w.tag}/{g}" for w, g, _ in plan]) \
+            if a.record else {}
         shutil.copytree(b.path, dst, symlinks=True,
                         ignore=shutil.ignore_patterns("state_snapshots", "__pycache__"))
         logs = scratch / f"{b.name}-logs"
         logs.mkdir(exist_ok=True)
         print(f"{b.name}:", flush=True)
         outcomes: dict[str, str] = {}
-        for w in b.workspaces:
+        for w, g, waived in plan:
             ws = dst / w.rel if w.rel != "." else dst
-            order = [g for _, g in state_mod.applicable_gate_order(w.skill)]
-            # a gate the block carries a waiver for runs too: release reads
-            # its result against the waiver, so it must be this run's.
-            waived = waivers(ws)
-            for g in sorted(set(w.gates) | set(waived),
-                            key=lambda g: order.index(g) if g in order else len(order)):
-                t0 = time.monotonic()
-                ok, why = run_gate(ws, w.skill, g, logs, w.tag)
-                dt = time.monotonic() - t0
-                outcomes[f"{w.tag}/{g}"] = "pass" if ok else "waived" if g in waived else "fail"
-                if not ok and g in waived:
-                    print(f"  waived {w.tag}/{g} ({dt:.0f} s): {why}", flush=True)
-                    continue
-                print(f"  {'ok  ' if ok else 'FAIL'} {w.tag}/{g} ({dt:.0f} s){'' if ok else ': ' + why}",
-                      flush=True)
-                failed += not ok
+            t0 = time.monotonic()
+            ok, why = run_gate(ws, w.skill, g, logs, w.tag)
+            dt = time.monotonic() - t0
+            outcomes[f"{w.tag}/{g}"] = "pass" if ok else "waived" if waived else "fail"
+            if not ok and waived:
+                print(f"  waived {w.tag}/{g} ({dt:.0f} s): {why}", flush=True)
+                continue
+            print(f"  {'ok  ' if ok else 'FAIL'} {w.tag}/{g} ({dt:.0f} s){'' if ok else ': ' + why}",
+                  flush=True)
+            failed += not ok
         if a.record:
             record(b, sources, outcomes)
     if not a.no_probes:
