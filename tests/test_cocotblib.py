@@ -6,6 +6,7 @@ monkeypatched `cocotb_tools.runner.get_runner` stands in for cocotb so this
 stays fast."""
 from __future__ import annotations
 
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -16,6 +17,7 @@ sys.path.insert(0, str(ENGINE / "lib"))
 
 import pytest  # noqa: E402
 
+import checklib  # noqa: E402
 import cocotblib  # noqa: E402
 
 
@@ -93,3 +95,49 @@ def test_stacked_req_lines_all_tag_the_test(tmp_path):
     tags = cocotblib.scan_requirement_tags(tmp_path)
     assert tags == {"test_stacked": {"R1", "R2", "R3"},
                     "test_single": {"R4"}}
+
+
+class _WaitingChildRunner:
+    """build() waits on a child that sleeps: a vvp wedged on a sync point
+    never fires, using no CPU."""
+
+    def build(self, **kwargs):
+        subprocess.run(["sleep", "600"], check=False)
+
+    def test(self, **kwargs):
+        raise AssertionError("test() must never run - build() stalled")
+
+
+def test_run_cocotb_ends_a_stalled_child_well_before_its_wall(
+        tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        "cocotb_tools.runner.get_runner", lambda name: _WaitingChildRunner())
+    monkeypatch.setattr(checklib, "STALL_POLL_S", 0.5)
+    started = time.monotonic()
+    with pytest.raises(cocotblib.CocotbTimeout, match="no progress"):
+        cocotblib.run_cocotb(
+            tmp_path / "build", tmp_path, [tmp_path / "top.v"], "top",
+            ["test_top"], tmp_path / "results.xml", timeout_s=600,
+            stall_s=1.5)
+    assert time.monotonic() - started < 30
+
+
+def test_run_cocotb_lets_a_working_child_run_past_its_stall_window(
+        tmp_path, monkeypatch):
+    spin = ("import time; e = time.monotonic() + 5\n"
+            "while time.monotonic() < e: pass")
+
+    class _WorkingRunner:
+        def build(self, **kwargs):
+            subprocess.run([sys.executable, "-c", spin], check=True)
+
+        def test(self, **kwargs):
+            return tmp_path / "results.xml"
+
+    monkeypatch.setattr(
+        "cocotb_tools.runner.get_runner", lambda name: _WorkingRunner())
+    monkeypatch.setattr(checklib, "STALL_POLL_S", 0.5)
+    assert cocotblib.run_cocotb(
+        tmp_path / "build", tmp_path, [tmp_path / "top.v"], "top",
+        ["test_top"], tmp_path / "results.xml", timeout_s=600,
+        stall_s=2.5) == tmp_path / "results.xml"

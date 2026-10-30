@@ -218,15 +218,112 @@ def _kill_group(pgid: int) -> None:
         pass
 
 
+# A gate's fixed wall-clock timeout measures the box's load, not the tool:
+# pll's transistor-level co-sim takes ~100 s alone and ran past its 240 s
+# beside other gates at load 55-170 on 20 cores, so a working tool was
+# called a hang. A tool is hung when it stops making progress, so the gates
+# time out on that (tests/lib/cpu-cap.sh does the same for the suite):
+# progress is a poll seeing the CPU of one of the tool's processes rise
+# (counting what each has reaped), a new process, or one of them runnable
+# or in disk wait (state R or D: on a starved box a working process can
+# wait seconds for a core or the disk and gain no CPU - at IO pressure ~75%
+# a python took over 1.5 s just to load - while a waiting one, wedged on a
+# peer or a sync point, sleeps in S). No progress for STALL_S is
+# a hang; a wall ceiling, many times what the tool takes, stays as a
+# backstop for a tool spinning forever. CHIP_FLOW_STALL_S overrides STALL_S.
+STALL_S = 180.0
+STALL_POLL_S = 2.0
+
+
+def stall_s() -> float:
+    """STALL_S, or CHIP_FLOW_STALL_S when that is a positive number."""
+    try:
+        v = float(os.environ.get("CHIP_FLOW_STALL_S", ""))
+    except ValueError:
+        return STALL_S
+    return v if v > 0 else STALL_S
+
+
+class ToolStalled(subprocess.TimeoutExpired):
+    """run_group()'s tool stopped making progress for stall seconds. A
+    TimeoutExpired, so every caller that handles a timeout handles this."""
+
+    def __init__(self, cmd, stall, elapsed, output=None, stderr=None):
+        super().__init__(cmd, stall, output, stderr)
+        self.elapsed = elapsed
+
+    def __str__(self):
+        return (f"Command '{self.cmd}' made no progress (no CPU used, "
+                f"nothing runnable or in disk wait) for {self.timeout:g}s, "
+                f"after "
+                f"{self.elapsed:.0f}s of wall: it is waiting, not working")
+
+
+def _proc_tree(pid: int, skip_self: bool = False) -> dict:
+    """{(pid, starttime): (ticks, runnable)} for pid and its live
+    descendants. ticks are utime+stime+cutime+cstime, so a child that
+    finished counts once, in the parent that reaped it. skip_self keeps
+    pid's own utime+stime out (the caller's own process, whose polling
+    thread would otherwise look like progress)."""
+    out: dict = {}
+    todo = [pid]
+    while todo:
+        p = todo.pop()
+        try:
+            with open(f"/proc/{p}/stat", encoding="ascii",
+                      errors="replace") as fh:
+                f = fh.read().rsplit(")", 1)[1].split()
+            kids = []
+            for t in os.listdir(f"/proc/{p}/task"):
+                with open(f"/proc/{p}/task/{t}/children",
+                          encoding="ascii") as fh:
+                    kids += [int(k) for k in fh.read().split()]
+        except (OSError, IndexError, ValueError):
+            continue
+        # f[0] is stat field 3 (state); utime..cstime are fields 14-17,
+        # starttime 22
+        own = 0 if (skip_self and p == pid) else int(f[11]) + int(f[12])
+        out[(p, f[19])] = (own + int(f[13]) + int(f[14]),
+                           f[0] in "RD" and not (skip_self and p == pid))
+        todo += kids
+    return out
+
+
+def _advanced(before: dict, now: dict) -> bool:
+    return any(run or key not in before or ticks > before[key][0]
+               for key, (ticks, run) in now.items())
+
+
+class StallWatch:
+    """Tracks a process tree's progress across polls: poll() returns how
+    long (s) it has gone without progress."""
+
+    def __init__(self, pid: int, skip_self: bool = False):
+        self.pid, self.skip_self = pid, skip_self
+        self.last = _proc_tree(pid, skip_self)
+        self.since = time.monotonic()
+
+    def poll(self) -> float:
+        now = _proc_tree(self.pid, self.skip_self)
+        if _advanced(self.last, now):
+            self.since = time.monotonic()
+        self.last = now
+        return time.monotonic() - self.since
+
+
 def run_group(cmd: list[str], timeout: float | None = None,
+              stall: float | None = None,
               **popen_kw) -> subprocess.CompletedProcess:
     """subprocess.run(cmd, timeout=timeout, **popen_kw) for a tool whose
     children must not outlive the call: every process the tool starts dies
     with it, on timeout (TimeoutExpired is raised as subprocess.run does),
-    on exit, and when this process is killed. popen_kw takes what Popen
-    does (cwd, capture_output, text, encoding, errors, env...)."""
+    on exit, and when this process is killed. stall, if given, also ends
+    it when its tree makes no progress (STALL_S's comment) for that many
+    seconds, raising ToolStalled. popen_kw takes what Popen does (cwd,
+    capture_output, text, encoding, errors, env, stdin...)."""
     if popen_kw.pop("capture_output", False):
         popen_kw["stdout"] = popen_kw["stderr"] = subprocess.PIPE
+    start = time.monotonic()
     proc = subprocess.Popen(cmd, start_new_session=True, **popen_kw)
     # its own session too, so a terminal ^C cannot take the guard down
     # before this process has cleaned up; a clean env, because the caller's
@@ -235,7 +332,9 @@ def run_group(cmd: list[str], timeout: float | None = None,
                              stdin=subprocess.PIPE, stdout=subprocess.DEVNULL,
                              stderr=subprocess.DEVNULL, start_new_session=True,
                              env={"PATH": "/usr/bin:/bin"})
-    deadline = None if timeout is None else time.monotonic() + timeout
+    deadline = None if timeout is None else start + timeout
+    watch = None if stall is None else StallWatch(proc.pid)
+    next_poll = start + STALL_POLL_S
     try:
         # communicate() alone would wait for EOF on the pipes, which a
         # backgrounded straggler holds open after the tool itself has exited
@@ -255,6 +354,14 @@ def run_group(cmd: list[str], timeout: float | None = None,
                     out, err = proc.communicate()
                     raise subprocess.TimeoutExpired(cmd, timeout, out,
                                                     err) from None
+                if watch is not None and time.monotonic() >= next_poll:
+                    next_poll = time.monotonic() + STALL_POLL_S
+                    if watch.poll() >= stall:
+                        _kill_group(proc.pid)
+                        out, err = proc.communicate()
+                        raise ToolStalled(cmd, stall,
+                                          time.monotonic() - start,
+                                          out, err) from None
     finally:
         # the guard goes first, so it cannot fire later at a pgid reused
         guard.kill()
@@ -264,3 +371,22 @@ def run_group(cmd: list[str], timeout: float | None = None,
         if proc.returncode is None:
             proc.wait()
     return subprocess.CompletedProcess(cmd, proc.returncode, out, err)
+
+
+def run_tool(cmd: list[str], wall: float,
+             **popen_kw) -> subprocess.CompletedProcess:
+    """A gate's tool run: run_group() ending it when it stops making
+    progress for stall_s() seconds, or at the wall ceiling. Either raises a
+    subprocess.TimeoutExpired whose str() says which. A test fakes this,
+    not subprocess.run."""
+    return run_group(cmd, timeout=wall, stall=stall_s(), **popen_kw)
+
+
+def timeout_why(exc: subprocess.TimeoutExpired) -> str:
+    """One phrase for a gate's error: 'stalled ...' or 'hit its ... wall
+    ceiling'."""
+    if isinstance(exc, ToolStalled):
+        return (f"stalled: no progress (no CPU used, nothing runnable or "
+                f"in disk wait) for "
+                f"{exc.timeout:g}s after {exc.elapsed:.0f}s")
+    return f"timed out at its {exc.timeout:g}s wall ceiling"

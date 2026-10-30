@@ -63,7 +63,9 @@ from checklib import CheckError  # noqa: E402
 
 SCRIPT = "check_precheck"
 EDA_BIN = REPO / "bin" / "eda"
-TIMEOUT_S = 300.0
+# A wall ceiling only, ten times the old fixed limit: the tool is ended
+# sooner when it stops making progress (checklib.STALL_S).
+TIMEOUT_S = 3000.0
 
 
 def _pdk_root() -> Path:
@@ -173,14 +175,14 @@ def run(argv=None):
 
     gds_path = run_dir / "design" / f"{staged_top}.gds"
     try:
-        proc = subprocess.run(
+        proc = checklib.run_tool(
             [str(EDA_BIN), "python3", str(precheck_py), "--gds", str(gds_path),
              "--tech", ttlib.PDK_NAME],
             cwd=str(precheck_dir), stdin=subprocess.DEVNULL, env=env,
             capture_output=True, text=True, encoding="utf-8", errors="replace",
-            timeout=TIMEOUT_S)
+            wall=TIMEOUT_S)
     except subprocess.TimeoutExpired as exc:
-        raise CheckError(f"precheck.py timed out after {TIMEOUT_S:g}s: {exc}") from exc
+        raise CheckError(f"precheck.py {checklib.timeout_why(exc)}: {exc}") from exc
 
     results_xml = precheck_dir / "reports" / "results.xml"
     output = (proc.stdout or "") + "\n" + (proc.stderr or "")

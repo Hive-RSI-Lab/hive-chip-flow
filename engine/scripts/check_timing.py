@@ -72,7 +72,9 @@ from checklib import CheckError  # noqa: E402
 
 SCRIPT = "check_timing"
 EDA_BIN = REPO / "bin" / "eda"
-TIMEOUT_S = 120.0
+# A wall ceiling only, ten times the old fixed limit: the tool is ended
+# sooner when it stops making progress (checklib.STALL_S).
+TIMEOUT_S = 1200.0
 # OpenSTA prints "worst slack max INF" when no clock reaches any path (the
 # SDC's clock is on a port the design never uses as one): a parseable
 # result, but an unconstrained one - run() turns it into a finding.
@@ -260,12 +262,13 @@ def run_corner(final_dir: Path, top: str, corner: str, pdk_root: Path,
         "report_check_types -max_slew -max_capacitance -max_fanout -violators\n"
         + COUNTS_TCL + "exit\n", encoding="utf-8")
     try:
-        proc = subprocess.run([str(EDA_BIN), "sta", str(tcl)], stdin=subprocess.DEVNULL,
-                              capture_output=True, text=True, encoding="utf-8",
-                              errors="replace", timeout=TIMEOUT_S)
+        proc = checklib.run_tool([str(EDA_BIN), "sta", str(tcl)],
+                                 stdin=subprocess.DEVNULL, capture_output=True,
+                                 text=True, encoding="utf-8", errors="replace",
+                                 wall=TIMEOUT_S)
     except subprocess.TimeoutExpired as exc:
-        raise CheckError(f"corner {corner!r}: eda sta timed out after "
-                         f"{TIMEOUT_S:g}s: {exc}") from exc
+        raise CheckError(f"corner {corner!r}: eda sta "
+                         f"{checklib.timeout_why(exc)}: {exc}") from exc
     output = (proc.stdout or "") + "\n" + (proc.stderr or "")
     slacks = {kind: float(val) for kind, val in SLACK_RE.findall(output)}
     if "max" not in slacks or "min" not in slacks:

@@ -57,7 +57,7 @@ def test_magic_no_count_line_refuses(tmp_path):
         stderr = ""
 
     import unittest.mock as mock
-    with mock.patch.object(check_drc.subprocess, "run", return_value=FakeProc()):
+    with mock.patch.object(check_drc.checklib, "run_tool", return_value=FakeProc()):
         with pytest.raises(CheckError, match="never reported a violation count"):
             check_drc.run_magic_drc(gds, "top", tmp_path)
 
@@ -72,7 +72,7 @@ def test_magic_parses_nonzero_count(tmp_path):
         stderr = ""
 
     import unittest.mock as mock
-    with mock.patch.object(check_drc.subprocess, "run", return_value=FakeProc()):
+    with mock.patch.object(check_drc.checklib, "run_tool", return_value=FakeProc()):
         count = check_drc.run_magic_drc(gds, "top", tmp_path)
     assert count == 3
 
@@ -91,7 +91,7 @@ def test_klayout_no_report_file_refuses(tmp_path):
         stderr = "klayout crashed\n"
 
     import unittest.mock as mock
-    with mock.patch.object(check_drc.subprocess, "run", return_value=FakeProc()):
+    with mock.patch.object(check_drc.checklib, "run_tool", return_value=FakeProc()):
         with pytest.raises(CheckError, match="produced no report database"):
             check_drc.run_klayout_drc(gds, "top", pdk_root, tmp_path)
 

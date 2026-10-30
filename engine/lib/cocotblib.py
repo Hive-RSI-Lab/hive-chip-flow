@@ -19,8 +19,11 @@ cannot silently stand in for a real pass.
 """
 from __future__ import annotations
 
+import os
 import re
 import signal
+import threading
+import time
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -107,7 +110,8 @@ def required_ids(spec: dict, checks: tuple[str, ...] = ("sim", "both")) -> set[s
 def run_cocotb(build_dir: Path, test_dir: Path, sources: list[Path],
               hdl_toplevel: str, test_modules_: list[str], results_xml: Path,
               timescale: tuple[str, str] = ("1ns", "1ps"),
-              timeout_s: float | None = None, waves: bool = False) -> Path:
+              timeout_s: float | None = None, waves: bool = False,
+              stall_s: float | None = None) -> Path:
     """Build the design then run every module in test_modules_ as one cocotb
     regression over Icarus. Returns the results.xml path (results_xml is
     pinned explicitly - concurrent callers, e.g. check_mutate.py running one
@@ -148,6 +152,15 @@ def run_cocotb(build_dir: Path, test_dir: Path, sources: list[Path],
     *.py's cli_wrap (checklib.py) maps any exception to exit 2, the same
     "this gate did not run" contract a hang should report.
 
+    stall_s, if given, ends the run sooner when it stops making progress:
+    a watcher thread polls this process's children (iverilog, then vvp with
+    the bench and ngspice inside it) with checklib.StallWatch, and when no
+    child has used CPU, been runnable or been in disk wait for stall_s it
+    raises CocotbTimeout
+    the same way (timeout_s is then only a wall ceiling). A co-sim on a
+    loaded box is slow, not hung, so a fixed wall alone called pll's
+    working ~100 s co-sim a hang at 240 s.
+
     waves=True has cocotb dump `<build_dir>/<hdl_toplevel>.fst` (Icarus
     always gets -fst or -none, so never VCD); optimise.py's power metric
     is the one caller, and converts it with `eda fst2vcd`."""
@@ -159,15 +172,32 @@ def run_cocotb(build_dir: Path, test_dir: Path, sources: list[Path],
     runner = get_runner("icarus")
     log_file = str(build_dir / "sim.log")
 
+    stalled: list[float] = []
+
     def _on_alarm(signum, frame):
+        if stalled:
+            raise CocotbTimeout(
+                f"run_cocotb made no progress (no CPU used, nothing "
+                f"runnable or in disk wait) for {stall_s:g}s, after "
+                f"{stalled[0]:.0f}s of "
+                f"wall: it is waiting, not working "
+                f"(hdl_toplevel={hdl_toplevel!r})")
         raise CocotbTimeout(
             f"run_cocotb exceeded its {timeout_s:g}s wall-clock timeout "
             f"(hdl_toplevel={hdl_toplevel!r})")
 
     old_handler = None
-    if timeout_s is not None:
+    if timeout_s is not None or stall_s is not None:
         old_handler = signal.signal(signal.SIGALRM, _on_alarm)
+    if timeout_s is not None:
         signal.alarm(max(1, int(timeout_s)))
+    stop = threading.Event()
+    watcher = None
+    if stall_s is not None:
+        watcher = threading.Thread(
+            target=_watch_stall, daemon=True,
+            args=(stall_s, stop, stalled, threading.main_thread().ident))
+        watcher.start()
     try:
         runner.build(sources=[str(s) for s in sources], hdl_toplevel=hdl_toplevel,
                     build_dir=str(build_dir), waves=waves, timescale=timescale,
@@ -187,9 +217,34 @@ def run_cocotb(build_dir: Path, test_dir: Path, sources: list[Path],
         except SystemExit:
             return Path(results_xml)
     finally:
-        if timeout_s is not None:
+        stop.set()
+        if watcher is not None:
+            watcher.join()
+        if old_handler is not None:
             signal.alarm(0)
             signal.signal(signal.SIGALRM, old_handler)
+
+
+def _watch_stall(stall_s: float, stop: threading.Event, stalled: list,
+                 main_ident: int) -> None:
+    """run_cocotb's watcher: once this process's children have made no
+    progress for stall_s, note the wall time in stalled, interrupt the
+    main thread with SIGALRM (its handler raises CocotbTimeout) and kill
+    the children, which are waiting, not working."""
+    import checklib
+    start = time.monotonic()
+    watch = checklib.StallWatch(os.getpid(), skip_self=True)
+    while not stop.wait(checklib.STALL_POLL_S):
+        if watch.poll() >= stall_s:
+            stalled.append(time.monotonic() - start)
+            signal.pthread_kill(main_ident, signal.SIGALRM)
+            for pid, _ in watch.last:
+                if pid != os.getpid():
+                    try:
+                        os.kill(pid, signal.SIGKILL)
+                    except OSError:
+                        pass
+            return
 
 
 def parse_results_xml(xml_path: Path) -> dict[str, dict]:

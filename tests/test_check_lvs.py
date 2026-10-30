@@ -72,7 +72,7 @@ def test_no_decidable_verdict_refuses(tmp_path, monkeypatch, capsys):
 
     def fake_run(cmd, **kwargs):
         return subprocess.CompletedProcess(cmd, 1, stdout="netgen exploded\n", stderr="")
-    monkeypatch.setattr(check_lvs.subprocess, "run", fake_run)
+    monkeypatch.setattr(check_lvs.checklib, "run_tool", fake_run)
 
     code = check_lvs.main(["--workspace", str(ws)])
     out = json.loads(capsys.readouterr().out)
@@ -87,7 +87,7 @@ def test_mismatch_is_a_violation(tmp_path, monkeypatch, capsys):
     def fake_run(cmd, **kwargs):
         return subprocess.CompletedProcess(
             cmd, 0, stdout="Final result: Netlists do not match.\n", stderr="")
-    monkeypatch.setattr(check_lvs.subprocess, "run", fake_run)
+    monkeypatch.setattr(check_lvs.checklib, "run_tool", fake_run)
 
     code = check_lvs.main(["--workspace", str(ws)])
     out = json.loads(capsys.readouterr().out)
@@ -103,7 +103,7 @@ def test_match_passes(tmp_path, monkeypatch, capsys):
     def fake_run(cmd, **kwargs):
         return subprocess.CompletedProcess(
             cmd, 0, stdout="Final result: Circuits match uniquely.\n", stderr="")
-    monkeypatch.setattr(check_lvs.subprocess, "run", fake_run)
+    monkeypatch.setattr(check_lvs.checklib, "run_tool", fake_run)
 
     code = check_lvs.main(["--workspace", str(ws)])
     out = json.loads(capsys.readouterr().out)

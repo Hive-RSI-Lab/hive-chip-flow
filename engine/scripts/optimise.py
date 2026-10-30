@@ -471,7 +471,9 @@ DEFAULT_PATIENCE = 5
 ENGINE_OUTPUTS = ("log/", "synth/", "optimise/", "state_snapshots/")
 ENGINE_OUTPUT_FILES = ("state.json", "state.json.lock")
 GIT_ID = ["-c", "user.name=optimise.py", "-c", "user.email=optimise@localhost"]
-TOOL_TIMEOUT_S = 300.0
+# A wall ceiling only: a tool is ended sooner when it stops making progress
+# (checklib.STALL_S).
+TOOL_TIMEOUT_S = 3000.0
 
 
 def is_rtl_target(target: str) -> bool:
@@ -854,12 +856,13 @@ def run_constraints(ew: Path, detail: list) -> dict:
 def _run_tool(ew: Path, *cmd: str, stdout_only: bool = False) -> str:
     import subprocess
     try:
-        proc = subprocess.run([str(sim_run.EDA_BIN), *cmd], cwd=str(ew),
-                              capture_output=True, text=True, encoding="utf-8",
-                              errors="replace", timeout=TOOL_TIMEOUT_S,
-                              stdin=subprocess.DEVNULL)
+        proc = checklib.run_tool([str(sim_run.EDA_BIN), *cmd], cwd=str(ew),
+                                 capture_output=True, text=True,
+                                 encoding="utf-8", errors="replace",
+                                 wall=TOOL_TIMEOUT_S, stdin=subprocess.DEVNULL)
     except subprocess.TimeoutExpired as exc:
-        raise CheckError(f"eda {cmd[0]} timed out: {exc}") from exc
+        raise CheckError(f"eda {cmd[0]} {checklib.timeout_why(exc)}: "
+                         f"{exc}") from exc
     output = (proc.stdout or "") + "\n" + (proc.stderr or "")
     if proc.returncode != 0:
         raise CheckError(f"eda {cmd[0]} exited {proc.returncode}: "

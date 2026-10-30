@@ -96,7 +96,7 @@ def test_sta_with_no_parseable_slack_refuses(tmp_path, monkeypatch, capsys):
 
     def fake_run(cmd, **kwargs):
         return subprocess.CompletedProcess(cmd, 1, stdout="Error: something broke\n", stderr="")
-    monkeypatch.setattr(check_timing.subprocess, "run", fake_run)
+    monkeypatch.setattr(check_timing.checklib, "run_tool", fake_run)
 
     code = check_timing.main(["--workspace", str(ws)])
     out = json.loads(capsys.readouterr().out)
@@ -111,7 +111,7 @@ def test_negative_setup_slack_is_a_violation(tmp_path, monkeypatch, capsys):
     def fake_run(cmd, **kwargs):
         return subprocess.CompletedProcess(
             cmd, 0, stdout="worst slack max -0.06\nworst slack min 2.23\n" + CLEAN_COUNTS, stderr="")
-    monkeypatch.setattr(check_timing.subprocess, "run", fake_run)
+    monkeypatch.setattr(check_timing.checklib, "run_tool", fake_run)
 
     code = check_timing.main(["--workspace", str(ws)])
     out = json.loads(capsys.readouterr().out)
@@ -128,7 +128,7 @@ def test_infinite_slack_is_a_clock_unconstrained_violation_not_a_pass(tmp_path, 
     def fake_run(cmd, **kwargs):
         return subprocess.CompletedProcess(
             cmd, 0, stdout="worst slack max INF\nworst slack min INF\n" + CLEAN_COUNTS, stderr="")
-    monkeypatch.setattr(check_timing.subprocess, "run", fake_run)
+    monkeypatch.setattr(check_timing.checklib, "run_tool", fake_run)
 
     code = check_timing.main(["--workspace", str(ws)])
     out = json.loads(capsys.readouterr().out)
@@ -151,7 +151,7 @@ def test_all_corners_positive_slack_pass(tmp_path, monkeypatch, capsys):
     def fake_run(cmd, **kwargs):
         return subprocess.CompletedProcess(
             cmd, 0, stdout="worst slack max 7.97\nworst slack min 2.23\n" + CLEAN_COUNTS, stderr="")
-    monkeypatch.setattr(check_timing.subprocess, "run", fake_run)
+    monkeypatch.setattr(check_timing.checklib, "run_tool", fake_run)
 
     code = check_timing.main(["--workspace", str(ws)])
     out = json.loads(capsys.readouterr().out)
@@ -207,7 +207,7 @@ def test_cap_and_fanout_violators_fail_with_positive_slack(tmp_path, monkeypatch
 
     def fake_run(cmd, **kwargs):
         return subprocess.CompletedProcess(cmd, 0, stdout=out_text, stderr="")
-    monkeypatch.setattr(check_timing.subprocess, "run", fake_run)
+    monkeypatch.setattr(check_timing.checklib, "run_tool", fake_run)
 
     code = check_timing.main(["--workspace", str(ws)])
     out = json.loads(capsys.readouterr().out)
@@ -225,7 +225,7 @@ def test_counts_line_missing_from_real_run_refuses(tmp_path, monkeypatch, capsys
     def fake_run(cmd, **kwargs):
         return subprocess.CompletedProcess(
             cmd, 0, stdout="worst slack max 7.97\nworst slack min 2.23\n", stderr="")
-    monkeypatch.setattr(check_timing.subprocess, "run", fake_run)
+    monkeypatch.setattr(check_timing.checklib, "run_tool", fake_run)
 
     code = check_timing.main(["--workspace", str(ws)])
     out = json.loads(capsys.readouterr().out)
@@ -354,7 +354,7 @@ def _passing_sta(monkeypatch):
         return subprocess.CompletedProcess(
             cmd, 0, stdout="worst slack max 7.97\nworst slack min 2.23\n"
             + CLEAN_COUNTS, stderr="")
-    monkeypatch.setattr(check_timing.subprocess, "run", fake_run)
+    monkeypatch.setattr(check_timing.checklib, "run_tool", fake_run)
 
 
 def test_each_corner_reads_the_signoff_sdc_under_librelanes_env(

@@ -94,7 +94,9 @@ from checklib import CheckError  # noqa: E402
 
 SCRIPT = "check_synth"
 EDA_BIN = REPO / "bin" / "eda"
-TIMEOUT_S = 120.0
+# A wall ceiling only, ten times the old fixed limit: the tool is ended
+# sooner when it stops making progress (checklib.STALL_S).
+TIMEOUT_S = 1200.0
 LIBS_REF_REL = "foss/pdks/gf180mcuD/libs.ref"
 STD_CELL_LIBRARIES = ("gf180mcu_fd_sc_mcu7t5v0", "gf180mcu_fd_sc_mcu9t5v0")
 DEFAULT_STD_CELL = {"library": "gf180mcu_fd_sc_mcu9t5v0",
@@ -214,12 +216,12 @@ write_verilog {out_v.relative_to(ws)}
 write_json {out_v.with_suffix('.json').relative_to(ws)}
 """, encoding="utf-8")
     try:
-        proc = subprocess.run(
+        proc = checklib.run_tool(
             [str(EDA_BIN), "yosys", "-s", str(script.relative_to(ws))],
             cwd=str(ws), capture_output=True, text=True,
-            encoding="utf-8", errors="replace", timeout=TIMEOUT_S)
+            encoding="utf-8", errors="replace", wall=TIMEOUT_S)
     except subprocess.TimeoutExpired as exc:
-        raise CheckError(f"yosys synth timed out after {TIMEOUT_S:g}s: "
+        raise CheckError(f"yosys synth {checklib.timeout_why(exc)}: "
                          f"{exc}") from exc
     output = (proc.stdout or "") + (proc.stderr or "")
     if proc.returncode != 0:

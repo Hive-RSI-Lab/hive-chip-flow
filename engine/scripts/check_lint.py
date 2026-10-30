@@ -47,7 +47,9 @@ import yaml  # noqa: E402
 SCRIPT = "check_lint"
 EDA_BIN = REPO / "bin" / "eda"
 ALLOW_REL = "rtl/lint_allow.yaml"
-TIMEOUT_S = 60.0
+# A wall ceiling only, ten times the old fixed limit: the tool is ended
+# sooner when it stops making progress (checklib.STALL_S).
+TIMEOUT_S = 600.0
 
 # %Warning-RULE: file:line:col: msg   (a lint rule warning)
 # %Error: file:line:col: msg          (a real compile error, never allowlist-able)
@@ -85,14 +87,14 @@ def collect_sources(ws: Path) -> list[Path]:
 def run_verilator(ws: Path, top: str, files: list[Path]) -> str:
     rel = [str(f.relative_to(ws)) for f in files]
     try:
-        proc = subprocess.run(
+        proc = checklib.run_tool(
             [str(EDA_BIN), "verilator", "--lint-only", "-Wall", "-Wno-fatal",
              "--top-module", top, *rel],
             cwd=str(ws), capture_output=True, text=True,
-            encoding="utf-8", errors="replace", timeout=TIMEOUT_S)
+            encoding="utf-8", errors="replace", wall=TIMEOUT_S)
     except subprocess.TimeoutExpired as exc:
-        raise CheckError(f"verilator --lint-only timed out after "
-                         f"{TIMEOUT_S:g}s: {exc}") from exc
+        raise CheckError(f"verilator --lint-only "
+                         f"{checklib.timeout_why(exc)}: {exc}") from exc
     output = (proc.stdout or "") + (proc.stderr or "")
     # A real verilator error still prints %Error lines even under
     # -Wno-fatal (parse_violations below reports those as findings); a
