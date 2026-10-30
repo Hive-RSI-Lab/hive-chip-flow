@@ -1,0 +1,65 @@
+{
+ "corner": "tt_27c",
+ "point": {
+  "p_times_n": 16,
+  "pad_f": 0.0,
+  "icp_a": 1.88373145e-05,
+  "kvco_hz_per_v": 116435888.89600918,
+  "r1_ohm": 27013.739050155567,
+  "c1_f": 2.0003628890044904e-11,
+  "c2_f": 2.143078703138183e-12,
+  "crossover_hz": 585234.8657617555,
+  "phase_margin_deg": 52.4015450058572,
+  "fn_hz": 416637.802291822,
+  "zeta": 0.7072973543090963,
+  "zero_hz": 294528.03672565904,
+  "pole_hz": 3043670.910361744,
+  "settle_4_over_zeta_wn_us": 2.16032662266408,
+  "crossover_over_fref": 0.09363757852188088
+ },
+ "sweep": {
+  "pn8": {
+   "crossover_hz": 1046031.4172,
+   "phase_margin_deg": 55.308,
+   "fn_hz": 589214.8306,
+   "zeta": 1.0003,
+   "settle_4_over_zeta_wn_us": 1.0802
+  },
+  "pn16": {
+   "crossover_hz": 585234.8658,
+   "phase_margin_deg": 52.4015,
+   "fn_hz": 416637.8023,
+   "zeta": 0.7073,
+   "settle_4_over_zeta_wn_us": 2.1603
+  },
+  "pn24": {
+   "crossover_hz": 426962.1229,
+   "phase_margin_deg": 47.4159,
+   "fn_hz": 340183.3411,
+   "zeta": 0.5775,
+   "settle_4_over_zeta_wn_us": 3.2405
+  },
+  "pn32": {
+   "crossover_hz": 346913.8812,
+   "phase_margin_deg": 43.1665,
+   "fn_hz": 294607.4153,
+   "zeta": 0.5001,
+   "settle_4_over_zeta_wn_us": 4.3207
+  },
+  "pn40": {
+   "crossover_hz": 297976.0367,
+   "phase_margin_deg": 39.742,
+   "fn_hz": 263504.8829,
+   "zeta": 0.4473,
+   "settle_4_over_zeta_wn_us": 5.4008
+  },
+  "pn16_pad5p": {
+   "crossover_hz": 471781.1943,
+   "phase_margin_deg": 35.1692,
+   "fn_hz": 416637.8023,
+   "zeta": 0.7073,
+   "settle_4_over_zeta_wn_us": 2.1603
+  }
+ },
+ "pm_min_deg": 45.0
+}

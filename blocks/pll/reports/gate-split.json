@@ -1,0 +1,43 @@
+{
+  "script": "gate",
+  "gate": "split",
+  "phase": "P1",
+  "tool": "split",
+  "input_digest": "json_canonical:59ad81b58467d1a224206c4f45b51eebbf5f1bfccda3739322b7699c38fd2d6b",
+  "status": "pass",
+  "criteria": {
+    "fail_severities": [
+      "error"
+    ],
+    "max_count": 0
+  },
+  "counts": {
+    "total": 0,
+    "by_severity": {},
+    "by_source": {}
+  },
+  "failing_count": 0,
+  "failing": [],
+  "violations": [],
+  "facts": {
+    "signals": [
+      "cp_trim0",
+      "cp_trim1",
+      "pfd_dn",
+      "pfd_up",
+      "pll_en",
+      "vco_out"
+    ]
+  },
+  "record_result": {
+    "ok": true,
+    "recorded": true,
+    "workspace": "blocks/pll",
+    "gate": "split",
+    "status": "pass",
+    "attempts": 4,
+    "inputs": {
+      "interface": "json_canonical:59ad81b58467d1a224206c4f45b51eebbf5f1bfccda3739322b7699c38fd2d6b"
+    }
+  }
+}

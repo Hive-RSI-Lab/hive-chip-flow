@@ -1,0 +1,245 @@
+{
+ "script": "gate",
+ "gate": "formal",
+ "phase": "P4",
+ "tool": "formal",
+ "input_digest": "dir_text:d57e8def30c23cb7654bbd9d72b98e3c18d24c5ee8934cf63e6d13031be58a3a",
+ "status": "pass",
+ "criteria": {
+  "fail_severities": [
+   "error"
+  ],
+  "max_count": 0
+ },
+ "counts": {
+  "total": 8,
+  "by_severity": {
+   "info": 8
+  },
+  "by_source": {
+   "sby-smtbmc": 6,
+   "check_formal": 2
+  }
+ },
+ "failing_count": 0,
+ "failing": [],
+ "violations": [
+  {
+   "check": "formal",
+   "severity": "info",
+   "file": null,
+   "module": null,
+   "line": null,
+   "kind": "bounded_not_proven",
+   "refs": [
+    "REQ-DIV-N"
+   ],
+   "msg": "requirement REQ-DIV-N (property divider_ratio): no counterexample found to depth 20 (spec.yaml formal.depth), but induction did not converge - recorded as bounded, never as proven",
+   "source": "sby-smtbmc",
+   "items": [
+    {
+     "msg": "requirement REQ-DIV-N (property divider_ratio): no counterexample found to depth 20 (spec.yaml formal.depth), but induction did not converge - recorded as bounded, never as proven",
+     "file": null,
+     "line": null
+    }
+   ],
+   "depth": 20
+  },
+  {
+   "check": "formal",
+   "severity": "info",
+   "file": null,
+   "module": null,
+   "line": null,
+   "kind": "bounded_not_proven",
+   "refs": [
+    "REQ-LOCK-NO-WIDE"
+   ],
+   "msg": "requirement REQ-LOCK-NO-WIDE (property lock_not_while_wide): no counterexample found to depth 20 (spec.yaml formal.depth), but induction did not converge - recorded as bounded, never as proven",
+   "source": "sby-smtbmc",
+   "items": [
+    {
+     "msg": "requirement REQ-LOCK-NO-WIDE (property lock_not_while_wide): no counterexample found to depth 20 (spec.yaml formal.depth), but induction did not converge - recorded as bounded, never as proven",
+     "file": null,
+     "line": null
+    }
+   ],
+   "depth": 20
+  },
+  {
+   "check": "formal",
+   "severity": "info",
+   "file": null,
+   "module": null,
+   "line": null,
+   "kind": "bounded_not_proven",
+   "refs": [
+    "REQ-PFD-NO-OVERLAP"
+   ],
+   "msg": "requirement REQ-PFD-NO-OVERLAP (property pfd_never_both_high): no counterexample found to depth 20 (spec.yaml formal.depth), but induction did not converge - recorded as bounded, never as proven",
+   "source": "sby-smtbmc",
+   "items": [
+    {
+     "msg": "requirement REQ-PFD-NO-OVERLAP (property pfd_never_both_high): no counterexample found to depth 20 (spec.yaml formal.depth), but induction did not converge - recorded as bounded, never as proven",
+     "file": null,
+     "line": null
+    }
+   ],
+   "depth": 20
+  },
+  {
+   "check": "formal",
+   "severity": "info",
+   "file": null,
+   "module": null,
+   "line": null,
+   "kind": "bounded_not_proven",
+   "refs": [
+    "REQ-PFD-RESET"
+   ],
+   "msg": "requirement REQ-PFD-RESET (property pfd_reset_on_both): no counterexample found to depth 20 (spec.yaml formal.depth), but induction did not converge - recorded as bounded, never as proven",
+   "source": "sby-smtbmc",
+   "items": [
+    {
+     "msg": "requirement REQ-PFD-RESET (property pfd_reset_on_both): no counterexample found to depth 20 (spec.yaml formal.depth), but induction did not converge - recorded as bounded, never as proven",
+     "file": null,
+     "line": null
+    }
+   ],
+   "depth": 20
+  },
+  {
+   "check": "formal",
+   "severity": "info",
+   "file": null,
+   "module": null,
+   "line": null,
+   "kind": "bounded_not_proven",
+   "refs": [
+    "REQ-PRE-DIV8"
+   ],
+   "msg": "requirement REQ-PRE-DIV8 (property prescaler_div8): no counterexample found to depth 20 (spec.yaml formal.depth), but induction did not converge - recorded as bounded, never as proven",
+   "source": "sby-smtbmc",
+   "items": [
+    {
+     "msg": "requirement REQ-PRE-DIV8 (property prescaler_div8): no counterexample found to depth 20 (spec.yaml formal.depth), but induction did not converge - recorded as bounded, never as proven",
+     "file": null,
+     "line": null
+    }
+   ],
+   "depth": 20
+  },
+  {
+   "check": "formal",
+   "severity": "info",
+   "file": null,
+   "module": null,
+   "line": null,
+   "kind": "bounded_not_proven",
+   "refs": [
+    "REQ-RST-ASYNC"
+   ],
+   "msg": "requirement REQ-RST-ASYNC (property reset_forces_outputs): no counterexample found to depth 20 (spec.yaml formal.depth), but induction did not converge - recorded as bounded, never as proven",
+   "source": "sby-smtbmc",
+   "items": [
+    {
+     "msg": "requirement REQ-RST-ASYNC (property reset_forces_outputs): no counterexample found to depth 20 (spec.yaml formal.depth), but induction did not converge - recorded as bounded, never as proven",
+     "file": null,
+     "line": null
+    }
+   ],
+   "depth": 20
+  },
+  {
+   "check": "formal",
+   "severity": "info",
+   "file": null,
+   "module": null,
+   "line": null,
+   "kind": "async_reset_cut_applied",
+   "refs": [],
+   "msg": "formal model cuts the async reset of dut.u_pfd.pfd_ref_q ($adff): its ARST cone reads the cut flops' pre-reset values, not their Q (spec.yaml formal.async_reset_cuts, why: Approved by a delegate on the person's redirect (Slack ts 1791072039.428359), not the person's own ruling. Classic tri-state PFD: AND(up,dn) through two delay cells clears pfd_ref_q and pfd_fb_q asynchronously, a loop sby cannot model. Cut in the formal model only, RTL unchanged. The reset pulse and its width stay checked by the cocotb PFD tests and the cosim reset-width measurement (sim_pvt passed 2026-10-02).) - every verdict here is the settled zero-delay clear; the glitch and the reset pulse width stay with sim",
+   "source": "check_formal",
+   "items": [
+    {
+     "msg": "formal model cuts the async reset of dut.u_pfd.pfd_ref_q ($adff): its ARST cone reads the cut flops' pre-reset values, not their Q (spec.yaml formal.async_reset_cuts, why: Approved by a delegate on the person's redirect (Slack ts 1791072039.428359), not the person's own ruling. Classic tri-state PFD: AND(up,dn) through two delay cells clears pfd_ref_q and pfd_fb_q asynchronously, a loop sby cannot model. Cut in the formal model only, RTL unchanged. The reset pulse and its width stay checked by the cocotb PFD tests and the cosim reset-width measurement (sim_pvt passed 2026-10-02).) - every verdict here is the settled zero-delay clear; the glitch and the reset pulse width stay with sim",
+     "file": null,
+     "line": null
+    }
+   ],
+   "signal": "dut.u_pfd.pfd_ref_q"
+  },
+  {
+   "check": "formal",
+   "severity": "info",
+   "file": null,
+   "module": null,
+   "line": null,
+   "kind": "async_reset_cut_applied",
+   "refs": [],
+   "msg": "formal model cuts the async reset of dut.u_pfd.pfd_fb_q ($adff): its ARST cone reads the cut flops' pre-reset values, not their Q (spec.yaml formal.async_reset_cuts, why: Approved by a delegate on the person's redirect (Slack ts 1791072039.428359), not the person's own ruling. Classic tri-state PFD: AND(up,dn) through two delay cells clears pfd_ref_q and pfd_fb_q asynchronously, a loop sby cannot model. Cut in the formal model only, RTL unchanged. The reset pulse and its width stay checked by the cocotb PFD tests and the cosim reset-width measurement (sim_pvt passed 2026-10-02).) - every verdict here is the settled zero-delay clear; the glitch and the reset pulse width stay with sim",
+   "source": "check_formal",
+   "items": [
+    {
+     "msg": "formal model cuts the async reset of dut.u_pfd.pfd_fb_q ($adff): its ARST cone reads the cut flops' pre-reset values, not their Q (spec.yaml formal.async_reset_cuts, why: Approved by a delegate on the person's redirect (Slack ts 1791072039.428359), not the person's own ruling. Classic tri-state PFD: AND(up,dn) through two delay cells clears pfd_ref_q and pfd_fb_q asynchronously, a loop sby cannot model. Cut in the formal model only, RTL unchanged. The reset pulse and its width stay checked by the cocotb PFD tests and the cosim reset-width measurement (sim_pvt passed 2026-10-02).) - every verdict here is the settled zero-delay clear; the glitch and the reset pulse width stay with sim",
+     "file": null,
+     "line": null
+    }
+   ],
+   "signal": "dut.u_pfd.pfd_fb_q"
+  }
+ ],
+ "facts": {
+  "top": "ihsan_sa_pll",
+  "formal_top": "ihsan_sa_pll_formal",
+  "depth": 20,
+  "cover_depth": 300,
+  "frontend": "native",
+  "frontend_why": null,
+  "multiclock": true,
+  "multiclock_why": "6 clock signals (\\clk, \\clk_fb, \\dut.u_pre.pre_q0, \\dut.u_pre.pre_q1, \\dut.u_pre.pre_q2, \\vco_out); negative-edge cell(s) $flatten\\dut.\\u_div.$procdff$374, $flatten\\dut.\\u_lock.$procdff$410; async reset/latch cell(s) $adff",
+  "proven": [],
+  "bounded": [
+   "REQ-DIV-N",
+   "REQ-LOCK-NO-WIDE",
+   "REQ-PFD-NO-OVERLAP",
+   "REQ-PFD-RESET",
+   "REQ-PRE-DIV8",
+   "REQ-RST-ASYNC"
+  ],
+  "failed": [],
+  "vacuous": [],
+  "smt_status": "UNKNOWN",
+  "pdr_status": "PASS",
+  "cover_points": [
+   "COVER_FB_ILLEGAL",
+   "COVER_FB_N5",
+   "COVER_LOCK",
+   "COVER_LOCK_DROP",
+   "COVER_PFD_DN",
+   "COVER_PFD_RESET",
+   "COVER_PFD_UP",
+   "COVER_PRE_PERIOD"
+  ],
+  "async_reset_cuts": [
+   {
+    "signal": "dut.u_pfd.pfd_ref_q",
+    "why": "Approved by a delegate on the person's redirect (Slack ts 1791072039.428359), not the person's own ruling. Classic tri-state PFD: AND(up,dn) through two delay cells clears pfd_ref_q and pfd_fb_q asynchronously, a loop sby cannot model. Cut in the formal model only, RTL unchanged. The reset pulse and its width stay checked by the cocotb PFD tests and the cosim reset-width measurement (sim_pvt passed 2026-10-02).",
+    "cell_type": "$adff"
+   },
+   {
+    "signal": "dut.u_pfd.pfd_fb_q",
+    "why": "Approved by a delegate on the person's redirect (Slack ts 1791072039.428359), not the person's own ruling. Classic tri-state PFD: AND(up,dn) through two delay cells clears pfd_ref_q and pfd_fb_q asynchronously, a loop sby cannot model. Cut in the formal model only, RTL unchanged. The reset pulse and its width stay checked by the cocotb PFD tests and the cosim reset-width measurement (sim_pvt passed 2026-10-02).",
+    "cell_type": "$adff"
+   }
+  ],
+  "async_reset_cuts_note": "smt/pdr's proven/bounded verdicts above hold for a model in which each cut flop's async clear (formal.async_reset_cuts) reads the cut flops' PRE-RESET values instead of their Q - the clear lands in the same step the flop sets, and every other reset input (rst_n) is unchanged - so they show the settled zero-delay behaviour, not the delta-cycle glitch (both flops briefly both-set before the clear catches up) or the reset pulse's width, which stay sim's job"
+ },
+ "inputs_at_start": {
+  "rtl": "dir_text:d57e8def30c23cb7654bbd9d72b98e3c18d24c5ee8934cf63e6d13031be58a3a",
+  "formal": "dir_text:ee443899a179eea94a88d755ecda4737c8b3dbc3b09fe22f0510dcbe837462fd",
+  "spec_yaml": "json_canonical:a757fc1c7b8e08b8cc83ae92b67008c4729da5fc5bf5b77958a34aab450daf36"
+ },
+ "recorded_ts": "2026-10-29T11:43:05",
+ "attempts": 9
+}

@@ -1,0 +1,32 @@
+{
+ "script": "gate",
+ "gate": "netlist_lint",
+ "phase": "P4",
+ "tool": "netlist_lint",
+ "input_digest": "dir_text:c20767143e29ce734d55b7e2a8cacb836b60b62cefe973cc06edc21007841f07",
+ "status": "pass",
+ "criteria": {
+  "fail_severities": [
+   "error"
+  ],
+  "max_count": 0
+ },
+ "counts": {
+  "total": 0,
+  "by_severity": {},
+  "by_source": {}
+ },
+ "failing_count": 0,
+ "failing": [],
+ "violations": [],
+ "facts": {
+  "top": "pll_analog",
+  "netlist": "netlist/pll_analog.cir"
+ },
+ "inputs_at_start": {
+  "netlist": "dir_text:c20767143e29ce734d55b7e2a8cacb836b60b62cefe973cc06edc21007841f07",
+  "spec_yaml": "json_canonical:d716cf6b0d1929fc3a2f9bda14a0e67b244264ae581dca2e8ce465dd41dbf6da"
+ },
+ "recorded_ts": "2026-10-28T18:30:22",
+ "attempts": 10
+}

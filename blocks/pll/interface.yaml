@@ -1,0 +1,54 @@
+# interface.yaml - every signal crossing the digital/analog boundary of the
+# charge-pump PLL (top tt_um_ihsan_sa_pll, TT GF180 analog tile).
+# direction: a2d = analog drives digital, d2a = digital drives analog.
+# level: cmos_3v3 = full-swing logic at 3.3 V.
+# domain: clk_ref = tile clk (5-12.5 MHz); clk_fb = feedback divider output
+# (<= 46 MHz); clk_free = asynchronous, no clock.
+# Digital side: PFD, /8 prescaler, /N divider, lock detector, observation,
+# control registers. Analog side (hard macro pll_analog): charge pump, loop
+# filter, current-starved ring VCO, bias.
+version: 1
+signals:
+  - name: vco_out
+    direction: a2d
+    level: cmos_3v3
+    domain: clk_free
+    width: 1
+    load: "prescaler first toggle flop clock (dffq_1 CLK) plus one buffer, up to 370 MHz (the VCO's ceiling at every corner, ~363 MHz at ff, -40 C, 2.97 V)"
+  - name: pfd_up
+    direction: d2a
+    level: cmos_3v3
+    domain: clk_ref
+    width: 1
+    load: "charge pump UP switch input, active high sources Icp into the loop filter"
+  - name: pfd_dn
+    direction: d2a
+    level: cmos_3v3
+    domain: clk_fb
+    width: 1
+    load: "charge pump DN switch input, active high sinks Icp from the loop filter"
+  - name: pll_en
+    direction: d2a
+    level: cmos_3v3
+    domain: clk_ref
+    width: 1
+    load: "pump, bias and VCO power-down, active high enables, quasi-static"
+  - name: cp_trim0
+    direction: d2a
+    level: cmos_3v3
+    domain: clk_ref
+    width: 1
+    load: "charge pump current trim bit 0 (mirror ratio select), quasi-static"
+  - name: cp_trim1
+    direction: d2a
+    level: cmos_3v3
+    domain: clk_ref
+    width: 1
+    load: "charge pump current trim bit 1 (mirror ratio select), quasi-static"
+# Analog-cell pins brought out to the Tiny Tapeout analog pads ua[k], read by
+# check_top_harden: the loop filter node vctrl leaves on ua[0] and the
+# optional external bias resistor node bias_ref comes in on ua[1]. Neither
+# ever touches the digital side.
+ua_pins:
+  vctrl: 0
+  bias_ref: 1

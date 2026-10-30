@@ -1,0 +1,4 @@
+[
+  {"measure": "startup_time_us", "sensitivity": 0.02, "max": 5.0, "severity": "error",
+   "msg": "pll_en rise to a running, full-swing vco_out; 5 pF on vctrl and bias_ref; vctrl = 0.3 V"}
+]

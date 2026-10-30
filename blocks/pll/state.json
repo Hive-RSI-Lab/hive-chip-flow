@@ -1,0 +1,312 @@
+{
+ "version": 3,
+ "skill": "msde",
+ "block": "pll",
+ "workspace": "blocks/pll",
+ "created": "2026-09-27T00:27:07",
+ "updated": "2026-10-28T19:25:27",
+ "phase": "P2",
+ "toolchain": null,
+ "gates": {
+  "split": {
+   "phase": "P1",
+   "status": "pass",
+   "attempts": 5,
+   "last": {
+    "ts": "2026-10-28T15:33:45",
+    "status": "pass",
+    "failing_count": 0,
+    "total": 0,
+    "inputs": {
+     "interface": "json_canonical:63d865f95b5180ceb77702d57fcb98737fcc8f3f18778a347aca87f17099b554"
+    },
+    "job": null
+   },
+   "history": [
+    {
+     "ts": "2026-09-27T00:31:08",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "interface": "json_canonical:ca5f9aad703d4c7ec40883f74134a38fbe6067d84288844584b8ede458639f28"
+     },
+     "job": null
+    },
+    {
+     "ts": "2026-09-27T00:32:45",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "interface": "json_canonical:59ad81b58467d1a224206c4f45b51eebbf5f1bfccda3739322b7699c38fd2d6b"
+     },
+     "job": null
+    },
+    {
+     "ts": "2026-09-27T00:34:05",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "interface": "json_canonical:59ad81b58467d1a224206c4f45b51eebbf5f1bfccda3739322b7699c38fd2d6b"
+     },
+     "job": null
+    },
+    {
+     "ts": "2026-09-27T00:42:24",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "interface": "json_canonical:59ad81b58467d1a224206c4f45b51eebbf5f1bfccda3739322b7699c38fd2d6b"
+     },
+     "job": null
+    },
+    {
+     "ts": "2026-10-28T15:33:45",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "interface": "json_canonical:63d865f95b5180ceb77702d57fcb98737fcc8f3f18778a347aca87f17099b554"
+     },
+     "job": null
+    }
+   ]
+  },
+  "cosim": {
+   "phase": "P3",
+   "status": "pass",
+   "attempts": 2,
+   "last": {
+    "ts": "2026-10-28T19:25:27",
+    "status": "pass",
+    "failing_count": 0,
+    "total": 0,
+    "inputs": {
+     "interface": "json_canonical:63d865f95b5180ceb77702d57fcb98737fcc8f3f18778a347aca87f17099b554",
+     "tb": "dir_text:b4415f3d9f6233270ebfbb5c09577c25784ed41fcb8cc424fd541fc17a180045",
+     "digital_rtl": "dir_text:f808285d38575f0d883468250bf839ca71a3b20a05422f508c69e078d6d8230e",
+     "analog_netlist": "dir_text:c20767143e29ce734d55b7e2a8cacb836b60b62cefe973cc06edc21007841f07",
+     "analog_sizing": "json_canonical:429052419ccf2b75a4fc2ec239291b317f44114890a6ed0e84d86b36d91e5c78"
+    },
+    "job": null
+   },
+   "history": [
+    {
+     "ts": "2026-10-28T17:41:41",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "interface": "json_canonical:63d865f95b5180ceb77702d57fcb98737fcc8f3f18778a347aca87f17099b554",
+      "tb": "dir_text:e76601f457dd71a7c28810b6b27918c162d06d71c71d549eb23d45226ff2958b",
+      "digital_rtl": "dir_text:f808285d38575f0d883468250bf839ca71a3b20a05422f508c69e078d6d8230e",
+      "analog_netlist": "dir_text:c20767143e29ce734d55b7e2a8cacb836b60b62cefe973cc06edc21007841f07",
+      "analog_sizing": "json_canonical:429052419ccf2b75a4fc2ec239291b317f44114890a6ed0e84d86b36d91e5c78"
+     },
+     "job": null
+    },
+    {
+     "ts": "2026-10-28T19:25:27",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "interface": "json_canonical:63d865f95b5180ceb77702d57fcb98737fcc8f3f18778a347aca87f17099b554",
+      "tb": "dir_text:b4415f3d9f6233270ebfbb5c09577c25784ed41fcb8cc424fd541fc17a180045",
+      "digital_rtl": "dir_text:f808285d38575f0d883468250bf839ca71a3b20a05422f508c69e078d6d8230e",
+      "analog_netlist": "dir_text:c20767143e29ce734d55b7e2a8cacb836b60b62cefe973cc06edc21007841f07",
+      "analog_sizing": "json_canonical:429052419ccf2b75a4fc2ec239291b317f44114890a6ed0e84d86b36d91e5c78"
+     },
+     "job": null
+    }
+   ]
+  }
+ },
+ "jobs": {},
+ "holdout": null,
+ "optimise": null,
+ "human": {},
+ "artifacts": {
+  "interface": {
+   "path": "interface.yaml",
+   "kind": "interface",
+   "sha256": "json_canonical:63d865f95b5180ceb77702d57fcb98737fcc8f3f18778a347aca87f17099b554",
+   "hashed": "2026-10-28T19:25:27"
+  },
+  "tb": {
+   "path": "tb",
+   "kind": "tb",
+   "sha256": "dir_text:b4415f3d9f6233270ebfbb5c09577c25784ed41fcb8cc424fd541fc17a180045",
+   "hashed": "2026-10-28T19:25:27"
+  },
+  "digital_rtl": {
+   "path": "digital/rtl",
+   "kind": "digital_rtl",
+   "sha256": "dir_text:f808285d38575f0d883468250bf839ca71a3b20a05422f508c69e078d6d8230e",
+   "hashed": "2026-10-28T19:25:27"
+  },
+  "analog_netlist": {
+   "path": "analog/netlist",
+   "kind": "analog_netlist",
+   "sha256": "dir_text:c20767143e29ce734d55b7e2a8cacb836b60b62cefe973cc06edc21007841f07",
+   "hashed": "2026-10-28T19:25:27"
+  },
+  "analog_sizing": {
+   "path": "analog/sizing/sizing.yaml",
+   "kind": "analog_sizing",
+   "sha256": "json_canonical:429052419ccf2b75a4fc2ec239291b317f44114890a6ed0e84d86b36d91e5c78",
+   "hashed": "2026-10-28T19:25:27"
+  }
+ },
+ "open_issues": [],
+ "next_issue_id": 1,
+ "next_job_id": 1,
+ "budgets": {
+  "fix_loops": {}
+ },
+ "decisions": [],
+ "edits": [
+  {
+   "ts": "2026-10-28T15:33:38",
+   "class": "interface_edit",
+   "refs": [
+    "interface.yaml",
+    "analog_spec.yaml",
+    "digital_spec.yaml"
+   ],
+   "note": "vco_out load: up to 370 MHz (the analog VCO ceiling at every corner); clk_fb <= 46 MHz",
+   "human_hold": 2,
+   "gates": [
+    "split",
+    "cosim",
+    "top_harden",
+    "top_drc",
+    "top_lvs",
+    "precheck",
+    "release"
+   ],
+   "gates_marked": [
+    "split"
+   ],
+   "stale_artifacts": []
+  }
+ ],
+ "spawns": [
+  {
+   "ts": "2026-09-27T00:27:24",
+   "role": "splitter",
+   "model": "fable",
+   "phase": "P1"
+  },
+  {
+   "ts": "2026-10-28T15:35:06",
+   "role": "integrator",
+   "model": "opus",
+   "effort": "high",
+   "phase": "P3"
+  }
+ ],
+ "history": [
+  {
+   "ts": "2026-09-27T00:27:07",
+   "event": "init",
+   "skill": "msde",
+   "block": "pll",
+   "phase": "P0"
+  },
+  {
+   "ts": "2026-09-27T00:27:23",
+   "event": "phase",
+   "phase": "P1",
+   "prev": "P0"
+  },
+  {
+   "ts": "2026-09-27T00:27:24",
+   "event": "spawn",
+   "role": "splitter",
+   "model": "fable"
+  },
+  {
+   "ts": "2026-09-27T00:31:08",
+   "event": "gate",
+   "gate": "split",
+   "status": "pass",
+   "attempt": 1,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-09-27T00:32:45",
+   "event": "gate",
+   "gate": "split",
+   "status": "pass",
+   "attempt": 2,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-09-27T00:34:05",
+   "event": "gate",
+   "gate": "split",
+   "status": "pass",
+   "attempt": 3,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-09-27T00:35:03",
+   "event": "phase",
+   "phase": "P2",
+   "prev": "P1"
+  },
+  {
+   "ts": "2026-09-27T00:42:24",
+   "event": "gate",
+   "gate": "split",
+   "status": "pass",
+   "attempt": 4,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-28T15:33:38",
+   "event": "edit",
+   "edit_class": "interface_edit",
+   "refs": [
+    "interface.yaml",
+    "analog_spec.yaml",
+    "digital_spec.yaml"
+   ],
+   "human_hold": 2
+  },
+  {
+   "ts": "2026-10-28T15:33:45",
+   "event": "gate",
+   "gate": "split",
+   "status": "pass",
+   "attempt": 5,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-28T15:35:06",
+   "event": "spawn",
+   "role": "integrator",
+   "model": "opus"
+  },
+  {
+   "ts": "2026-10-28T17:41:41",
+   "event": "gate",
+   "gate": "cosim",
+   "status": "pass",
+   "attempt": 1,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-10-28T19:25:27",
+   "event": "gate",
+   "gate": "cosim",
+   "status": "pass",
+   "attempt": 2,
+   "failing_count": 0
+  }
+ ]
+}

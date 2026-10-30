@@ -1,0 +1,122 @@
+{
+ "corner": "ss_pff",
+ "t_lim_ns": 3.65,
+ "points": [
+  {
+   "f_ref_mhz": 6.25,
+   "n": 4,
+   "f_vco_mhz": 200.0,
+   "ideal_from_0v": {
+    "f_peak_mhz": 254.1,
+    "lock_us": 4.16,
+    "recoveries": 0,
+    "f_end_mhz": 200.0
+   },
+   "from_0v": {
+    "f_peak_mhz": 254.1,
+    "lock_us": 4.16,
+    "recoveries": 0,
+    "f_end_mhz": 200.0
+   },
+   "from_rail": {
+    "f_peak_mhz": 310.4,
+    "lock_us": null,
+    "recoveries": 0,
+    "f_end_mhz": 310.4
+   },
+   "from_rail_recover": {
+    "f_peak_mhz": 310.4,
+    "lock_us": 188.8,
+    "recoveries": 1,
+    "f_end_mhz": 200.0
+   }
+  },
+  {
+   "f_ref_mhz": 5.0,
+   "n": 5,
+   "f_vco_mhz": 200.0,
+   "ideal_from_0v": {
+    "f_peak_mhz": 279.9,
+    "lock_us": 5.4,
+    "recoveries": 0,
+    "f_end_mhz": 200.0
+   },
+   "from_0v": {
+    "f_peak_mhz": 282.6,
+    "lock_us": 5.4,
+    "recoveries": 0,
+    "f_end_mhz": 200.0
+   },
+   "from_rail": {
+    "f_peak_mhz": 310.4,
+    "lock_us": null,
+    "recoveries": 0,
+    "f_end_mhz": 310.4
+   },
+   "from_rail_recover": {
+    "f_peak_mhz": 310.4,
+    "lock_us": null,
+    "recoveries": 1,
+    "f_end_mhz": 310.4
+   }
+  },
+  {
+   "f_ref_mhz": 12.5,
+   "n": 2,
+   "f_vco_mhz": 200.0,
+   "ideal_from_0v": {
+    "f_peak_mhz": 242.8,
+    "lock_us": 3.2,
+    "recoveries": 0,
+    "f_end_mhz": 200.0
+   },
+   "from_0v": {
+    "f_peak_mhz": 242.8,
+    "lock_us": 3.2,
+    "recoveries": 0,
+    "f_end_mhz": 200.0
+   },
+   "from_rail": {
+    "f_peak_mhz": 310.4,
+    "lock_us": null,
+    "recoveries": 0,
+    "f_end_mhz": 310.4
+   },
+   "from_rail_recover": {
+    "f_peak_mhz": 310.4,
+    "lock_us": 95.28,
+    "recoveries": 1,
+    "f_end_mhz": 200.0
+   }
+  },
+  {
+   "f_ref_mhz": 6.25,
+   "n": 3,
+   "f_vco_mhz": 150.0,
+   "ideal_from_0v": {
+    "f_peak_mhz": 216.2,
+    "lock_us": 4.32,
+    "recoveries": 0,
+    "f_end_mhz": 150.0
+   },
+   "from_0v": {
+    "f_peak_mhz": 216.2,
+    "lock_us": 4.32,
+    "recoveries": 0,
+    "f_end_mhz": 150.0
+   },
+   "from_rail": {
+    "f_peak_mhz": 307.7,
+    "lock_us": 2.72,
+    "recoveries": 0,
+    "f_end_mhz": 300.0
+   },
+   "from_rail_recover": {
+    "f_peak_mhz": 307.7,
+    "lock_us": 2.72,
+    "recoveries": 0,
+    "f_end_mhz": 300.0
+   }
+  }
+ ]
+}

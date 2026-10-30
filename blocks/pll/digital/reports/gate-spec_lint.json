@@ -1,0 +1,33 @@
+{
+  "script": "gate",
+  "gate": "spec_lint",
+  "phase": "P1",
+  "tool": "spec_lint",
+  "input_digest": "json_canonical:1c510331f5f65caabfe448903caeff42856f5f8c8651c1d89dc755688639877a",
+  "status": "pass",
+  "criteria": {
+    "fail_severities": [
+      "error"
+    ],
+    "max_count": 0
+  },
+  "counts": {
+    "total": 0,
+    "by_severity": {},
+    "by_source": {}
+  },
+  "failing_count": 0,
+  "failing": [],
+  "violations": [],
+  "record_result": {
+    "ok": true,
+    "recorded": true,
+    "workspace": "blocks/pll/digital",
+    "gate": "spec_lint",
+    "status": "pass",
+    "attempts": 2,
+    "inputs": {
+      "spec_yaml": "json_canonical:1c510331f5f65caabfe448903caeff42856f5f8c8651c1d89dc755688639877a"
+    }
+  }
+}

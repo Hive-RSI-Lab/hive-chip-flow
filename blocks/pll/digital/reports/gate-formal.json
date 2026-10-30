@@ -1,0 +1,12 @@
+{
+  "script": "gate",
+  "gate": "formal",
+  "status": "error",
+  "error": "Traceback (most recent call last):\n  File \"engine/scripts/gate.py\", line 487, in main\n    report = run_report_for_gate(\n             ^^^^^^^^^^^^^^^^^^^^\n  File \"engine/scripts/gate.py\", line 152, in run_report_for_gate\n    payload, _out = mod.run([\"--workspace\", str(workspace)])\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"engine/scripts/check_formal.py\", line 982, in run\n    raise CheckError(\nchecklib.CheckError: sby (smt task) reached DONE (ERROR): a combinational loop in module pll_pfd (clk2fflogic under multiclock turned a self-resetting async loop into one) - either it is a real bug, or declare the cut per instance in spec.yaml formal.async_reset_cuts (spec.yaml formal.async_reset_cuts: [{signal, why}, ...] - see check_formal.py's own docstring, 'Async self-reset loops')\n",
+  "remediation": "CheckError: sby (smt task) reached DONE (ERROR): a combinational loop in module pll_pfd (clk2fflogic under multiclock turned a self-resetting async loop into one) - either it is a real bug, or declare the cut per instance in spec.yaml formal.async_reset_cuts (spec.yaml formal.async_reset_cuts: [{signal, why}, ...] - see check_formal.py's own docstring, 'Async self-reset loops')",
+  "stale_mark": {
+    "ok": true,
+    "marked": false,
+    "reason": "no earlier recorded result to distrust"
+  }
+}

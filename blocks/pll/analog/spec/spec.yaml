@@ -1,0 +1,237 @@
+# spec.yaml - pll_analog (GF180MCU, TT analog tile), machine-readable half
+# of spec/spec.md. Written from brief/spec.md only. Pins of the .subckt are
+# fixed by ../../interface.yaml: the six crossing signals, ua_pins vctrl and
+# bias_ref, one vdd, one vss - ten pins, nothing else.
+top: pll_analog
+supply: {vdd: 3.3}
+
+# Refdes list from spec/topology.md (P2): current_mirror template anchor,
+# 86 flat devices (no sub-blocks), no standard cells. Models nfet_03v3,
+# pfet_03v3, ppolyf_u, cap_mim_2f0ff.
+devices:
+  # enable inverter
+  - xMP_ENI
+  - xMN_ENI
+  # bias: Vgs/R self-biased reference, startup, standby
+  - xMP_B1
+  - xMP_B2
+  - xMN_B1
+  - xMN_B2
+  - xRBIAS_TOP
+  - xRBIAS_INT
+  - xMP_STL
+  - xMN_STD
+  - xMN_ST
+  - xMN_STE
+  - xMP_ENB
+  - xMN_ENA
+  - xMN_ENB
+  # charge pump: trimmed reference (4+t0+2t1+t0t1 units), steered UP/DN
+  - xMP_T4
+  - xMP_T1A
+  - xMN_SW0
+  - xMP_T2
+  - xMN_SW1
+  - xMP_T1B
+  - xMN_SW0B
+  - xMN_SW1B
+  - xMN_CPREF
+  - xMN_CPREF2
+  - xMP_CPREF
+  - xMP_UPS
+  - xMP_UP
+  - xMP_UPD
+  - xMP_UPI
+  - xMN_UPI
+  - xMN_DNS
+  - xMN_DN
+  - xMN_DND
+  - xMP_DNI
+  - xMN_DNI
+  - xMP_ENP
+  - xMN_ENN
+  # dump-node buffer: rail-to-rail unity-gain OTA, vdump = vctrl (P2 re-entry)
+  - xMP_BUFT
+  - xMP_BUF1
+  - xMP_BUF2
+  - xMN_BUFL1
+  - xMN_BUFL2
+  - xMN_BUFT
+  - xMN_BUF1
+  - xMN_BUF2
+  - xMP_BUFL1
+  - xMP_BUFL2
+  # loop filter
+  - xR1
+  - xC1
+  - xC2
+  # VCO control: degenerated V2I + floor current
+  - xMN_V2I
+  - xR_V2I
+  - xMN_CL
+  - xMN_FLR
+  - xMN_ENS
+  - xMP_V2I
+  - xMP_V2IB
+  - xMN_V2IM
+  - xMP_ENV
+  - xMN_ENV
+  # 5-stage current-starved ring
+  - xMP_S1
+  - xMP_I1
+  - xMN_I1
+  - xMN_S1
+  - xMP_S2
+  - xMP_I2
+  - xMN_I2
+  - xMN_S2
+  - xMP_S3
+  - xMP_I3
+  - xMN_I3
+  - xMN_S3
+  - xMP_S4
+  - xMP_I4
+  - xMN_I4
+  - xMN_S4
+  - xMP_S5
+  - xMP_I5
+  - xMN_I5
+  - xMN_S5
+  # output buffer: NAND2(r5, pll_en) + inverter
+  - xMP_G1
+  - xMP_G2
+  - xMN_G1
+  - xMN_G2
+  - xMP_O
+  - xMN_O
+
+# The brief asks for "PDK corners typ/fast/slow, supply +-10 %, -40 to
+# 125 C": a full grid, replacing the default five. 27 corners; the
+# brief's ff_n40C_3v60 is ff_m40c_vp10 here. The two transistor/resistor
+# skew corners ride along (`extra`): the Vgs/R bias puts the worst Icp
+# there (H1 open item 1). With the engine's tt_pss/tt_pff, 31 corners.
+corners:
+  grid:
+    process: [typical, ss, ff]
+    temp_c: [-40, 27, 125]
+    supply_pct: [-10, 0, 10]
+  extra: [ss_pff, ff_pss]
+
+# Measure names are load-bearing for the bench-writer's .bounds.json.
+# Units are in the name. "all" = the whole grid above.
+measures:
+  # --- charge pump ---------------------------------------------------
+  # Windows: nominal -40/+50 % over the grid and transistor/resistor skew
+  # (Vgs/R self-bias: worst Icp is at ss_pff / ff_pss, not ss / ff).
+  - name: icp_up_code00_ua
+    bounds: {min: 12.0, max: 30.0}
+    corners: all
+  - name: icp_dn_code00_ua
+    bounds: {min: 12.0, max: 30.0}
+    corners: all
+  - name: icp_up_code00_tt_ua
+    bounds: {min: 18.0, max: 22.0}
+    corners: [tt_27c]
+  - name: icp_up_code01_ua
+    bounds: {min: 15.0, max: 37.5}
+    corners: all
+  - name: icp_up_code10_ua
+    bounds: {min: 18.0, max: 45.0}
+    corners: all
+  - name: icp_up_code11_ua
+    bounds: {min: 24.0, max: 60.0}
+    corners: all
+  - name: icp_code11_over_code00_ratio
+    bounds: {min: 1.8, max: 2.2}
+    corners: all
+  - name: cp_updn_mismatch_pct
+    bounds: {max: 10.0}
+    corners: all
+  - name: cp_overlap_net_charge_fc
+    bounds: {max: 10.0}
+    corners: all
+  - name: vctrl_leak_off_na
+    bounds: {max: 1.0}
+    corners: all
+  # --- loop filter / open loop (ideal 1/(P*N) divider) ------------------
+  - name: ol_pm_pn16_nopad_deg
+    bounds: {min: 45.0}
+    corners: [tt_27c]
+  # Loop gain Icp*Kvco moves ~4.6x over PVT and resistor skew: 30 deg is
+  # the floor at every corner, 45 deg stays the nominal target above.
+  - name: ol_pm_pn16_nopad_pvt_deg
+    bounds: {min: 30.0}
+    corners: all
+  - name: ol_pm_pn16_pad5p_deg
+    bounds: {min: 25.0}
+    corners: [tt_27c]
+    severity: warning
+  - name: ol_fc_pn16_nopad_khz
+    bounds: {min: 200.0, max: 1000.0}
+    corners: [tt_27c]
+    severity: warning
+  - name: ol_pm_pn8_nopad_deg
+    bounds: {min: 30.0}
+    corners: [tt_27c]
+    severity: warning
+  - name: ol_pm_pn40_nopad_deg
+    bounds: {min: 30.0}
+    corners: [tt_27c]
+    severity: warning
+  # --- VCO ------------------------------------------------------------
+  - name: vco_kvco_mhz_per_v
+    bounds: {min: 40.0, max: 250.0}
+    corners: all
+  - name: vco_df_dv_min_mhz_per_v
+    bounds: {min: 0.0}
+    corners: all
+  - name: vco_fmin_tt_mhz
+    bounds: {max: 50.0}
+    corners: [tt_27c]
+  - name: vco_fmax_tt_mhz
+    bounds: {min: 200.0}
+    corners: [tt_27c]
+  # f at vctrl = vdd, the VCO's ceiling, scored at every corner (H1 open
+  # item 2): it peaks at fast, cold, LOW supply (~363 MHz), so the digital
+  # side is timed with the VCO clock at 2.7 ns (370 MHz). The floor is the
+  # 150 MHz lock point every corner keeps (ff_pss tops out near 158 MHz,
+  # H1 open item 3); 200 MHz at typical is vco_fmax_tt_mhz's.
+  - name: vco_fmax_ff_mhz
+    bounds: {min: 150.0, max: 370.0}
+    corners: all
+  - name: vco_out_swing_pct_vdd
+    bounds: {min: 90.0}
+    corners: all
+  - name: vco_out_tr_ns
+    bounds: {max: 0.15}
+    corners: [ff_m40c_vp10, tt_27c]
+  - name: vco_out_tf_ns
+    bounds: {max: 0.15}
+    corners: [ff_m40c_vp10, tt_27c]
+  - name: vco_out_duty_pct
+    bounds: {min: 40.0, max: 60.0}
+    corners: all
+  # --- prescaler drive (extracted dffq_1 + inv_1 toggle stage) ----------
+  - name: presc_div2_ratio
+    bounds: {min: 0.99, max: 1.01}
+    corners: [ff_m40c_vp10]
+  # --- power-down -------------------------------------------------------
+  - name: standby_current_ua
+    bounds: {max: 1.0}
+    corners: all
+  - name: vco_out_off_toggles
+    bounds: {max: 0}
+    corners: all
+  - name: startup_time_us
+    bounds: {max: 5.0}
+    corners: all
+
+# Post-layout re-simulation of Kvco, Icp and the top of the VCO range
+# (brief: layout section). Same bounds as pre-layout at typical.
+# vco_fmax_tt_mhz added 2026-10-28: the first extracted layout kept Kvco in
+# bounds but read 154.8 MHz at vctrl = vdd - 0.3 V against 257.8 pre-layout.
+post_layout_bounds:
+  icp_up_code00_ua: {min: 12.0, max: 30.0}
+  icp_dn_code00_ua: {min: 12.0, max: 30.0}
+  vco_kvco_mhz_per_v: {min: 40.0, max: 250.0}
+  vco_fmax_tt_mhz: {min: 200.0}

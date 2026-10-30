@@ -1,0 +1,261 @@
+* pll_analog_vco_tb.cir - VCO tuning and output bench (spec.yaml:
+* vco_kvco_mhz_per_v, vco_df_dv_min_mhz_per_v, vco_fmin_tt_mhz,
+* vco_fmax_tt_mhz, vco_fmax_ff_mhz, vco_out_swing_pct_vdd, vco_out_tr_ns,
+* vco_out_tf_ns, vco_out_duty_pct; period jitter is not measured here - see
+* JITTER below). Written from spec/ only.
+*
+* vctrl is forced by vvc; pump inputs low, pll_en = 1, bias_ref floating,
+* vco_out into 15 fF. Operating-point-first .tran (no uic) per point: the
+* ring starts from its own DC point, so a ring whose DC point is stable
+* (a dead VCO) stays stalled, as it would on silicon.
+* START-UP KICK: a noiseless op leaves the ring exactly on its symmetric
+* balance point (every ring node equal), which is unstable in a live ring but
+* which ngspice never leaves without a perturbation (it11: stall at vctrl =
+* 0.3 V). ikick injects 1 uA for 1 ns (1 fC, zero at the op) into ring node
+* r1 at t = 1 ns of every tran - the stand-in for the device noise that
+* starts a real ring. It does not move the bias op point, and a ring whose
+* DC point is stable (a dead VCO) still decays back and stays stalled.
+*
+* Sweep: vctrl = 0.3 V .. vdd-0.3 V in 6 equal steps (7 points; point 3 is
+* exactly vdd/2). Per point the frequency comes from an adaptive run ladder
+* so a fast ring is not simulated for microseconds (wo-4: 13 points x 1.2 us
+* at a 20 ps step timed out at 900 s):
+*   stage 0: tran max step 20 ps to 25 ns,   crossings after 4 ns
+*   stage 1: tran max step 20 ps to 80 ns,   crossings after 20 ns
+*   stage 2: tran max step 250 ps to 400 ns, crossings after 20 ns
+* The first stage with >= 6 rising vdd/2 crossings after its settle time
+* gives f = 5 / (t(rise 6) - t(rise 1)), the mean of 5 periods (stage 0
+* resolves f >~ 290 MHz, stage 1 f >~ 100 MHz, stage 2 f >~ 16 MHz). Stage 1
+* exists because a 250 ps step misreads a fast ring: at tt_m40c_vm10,
+* vctrl = 2.275 V it read 152 MHz for a ring that runs at 223 MHz (09-29
+* sim_pvt, a false negative df/dv). If stage 2 still has fewer,
+* f = (n-1) / (t(rise n) - t(rise 1)) over the n >= 2 rises it has, and
+* f = 0 when n < 2 (the ring is stalled: below ~3 MHz). A
+* stalled point is a real measured value, never skipped: every sweep measure
+* below is printed at every corner so a dead or non-monotonic VCO shows as a
+* bound failure, not a missing measure.
+*  - vco_kvco_mhz_per_v    = (f(vdd-0.3) - f(0.3)) / (vdd-0.6), the mean df/dv
+*  - vco_df_dv_min_mhz_per_v = min over adjacent points of df/dv
+*  - vco_fmin_tt_mhz / vco_fmax_tt_mhz = f(0.3 V) / f(vdd-0.3 V) (bounds at tt)
+*  - vco_out_swing_pct_vdd = min over the sweep of (max-min of vco_out after
+*    the accepted stage's settle time) / vdd * 100
+*  - vco_out_duty_pct      = high time / period at vctrl = vdd/2, vdd/2
+*    threshold (rise 1 -> next fall -> next rise after settle). With fewer
+*    than 2 rises it is the fraction of time vco_out sits above vdd/2 after
+*    settle (0 or 100 for a stuck output) - the limit of the same ratio.
+* Extra point vctrl = vdd (the maximum frequency, the VCO's 370 MHz ceiling
+* at every corner): vco_fmax_ff_mhz from the same
+* ladder, and the 20-80 % rise/fall times vco_out_tr_ns / vco_out_tf_ns
+* (bounds at ff_m40c_vp10, tt_27c) from a second run at a 5 ps max step
+* (rise 2 / fall 2 after 4 ns). A vdd point with no edges prints no tr/tf:
+* a rise time of an output that never rises does not exist.
+*
+* JITTER: period jitter needs device noise inside the ring during a
+* transient. ngspice-47 has no device-level transient noise (only trnoise/
+* trrandom on independent sources), and a bench cannot attach a noise source
+* to the ring nodes r1..r5, which are internal to the subckt. It is no longer
+* a spec measure: spec/spec.md "Period jitter" carries the written estimate.
+* sim_timeout_s: 1800
+
+.include '{{PDK}}/libs.tech/ngspice/design.spice'
+.lib '{{PDK}}/libs.tech/ngspice/sm141064.spice' {{CORNER}}
+.lib '{{PDK}}/libs.tech/ngspice/sm141064.spice' {{RES_CORNER}}
+.lib '{{PDK}}/libs.tech/ngspice/sm141064.spice' {{MIM_CORNER}}
+.include '{{NETLIST}}'
+{{SIZING}}
+
+.temp {{TEMP_C}}
+.param vddp={{VDD}}
+.csparam vddp={vddp}
+.csparam vmid={vddp/2}
+.csparam vhi={vddp-0.3}
+.csparam v20={0.2*vddp}
+.csparam v80={0.8*vddp}
+
+vdd_src  vdd      0 {vddp}
+vss_src  vss      0 0
+ven      pll_en   0 {vddp}
+vup      pfd_up   0 0
+vdn      pfd_dn   0 0
+vt0      cp_trim0 0 0
+vt1      cp_trim1 0 0
+vvc      vctrl    0 0.3
+cload    vco_out  0 15f
+xdut vco_out pfd_up pfd_dn pll_en cp_trim0 cp_trim1 vctrl bias_ref vdd vss pll_analog
+ikick    0        xdut.r1 pulse(0 1u 1n 50p 50p 1n 1)
+
+.control
+set noaskquit
+setplot new
+set rp = $curplot
+let npt = 6
+let kmid = 3
+let kend = npt + 1
+let dv = (vhi - 0.3)/npt
+let k = 0
+let fprev = 0
+let dfmin = 1e30
+let swmin = 1e30
+let f0 = 0
+let flast = 0
+let fvdd = 0
+let duty = 0
+set okedge = "0"
+while k le kend
+  if k eq kend
+    let vc = vddp
+  else
+    let vc = 0.3 + k*dv
+  end
+  let ismid = (k eq kmid)
+  let isvdd = (k eq kend)
+  set smid = "$&ismid"
+  set svdd = "$&isvdd"
+  alter vvc dc = $&vc
+  set gotf = "0"
+  set fks = "0"
+  set sws = "0"
+  set dtys = "0"
+  foreach st 0 1 2
+    if $gotf eq 0
+      if $st eq 0
+        set tsx = "20p"
+        set tex = "25n"
+        set tdx = "4n"
+      end
+      if $st eq 1
+        set tsx = "20p"
+        set tex = "80n"
+        set tdx = "20n"
+      end
+      if $st eq 2
+        set tsx = "250p"
+        set tex = "400n"
+        set tdx = "20n"
+      end
+      tran $tsx $tex 0 $tsx
+      set tp = $curplot
+      let nx = length(time)
+      let nx1 = nx - 1
+      let nx2 = nx - 2
+      let hv = (v(vco_out) gt vmid)
+      let late = time[1,$&nx1] gt $tdx
+      let nrise = mean(((hv[1,$&nx1] - hv[0,$&nx2]) gt 0.5) and late)*length(late)
+      if (nrise ge 6) or ($st eq 2)
+        set gotf = "1"
+        meas tran vx max v(vco_out) from=$tdx to=$tex
+        meas tran vn min v(vco_out) from=$tdx to=$tex
+        let x = vx - vn
+        set sws = "$&x"
+        let np = nrise - 1
+        if np gt 5
+          let np = 5
+        end
+        if np ge 1
+          let nr = np + 1
+          meas tran ta when v(vco_out)=$&vmid rise=1 td=$tdx
+          meas tran tb when v(vco_out)=$&vmid rise=$&nr td=$tdx
+          let x = np/(tb - ta)
+          set fks = "$&x"
+        end
+        if $smid eq 1
+          if nrise ge 2
+            meas tran dr1 when v(vco_out)=$&vmid rise=1 td=$tdx
+            meas tran df1 when v(vco_out)=$&vmid fall=1 td=$&dr1
+            meas tran dr2 when v(vco_out)=$&vmid rise=1 td=$&df1
+            let x = (df1 - dr1)/(dr2 - dr1)*100
+          else
+            let dt = time[1,$&nx1] - time[0,$&nx2]
+            let x = mean(hv[1,$&nx1]*dt*late)/mean(dt*late)*100
+          end
+          set dtys = "$&x"
+        end
+      end
+      setplot $rp
+      destroy $tp
+    end
+  end
+  let fk = $fks
+  if isvdd
+    let fvdd = fk
+  else
+    let sw = $sws
+    if sw lt swmin
+      let swmin = sw
+    end
+    if k eq 0
+      let f0 = fk
+    else
+      let dfdv = (fk - fprev)/dv/1e6
+      if dfdv lt dfmin
+        let dfmin = dfdv
+      end
+    end
+    if k eq npt
+      let flast = fk
+    end
+    if ismid
+      let duty = $dtys
+    end
+    let fprev = fk
+  end
+  let k = k + 1
+end
+let kv = (flast - f0)/(vhi - 0.3)/1e6
+let fmn = f0/1e6
+let fmx = flast/1e6
+let fxm = fvdd/1e6
+let swp = swmin/vddp*100
+set kvs = "$&kv"
+set dfs = "$&dfmin"
+set fmns = "$&fmn"
+set fmxs = "$&fmx"
+set fxs = "$&fxm"
+set swps = "$&swp"
+set dutys = "$&duty"
+* --- edges at vctrl = vdd (vvc is still at vdd): 5 ps max step, a window
+* of 4 ns settle + 3.5 periods; a slow ring (window > 40 ns) keeps 8000
+* steps, since only its edges need the fine step and the LTE control
+* shortens the step there anyway.
+if fvdd gt 0
+  let tfin = 4e-9 + 3.5/fvdd
+  let tsf = 5e-12
+  if tfin gt 40e-9
+    let tsf = tfin/8000
+  end
+  tran $&tsf $&tfin 0 $&tsf
+  let nx = length(time)
+  let nx1 = nx - 1
+  let nx2 = nx - 2
+  let hv = (v(vco_out) gt vmid)
+  let late = time[1,$&nx1] gt 4n
+  let nrise = mean(((hv[1,$&nx1] - hv[0,$&nx2]) gt 0.5) and late)*length(late)
+  if nrise ge 3
+    meas tran t20r when v(vco_out)=$&v20 rise=2 td=4n
+    meas tran t80r when v(vco_out)=$&v80 rise=1 td=$&t20r
+    meas tran t80f when v(vco_out)=$&v80 fall=2 td=4n
+    meas tran t20f when v(vco_out)=$&v20 fall=1 td=$&t80f
+    let trn = (t80r - t20r)*1e9
+    let tfn = (t20f - t80f)*1e9
+    set trs = "$&trn"
+    set tfs = "$&tfn"
+    set okedge = "1"
+  end
+end
+echo
+echo "  Measurements for Transient Analysis (pll_analog_vco_tb, computed in .control)"
+echo "vco_kvco_mhz_per_v = $kvs"
+echo "vco_df_dv_min_mhz_per_v = $dfs"
+echo "vco_fmin_tt_mhz = $fmns"
+echo "vco_fmax_tt_mhz = $fmxs"
+echo "vco_out_swing_pct_vdd = $swps"
+echo "vco_out_duty_pct = $dutys"
+echo "vco_fmax_ff_mhz = $fxs"
+if $okedge eq 1
+  echo "vco_out_tr_ns = $trs"
+  echo "vco_out_tf_ns = $tfs"
+end
+echo
+.endc
+
+.end

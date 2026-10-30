@@ -1,0 +1,113 @@
+* pll_analog_presc_tb.cir - prescaler-drive bench (spec.yaml:
+* presc_div2_ratio, scored at ff_m40c_vp10 only, so computed and printed only
+* at that corner: process ff, -40 C, vdd above nominal). Written from spec/.
+*
+* vco_out drives the first /2 stage of the digital prescaler: a
+* gf180mcu_fd_sc_mcu7t5v0__dffq_1 clocked by vco_out with Q fed back to D
+* through gf180mcu_fd_sc_mcu7t5v0__inv_1 (toggle), plus one inv_1 input as
+* the "one buffer" spec.md puts on vco_out. vctrl = vdd, the maximum VCO
+* frequency (the 333 MHz condition). Cells run from the same vdd.
+* presc_div2_ratio = f(Q) / (f(vco_out)/2) = 2*T_vco/T_q, with T_vco the mean
+* of 20 vco_out periods and T_q the mean of the 10 Q periods spanning them,
+* both from rising vdd/2 crossings after 10 ns (the ring starts from its DC
+* point within a few ns). Two runs, the second only when the first is too
+* short for 20 VCO periods: 40 ns at a 5 ps max step (fast VCO, >~ 730 MHz),
+* then 130 ns at a 10 ps max step (down to ~190 MHz, under the 200 MHz
+* fmax_ff floor). A single 300 ns run at 5 ps (60000 steps) timed out at
+* 600 s (wo-4). Fewer Q edges than 11 (a stage that cannot follow), or
+* fewer VCO edges after both runs: the count ratio 2*nq/nv (as before).
+* At every corner other than ff_m40c_vp10 the bench runs a DC op only and
+* prints nothing: presc_div2_ratio is not scored there, and a deck with no
+* analysis at all reads to the gate as "no simulations run".
+*
+* Cell netlist: the PDK's own libs.ref/.../spice/gf180mcu_fd_sc_mcu7t5v0.spice
+* (transistor-level cell netlist, NOT a parasitic-extracted view; spec.md
+* says "extracted" and no extracted cell view exists under the PDK). Its
+* nfet_05v0/pfet_05v0 devices resolve through sm141064.spice's own fets_mm
+* section, which the {{CORNER}} section already pulls in.
+* sim_timeout_s: 1800
+
+.include '{{PDK}}/libs.tech/ngspice/design.spice'
+.lib '{{PDK}}/libs.tech/ngspice/sm141064.spice' {{CORNER}}
+.lib '{{PDK}}/libs.tech/ngspice/sm141064.spice' {{RES_CORNER}}
+.lib '{{PDK}}/libs.tech/ngspice/sm141064.spice' {{MIM_CORNER}}
+.include '{{NETLIST}}'
+.include '{{PDK}}/libs.ref/gf180mcu_fd_sc_mcu7t5v0/spice/gf180mcu_fd_sc_mcu7t5v0.spice'
+{{SIZING}}
+
+
+.temp {{TEMP_C}}
+.param vddp={{VDD}}
+.param tempp={{TEMP_C}}
+.param p_typical=1 p_ss=2 p_ff=3
+.csparam procn={p_{{CORNER}}}
+.csparam tempc={tempp}
+.csparam vddp={vddp}
+.csparam vmid={vddp/2}
+
+vdd_src  vdd      0 {vddp}
+vss_src  vss      0 0
+ven      pll_en   0 {vddp}
+vup      pfd_up   0 0
+vdn      pfd_dn   0 0
+vt0      cp_trim0 0 0
+vt1      cp_trim1 0 0
+vvc      vctrl    0 {vddp}
+xdut vco_out pfd_up pfd_dn pll_en cp_trim0 cp_trim1 vctrl bias_ref vdd vss pll_analog
+xdff  d   vco_out q   vdd vdd vss vss gf180mcu_fd_sc_mcu7t5v0__dffq_1
+xtog  q   d           vdd vdd vss vss gf180mcu_fd_sc_mcu7t5v0__inv_1
+xbuf  vco_out nbuf    vdd vdd vss vss gf180mcu_fd_sc_mcu7t5v0__inv_1
+
+.control
+set noaskquit
+set okp = "0"
+if (procn eq 3) and (tempc eq -40) and (vddp gt 3.4)
+  foreach st 0 1
+    if $okp eq 0
+      if $st eq 0
+        set tsx = "5p"
+        set tex = "40n"
+      end
+      if $st eq 1
+        set tsx = "10p"
+        set tex = "130n"
+      end
+      tran $tsx $tex 0 $tsx
+      let nx = length(time)
+      let nx1 = nx - 1
+      let nx2 = nx - 2
+      let late = time[1,$&nx1] gt 10n
+      let hv = (v(vco_out) gt vmid)
+      let hq = (v(q) gt vmid)
+      let nv = mean(((hv[1,$&nx1] - hv[0,$&nx2]) gt 0.5) and late)*length(late)
+      let nq = mean(((hq[1,$&nx1] - hq[0,$&nx2]) gt 0.5) and late)*length(late)
+      if (nv ge 22) and (nq ge 11)
+        meas tran va when v(vco_out)=$&vmid rise=1 td=10n
+        meas tran vb when v(vco_out)=$&vmid rise=21 td=10n
+        meas tran qa when v(q)=$&vmid rise=1 td=$&va
+        meas tran qb when v(q)=$&vmid rise=11 td=$&va
+        let x = 2*((vb - va)/20)/((qb - qa)/10)
+        set rat = "$&x"
+        set okp = "1"
+      else
+        if (($st eq 1) or (nv ge 22)) and (nv ge 1)
+          let x = 2*nq/nv
+          set rat = "$&x"
+          set okp = "1"
+        end
+      end
+      destroy $curplot
+    end
+  end
+else
+  op
+end
+echo
+echo "  Measurements for Transient Analysis (pll_analog_presc_tb, computed in .control)"
+if $okp eq 1
+  echo "presc_div2_ratio = $rat"
+end
+echo
+.endc
+
+.end

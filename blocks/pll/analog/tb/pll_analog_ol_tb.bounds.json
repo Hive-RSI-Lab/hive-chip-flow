@@ -1,0 +1,14 @@
+[
+  {"measure": "ol_pm_pn16_nopad_deg", "sensitivity": 0.02, "min": 45.0, "severity": "error",
+   "corners": ["tt_27c"], "msg": "open-loop PM, P*N = 16, no pad"},
+  {"measure": "ol_pm_pn16_nopad_pvt_deg", "sensitivity": 0.02, "min": 30.0, "severity": "error",
+   "msg": "open-loop PM, P*N = 16, no pad, every corner (loop-gain floor over PVT, spec rev H1)"},
+  {"measure": "ol_pm_pn16_pad5p_deg", "sensitivity": 0.02, "min": 25.0, "severity": "warning",
+   "corners": ["tt_27c"], "msg": "open-loop PM, P*N = 16, 5 pF pad on vctrl (brief estimate 32)"},
+  {"measure": "ol_fc_pn16_nopad_khz", "sensitivity": 0.02, "min": 200.0, "max": 1000.0, "severity": "warning",
+   "corners": ["tt_27c"], "msg": "unity-gain crossover, P*N = 16, no pad"},
+  {"measure": "ol_pm_pn8_nopad_deg", "sensitivity": 0.02, "min": 30.0, "severity": "warning",
+   "corners": ["tt_27c"], "msg": "open-loop PM, P*N = 8, no pad, cp_trim 00"},
+  {"measure": "ol_pm_pn40_nopad_deg", "sensitivity": 0.02, "min": 30.0, "severity": "warning",
+   "corners": ["tt_27c"], "msg": "open-loop PM, P*N = 40, no pad, cp_trim 00"}
+]

@@ -1,0 +1,1 @@
+../digital/rtl/pll_ctrl_regs.v

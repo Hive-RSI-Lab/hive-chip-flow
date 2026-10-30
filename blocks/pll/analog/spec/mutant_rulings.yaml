@@ -1,0 +1,239 @@
+below_spread:
+  - id: xMN_B2_size_doubled_w
+    netlist_line: "XMN_B2 vbp va vref vss nfet_03v3 w=w_b2 l=l_b2"
+    measure: startup_time_us
+    delta: -0.012104
+    sigma: 0
+    ruling: "a delegate on the person's redirect (Slack ts 1791072039.428359), 2026-10-07 — not the person's own ruling"
+    evidence: "xMN_B2: w doubled: largest move on a non-near-zero tt measure is -1.21% (startup_time_us), under the 2% spread floor; no mc sigma yet, so every measure is held to 2%."
+  - id: xMN_BUFT_size_doubled_w
+    netlist_line: "XMN_BUFT vnt vref vss vss nfet_03v3 w=w_b1 l=l_b1 m=m_buft"
+    measure: startup_time_us
+    delta: 0.012529
+    sigma: 0
+    ruling: "a delegate on the person's redirect (Slack ts 1791072039.428359), 2026-10-07 — not the person's own ruling"
+    evidence: "xMN_BUFT: w doubled: largest move on a non-near-zero tt measure is 1.25% (startup_time_us), under the 2% spread floor; no mc sigma yet, so every measure is held to 2%."
+  - id: xMN_ENA_size_doubled_w
+    netlist_line: "XMN_ENA va en_b vss vss nfet_03v3 w=1e-6 l=2.8e-7"
+    measure: ol_fc_pn16_nopad_khz
+    delta: 0.008446
+    sigma: 0
+    ruling: "a delegate on the person's redirect (Slack ts 1791072039.428359), 2026-10-07 — not the person's own ruling"
+    evidence: "xMN_ENA: w doubled: largest move on a non-near-zero tt measure is 0.84% (ol_fc_pn16_nopad_khz), under the 2% spread floor; no mc sigma yet, so every measure is held to 2%."
+  - id: xMN_ENB_connection_removed
+    netlist_line: "XMN_ENB vref en_b vss vss nfet_03v3 w=1e-6 l=2.8e-7"
+    measure: ol_fc_pn16_nopad_khz
+    delta: 0.010774
+    sigma: 0
+    ruling: "a delegate on the person's redirect (Slack ts 1791072039.428359), 2026-10-07 — not the person's own ruling"
+    evidence: "xMN_ENB: drain (bulk tied to its own source) disconnected: largest move on a non-near-zero tt measure is 1.08% (ol_fc_pn16_nopad_khz), under the 2% spread floor; no mc sigma yet, so every measure is held to 2%."
+  - id: xMN_ENB_size_doubled_w
+    netlist_line: "XMN_ENB vref en_b vss vss nfet_03v3 w=1e-6 l=2.8e-7"
+    measure: ol_fc_pn16_nopad_khz
+    delta: 0.008807
+    sigma: 0
+    ruling: "a delegate on the person's redirect (Slack ts 1791072039.428359), 2026-10-07 — not the person's own ruling"
+    evidence: "xMN_ENB: w doubled: largest move on a non-near-zero tt measure is 0.88% (ol_fc_pn16_nopad_khz), under the 2% spread floor; no mc sigma yet, so every measure is held to 2%."
+  - id: xMN_ENI_size_doubled_w
+    netlist_line: "XMN_ENI en_b pll_en vss vss nfet_03v3 w=1e-6 l=2.8e-7"
+    measure: ol_fc_pn16_nopad_khz
+    delta: 0.009638
+    sigma: 0
+    ruling: "a delegate on the person's redirect (Slack ts 1791072039.428359), 2026-10-07 — not the person's own ruling"
+    evidence: "xMN_ENI: w doubled: largest move on a non-near-zero tt measure is 0.96% (ol_fc_pn16_nopad_khz), under the 2% spread floor; no mc sigma yet, so every measure is held to 2%."
+  - id: xMN_ENN_connection_removed
+    netlist_line: "XMN_ENN vcp_n en_b vss vss nfet_03v3 w=1e-6 l=2.8e-7"
+    measure: ol_fc_pn16_nopad_khz
+    delta: 0.003742
+    sigma: 0
+    ruling: "a delegate on the person's redirect (Slack ts 1791072039.428359), 2026-10-07 — not the person's own ruling"
+    evidence: "xMN_ENN: drain (bulk tied to its own source) disconnected: largest move on a non-near-zero tt measure is 0.37% (ol_fc_pn16_nopad_khz), under the 2% spread floor; no mc sigma yet, so every measure is held to 2%."
+  - id: xMN_ENN_size_doubled_w
+    netlist_line: "XMN_ENN vcp_n en_b vss vss nfet_03v3 w=1e-6 l=2.8e-7"
+    measure: ol_fc_pn16_nopad_khz
+    delta: 0.012584
+    sigma: 0
+    ruling: "a delegate on the person's redirect (Slack ts 1791072039.428359), 2026-10-07 — not the person's own ruling"
+    evidence: "xMN_ENN: w doubled: largest move on a non-near-zero tt measure is 1.26% (ol_fc_pn16_nopad_khz), under the 2% spread floor; no mc sigma yet, so every measure is held to 2%."
+  - id: xMN_ENS_connection_removed
+    netlist_line: "XMN_ENS vbp_vco pll_en vi vss nfet_03v3 w=1e-5 l=2.8e-7"
+    measure: startup_time_us
+    delta: 0.005317
+    sigma: 0
+    ruling: "a delegate on the person's redirect (Slack ts 1791072039.428359), 2026-10-07 — not the person's own ruling"
+    evidence: "xMN_ENS: bulk disconnected: largest move on a non-near-zero tt measure is 0.53% (startup_time_us), under the 2% spread floor; no mc sigma yet, so every measure is held to 2%."
+  - id: xMN_ENS_size_doubled_w
+    netlist_line: "XMN_ENS vbp_vco pll_en vi vss nfet_03v3 w=1e-5 l=2.8e-7"
+    measure: ol_fc_pn16_nopad_khz
+    delta: 0.005842
+    sigma: 0
+    ruling: "a delegate on the person's redirect (Slack ts 1791072039.428359), 2026-10-07 — not the person's own ruling"
+    evidence: "xMN_ENS: w doubled: largest move on a non-near-zero tt measure is 0.58% (ol_fc_pn16_nopad_khz), under the 2% spread floor; no mc sigma yet, so every measure is held to 2%."
+  - id: xMN_ENV_connection_removed
+    netlist_line: "XMN_ENV vbn_vco en_b vss vss nfet_03v3 w=1e-6 l=2.8e-7"
+    measure: ol_fc_pn16_nopad_khz
+    delta: 0.003146
+    sigma: 0
+    ruling: "a delegate on the person's redirect (Slack ts 1791072039.428359), 2026-10-07 — not the person's own ruling"
+    evidence: "xMN_ENV: drain (bulk tied to its own source) disconnected: largest move on a non-near-zero tt measure is 0.31% (ol_fc_pn16_nopad_khz), under the 2% spread floor; no mc sigma yet, so every measure is held to 2%."
+  - id: xMN_ENV_size_doubled_w
+    netlist_line: "XMN_ENV vbn_vco en_b vss vss nfet_03v3 w=1e-6 l=2.8e-7"
+    measure: ol_fc_pn16_nopad_khz
+    delta: 0.010363
+    sigma: 0
+    ruling: "a delegate on the person's redirect (Slack ts 1791072039.428359), 2026-10-07 — not the person's own ruling"
+    evidence: "xMN_ENV: w doubled: largest move on a non-near-zero tt measure is 1.04% (ol_fc_pn16_nopad_khz), under the 2% spread floor; no mc sigma yet, so every measure is held to 2%."
+  - id: xMN_STD_size_doubled_w
+    netlist_line: "XMN_STD vst vref vss vss nfet_03v3 w=1e-5 l=1e-6"
+    measure: startup_time_us
+    delta: 0.014225
+    sigma: 0
+    ruling: "a delegate on the person's redirect (Slack ts 1791072039.428359), 2026-10-07 — not the person's own ruling"
+    evidence: "xMN_STD: w doubled: largest move on a non-near-zero tt measure is 1.42% (startup_time_us), under the 2% spread floor; no mc sigma yet, so every measure is held to 2%."
+  - id: xMN_STE_size_doubled_w
+    netlist_line: "XMN_STE vst en_b vss vss nfet_03v3 w=1e-6 l=2.8e-7"
+    measure: ol_fc_pn16_nopad_khz
+    delta: 0.008746
+    sigma: 0
+    ruling: "a delegate on the person's redirect (Slack ts 1791072039.428359), 2026-10-07 — not the person's own ruling"
+    evidence: "xMN_STE: w doubled: largest move on a non-near-zero tt measure is 0.87% (ol_fc_pn16_nopad_khz), under the 2% spread floor; no mc sigma yet, so every measure is held to 2%."
+  - id: xMN_ST_size_doubled_w
+    netlist_line: "XMN_ST vbp vst vss vss nfet_03v3 w=5e-7 l=2e-6"
+    measure: ol_fc_pn16_nopad_khz
+    delta: 0.008484
+    sigma: 0
+    ruling: "a delegate on the person's redirect (Slack ts 1791072039.428359), 2026-10-07 — not the person's own ruling"
+    evidence: "xMN_ST: w doubled: largest move on a non-near-zero tt measure is 0.85% (ol_fc_pn16_nopad_khz), under the 2% spread floor; no mc sigma yet, so every measure is held to 2%."
+  - id: xMN_SW0B_connection_removed
+    netlist_line: "XMN_SW0B t1c cp_trim0 t1b vss nfet_03v3 w=2e-6 l=2.8e-7"
+    measure: ol_fc_pn16_nopad_khz
+    delta: 0.0068
+    sigma: 0
+    ruling: "a delegate on the person's redirect (Slack ts 1791072039.428359), 2026-10-07 — not the person's own ruling"
+    evidence: "xMN_SW0B: bulk disconnected: largest move on a non-near-zero tt measure is 0.68% (ol_fc_pn16_nopad_khz), under the 2% spread floor; no mc sigma yet, so every measure is held to 2%."
+  - id: xMN_SW0B_size_doubled_w
+    netlist_line: "XMN_SW0B t1c cp_trim0 t1b vss nfet_03v3 w=2e-6 l=2.8e-7"
+    measure: ol_fc_pn16_nopad_khz
+    delta: 0.005446
+    sigma: 0
+    ruling: "a delegate on the person's redirect (Slack ts 1791072039.428359), 2026-10-07 — not the person's own ruling"
+    evidence: "xMN_SW0B: w doubled: largest move on a non-near-zero tt measure is 0.54% (ol_fc_pn16_nopad_khz), under the 2% spread floor; no mc sigma yet, so every measure is held to 2%."
+  - id: xMN_SW0_connection_removed
+    netlist_line: "XMN_SW0 vcp_n cp_trim0 t1a vss nfet_03v3 w=2e-6 l=2.8e-7"
+    measure: ol_fc_pn16_nopad_khz
+    delta: 0.010542
+    sigma: 0
+    ruling: "a delegate on the person's redirect (Slack ts 1791072039.428359), 2026-10-07 — not the person's own ruling"
+    evidence: "xMN_SW0: bulk disconnected: largest move on a non-near-zero tt measure is 1.05% (ol_fc_pn16_nopad_khz), under the 2% spread floor; no mc sigma yet, so every measure is held to 2%."
+  - id: xMN_SW0_size_doubled_w
+    netlist_line: "XMN_SW0 vcp_n cp_trim0 t1a vss nfet_03v3 w=2e-6 l=2.8e-7"
+    measure: ol_fc_pn16_nopad_khz
+    delta: 0.006157
+    sigma: 0
+    ruling: "a delegate on the person's redirect (Slack ts 1791072039.428359), 2026-10-07 — not the person's own ruling"
+    evidence: "xMN_SW0: w doubled: largest move on a non-near-zero tt measure is 0.62% (ol_fc_pn16_nopad_khz), under the 2% spread floor; no mc sigma yet, so every measure is held to 2%."
+  - id: xMN_SW1B_connection_removed
+    netlist_line: "XMN_SW1B vcp_n cp_trim1 t1c vss nfet_03v3 w=2e-6 l=2.8e-7"
+    measure: ol_fc_pn16_nopad_khz
+    delta: 0.003906
+    sigma: 0
+    ruling: "a delegate on the person's redirect (Slack ts 1791072039.428359), 2026-10-07 — not the person's own ruling"
+    evidence: "xMN_SW1B: bulk disconnected: largest move on a non-near-zero tt measure is 0.39% (ol_fc_pn16_nopad_khz), under the 2% spread floor; no mc sigma yet, so every measure is held to 2%."
+  - id: xMN_SW1B_size_doubled_w
+    netlist_line: "XMN_SW1B vcp_n cp_trim1 t1c vss nfet_03v3 w=2e-6 l=2.8e-7"
+    measure: ol_fc_pn16_nopad_khz
+    delta: -0.001823
+    sigma: 0
+    ruling: "a delegate on the person's redirect (Slack ts 1791072039.428359), 2026-10-07 — not the person's own ruling"
+    evidence: "xMN_SW1B: w doubled: largest move on a non-near-zero tt measure is -0.18% (ol_fc_pn16_nopad_khz), under the 2% spread floor; no mc sigma yet, so every measure is held to 2%."
+  - id: xMN_SW1_connection_removed
+    netlist_line: "XMN_SW1 vcp_n cp_trim1 t2 vss nfet_03v3 w=2e-6 l=2.8e-7"
+    measure: ol_fc_pn16_nopad_khz
+    delta: 0.010192
+    sigma: 0
+    ruling: "a delegate on the person's redirect (Slack ts 1791072039.428359), 2026-10-07 — not the person's own ruling"
+    evidence: "xMN_SW1: bulk disconnected: largest move on a non-near-zero tt measure is 1.02% (ol_fc_pn16_nopad_khz), under the 2% spread floor; no mc sigma yet, so every measure is held to 2%."
+  - id: xMN_SW1_size_doubled_w
+    netlist_line: "XMN_SW1 vcp_n cp_trim1 t2 vss nfet_03v3 w=2e-6 l=2.8e-7"
+    measure: ol_fc_pn16_nopad_khz
+    delta: 0.001686
+    sigma: 0
+    ruling: "a delegate on the person's redirect (Slack ts 1791072039.428359), 2026-10-07 — not the person's own ruling"
+    evidence: "xMN_SW1: w doubled: largest move on a non-near-zero tt measure is 0.17% (ol_fc_pn16_nopad_khz), under the 2% spread floor; no mc sigma yet, so every measure is held to 2%."
+  - id: xMN_UPI_size_doubled_w
+    netlist_line: "XMN_UPI up_b pfd_up vss vss nfet_03v3 w=1e-6 l=2.8e-7"
+    measure: cp_overlap_net_charge_fc
+    delta: 0.019934
+    sigma: 0
+    ruling: "a delegate on the person's redirect (Slack ts 1791072039.428359), 2026-10-07 — not the person's own ruling"
+    evidence: "xMN_UPI: w doubled: largest move on a non-near-zero tt measure is 1.99% (cp_overlap_net_charge_fc), under the 2% spread floor; no mc sigma yet, so every measure is held to 2%."
+  - id: xMP_ENB_connection_removed
+    netlist_line: "XMP_ENB vbp pll_en vdd vdd pfet_03v3 w=1e-6 l=2.8e-7"
+    measure: ol_fc_pn16_nopad_khz
+    delta: 0.00663
+    sigma: 0
+    ruling: "a delegate on the person's redirect (Slack ts 1791072039.428359), 2026-10-07 — not the person's own ruling"
+    evidence: "xMP_ENB: drain (bulk tied to its own source) disconnected: largest move on a non-near-zero tt measure is 0.66% (ol_fc_pn16_nopad_khz), under the 2% spread floor; no mc sigma yet, so every measure is held to 2%."
+  - id: xMP_ENB_size_doubled_w
+    netlist_line: "XMP_ENB vbp pll_en vdd vdd pfet_03v3 w=1e-6 l=2.8e-7"
+    measure: ol_fc_pn16_nopad_khz
+    delta: 0.008171
+    sigma: 0
+    ruling: "a delegate on the person's redirect (Slack ts 1791072039.428359), 2026-10-07 — not the person's own ruling"
+    evidence: "xMP_ENB: w doubled: largest move on a non-near-zero tt measure is 0.82% (ol_fc_pn16_nopad_khz), under the 2% spread floor; no mc sigma yet, so every measure is held to 2%."
+  - id: xMP_ENI_size_doubled_w
+    netlist_line: "XMP_ENI en_b pll_en vdd vdd pfet_03v3 w=2e-6 l=2.8e-7"
+    measure: ol_fc_pn16_nopad_khz
+    delta: 0.003636
+    sigma: 0
+    ruling: "a delegate on the person's redirect (Slack ts 1791072039.428359), 2026-10-07 — not the person's own ruling"
+    evidence: "xMP_ENI: w doubled: largest move on a non-near-zero tt measure is 0.36% (ol_fc_pn16_nopad_khz), under the 2% spread floor; no mc sigma yet, so every measure is held to 2%."
+  - id: xMP_ENP_connection_removed
+    netlist_line: "XMP_ENP vcp_p pll_en vdd vdd pfet_03v3 w=1e-6 l=2.8e-7"
+    measure: ol_fc_pn16_nopad_khz
+    delta: 0.009828
+    sigma: 0
+    ruling: "a delegate on the person's redirect (Slack ts 1791072039.428359), 2026-10-07 — not the person's own ruling"
+    evidence: "xMP_ENP: drain (bulk tied to its own source) disconnected: largest move on a non-near-zero tt measure is 0.98% (ol_fc_pn16_nopad_khz), under the 2% spread floor; no mc sigma yet, so every measure is held to 2%."
+  - id: xMP_ENP_size_doubled_w
+    netlist_line: "XMP_ENP vcp_p pll_en vdd vdd pfet_03v3 w=1e-6 l=2.8e-7"
+    measure: ol_fc_pn16_nopad_khz
+    delta: 0.004948
+    sigma: 0
+    ruling: "a delegate on the person's redirect (Slack ts 1791072039.428359), 2026-10-07 — not the person's own ruling"
+    evidence: "xMP_ENP: w doubled: largest move on a non-near-zero tt measure is 0.49% (ol_fc_pn16_nopad_khz), under the 2% spread floor; no mc sigma yet, so every measure is held to 2%."
+  - id: xMP_ENV_connection_removed
+    netlist_line: "XMP_ENV vbp_vco pll_en vdd vdd pfet_03v3 w=1e-6 l=2.8e-7"
+    measure: startup_time_us
+    delta: -0.013266
+    sigma: 0
+    ruling: "a delegate on the person's redirect (Slack ts 1791072039.428359), 2026-10-07 — not the person's own ruling"
+    evidence: "xMP_ENV: drain (bulk tied to its own source) disconnected: largest move on a non-near-zero tt measure is -1.33% (startup_time_us), under the 2% spread floor; no mc sigma yet, so every measure is held to 2%."
+  - id: xMP_ENV_size_doubled_w
+    netlist_line: "XMP_ENV vbp_vco pll_en vdd vdd pfet_03v3 w=1e-6 l=2.8e-7"
+    measure: ol_fc_pn16_nopad_khz
+    delta: 0.003267
+    sigma: 0
+    ruling: "a delegate on the person's redirect (Slack ts 1791072039.428359), 2026-10-07 — not the person's own ruling"
+    evidence: "xMP_ENV: w doubled: largest move on a non-near-zero tt measure is 0.33% (ol_fc_pn16_nopad_khz), under the 2% spread floor; no mc sigma yet, so every measure is held to 2%."
+  - id: xMP_G2_connection_removed
+    netlist_line: "XMP_G2 nb pll_en vdd vdd pfet_03v3 w=w_gp l=2.8e-7"
+    measure: vco_out_tf_ns
+    delta: -0.017328
+    sigma: 0
+    ruling: "a delegate on the person's redirect (Slack ts 1791072039.428359), 2026-10-07 — not the person's own ruling"
+    evidence: "xMP_G2: drain (bulk tied to its own source) disconnected: largest move on a non-near-zero tt measure is -1.73% (vco_out_tf_ns), under the 2% spread floor; no mc sigma yet, so every measure is held to 2%."
+  - id: xMP_G2_size_doubled_w
+    netlist_line: "XMP_G2 nb pll_en vdd vdd pfet_03v3 w=w_gp l=2.8e-7"
+    measure: vco_out_tf_ns
+    delta: 0.015488
+    sigma: 0
+    ruling: "a delegate on the person's redirect (Slack ts 1791072039.428359), 2026-10-07 — not the person's own ruling"
+    evidence: "xMP_G2: w doubled: largest move on a non-near-zero tt measure is 1.55% (vco_out_tf_ns), under the 2% spread floor; no mc sigma yet, so every measure is held to 2%."
+  - id: xMP_STL_size_doubled_w
+    netlist_line: "XMP_STL vst en_b vdd vdd pfet_03v3 w=5e-7 l=1e-5"
+    measure: ol_fc_pn16_nopad_khz
+    delta: 0.006688
+    sigma: 0
+    ruling: "a delegate on the person's redirect (Slack ts 1791072039.428359), 2026-10-07 — not the person's own ruling"
+    evidence: "xMP_STL: w doubled: largest move on a non-near-zero tt measure is 0.67% (ol_fc_pn16_nopad_khz), under the 2% spread floor; no mc sigma yet, so every measure is held to 2%."

@@ -1,0 +1,71 @@
+{
+ "cell": "pll_analog",
+ "bbox_um": [
+  -1.1,
+  -9.3,
+  126.9,
+  172.1
+ ],
+ "pins": [
+  {
+   "name": "bias_ref",
+   "layer": "metal2",
+   "x": 125.2,
+   "y": -9.1
+  },
+  {
+   "name": "cp_trim0",
+   "layer": "metal2",
+   "x": 126.5,
+   "y": 127.78
+  },
+  {
+   "name": "cp_trim1",
+   "layer": "metal2",
+   "x": 126.5,
+   "y": 129.38
+  },
+  {
+   "name": "pfd_dn",
+   "layer": "metal2",
+   "x": 126.5,
+   "y": 53.61
+  },
+  {
+   "name": "pfd_up",
+   "layer": "metal2",
+   "x": 126.5,
+   "y": 52.01
+  },
+  {
+   "name": "pll_en",
+   "layer": "metal2",
+   "x": 126.5,
+   "y": 4.21
+  },
+  {
+   "name": "vco_out",
+   "layer": "metal2",
+   "x": 126.5,
+   "y": 5.21
+  },
+  {
+   "name": "vctrl",
+   "layer": "metal2",
+   "x": 108.4,
+   "y": -9.1
+  },
+  {
+   "name": "vdd",
+   "layer": "metal2",
+   "x": 123.6,
+   "y": -9.1
+  },
+  {
+   "name": "vss",
+   "layer": "metal2",
+   "x": 113.2,
+   "y": -9.1
+  }
+ ]
+}

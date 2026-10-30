@@ -1,6 +1,7 @@
 {
  "blocks": [
   {"name": "r2r_dac", "repo": "ihsan-sa/ece298a-r2r-dac", "commit": "4014bf6"},
-  {"name": "counter", "repo": "ihsan-sa/ece298a-counter", "commit": "b2fd880"}
+  {"name": "counter", "repo": "ihsan-sa/ece298a-counter", "commit": "b2fd880"},
+  {"name": "pll", "repo": "Hive-RSI-Lab/ece298a-pll", "commit": "f1aa1a9"}
  ]
 }

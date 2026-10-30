@@ -1,0 +1,41 @@
+# analog_spec.yaml - the analog side's declared copy of the crossing
+# signals in interface.yaml, field for field. The .subckt pll_analog pins are
+# exactly these six signals, the two ua_pins (vctrl, bias_ref) and vdd, vss.
+top: pll_analog
+interface:
+  - name: vco_out
+    direction: a2d
+    level: cmos_3v3
+    domain: clk_free
+    width: 1
+    load: "prescaler first toggle flop clock (dffq_1 CLK) plus one buffer, up to 370 MHz (the VCO's ceiling at every corner, ~363 MHz at ff, -40 C, 2.97 V)"
+  - name: pfd_up
+    direction: d2a
+    level: cmos_3v3
+    domain: clk_ref
+    width: 1
+    load: "charge pump UP switch input, active high sources Icp into the loop filter"
+  - name: pfd_dn
+    direction: d2a
+    level: cmos_3v3
+    domain: clk_fb
+    width: 1
+    load: "charge pump DN switch input, active high sinks Icp from the loop filter"
+  - name: pll_en
+    direction: d2a
+    level: cmos_3v3
+    domain: clk_ref
+    width: 1
+    load: "pump, bias and VCO power-down, active high enables, quasi-static"
+  - name: cp_trim0
+    direction: d2a
+    level: cmos_3v3
+    domain: clk_ref
+    width: 1
+    load: "charge pump current trim bit 0 (mirror ratio select), quasi-static"
+  - name: cp_trim1
+    direction: d2a
+    level: cmos_3v3
+    domain: clk_ref
+    width: 1
+    load: "charge pump current trim bit 1 (mirror ratio select), quasi-static"

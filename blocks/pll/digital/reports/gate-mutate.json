@@ -1,0 +1,134 @@
+{
+  "script": "gate",
+  "gate": "mutate",
+  "phase": "P4",
+  "tool": "mutate",
+  "input_digest": "dir_text:9e181375afa489d426afbb5d8223651b91e0614bd96238458d78aa97270383f1",
+  "status": "fail",
+  "criteria": {
+    "fail_severities": [
+      "error"
+    ],
+    "max_count": 0
+  },
+  "counts": {
+    "total": 3,
+    "by_severity": {
+      "info": 2,
+      "error": 1
+    },
+    "by_source": {
+      "mcy": 3
+    }
+  },
+  "failing_count": 1,
+  "failing": [
+    {
+      "check": "mutate",
+      "severity": "error",
+      "file": null,
+      "module": null,
+      "line": null,
+      "kind": "kill_rate_below_threshold",
+      "refs": [],
+      "msg": "kill rate 0.89 (17/19) is below 0.90",
+      "source": "mcy",
+      "items": [
+        {
+          "msg": "kill rate 0.89 (17/19) is below 0.90",
+          "file": null,
+          "line": null
+        }
+      ]
+    }
+  ],
+  "violations": [
+    {
+      "check": "mutate",
+      "severity": "info",
+      "file": "rtl/pll_lock_det.v:22.24-22.64",
+      "module": null,
+      "line": null,
+      "kind": "survivor_stuck_other",
+      "refs": [],
+      "msg": "mutant 5 (stuck_other) survived: mutate -mode const0 -module pll_lock_det -cell $ternary$rtl/pll_lock_det.v:22$18 -port B -portbit 0 -src rtl/pll_lock_det.v:22.24-22.64",
+      "source": "mcy",
+      "items": [
+        {
+          "msg": "mutant 5 (stuck_other) survived: mutate -mode const0 -module pll_lock_det -cell $ternary$rtl/pll_lock_det.v:22$18 -port B -portbit 0 -src rtl/pll_lock_det.v:22.24-22.64",
+          "file": "rtl/pll_lock_det.v:22.24-22.64",
+          "line": null
+        }
+      ]
+    },
+    {
+      "check": "mutate",
+      "severity": "info",
+      "file": "rtl/pll_lock_det.v:34.20-34.32",
+      "module": null,
+      "line": null,
+      "kind": "survivor_stuck_other",
+      "refs": [],
+      "msg": "mutant 10 (stuck_other) survived: mutate -mode const0 -module pll_lock_det -cell $eq$rtl/pll_lock_det.v:34$25 -port B -portbit 2 -src rtl/pll_lock_det.v:34.20-34.32",
+      "source": "mcy",
+      "items": [
+        {
+          "msg": "mutant 10 (stuck_other) survived: mutate -mode const0 -module pll_lock_det -cell $eq$rtl/pll_lock_det.v:34$25 -port B -portbit 2 -src rtl/pll_lock_det.v:34.20-34.32",
+          "file": "rtl/pll_lock_det.v:34.20-34.32",
+          "line": null
+        }
+      ]
+    },
+    {
+      "check": "mutate",
+      "severity": "error",
+      "file": null,
+      "module": null,
+      "line": null,
+      "kind": "kill_rate_below_threshold",
+      "refs": [],
+      "msg": "kill rate 0.89 (17/19) is below 0.90",
+      "source": "mcy",
+      "items": [
+        {
+          "msg": "kill rate 0.89 (17/19) is below 0.90",
+          "file": null,
+          "line": null
+        }
+      ]
+    }
+  ],
+  "facts": {
+    "top": "ihsan_sa_pll",
+    "total_mutants": 19,
+    "equivalent": 0,
+    "equivalent_ids": [],
+    "scored_mutants": 19,
+    "killed": 17,
+    "survived": 2,
+    "kill_rate": 0.8947,
+    "survivors_by_class": {
+      "stuck_other": 2
+    },
+    "equivalent_by": {},
+    "unproven_survivors": {
+      "5": "not a single, unmodified clock - outside the proof; module pll_lock_det alone: not a single, unmodified clock - outside the proof",
+      "10": "not a single, unmodified clock - outside the proof; module pll_lock_det alone: not a single, unmodified clock - outside the proof"
+    },
+    "wall_s": 131.58
+  },
+  "record_result": {
+    "ok": true,
+    "recorded": true,
+    "workspace": "blocks/pll/digital",
+    "gate": "mutate",
+    "status": "fail",
+    "attempts": 2,
+    "inputs": {
+      "rtl": "dir_text:9e181375afa489d426afbb5d8223651b91e0614bd96238458d78aa97270383f1",
+      "tb": "dir_text:052af20e5f8df5b5f2bc6b6fbfedf5cc1eceea14569da45fea5dc52c37413560",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:08fd0975f7d5116e45920eef43d5b9120ed832afcd70581c17d55bd037abf224",
+      "mutant_rulings": null
+    }
+  }
+}

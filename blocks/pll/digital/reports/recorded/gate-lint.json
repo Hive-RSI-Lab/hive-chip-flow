@@ -1,0 +1,39 @@
+{
+ "script": "gate",
+ "gate": "lint",
+ "phase": "P4",
+ "tool": "lint",
+ "input_digest": "dir_text:d57e8def30c23cb7654bbd9d72b98e3c18d24c5ee8934cf63e6d13031be58a3a",
+ "status": "pass",
+ "criteria": {
+  "fail_severities": [
+   "error"
+  ],
+  "max_count": 0
+ },
+ "counts": {
+  "total": 0,
+  "by_severity": {},
+  "by_source": {}
+ },
+ "failing_count": 0,
+ "failing": [],
+ "violations": [],
+ "facts": {
+  "top": "ihsan_sa_pll",
+  "files": [
+   "rtl/ihsan_sa_pll.v",
+   "rtl/pll_ctrl_regs.v",
+   "rtl/pll_divider.v",
+   "rtl/pll_lock_det.v",
+   "rtl/pll_pfd.v",
+   "rtl/pll_prescaler.v"
+  ]
+ },
+ "inputs_at_start": {
+  "rtl": "dir_text:d57e8def30c23cb7654bbd9d72b98e3c18d24c5ee8934cf63e6d13031be58a3a",
+  "spec_yaml_sans_formal": "json_canonical_sans_formal:0d4f4df02ec4e9e126b142d27d8677203998d22be647a17a60f3717dd16355e7"
+ },
+ "recorded_ts": "2026-10-29T10:59:37",
+ "attempts": 15
+}

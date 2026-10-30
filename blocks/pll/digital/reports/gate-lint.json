@@ -1,0 +1,45 @@
+{
+  "script": "gate",
+  "gate": "lint",
+  "phase": "P4",
+  "tool": "lint",
+  "input_digest": "dir_text:9e181375afa489d426afbb5d8223651b91e0614bd96238458d78aa97270383f1",
+  "status": "pass",
+  "criteria": {
+    "fail_severities": [
+      "error"
+    ],
+    "max_count": 0
+  },
+  "counts": {
+    "total": 0,
+    "by_severity": {},
+    "by_source": {}
+  },
+  "failing_count": 0,
+  "failing": [],
+  "violations": [],
+  "facts": {
+    "top": "ihsan_sa_pll",
+    "files": [
+      "rtl/ihsan_sa_pll.v",
+      "rtl/pll_ctrl_regs.v",
+      "rtl/pll_divider.v",
+      "rtl/pll_lock_det.v",
+      "rtl/pll_pfd.v",
+      "rtl/pll_prescaler.v"
+    ]
+  },
+  "record_result": {
+    "ok": true,
+    "recorded": true,
+    "workspace": "blocks/pll/digital",
+    "gate": "lint",
+    "status": "pass",
+    "attempts": 4,
+    "inputs": {
+      "rtl": "dir_text:9e181375afa489d426afbb5d8223651b91e0614bd96238458d78aa97270383f1",
+      "spec_yaml": "json_canonical:c9e51f1f04e643a054e125bd8f1cfe9eea9a124986e0e42fd5eb7f25247fba2c"
+    }
+  }
+}

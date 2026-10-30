@@ -1,0 +1,48 @@
+{
+  "script": "gate",
+  "gate": "holdout",
+  "phase": "P4",
+  "tool": "holdout",
+  "input_digest": "dir_text:9e181375afa489d426afbb5d8223651b91e0614bd96238458d78aa97270383f1",
+  "status": "pass",
+  "criteria": {
+    "fail_severities": [
+      "error"
+    ],
+    "max_count": 0
+  },
+  "counts": {
+    "total": 0,
+    "by_severity": {},
+    "by_source": {}
+  },
+  "failing_count": 0,
+  "failing": [],
+  "violations": [],
+  "facts": {
+    "top": "ihsan_sa_pll",
+    "tests_run": [
+      "test_ctrl_regs_every_cycle",
+      "test_dn_side_wide_drops_lock",
+      "test_live_nsel_changes",
+      "test_midrun_reset_pulse",
+      "test_obs_sel_live_fast_vco",
+      "test_pfd_extreme_offsets",
+      "test_wide_on_fifteenth_clean_cycle"
+    ],
+    "tests_passed": 7
+  },
+  "record_result": {
+    "ok": true,
+    "recorded": true,
+    "workspace": "blocks/pll/digital",
+    "gate": "holdout",
+    "status": "pass",
+    "attempts": 3,
+    "inputs": {
+      "rtl": "dir_text:9e181375afa489d426afbb5d8223651b91e0614bd96238458d78aa97270383f1",
+      "holdout": "dir_text:e180d6ee35f64921871848b7e7839e06d7f784a5128865b80cd657984d773b16",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:08fd0975f7d5116e45920eef43d5b9120ed832afcd70581c17d55bd037abf224"
+    }
+  }
+}

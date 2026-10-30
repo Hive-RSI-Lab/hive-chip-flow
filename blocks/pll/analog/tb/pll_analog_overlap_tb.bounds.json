@@ -1,0 +1,4 @@
+[
+  {"measure": "cp_overlap_net_charge_fc", "sensitivity": 0.02, "max": 10.0, "severity": "error",
+   "msg": "|net charge| into vctrl per 1 ns UP+DN overlap, worst of vctrl = 0.3, vdd/2, vdd-0.3 V"}
+]

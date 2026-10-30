@@ -1,0 +1,46 @@
+{
+ "script": "gate",
+ "gate": "pex_sim",
+ "phase": "P5",
+ "tool": "pex_sim",
+ "input_digest": "dir_text:1e11f6ee2957d0de50f986e990fb6c29ea85a7cf325009e2b9fdb60a02a609d1",
+ "status": "pass",
+ "criteria": {
+  "fail_severities": [
+   "error"
+  ],
+  "max_count": 0
+ },
+ "counts": {
+  "total": 0,
+  "by_severity": {},
+  "by_source": {}
+ },
+ "failing_count": 0,
+ "failing": [],
+ "violations": [],
+ "facts": {
+  "topcell": "pll_analog",
+  "gds": "layout/pll_analog.gds",
+  "extracted": "log/pex_sim/pll_analog.pex.ordered.spice",
+  "parasitics": {
+   "r": 1065,
+   "c": 817
+  },
+  "measured": {
+   "icp_up_code00_ua": 18.9876,
+   "icp_dn_code00_ua": 18.6445,
+   "vco_kvco_mhz_per_v": 80.9073,
+   "vco_fmax_tt_mhz": 226.263
+  }
+ },
+ "inputs_at_start": {
+  "layout": "dir_text:1e11f6ee2957d0de50f986e990fb6c29ea85a7cf325009e2b9fdb60a02a609d1",
+  "tb": "dir_text:efd9799144260e352d6f69a25effecc4fd0b59bbd586e63c75169b804a3bc56d",
+  "layout_ref": "dir_text:09fc1489517d1123f421a37ff7066ea54564bd077112e7ac791b227cb958bcd6",
+  "netlist": "dir_text:c20767143e29ce734d55b7e2a8cacb836b60b62cefe973cc06edc21007841f07",
+  "spec_yaml": "json_canonical:d716cf6b0d1929fc3a2f9bda14a0e67b244264ae581dca2e8ce465dd41dbf6da"
+ },
+ "recorded_ts": "2026-10-28T19:12:22",
+ "attempts": 3
+}

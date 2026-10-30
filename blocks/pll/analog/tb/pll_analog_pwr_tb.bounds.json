@@ -1,0 +1,6 @@
+[
+  {"measure": "standby_current_ua", "max": 1.0, "severity": "error",
+   "msg": "vdd current with pll_en = 0, max over vctrl 0.3 .. vdd-0.3 V"},
+  {"measure": "vco_out_off_toggles", "max": 0, "severity": "error",
+   "msg": "vco_out vdd/2 crossings in 500 ns with pll_en = 0, vctrl = vdd-0.3 V"}
+]
