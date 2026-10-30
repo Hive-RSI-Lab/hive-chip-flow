@@ -84,6 +84,7 @@ REPO = ENGINE.parent
 sys.path.insert(0, str(ENGINE / "lib"))
 import checklib  # noqa: E402
 import cocotblib  # noqa: E402
+import simlib  # noqa: E402
 from checklib import CheckError  # noqa: E402
 
 SCRIPT = "check_cosim"
@@ -112,7 +113,6 @@ NONCONVERGENCE_PATTERNS = [
     re.compile(r"Timestep too small", re.I),
     re.compile(r"trouble with node", re.I),
     re.compile(r"singular matrix", re.I),
-    re.compile(r"gmin stepping failed", re.I),
     re.compile(r"doAnalyses:\s*TRAN", re.I),
 ]
 
@@ -213,6 +213,9 @@ def scan_nonconvergence(log_text: str) -> list[str]:
     for pat in NONCONVERGENCE_PATTERNS:
         if pat.search(log_text):
             hits.append(pat.pattern)
+    # a failed gmin step counts only when no later step converged
+    if simlib.gmin_unrecovered(log_text):
+        hits.append("gmin stepping failed")
     return hits
 
 

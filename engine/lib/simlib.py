@@ -127,7 +127,8 @@ def parse_failed_measures(stderr_text: str) -> set[str]:
 # guarantees every build/version agrees).
 ENGINE_ERROR_PATTERNS: list[tuple[re.Pattern, str]] = [
     (re.compile(r"singular matrix", re.I), "singular_matrix"),
-    (re.compile(r"gmin stepping failed", re.I), "gmin_stepping_failed"),
+    # not matched here: a failed gmin step is an error only when no later
+    # step of its own operating-point search converged (gmin_unrecovered)
     (re.compile(r"source stepping failed", re.I), "source_stepping_failed"),
     (re.compile(r"timestep too small", re.I), "timestep_too_small"),
     (re.compile(r"trouble with node", re.I), "convergence_trouble"),
@@ -145,13 +146,48 @@ ENGINE_ERROR_PATTERNS: list[tuple[re.Pattern, str]] = [
 ]
 
 
+# ngspice's operating-point search (cktop.c) falls through dynamic gmin ->
+# true (or spice3) gmin -> source stepping, printing "<step> failed" for each
+# one that gives up and "<step> completed" for the one that converges. A
+# "Dynamic gmin stepping failed" followed by "True gmin stepping completed"
+# is a converged op, and whether the first step fails at all can turn on
+# netlist element order (magic orders a PEX netlist differently between
+# extractions of the same GDS), so a failed gmin step counts only when no
+# later step of the same search completed. A search starts at "Starting
+# dynamic gmin stepping". ngspice prints all of these on one stream, so
+# their order in stdout+stderr combined is the order they happened in.
+_GMIN_FAILED = re.compile(r"gmin stepping failed", re.I)
+_STEPPING_COMPLETED = re.compile(r"stepping completed", re.I)
+_SEARCH_START = re.compile(r"starting dynamic gmin stepping", re.I)
+
+
+def gmin_unrecovered(text: str) -> bool:
+    """True when some "gmin stepping failed" in `text` is not followed by a
+    "... stepping completed" before the next op search starts or the text
+    ends."""
+    pending = False
+    for line in text.splitlines():
+        if _SEARCH_START.search(line):
+            if pending:
+                return True
+        elif _GMIN_FAILED.search(line):
+            pending = True
+        elif _STEPPING_COMPLETED.search(line):
+            pending = False
+    return pending
+
+
 def detect_engine_errors(text: str) -> list[str]:
     """Sorted, deduplicated list of ENGINE_ERROR_PATTERNS kinds found in
-    `text` (stdout+stderr combined). Empty means no known failure text was
-    seen - NOT proof the run is trustworthy on its own; callers still run
-    compare_bounds() over whatever measures did come back."""
-    return sorted({kind for pat, kind in ENGINE_ERROR_PATTERNS
-                  if pat.search(text)})
+    `text` (stdout+stderr combined), plus gmin_stepping_failed when a
+    failed gmin step was never recovered (gmin_unrecovered). Empty means no
+    known failure text was seen - NOT proof the run is trustworthy on its
+    own; callers still run compare_bounds() over whatever measures did come
+    back."""
+    kinds = {kind for pat, kind in ENGINE_ERROR_PATTERNS if pat.search(text)}
+    if gmin_unrecovered(text):
+        kinds.add("gmin_stepping_failed")
+    return sorted(kinds)
 
 
 def engine_error_violations(check: str, testbench: str, corner: str,
