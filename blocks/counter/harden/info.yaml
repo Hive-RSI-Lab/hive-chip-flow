@@ -1,0 +1,5 @@
+project:
+  title: ece298a_counter
+  top_module: tt_um_ece298a_counter
+  tiles: 1x1
+pinout: {}

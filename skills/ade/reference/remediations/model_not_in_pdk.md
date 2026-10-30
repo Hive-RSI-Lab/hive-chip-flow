@@ -12,3 +12,7 @@ the same.
 **Trap:** don't define a local `.model` or `.subckt` with the missing name
 to make the check go quiet. The simulation would run on a device the fab
 can't build, and LVS against the PDK's extraction would fail anyway.
+
+**Before reaching for a MIM cap in a Tiny Tapeout block:** TT's GF180
+precheck forbids Metal5, so a MIM cap that needs a Metal5 top plate (MIM
+option B) can't be in a tile, whatever the netlist says.

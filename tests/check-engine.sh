@@ -16,9 +16,15 @@
 # CPU, and the old fixed `timeout 120` killed it at 41%. So:
 #   * over CHECK_ENGINE_CPU_S (default 120) of CPU -> a real slowdown: the
 #     suite is ended and this exits 125, saying "FAIL slow".
-#   * past CHECK_ENGINE_WALL_S (default 1200) of wall -> a hang: the suite
-#     is ended and this exits 124, saying "FAIL hang". The backstop is
-#     generous on purpose; it only has to catch waiting, not working.
+#   * its CPU not advancing for CHECK_ENGINE_STALL_S (default 300) -> a
+#     hang: the suite is ended and this exits 124, saying "FAIL hang".
+#     Advancing is its CPU rising or one of its processes runnable (state
+#     R: a starved box can keep a working process waiting for a core), so
+#     a hang is called on the suite waiting, not on the clock: no wall time
+#     is too long for a suite that is still working, and its CPU budget
+#     already bounds that.
+#   * CHECK_ENGINE_WALL_S (default 0, none) is an optional wall-clock
+#     backstop on top, also exiting 124 "FAIL hang".
 #   * otherwise pytest's own exit code, after one stderr line of CPU/wall.
 # CPU is read from /proc every CHECK_ENGINE_POLL_S (default 2) seconds by
 # tests/lib/cpu-cap.sh, which says how it counts.
@@ -49,22 +55,32 @@ EDA_BIN="$(eda_bin)"
 cd "$REPO_ROOT"
 
 CPU_S="${CHECK_ENGINE_CPU_S:-120}"
-WALL_S="${CHECK_ENGINE_WALL_S:-1200}"
+WALL_S="${CHECK_ENGINE_WALL_S:-0}"
+STALL_S="${CHECK_ENGINE_STALL_S:-300}"
 POLL_S="${CHECK_ENGINE_POLL_S:-2}"
-for v in "$CPU_S" "$WALL_S" "$POLL_S"; do
+# _WALL_S alone may be 0: no backstop.
+wall_v="$WALL_S"; [ "$WALL_S" != 0 ] || wall_v=1
+for v in "$CPU_S" "$STALL_S" "$POLL_S" "$wall_v"; do
   case "$v" in
     ''|*[!0-9]*|0)
-      echo "check-engine.sh: CHECK_ENGINE_CPU_S, _WALL_S and _POLL_S must be" \
-           "positive whole seconds (got '$v')" >&2
+      echo "check-engine.sh: CHECK_ENGINE_CPU_S, _STALL_S and _POLL_S must" \
+           "be positive whole seconds, _WALL_S whole seconds or 0 for none" \
+           "(got '$v')" >&2
       exit 2 ;;
   esac
 done
+# Scratch in memory and fsync off: tests/lib/scratch.sh.
+# shellcheck source=tests/lib/scratch.sh
+. "$REPO_ROOT/tests/lib/scratch.sh"
+test_scratch
+if [ -n "$TEST_SCRATCH" ]; then trap 'rm -rf "$TEST_SCRATCH"' EXIT; fi
+
 # The CPU/wall monitor is tests/lib/cpu-cap.sh, shared with tests/check.sh.
 # shellcheck source=tests/lib/cpu-cap.sh
 . "$REPO_ROOT/tests/lib/cpu-cap.sh"
 
 rc=0
-CPU_CAP_POLL_S="$POLL_S" cpu_cap "$CPU_S" "$WALL_S" \
+CPU_CAP_POLL_S="$POLL_S" CPU_CAP_STALL_S="$STALL_S" cpu_cap "$CPU_S" "$WALL_S" \
   "$EDA_BIN" python -m pytest tests/ -q -m "not slow" || rc=$?
 
 case "$CPU_CAP_VERDICT" in
@@ -74,9 +90,15 @@ case "$CPU_CAP_VERDICT" in
          "suite's own work, not the box's load." >&2
     exit 125 ;;
   hang)
-    echo "check-engine.sh: FAIL hang - the suite was still running at the" \
-         "${WALL_S} s wall-clock backstop, having used only $CPU_CAP_USED s" \
-         "of its ${CPU_S} s CPU budget: it is waiting, not working." >&2
+    if [ "$CPU_CAP_HANG_WHY" = stall ]; then
+      echo "check-engine.sh: FAIL hang - the suite's CPU stopped advancing" \
+           "for ${STALL_S} s, at $CPU_CAP_USED s of its ${CPU_S} s CPU budget" \
+           "(${CPU_CAP_WALL} s wall): it is waiting, not working." >&2
+    else
+      echo "check-engine.sh: FAIL hang - the suite was still running at the" \
+           "${WALL_S} s wall-clock backstop, having used only $CPU_CAP_USED s" \
+           "of its ${CPU_S} s CPU budget." >&2
+    fi
     exit 124 ;;
 esac
 echo "check-engine.sh: suite used $CPU_CAP_USED s CPU of its ${CPU_S} s" \

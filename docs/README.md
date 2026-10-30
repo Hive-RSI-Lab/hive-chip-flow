@@ -94,6 +94,15 @@ fails while a row and its probe disagree.
   sets still run by hand: `tests/check.sh` (a smoke per tool),
   `tests/check-slow.sh`, `tests/check-harden-faults.sh <rung>`, each with
   `EDA_TOOLCHAIN` set (`eval "$(chip-flow env)"`).
+  It runs on GitHub Actions, not on the Hive's machine: the `test` job in
+  `.github/workflows/test.yml`, on every pull request and every push to
+  main, on an ubuntu-24.04 runner that unpacks the same pinned
+  IIC-OSIC-TOOLS 2026.09 image (`hpretl/iic-osic-tools`, by digest) into a
+  plain directory with upstream's `.github/actions/toolchain` and points
+  `EDA_TOOLCHAIN` at it. `.hive/project.json` names that job in
+  `forge_tests`, so the Hive waits on its result for a merge and takes its
+  run on the merge commit as main's, and runs the test here only when CI
+  is red or gives no answer.
 - **Blocks**, `chip-flow check-all`: copies every block under this module's
   `blocks/` to a scratch dir and re-runs there, in pipeline order, every gate
   each of its workspaces records (an msde block's analog and digital sides

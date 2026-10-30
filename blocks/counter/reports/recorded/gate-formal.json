@@ -1,0 +1,59 @@
+{
+ "script": "gate",
+ "gate": "formal",
+ "phase": "P4",
+ "tool": "formal",
+ "input_digest": "dir_text:76d0d45a5f2e829e5f862f5a22721b24d3fd4936126ddf971e6f241e20027591",
+ "status": "pass",
+ "criteria": {
+  "fail_severities": [
+   "error"
+  ],
+  "max_count": 0
+ },
+ "counts": {
+  "total": 0,
+  "by_severity": {},
+  "by_source": {}
+ },
+ "failing_count": 0,
+ "failing": [],
+ "violations": [],
+ "facts": {
+  "top": "ece298a_counter",
+  "formal_top": "ece298a_counter_formal",
+  "depth": 8,
+  "cover_depth": 24,
+  "frontend": "native",
+  "frontend_why": null,
+  "multiclock": true,
+  "multiclock_why": "async reset/latch cell(s) $adff",
+  "proven": [
+   "REQ-BUS",
+   "REQ-COUNT",
+   "REQ-HOLD",
+   "REQ-LOAD",
+   "REQ-LOAD-OE",
+   "REQ-RESET"
+  ],
+  "bounded": [],
+  "failed": [],
+  "vacuous": [],
+  "smt_status": "PASS",
+  "pdr_status": "PASS",
+  "cover_points": [
+   "COVER_ASYNC_CLEAR",
+   "COVER_LOAD_OE",
+   "COVER_WRAP"
+  ],
+  "async_reset_cuts": [],
+  "async_reset_cuts_note": null
+ },
+ "inputs_at_start": {
+  "rtl": "dir_text:76d0d45a5f2e829e5f862f5a22721b24d3fd4936126ddf971e6f241e20027591",
+  "formal": "dir_text:02279b0cf4db97f9c14d9395c95b046926101685d3decba1f9d6de945c381668",
+  "spec_yaml": "json_canonical:035dc2a7da7c3eac5b620c4052f5a3b8506ac0592e6e9b9505162542dba6c2d4"
+ },
+ "recorded_ts": "2026-10-29T22:33:58",
+ "attempts": 2
+}
