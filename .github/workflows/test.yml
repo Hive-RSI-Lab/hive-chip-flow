@@ -1,0 +1,37 @@
+# The Hive's per-change test, bin/chip-flow test, on GitHub's standard
+# runners instead of the Hive's machine: .hive/project.json names this job
+# in forge_tests, so the Hive runs no test of its own on a PR and takes this
+# job's run on the merge commit as main's. Every tool still runs through
+# bin/eda, from the same IIC-OSIC-TOOLS 2026.09 tree the Hive uses,
+# unpacked by upstream's .github/actions/toolchain (EDA_TOOLCHAIN). A gate
+# that cannot run fails the job; nothing here turns it into a pass.
+name: test
+
+# A PR runs it on its head; push is main only, so a PR branch is not run twice.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/toolchain
+      - name: bin/chip-flow test
+        env:
+          # -vv prints a failed assertion's whole violation.
+          PYTEST_ADDOPTS: -vv
+        run: |
+          set +e
+          start=$SECONDS
+          bin/chip-flow test
+          rc=$?
+          echo "bin/chip-flow test: $((SECONDS - start))s, exit $rc" | tee -a "$GITHUB_STEP_SUMMARY"
+          exit $rc
