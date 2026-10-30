@@ -38,9 +38,11 @@ case "$STUB_MODE" in
     sleep 1000 &
     echo $! > "$REPO_ROOT/pid"; wait ;;
   trickle)
-    # working slowly: a short burst of CPU each second, for 8 s
+    # working slowly: a fixed burst of work each second, for 8 s or more.
+    # On a starved box a burst waits for a core, runnable, gaining no CPU;
+    # it is still working, and must not read as a hang.
     for _ in 1 2 3 4 5 6 7 8; do
-      bash -c 'i=0; while [ $i -lt 20000 ]; do i=$((i+1)); done'; sleep 1
+      bash -c 'i=0; while [ $i -lt 50000 ]; do i=$((i+1)); done'; sleep 1
     done; exit 0 ;;
 esac
 """
@@ -117,8 +119,8 @@ def test_planted_hang_fails_as_hang_not_slow(tmp_path):
 
 
 def test_suite_still_working_past_the_stall_window_is_not_a_hang(tmp_path):
-    # 8 s of wall, CPU moving every second, under a 3 s stall window and
-    # no wall backstop (the default): a slow box, not a hang.
+    # 8 s of wall or more, working every second, under a 3 s stall window
+    # and no wall backstop (the default): a slow box, not a hang.
     proc, _ = run_gate(tmp_path, "trickle", cpu_s=120, stall_s=3)
     assert proc.returncode == 0, proc.stderr
     assert "FAIL" not in proc.stderr

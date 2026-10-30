@@ -17,11 +17,12 @@
 #   * over CHECK_ENGINE_CPU_S (default 120) of CPU -> a real slowdown: the
 #     suite is ended and this exits 125, saying "FAIL slow".
 #   * its CPU not advancing for CHECK_ENGINE_STALL_S (default 300) -> a
-#     hang: the suite is ended and this exits 124, saying "FAIL hang". A
-#     working suite's CPU moves every poll however loaded the box (a load
-#     slows it, it doesn't stop it), so a hang is called on the suite
-#     waiting, not on the clock: no wall time is too long for a suite that
-#     is still working, and its CPU budget already bounds that.
+#     hang: the suite is ended and this exits 124, saying "FAIL hang".
+#     Advancing is its CPU rising or one of its processes runnable (state
+#     R: a starved box can keep a working process waiting for a core), so
+#     a hang is called on the suite waiting, not on the clock: no wall time
+#     is too long for a suite that is still working, and its CPU budget
+#     already bounds that.
 #   * CHECK_ENGINE_WALL_S (default 0, none) is an optional wall-clock
 #     backstop on top, also exiting 124 "FAIL hang".
 #   * otherwise pytest's own exit code, after one stderr line of CPU/wall.

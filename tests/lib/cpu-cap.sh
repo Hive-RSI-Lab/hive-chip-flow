@@ -14,8 +14,11 @@
 # and returns:
 #   * 125 if its tree used more than CPU_S of CPU - a real slowdown;
 #   * 124 if it is waiting, not working - a hang: still running at WALL_S
-#     of wall, or, when CPU_CAP_STALL_S is set, its tree's CPU has not
-#     advanced for CPU_CAP_STALL_S seconds. WALL_S 0 means no wall backstop
+#     of wall, or, when CPU_CAP_STALL_S is set, its tree has not advanced
+#     for CPU_CAP_STALL_S seconds: no poll saw its CPU rise or one of its
+#     processes runnable. Runnable counts because on a starved box a
+#     working process can wait seconds for a core and gain no CPU, while a
+#     waiting one sleeps. WALL_S 0 means no wall backstop
 #     (only with CPU_CAP_STALL_S set: something must catch a hang);
 #   * otherwise CMD's own exit code.
 # On 125 or 124 the whole group is ended. Either way it sets CPU_CAP_VERDICT
@@ -30,8 +33,10 @@
 
 # _cpu_cap_tree PID: add to _CPU_CAP_TICKS the CPU ticks PID and its live
 # descendants have used, each including what it has reaped (cutime and
-# cstime), so a finished child is counted once, in its parent. No subshell
-# per poll: this runs every few seconds for the whole command.
+# cstime), so a finished child is counted once, in its parent; and set
+# _CPU_CAP_RUNNABLE when one of them is in state R (running, or queued for
+# a core it hasn't got). No subshell per poll: this runs every few seconds
+# for the whole command.
 _cpu_cap_tree() {
   local line f kid
   local -a fields kids
@@ -39,6 +44,7 @@ _cpu_cap_tree() {
   read -r -a fields <<<"${line##*) }"
   # fields[0] is stat field 3 (state); utime, stime, cutime, cstime are
   # stat fields 14-17.
+  [ "${fields[0]}" != R ] || _CPU_CAP_RUNNABLE=1
   _CPU_CAP_TICKS=$((_CPU_CAP_TICKS + fields[11] + fields[12] + fields[13] + fields[14]))
   for f in /proc/"$1"/task/*/children; do
     # The file ends without a newline, so `read` returns 1 even when it
@@ -104,15 +110,18 @@ cpu_cap() {
   start=$SECONDS
   moved=$SECONDS
   while kill -0 "$pid" 2>/dev/null; do
-    _CPU_CAP_TICKS=0
+    _CPU_CAP_TICKS=0 _CPU_CAP_RUNNABLE=""
     _cpu_cap_tree "$pid"
     if [ "$_CPU_CAP_TICKS" -gt "$cpu_ticks" ]; then
       CPU_CAP_VERDICT=slow; break
     fi
-    # Advancing is any tick more than the last poll saw. Against the last
-    # poll, not the most ever seen: a child that leaves the tree takes its
-    # ticks with it, and what the rest does next is still work.
-    if [ "$_CPU_CAP_TICKS" -gt "$last" ]; then moved=$SECONDS; fi
+    # Advancing is any tick more than the last poll saw, or a runnable
+    # process. Against the last poll, not the most ever seen: a child that
+    # leaves the tree takes its ticks with it, and what the rest does next
+    # is still work.
+    if [ "$_CPU_CAP_TICKS" -gt "$last" ] || [ -n "$_CPU_CAP_RUNNABLE" ]; then
+      moved=$SECONDS
+    fi
     last=$_CPU_CAP_TICKS
     if [ -n "$stall_s" ] && [ $((SECONDS - moved)) -ge "$stall_s" ]; then
       CPU_CAP_VERDICT=hang; CPU_CAP_HANG_WHY=stall; break
