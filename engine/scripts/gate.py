@@ -534,6 +534,10 @@ def main(argv: list[str] | None = None) -> int:
                 raise
 
         result = evaluate(args.gate, gate, report)
+        if args.workspace:
+            # what the gate writes and records names the workspace's files
+            # relative to it, never by this machine's absolute path
+            result = checklib.workspace_relative(result, args.workspace)
         if inputs_at_start is not None:
             result["inputs_at_start"] = inputs_at_start
 
@@ -555,6 +559,9 @@ def main(argv: list[str] | None = None) -> int:
             result["record_result"] = record_gate_result(
                 skill, args.gate, gate, result,
                 Path(args.workspace) if args.workspace else None)
+            if args.workspace:
+                result["record_result"] = checklib.workspace_relative(
+                    result["record_result"], args.workspace)
 
         if result["status"] == "pass" and args.commit:
             if not args.workspace:

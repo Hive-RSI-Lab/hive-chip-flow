@@ -26,17 +26,17 @@
   {
    "check": "mutate",
    "severity": "info",
-   "file": "/work/blocks/counter/rtl/ece298a_counter.v:66.9-66.15",
+   "file": "rtl/ece298a_counter.v:66.9-66.15",
    "module": null,
    "line": null,
    "kind": "equivalent_stuck_other",
    "refs": [],
-   "msg": "mutant 7 (stuck_other) is proven equivalent to the design and left out of the kill rate: mutate -mode const1 -module ece298a_counter -cell $logic_not$/work/blocks/counter/rtl/ece298a_counter.v:66$4 -port Y -portbit 0 -src /work/blocks/counter/rtl/ece298a_counter.v:66.9-66.15",
+   "msg": "mutant 7 (stuck_other) is proven equivalent to the design and left out of the kill rate: mutate -mode const1 -module ece298a_counter -cell $logic_not$rtl/ece298a_counter.v:66$4 -port Y -portbit 0 -src rtl/ece298a_counter.v:66.9-66.15",
    "source": "yosys",
    "items": [
     {
-     "msg": "mutant 7 (stuck_other) is proven equivalent to the design and left out of the kill rate: mutate -mode const1 -module ece298a_counter -cell $logic_not$/work/blocks/counter/rtl/ece298a_counter.v:66$4 -port Y -portbit 0 -src /work/blocks/counter/rtl/ece298a_counter.v:66.9-66.15",
-     "file": "/work/blocks/counter/rtl/ece298a_counter.v:66.9-66.15",
+     "msg": "mutant 7 (stuck_other) is proven equivalent to the design and left out of the kill rate: mutate -mode const1 -module ece298a_counter -cell $logic_not$rtl/ece298a_counter.v:66$4 -port Y -portbit 0 -src rtl/ece298a_counter.v:66.9-66.15",
+     "file": "rtl/ece298a_counter.v:66.9-66.15",
      "line": null
     }
    ]
@@ -44,17 +44,17 @@
   {
    "check": "mutate",
    "severity": "info",
-   "file": "/work/blocks/counter/rtl/ece298a_counter.v:66.9-66.15",
+   "file": "rtl/ece298a_counter.v:66.9-66.15",
    "module": null,
    "line": null,
    "kind": "equivalent_condition_inverted",
    "refs": [],
-   "msg": "mutant 18 (condition_inverted) is proven equivalent to the design and left out of the kill rate: mutate -mode inv -module ece298a_counter -cell $logic_not$/work/blocks/counter/rtl/ece298a_counter.v:66$4 -port A -portbit 0 -src /work/blocks/counter/rtl/ece298a_counter.v:66.9-66.15",
+   "msg": "mutant 18 (condition_inverted) is proven equivalent to the design and left out of the kill rate: mutate -mode inv -module ece298a_counter -cell $logic_not$rtl/ece298a_counter.v:66$4 -port A -portbit 0 -src rtl/ece298a_counter.v:66.9-66.15",
    "source": "yosys",
    "items": [
     {
-     "msg": "mutant 18 (condition_inverted) is proven equivalent to the design and left out of the kill rate: mutate -mode inv -module ece298a_counter -cell $logic_not$/work/blocks/counter/rtl/ece298a_counter.v:66$4 -port A -portbit 0 -src /work/blocks/counter/rtl/ece298a_counter.v:66.9-66.15",
-     "file": "/work/blocks/counter/rtl/ece298a_counter.v:66.9-66.15",
+     "msg": "mutant 18 (condition_inverted) is proven equivalent to the design and left out of the kill rate: mutate -mode inv -module ece298a_counter -cell $logic_not$rtl/ece298a_counter.v:66$4 -port A -portbit 0 -src rtl/ece298a_counter.v:66.9-66.15",
+     "file": "rtl/ece298a_counter.v:66.9-66.15",
      "line": null
     }
    ]
@@ -78,7 +78,7 @@
    "18": "signal induction"
   },
   "unproven_survivors": {},
-  "wall_s": 251.99
+  "wall_s": 646.18
  },
  "inputs_at_start": {
   "rtl": "dir_text:76d0d45a5f2e829e5f862f5a22721b24d3fd4936126ddf971e6f241e20027591",
@@ -86,6 +86,6 @@
   "spec_yaml_sans_formal": "json_canonical_sans_formal:9cd947b44c33253dec630a4cdf770696ba55c1f631025236036335a3e34ed69f",
   "mutant_rulings": null
  },
- "recorded_ts": "2026-10-29T10:07:58",
- "attempts": 1
+ "recorded_ts": "2026-10-29T22:32:56",
+ "attempts": 2
 }

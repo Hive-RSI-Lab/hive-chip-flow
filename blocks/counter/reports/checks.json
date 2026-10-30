@@ -1,7 +1,7 @@
 {
  "skill": "vde",
  "block": "counter",
- "ts": "2026-10-29T10:36:26",
+ "ts": "2026-10-29T22:47:38",
  "checks": [
   {
    "gate": "cover",
@@ -11,8 +11,8 @@
    "tool": "cover",
    "version": 1,
    "status": "pass",
-   "attempts": 1,
-   "ts": "2026-10-29T10:10:39",
+   "attempts": 2,
+   "ts": "2026-10-29T22:34:25",
    "inputs": {
     "rtl": "dir_text:76d0d45a5f2e829e5f862f5a22721b24d3fd4936126ddf971e6f241e20027591",
     "tb": "dir_text:046f330442f57502d8041e15f22ad512664b589612acb04472c739010036463d",
@@ -28,10 +28,10 @@
    "tool": "drc",
    "version": 1,
    "status": "pass",
-   "attempts": 2,
-   "ts": "2026-10-29T10:35:20",
+   "attempts": 4,
+   "ts": "2026-10-29T22:45:45",
    "inputs": {
-    "harden": "harden_signoff:9b38529e41c1bf0edc3115ef81b6e0a399f5e415db1b06c30c6204bbd729523c",
+    "harden": "harden_signoff:b4863ae9e97e298503dd6b60d5febc415ed25ef2fafa2e4edab39efd58aaab21",
     "spec_yaml_sans_formal": "json_canonical_sans_formal:9cd947b44c33253dec630a4cdf770696ba55c1f631025236036335a3e34ed69f"
    },
    "reason": null
@@ -44,8 +44,8 @@
    "tool": "formal",
    "version": 1,
    "status": "pass",
-   "attempts": 1,
-   "ts": "2026-10-29T10:03:37",
+   "attempts": 2,
+   "ts": "2026-10-29T22:33:58",
    "inputs": {
     "rtl": "dir_text:76d0d45a5f2e829e5f862f5a22721b24d3fd4936126ddf971e6f241e20027591",
     "formal": "dir_text:02279b0cf4db97f9c14d9395c95b046926101685d3decba1f9d6de945c381668",
@@ -61,10 +61,10 @@
    "tool": "glsim",
    "version": 1,
    "status": "pass",
-   "attempts": 2,
-   "ts": "2026-10-29T10:35:34",
+   "attempts": 4,
+   "ts": "2026-10-29T22:46:20",
    "inputs": {
-    "harden": "harden_signoff:9b38529e41c1bf0edc3115ef81b6e0a399f5e415db1b06c30c6204bbd729523c",
+    "harden": "harden_signoff:b4863ae9e97e298503dd6b60d5febc415ed25ef2fafa2e4edab39efd58aaab21",
     "tb": "dir_text:046f330442f57502d8041e15f22ad512664b589612acb04472c739010036463d",
     "spec_yaml_sans_formal": "json_canonical_sans_formal:9cd947b44c33253dec630a4cdf770696ba55c1f631025236036335a3e34ed69f"
    },
@@ -78,11 +78,11 @@
    "tool": "harden",
    "version": 1,
    "status": "pass",
-   "attempts": 2,
-   "ts": "2026-10-29T10:34:28",
+   "attempts": 4,
+   "ts": "2026-10-29T22:44:43",
    "inputs": {
     "rtl": "dir_text:76d0d45a5f2e829e5f862f5a22721b24d3fd4936126ddf971e6f241e20027591",
-    "harden_config": "json_canonical_sans_roots:6e13695bc0a74efe43294d81fe9417de3568bcd6c884c05d20e6c73a00a6272f",
+    "harden_config": "json_canonical_sans_roots:f86ce9db491412ccc0ac48e5d05139a34f8fef6e05c529c9239f10a4c3cd2de4",
     "harden_override": null,
     "harden_sdc": null,
     "harden_info": "json_canonical:f695957862502907d834adb8801ec93f4f59eaf89bf74f8192f72bb3c514eba1",
@@ -98,8 +98,8 @@
    "tool": "holdout",
    "version": 1,
    "status": "pass",
-   "attempts": 1,
-   "ts": "2026-10-29T10:02:09",
+   "attempts": 2,
+   "ts": "2026-10-29T22:22:03",
    "inputs": {
     "rtl": "dir_text:76d0d45a5f2e829e5f862f5a22721b24d3fd4936126ddf971e6f241e20027591",
     "holdout": "dir_text:e69637cc36b8a173630e06d341bc4186ae2990986112fca224b3c2971d5405c1",
@@ -115,8 +115,8 @@
    "tool": "lint",
    "version": 1,
    "status": "pass",
-   "attempts": 1,
-   "ts": "2026-10-29T09:58:52",
+   "attempts": 2,
+   "ts": "2026-10-29T22:21:35",
    "inputs": {
     "rtl": "dir_text:76d0d45a5f2e829e5f862f5a22721b24d3fd4936126ddf971e6f241e20027591",
     "spec_yaml_sans_formal": "json_canonical_sans_formal:9cd947b44c33253dec630a4cdf770696ba55c1f631025236036335a3e34ed69f"
@@ -131,10 +131,10 @@
    "tool": "lvs",
    "version": 1,
    "status": "pass",
-   "attempts": 2,
-   "ts": "2026-10-29T10:35:27",
+   "attempts": 4,
+   "ts": "2026-10-29T22:45:51",
    "inputs": {
-    "harden": "harden_signoff:9b38529e41c1bf0edc3115ef81b6e0a399f5e415db1b06c30c6204bbd729523c",
+    "harden": "harden_signoff:b4863ae9e97e298503dd6b60d5febc415ed25ef2fafa2e4edab39efd58aaab21",
     "spec_yaml_sans_formal": "json_canonical_sans_formal:9cd947b44c33253dec630a4cdf770696ba55c1f631025236036335a3e34ed69f"
    },
    "reason": null
@@ -147,8 +147,8 @@
    "tool": "mutate",
    "version": 1,
    "status": "pass",
-   "attempts": 1,
-   "ts": "2026-10-29T10:07:58",
+   "attempts": 2,
+   "ts": "2026-10-29T22:32:56",
    "inputs": {
     "rtl": "dir_text:76d0d45a5f2e829e5f862f5a22721b24d3fd4936126ddf971e6f241e20027591",
     "tb": "dir_text:046f330442f57502d8041e15f22ad512664b589612acb04472c739010036463d",
@@ -165,10 +165,10 @@
    "tool": "precheck",
    "version": 1,
    "status": "pass",
-   "attempts": 2,
-   "ts": "2026-10-29T10:36:18",
+   "attempts": 4,
+   "ts": "2026-10-29T22:47:08",
    "inputs": {
-    "harden": "harden_signoff:9b38529e41c1bf0edc3115ef81b6e0a399f5e415db1b06c30c6204bbd729523c",
+    "harden": "harden_signoff:b4863ae9e97e298503dd6b60d5febc415ed25ef2fafa2e4edab39efd58aaab21",
     "harden_info": "json_canonical:f695957862502907d834adb8801ec93f4f59eaf89bf74f8192f72bb3c514eba1",
     "spec_yaml_sans_formal": "json_canonical_sans_formal:9cd947b44c33253dec630a4cdf770696ba55c1f631025236036335a3e34ed69f"
    },
@@ -182,8 +182,8 @@
    "tool": "sim",
    "version": 1,
    "status": "pass",
-   "attempts": 1,
-   "ts": "2026-10-29T10:01:20",
+   "attempts": 2,
+   "ts": "2026-10-29T22:21:48",
    "inputs": {
     "rtl": "dir_text:76d0d45a5f2e829e5f862f5a22721b24d3fd4936126ddf971e6f241e20027591",
     "tb": "dir_text:046f330442f57502d8041e15f22ad512664b589612acb04472c739010036463d",
@@ -199,8 +199,8 @@
    "tool": "spec_lint",
    "version": 1,
    "status": "pass",
-   "attempts": 1,
-   "ts": "2026-10-29T09:57:47",
+   "attempts": 2,
+   "ts": "2026-10-29T22:21:24",
    "inputs": {
     "spec_yaml": "json_canonical:035dc2a7da7c3eac5b620c4052f5a3b8506ac0592e6e9b9505162542dba6c2d4"
    },
@@ -214,8 +214,8 @@
    "tool": "synth",
    "version": 1,
    "status": "pass",
-   "attempts": 1,
-   "ts": "2026-10-29T10:11:18",
+   "attempts": 2,
+   "ts": "2026-10-29T22:34:56",
    "inputs": {
     "rtl": "dir_text:76d0d45a5f2e829e5f862f5a22721b24d3fd4936126ddf971e6f241e20027591",
     "spec_yaml_sans_formal": "json_canonical_sans_formal:9cd947b44c33253dec630a4cdf770696ba55c1f631025236036335a3e34ed69f"
@@ -230,14 +230,14 @@
    "tool": "timing",
    "version": 1,
    "status": "pass",
-   "attempts": 2,
-   "ts": "2026-10-29T10:34:44",
+   "attempts": 4,
+   "ts": "2026-10-29T22:45:10",
    "inputs": {
-    "harden": "harden_signoff:9b38529e41c1bf0edc3115ef81b6e0a399f5e415db1b06c30c6204bbd729523c",
+    "harden": "harden_signoff:b4863ae9e97e298503dd6b60d5febc415ed25ef2fafa2e4edab39efd58aaab21",
     "spec_yaml_sans_formal": "json_canonical_sans_formal:9cd947b44c33253dec630a4cdf770696ba55c1f631025236036335a3e34ed69f"
    },
    "reason": null
   }
  ],
- "attestation_sha256": "97fb4b1311d88041f1d452bb339163d1c50aabbe67902b7c4a7875ed0a04be15"
+ "attestation_sha256": "f4688968664cf5b1a09985c2bd07486606f1facbcd137f0dae4a7a45ce4c4d03"
 }

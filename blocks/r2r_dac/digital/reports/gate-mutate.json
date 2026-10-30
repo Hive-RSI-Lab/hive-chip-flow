@@ -25,17 +25,17 @@
     {
       "check": "mutate",
       "severity": "error",
-      "file": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:16.13-16.18",
+      "file": "rtl/r2r_dac_digital.v:16.13-16.18",
       "module": null,
       "line": null,
       "kind": "survivor_condition_inverted",
       "refs": [],
-      "msg": "mutant 14 (condition_inverted) survived: mutate -mode inv -module r2r_dac_digital -cell $procdff$39 -port Q -portbit 5 -wire presc -wirebit 5 -src /home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:16.13-16.18 -src /home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:285.3-304.6",
+      "msg": "mutant 14 (condition_inverted) survived: mutate -mode inv -module r2r_dac_digital -cell $procdff$39 -port Q -portbit 5 -wire presc -wirebit 5 -src rtl/r2r_dac_digital.v:16.13-16.18 -src rtl/r2r_dac_digital.v:285.3-304.6",
       "source": "mcy",
       "items": [
         {
-          "msg": "mutant 14 (condition_inverted) survived: mutate -mode inv -module r2r_dac_digital -cell $procdff$39 -port Q -portbit 5 -wire presc -wirebit 5 -src /home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:16.13-16.18 -src /home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:285.3-304.6",
-          "file": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:16.13-16.18",
+          "msg": "mutant 14 (condition_inverted) survived: mutate -mode inv -module r2r_dac_digital -cell $procdff$39 -port Q -portbit 5 -wire presc -wirebit 5 -src rtl/r2r_dac_digital.v:16.13-16.18 -src rtl/r2r_dac_digital.v:285.3-304.6",
+          "file": "rtl/r2r_dac_digital.v:16.13-16.18",
           "line": null
         }
       ]
@@ -43,17 +43,17 @@
     {
       "check": "mutate",
       "severity": "error",
-      "file": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:16.13-16.18",
+      "file": "rtl/r2r_dac_digital.v:16.13-16.18",
       "module": null,
       "line": null,
       "kind": "survivor_condition_inverted",
       "refs": [],
-      "msg": "mutant 21 (condition_inverted) survived: mutate -mode inv -module r2r_dac_digital -cell $procdff$39 -port Q -portbit 3 -wire presc -wirebit 3 -src /home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:16.13-16.18 -src /home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:285.3-304.6",
+      "msg": "mutant 21 (condition_inverted) survived: mutate -mode inv -module r2r_dac_digital -cell $procdff$39 -port Q -portbit 3 -wire presc -wirebit 3 -src rtl/r2r_dac_digital.v:16.13-16.18 -src rtl/r2r_dac_digital.v:285.3-304.6",
       "source": "mcy",
       "items": [
         {
-          "msg": "mutant 21 (condition_inverted) survived: mutate -mode inv -module r2r_dac_digital -cell $procdff$39 -port Q -portbit 3 -wire presc -wirebit 3 -src /home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:16.13-16.18 -src /home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:285.3-304.6",
-          "file": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:16.13-16.18",
+          "msg": "mutant 21 (condition_inverted) survived: mutate -mode inv -module r2r_dac_digital -cell $procdff$39 -port Q -portbit 3 -wire presc -wirebit 3 -src rtl/r2r_dac_digital.v:16.13-16.18 -src rtl/r2r_dac_digital.v:285.3-304.6",
+          "file": "rtl/r2r_dac_digital.v:16.13-16.18",
           "line": null
         }
       ]
@@ -63,17 +63,17 @@
     {
       "check": "mutate",
       "severity": "error",
-      "file": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:16.13-16.18",
+      "file": "rtl/r2r_dac_digital.v:16.13-16.18",
       "module": null,
       "line": null,
       "kind": "survivor_condition_inverted",
       "refs": [],
-      "msg": "mutant 14 (condition_inverted) survived: mutate -mode inv -module r2r_dac_digital -cell $procdff$39 -port Q -portbit 5 -wire presc -wirebit 5 -src /home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:16.13-16.18 -src /home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:285.3-304.6",
+      "msg": "mutant 14 (condition_inverted) survived: mutate -mode inv -module r2r_dac_digital -cell $procdff$39 -port Q -portbit 5 -wire presc -wirebit 5 -src rtl/r2r_dac_digital.v:16.13-16.18 -src rtl/r2r_dac_digital.v:285.3-304.6",
       "source": "mcy",
       "items": [
         {
-          "msg": "mutant 14 (condition_inverted) survived: mutate -mode inv -module r2r_dac_digital -cell $procdff$39 -port Q -portbit 5 -wire presc -wirebit 5 -src /home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:16.13-16.18 -src /home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:285.3-304.6",
-          "file": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:16.13-16.18",
+          "msg": "mutant 14 (condition_inverted) survived: mutate -mode inv -module r2r_dac_digital -cell $procdff$39 -port Q -portbit 5 -wire presc -wirebit 5 -src rtl/r2r_dac_digital.v:16.13-16.18 -src rtl/r2r_dac_digital.v:285.3-304.6",
+          "file": "rtl/r2r_dac_digital.v:16.13-16.18",
           "line": null
         }
       ]
@@ -81,17 +81,17 @@
     {
       "check": "mutate",
       "severity": "error",
-      "file": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:16.13-16.18",
+      "file": "rtl/r2r_dac_digital.v:16.13-16.18",
       "module": null,
       "line": null,
       "kind": "survivor_condition_inverted",
       "refs": [],
-      "msg": "mutant 21 (condition_inverted) survived: mutate -mode inv -module r2r_dac_digital -cell $procdff$39 -port Q -portbit 3 -wire presc -wirebit 3 -src /home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:16.13-16.18 -src /home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:285.3-304.6",
+      "msg": "mutant 21 (condition_inverted) survived: mutate -mode inv -module r2r_dac_digital -cell $procdff$39 -port Q -portbit 3 -wire presc -wirebit 3 -src rtl/r2r_dac_digital.v:16.13-16.18 -src rtl/r2r_dac_digital.v:285.3-304.6",
       "source": "mcy",
       "items": [
         {
-          "msg": "mutant 21 (condition_inverted) survived: mutate -mode inv -module r2r_dac_digital -cell $procdff$39 -port Q -portbit 3 -wire presc -wirebit 3 -src /home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:16.13-16.18 -src /home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:285.3-304.6",
-          "file": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/digital/rtl/r2r_dac_digital.v:16.13-16.18",
+          "msg": "mutant 21 (condition_inverted) survived: mutate -mode inv -module r2r_dac_digital -cell $procdff$39 -port Q -portbit 3 -wire presc -wirebit 3 -src rtl/r2r_dac_digital.v:16.13-16.18 -src rtl/r2r_dac_digital.v:285.3-304.6",
+          "file": "rtl/r2r_dac_digital.v:16.13-16.18",
           "line": null
         }
       ]

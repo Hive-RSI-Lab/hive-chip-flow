@@ -69,6 +69,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import re
 import subprocess
 import sys
@@ -876,8 +877,9 @@ def flow_sdc_text(design_sdc: Path) -> str:
 # LibreLane's base SDC: the primary clock (CLOCK_PORT at CLOCK_PERIOD, both
 # spec.yaml's), I/O delays, drive and load - what a one-clock harden gets.
 source $::env(SCRIPTS_DIR)/base.sdc
-# The design's other clocks, generated clocks and exceptions.
-source {{{Path(design_sdc).resolve()}}}
+# The design's other clocks, generated clocks and exceptions, beside this
+# file in the design directory (no machine's path written here).
+source "$::env(DESIGN_DIR)/{Path(design_sdc).name}"
 set_clock_uncertainty $::env(CLOCK_UNCERTAINTY_CONSTRAINT) [all_clocks]
 set_clock_transition $::env(CLOCK_TRANSITION_CONSTRAINT) [all_clocks]
 if {{ [info exists ::env(OPENLANE_SDC_IDEAL_CLOCKS)] && $::env(OPENLANE_SDC_IDEAL_CLOCKS) }} {{
@@ -1093,6 +1095,45 @@ def macro_config(macros: list[dict]) -> dict:
         **({"RSZ_DONT_TOUCH_RX": ANALOG_NET_RX}
            if any(m.get("ua") for m in macros) else {}),
     }
+
+
+ENGINE_DIR = Path(__file__).resolve().parents[1]
+
+
+def portable_config(config: dict, harden_dir: Path) -> dict:
+    """The harden config as harden/config.json keeps it: no machine's
+    path in it. A path in the workspace becomes LibreLane's `dir::`, relative
+    to harden/ (the design directory); an engine file (the tile's DEF
+    template, macro_pdn.tcl) is copied into harden/ and named there, as the
+    TT wrapper is; PDK_ROOT goes, since check_harden passes it on the
+    command line. A path anywhere else (an override's own) stays as given.
+    The copies are written here: call it where the config is."""
+    harden_dir = Path(os.path.abspath(harden_dir))
+    ws = harden_dir.parent
+    copied: dict[str, Path] = {}
+
+    def sub(v):
+        if isinstance(v, list):
+            return [sub(x) for x in v]
+        if isinstance(v, dict):
+            return {k: sub(x) for k, x in v.items()}
+        if not isinstance(v, str) or not v.startswith("/"):
+            return v
+        p = Path(os.path.abspath(v))
+        if p.is_relative_to(ws):
+            return "dir::" + Path(os.path.relpath(p, harden_dir)).as_posix()
+        p = p.resolve()
+        if p.is_relative_to(ENGINE_DIR) and p.is_file():
+            if copied.setdefault(p.name, p) != p:
+                raise TTError(f"two engine files named {p.name} in the "
+                              f"harden config: {copied[p.name]} and {p}")
+            dst = harden_dir / p.name
+            data = p.read_bytes()
+            if not dst.is_file() or dst.read_bytes() != data:
+                dst.write_bytes(data)
+            return f"dir::{p.name}"
+        return v
+    return {k: sub(v) for k, v in config.items() if k != "PDK_ROOT"}
 
 
 def stdcell_liberty_path(corner: str, pdk_root: Path) -> Path:

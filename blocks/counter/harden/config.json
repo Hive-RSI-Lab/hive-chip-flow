@@ -24,15 +24,14 @@
   "MAGIC_WRITE_LEF_PINONLY": 1,
   "DESIGN_NAME": "tt_um_ece298a_counter",
   "VERILOG_FILES": [
-    "/work/blocks/counter/rtl/ece298a_counter.v",
-    "/work/blocks/counter/harden/tt_um_ece298a_counter.v"
+    "dir::../rtl/ece298a_counter.v",
+    "dir::tt_um_ece298a_counter.v"
   ],
   "DIE_AREA": "0 0 346.64 160.72",
-  "FP_DEF_TEMPLATE": "/work/engine/reference/tt/tt-support-tools/tech/gf180mcuD/def/tt_block_1x1_pgvdd.def",
+  "FP_DEF_TEMPLATE": "dir::tt_block_1x1_pgvdd.def",
   "VDD_PIN": "VPWR",
   "GND_PIN": "VGND",
   "RT_MAX_LAYER": "Metal4",
-  "PDK_ROOT": "/opt/eda-toolchain/iic-osic-tools-2026.09/foss/pdks",
   "TIMING_VIOLATION_CORNERS": [
     ""
   ],

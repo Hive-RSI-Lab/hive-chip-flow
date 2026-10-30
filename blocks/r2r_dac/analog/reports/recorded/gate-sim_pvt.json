@@ -422,7 +422,7 @@
     },
     "engine_errors": [],
     "violations": [],
-    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_glitch_tb__tt_m40c.cir"
+    "deck": "log/sim/r2r_dac_glitch_tb__tt_m40c.cir"
    },
    {
     "bench": "r2r_dac_glitch_tb.cir",
@@ -449,7 +449,7 @@
     },
     "engine_errors": [],
     "violations": [],
-    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_glitch_tb__tt_25c.cir"
+    "deck": "log/sim/r2r_dac_glitch_tb__tt_25c.cir"
    },
    {
     "bench": "r2r_dac_glitch_tb.cir",
@@ -476,7 +476,7 @@
     },
     "engine_errors": [],
     "violations": [],
-    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_glitch_tb__tt_125c.cir"
+    "deck": "log/sim/r2r_dac_glitch_tb__tt_125c.cir"
    },
    {
     "bench": "r2r_dac_glitch_tb.cir",
@@ -503,7 +503,7 @@
     },
     "engine_errors": [],
     "violations": [],
-    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_glitch_tb__ff_m40c.cir"
+    "deck": "log/sim/r2r_dac_glitch_tb__ff_m40c.cir"
    },
    {
     "bench": "r2r_dac_glitch_tb.cir",
@@ -530,7 +530,7 @@
     },
     "engine_errors": [],
     "violations": [],
-    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_glitch_tb__ff_25c.cir"
+    "deck": "log/sim/r2r_dac_glitch_tb__ff_25c.cir"
    },
    {
     "bench": "r2r_dac_glitch_tb.cir",
@@ -557,7 +557,7 @@
     },
     "engine_errors": [],
     "violations": [],
-    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_glitch_tb__ff_125c.cir"
+    "deck": "log/sim/r2r_dac_glitch_tb__ff_125c.cir"
    },
    {
     "bench": "r2r_dac_glitch_tb.cir",
@@ -584,7 +584,7 @@
     },
     "engine_errors": [],
     "violations": [],
-    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_glitch_tb__ss_m40c.cir"
+    "deck": "log/sim/r2r_dac_glitch_tb__ss_m40c.cir"
    },
    {
     "bench": "r2r_dac_glitch_tb.cir",
@@ -611,7 +611,7 @@
     },
     "engine_errors": [],
     "violations": [],
-    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_glitch_tb__ss_25c.cir"
+    "deck": "log/sim/r2r_dac_glitch_tb__ss_25c.cir"
    },
    {
     "bench": "r2r_dac_glitch_tb.cir",
@@ -638,7 +638,7 @@
     },
     "engine_errors": [],
     "violations": [],
-    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_glitch_tb__ss_125c.cir"
+    "deck": "log/sim/r2r_dac_glitch_tb__ss_125c.cir"
    },
    {
     "bench": "r2r_dac_glitch_tb.cir",
@@ -665,7 +665,7 @@
     },
     "engine_errors": [],
     "violations": [],
-    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_glitch_tb__tt_pss.cir"
+    "deck": "log/sim/r2r_dac_glitch_tb__tt_pss.cir"
    },
    {
     "bench": "r2r_dac_glitch_tb.cir",
@@ -692,7 +692,7 @@
     },
     "engine_errors": [],
     "violations": [],
-    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_glitch_tb__tt_pff.cir"
+    "deck": "log/sim/r2r_dac_glitch_tb__tt_pff.cir"
    },
    {
     "bench": "r2r_dac_step_tb.cir",
@@ -714,7 +714,7 @@
     },
     "engine_errors": [],
     "violations": [],
-    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_step_tb__tt_m40c.cir"
+    "deck": "log/sim/r2r_dac_step_tb__tt_m40c.cir"
    },
    {
     "bench": "r2r_dac_step_tb.cir",
@@ -736,7 +736,7 @@
     },
     "engine_errors": [],
     "violations": [],
-    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_step_tb__tt_25c.cir"
+    "deck": "log/sim/r2r_dac_step_tb__tt_25c.cir"
    },
    {
     "bench": "r2r_dac_step_tb.cir",
@@ -758,7 +758,7 @@
     },
     "engine_errors": [],
     "violations": [],
-    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_step_tb__tt_125c.cir"
+    "deck": "log/sim/r2r_dac_step_tb__tt_125c.cir"
    },
    {
     "bench": "r2r_dac_step_tb.cir",
@@ -780,7 +780,7 @@
     },
     "engine_errors": [],
     "violations": [],
-    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_step_tb__ff_m40c.cir"
+    "deck": "log/sim/r2r_dac_step_tb__ff_m40c.cir"
    },
    {
     "bench": "r2r_dac_step_tb.cir",
@@ -802,7 +802,7 @@
     },
     "engine_errors": [],
     "violations": [],
-    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_step_tb__ff_25c.cir"
+    "deck": "log/sim/r2r_dac_step_tb__ff_25c.cir"
    },
    {
     "bench": "r2r_dac_step_tb.cir",
@@ -824,7 +824,7 @@
     },
     "engine_errors": [],
     "violations": [],
-    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_step_tb__ff_125c.cir"
+    "deck": "log/sim/r2r_dac_step_tb__ff_125c.cir"
    },
    {
     "bench": "r2r_dac_step_tb.cir",
@@ -889,7 +889,7 @@
       ]
      }
     ],
-    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_step_tb__ss_m40c.cir"
+    "deck": "log/sim/r2r_dac_step_tb__ss_m40c.cir"
    },
    {
     "bench": "r2r_dac_step_tb.cir",
@@ -933,7 +933,7 @@
       ]
      }
     ],
-    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_step_tb__ss_25c.cir"
+    "deck": "log/sim/r2r_dac_step_tb__ss_25c.cir"
    },
    {
     "bench": "r2r_dac_step_tb.cir",
@@ -998,7 +998,7 @@
       ]
      }
     ],
-    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_step_tb__ss_125c.cir"
+    "deck": "log/sim/r2r_dac_step_tb__ss_125c.cir"
    },
    {
     "bench": "r2r_dac_step_tb.cir",
@@ -1042,7 +1042,7 @@
       ]
      }
     ],
-    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_step_tb__tt_pss.cir"
+    "deck": "log/sim/r2r_dac_step_tb__tt_pss.cir"
    },
    {
     "bench": "r2r_dac_step_tb.cir",
@@ -1064,7 +1064,7 @@
     },
     "engine_errors": [],
     "violations": [],
-    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_step_tb__tt_pff.cir"
+    "deck": "log/sim/r2r_dac_step_tb__tt_pff.cir"
    },
    {
     "bench": "r2r_dac_tb.cir",
@@ -1110,7 +1110,7 @@
       ]
      }
     ],
-    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_tb__tt_m40c.cir"
+    "deck": "log/sim/r2r_dac_tb__tt_m40c.cir"
    },
    {
     "bench": "r2r_dac_tb.cir",
@@ -1156,7 +1156,7 @@
       ]
      }
     ],
-    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_tb__tt_25c.cir"
+    "deck": "log/sim/r2r_dac_tb__tt_25c.cir"
    },
    {
     "bench": "r2r_dac_tb.cir",
@@ -1202,7 +1202,7 @@
       ]
      }
     ],
-    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_tb__tt_125c.cir"
+    "deck": "log/sim/r2r_dac_tb__tt_125c.cir"
    },
    {
     "bench": "r2r_dac_tb.cir",
@@ -1248,7 +1248,7 @@
       ]
      }
     ],
-    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_tb__ff_m40c.cir"
+    "deck": "log/sim/r2r_dac_tb__ff_m40c.cir"
    },
    {
     "bench": "r2r_dac_tb.cir",
@@ -1294,7 +1294,7 @@
       ]
      }
     ],
-    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_tb__ff_25c.cir"
+    "deck": "log/sim/r2r_dac_tb__ff_25c.cir"
    },
    {
     "bench": "r2r_dac_tb.cir",
@@ -1340,7 +1340,7 @@
       ]
      }
     ],
-    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_tb__ff_125c.cir"
+    "deck": "log/sim/r2r_dac_tb__ff_125c.cir"
    },
    {
     "bench": "r2r_dac_tb.cir",
@@ -1386,7 +1386,7 @@
       ]
      }
     ],
-    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_tb__ss_m40c.cir"
+    "deck": "log/sim/r2r_dac_tb__ss_m40c.cir"
    },
    {
     "bench": "r2r_dac_tb.cir",
@@ -1432,7 +1432,7 @@
       ]
      }
     ],
-    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_tb__ss_25c.cir"
+    "deck": "log/sim/r2r_dac_tb__ss_25c.cir"
    },
    {
     "bench": "r2r_dac_tb.cir",
@@ -1478,7 +1478,7 @@
       ]
      }
     ],
-    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_tb__ss_125c.cir"
+    "deck": "log/sim/r2r_dac_tb__ss_125c.cir"
    },
    {
     "bench": "r2r_dac_tb.cir",
@@ -1524,7 +1524,7 @@
       ]
      }
     ],
-    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_tb__tt_pss.cir"
+    "deck": "log/sim/r2r_dac_tb__tt_pss.cir"
    },
    {
     "bench": "r2r_dac_tb.cir",
@@ -1570,7 +1570,7 @@
       ]
      }
     ],
-    "deck": "/home/ihsan/.cc/worktrees/ece298a/r2r-dac/blocks/r2r_dac/analog/log/sim/r2r_dac_tb__tt_pff.cir"
+    "deck": "log/sim/r2r_dac_tb__tt_pff.cir"
    }
   ],
   "not_scored": [],

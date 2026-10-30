@@ -23,8 +23,8 @@
   "top": "ece298a_counter",
   "run_tag": "run",
   "resumed": true,
-  "wall_s": 122.36,
-  "run_dir": "/work/blocks/counter/harden/runs/run",
+  "wall_s": 125.74,
+  "run_dir": "harden/runs/run",
   "metrics": {
    "design__instance__count": 1383,
    "design__instance__area": 51967,
@@ -64,12 +64,12 @@
  },
  "inputs_at_start": {
   "rtl": "dir_text:76d0d45a5f2e829e5f862f5a22721b24d3fd4936126ddf971e6f241e20027591",
-  "harden_config": "json_canonical_sans_roots:6e13695bc0a74efe43294d81fe9417de3568bcd6c884c05d20e6c73a00a6272f",
+  "harden_config": "json_canonical_sans_roots:f86ce9db491412ccc0ac48e5d05139a34f8fef6e05c529c9239f10a4c3cd2de4",
   "harden_override": null,
   "harden_sdc": null,
   "harden_info": "json_canonical:f695957862502907d834adb8801ec93f4f59eaf89bf74f8192f72bb3c514eba1",
   "spec_yaml_sans_formal": "json_canonical_sans_formal:9cd947b44c33253dec630a4cdf770696ba55c1f631025236036335a3e34ed69f"
  },
- "recorded_ts": "2026-10-29T10:34:28",
- "attempts": 2
+ "recorded_ts": "2026-10-29T22:44:43",
+ "attempts": 4
 }

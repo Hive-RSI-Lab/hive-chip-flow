@@ -4,6 +4,7 @@ read the vendored template files (engine/reference/tt/) directly, and
 generate_tt_wrapper()/generate_glsim_harness() are text generation."""
 from __future__ import annotations
 
+import json
 import re
 import sys
 from pathlib import Path
@@ -389,8 +390,44 @@ def test_prepare_harden_sdc_writes_the_flow_sdc(tmp_path):
     assert flow == tmp_path / ttlib.FLOW_SDC_NAME
     lines = flow.read_text(encoding="utf-8").splitlines()
     base = lines.index("source $::env(SCRIPTS_DIR)/base.sdc")
-    assert lines.index(f"source {{{design.resolve()}}}") > base
+    # the design's SDC by the design directory LibreLane runs from, never
+    # by this machine's path
+    assert lines.index(f'source "$::env(DESIGN_DIR)/{design.name}"') > base
+    assert str(tmp_path) not in flow.read_text()
     assert "set_propagated_clock [all_clocks]" in flow.read_text()
+
+
+def test_portable_config_names_no_machine_path(tmp_path):
+    # harden/config.json is committed with a block: a path in it is the
+    # workspace's (dir::, relative to harden/) or a copy beside it, never
+    # this machine's
+    ws = tmp_path / "blk"
+    (ws / "rtl").mkdir(parents=True)
+    harden = ws / "harden"
+    harden.mkdir()
+    spec = {**_analog_spec({"vout": 0}), "clock": {"period_ns": 20}}
+    spec["macros"][0].update(location=[10, 10], power={"vdd": "vdd",
+                             "vss": "vss"}, files={k: str(ws / "macros" / f"m.{k}")
+                                                  for k in ("gds", "lef", "vh", "spice")})
+    config = ttlib.harden_config(spec, [ws / "rtl" / "a.v"],
+                                 harden / "tt_um_a.v", tmp_path / "pdks",
+                                 flow_sdc=harden / "flow.sdc",
+                                 override={"EXTRA_LEFS": ["/elsewhere/x.lef"]})
+    out = ttlib.portable_config(config, harden)
+    assert out["VERILOG_FILES"] == ["dir::../rtl/a.v", "dir::tt_um_a.v"]
+    assert out["PNR_SDC_FILE"] == out["SIGNOFF_SDC_FILE"] == "dir::flow.sdc"
+    assert out["FP_DEF_TEMPLATE"] == "dir::tt_analog_1x2.def"
+    assert (harden / "tt_analog_1x2.def").read_bytes() == \
+        ttlib.def_template_path("1x2", True).read_bytes()
+    assert out["PDN_CFG"] == "dir::macro_pdn.tcl"
+    assert (harden / "macro_pdn.tcl").read_bytes() == \
+        ttlib.MACRO_PDN_CFG.read_bytes()
+    macro = next(iter(out["MACROS"].values()))
+    assert macro["gds"] == ["dir::../macros/m.gds"]
+    assert out["EXTRA_SPICE_MODELS"] == ["dir::../macros/m.spice"]
+    assert "PDK_ROOT" not in out  # check_harden passes --pdk-root
+    assert out["EXTRA_LEFS"] == ["/elsewhere/x.lef"]  # not ours to move
+    assert str(tmp_path) not in json.dumps(out)
 
 
 def test_prepare_harden_sdc_one_clock_without_a_design_sdc_is_unchanged(tmp_path):

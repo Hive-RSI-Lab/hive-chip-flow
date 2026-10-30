@@ -13,7 +13,7 @@ with M4's own harden (check_harden.run, the same LibreLane job):
                       each of those signals to the analog cell's pin of the
                       same name, or a width-N signal to its N pins
                       <name>[N-1]..<name>[0] (engine/lib/ttlib.py's macros
-                      schema)
+                      schema), its files named relative to top/
   top/rtl/            a copy of digital/rtl
   top/harden/constraints.sdc
                       the top's design SDC (ttlib.prepare_harden_sdc), for
@@ -76,6 +76,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import shutil
 import sys
@@ -937,8 +938,14 @@ def assemble(ws: Path) -> tuple[Path, dict]:
         (top / "harden" / ttlib.HARDEN_SDC_NAME).write_text(
             sdc, encoding="utf-8")
     import yaml
+    # the macro's files relative to top/, as check_harden and top_lvs read
+    # them: the spec is committed with the block, the machine's path is not
+    on_disk = {**tspec, "macros": [
+        {**m, "files": {k: os.path.relpath(v, top)
+                        for k, v in m["files"].items()}}
+        for m in tspec["macros"]]}
     (top / "spec" / "spec.yaml").write_text(
-        yaml.safe_dump(tspec, sort_keys=False), encoding="utf-8")
+        yaml.safe_dump(on_disk, sort_keys=False), encoding="utf-8")
     return top, tspec
 
 
