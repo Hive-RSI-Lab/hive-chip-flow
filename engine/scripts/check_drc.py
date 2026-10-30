@@ -42,7 +42,9 @@ from checklib import CheckError  # noqa: E402
 
 SCRIPT = "check_drc"
 EDA_BIN = REPO / "bin" / "eda"
-TIMEOUT_S = 300.0
+# A wall ceiling only, ten times the old fixed limit: the tool is ended
+# sooner when it stops making progress (checklib.STALL_S).
+TIMEOUT_S = 3000.0
 MAGIC_COUNT_RE = re.compile(r"\[INFO\]: COUNT:\s*(\d+)")
 
 
@@ -94,12 +96,12 @@ def run_magic_drc(gds: Path, top: str, workdir: Path) -> int:
         "flush stdout\n"
         "quit -noprompt\n", encoding="utf-8")
     try:
-        proc = subprocess.run([str(EDA_BIN), "magic", str(script)],
-                              cwd=str(workdir), stdin=subprocess.DEVNULL,
-                              capture_output=True, text=True, encoding="utf-8",
-                              errors="replace", timeout=TIMEOUT_S)
+        proc = checklib.run_tool([str(EDA_BIN), "magic", str(script)],
+                                 cwd=str(workdir), stdin=subprocess.DEVNULL,
+                                 capture_output=True, text=True, encoding="utf-8",
+                                 errors="replace", wall=TIMEOUT_S)
     except subprocess.TimeoutExpired as exc:
-        raise CheckError(f"eda magic DRC timed out after {TIMEOUT_S:g}s: {exc}") from exc
+        raise CheckError(f"eda magic DRC {checklib.timeout_why(exc)}: {exc}") from exc
     output = (proc.stdout or "") + "\n" + (proc.stderr or "")
     m = MAGIC_COUNT_RE.search(output) or (
         MAGIC_COUNT_RE.search(report.read_text(encoding="utf-8"))
@@ -123,11 +125,11 @@ def run_klayout_drc(gds: Path, top: str, pdk_root: Path, workdir: Path) -> int:
           "-rd", "threads=1", "-rd", "decks=all,-density,-antenna",
           "-rd", f"report={report}"]
     try:
-        proc = subprocess.run(cmd, cwd=str(workdir), stdin=subprocess.DEVNULL,
-                              capture_output=True, text=True, encoding="utf-8",
-                              errors="replace", timeout=TIMEOUT_S)
+        proc = checklib.run_tool(cmd, cwd=str(workdir), stdin=subprocess.DEVNULL,
+                                 capture_output=True, text=True, encoding="utf-8",
+                                 errors="replace", wall=TIMEOUT_S)
     except subprocess.TimeoutExpired as exc:
-        raise CheckError(f"eda klayout DRC timed out after {TIMEOUT_S:g}s: {exc}") from exc
+        raise CheckError(f"eda klayout DRC {checklib.timeout_why(exc)}: {exc}") from exc
     if not report.is_file():
         output = (proc.stdout or "") + "\n" + (proc.stderr or "")
         raise CheckError(

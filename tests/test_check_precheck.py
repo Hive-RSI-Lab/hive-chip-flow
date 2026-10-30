@@ -67,7 +67,7 @@ def test_no_results_xml_is_an_error(tmp_path, monkeypatch, capsys):
 
     def fake_run(cmd, **kwargs):
         return subprocess.CompletedProcess(cmd, 2, stdout="", stderr="import error")
-    monkeypatch.setattr(check_precheck.subprocess, "run", fake_run)
+    monkeypatch.setattr(check_precheck.checklib, "run_tool", fake_run)
 
     code = check_precheck.main(["--workspace", str(ws)])
     out = json.loads(capsys.readouterr().out)
@@ -92,7 +92,7 @@ def test_wrong_top_module_name_is_a_violation_not_a_crash(tmp_path, monkeypatch,
             'got tt_um_counter8"/></testcase></testsuite></testsuites>',
             encoding="utf-8")
         return subprocess.CompletedProcess(cmd, 1, stdout="", stderr="")
-    monkeypatch.setattr(check_precheck.subprocess, "run", fake_run)
+    monkeypatch.setattr(check_precheck.checklib, "run_tool", fake_run)
 
     code = check_precheck.main(["--workspace", str(ws)])
     out = json.loads(capsys.readouterr().out)
@@ -115,7 +115,7 @@ def test_all_checks_pass(tmp_path, monkeypatch, capsys):
             '<testcase name="Cell name check"/>'
             '</testsuite></testsuites>', encoding="utf-8")
         return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
-    monkeypatch.setattr(check_precheck.subprocess, "run", fake_run)
+    monkeypatch.setattr(check_precheck.checklib, "run_tool", fake_run)
 
     code = check_precheck.main(["--workspace", str(ws)])
     out = json.loads(capsys.readouterr().out)
@@ -148,7 +148,7 @@ def _stamped_matches_first_input(tmp_path, monkeypatch, capsys, skill):
     (ws / "state.json").write_text(json.dumps({"skill": skill}),
                                    encoding="utf-8")
     _patch_common(monkeypatch, tmp_path)
-    monkeypatch.setattr(check_precheck.subprocess, "run", _passing_run)
+    monkeypatch.setattr(check_precheck.checklib, "run_tool", _passing_run)
 
     code = check_precheck.main(["--workspace", str(ws)])
     out = json.loads(capsys.readouterr().out)

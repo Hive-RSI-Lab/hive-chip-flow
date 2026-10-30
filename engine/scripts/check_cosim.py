@@ -98,11 +98,13 @@ LIBNGSPICE_REL = "foss/tools/ngspice/lib/libngspice.so.0"
 TOOLCHAIN_TIMEOUT_S = 30.0
 # A cosim bench runs inside ngspice's shared library, not a subprocess this
 # gate can attach a plain `timeout=` to (cocotblib.run_cocotb's own SIGALRM
-# wraps this) - generous relative to the observed ~20s real time of the
-# ring_osc_div rung, since a shared-library co-sim wedged on a sync point
-# that never fires would otherwise hang the gate forever with no exit code
-# to catch it on.
-COCOTB_TIMEOUT_S = 240.0
+# wraps this), and a shared-library co-sim wedged on a sync point that never
+# fires would otherwise hang the gate forever with no exit code to catch it
+# on. run_cocotb ends it when vvp stops making progress (checklib.stall_s());
+# this is only the wall ceiling. A fixed 240 s used to be the whole limit,
+# and pll's transistor-level co-sim (~100 s alone) ran past it on a loaded
+# box while still working.
+COCOTB_TIMEOUT_S = 2400.0
 
 # ngspice's own free-text failure signatures on its callback channel - none
 # of these change its return value (there isn't one, this runs through the
@@ -343,7 +345,8 @@ def run(argv=None):
     results_xml = ws / "log" / RESULTS_NAME
     xml_path = cocotblib.run_cocotb(build_dir, tb_dir, sources, meta["top"],
                                     modules, results_xml,
-                                    timeout_s=COCOTB_TIMEOUT_S)
+                                    timeout_s=COCOTB_TIMEOUT_S,
+                                    stall_s=checklib.stall_s())
     results = cocotblib.parse_results_xml(xml_path)
     if not results:
         raise CheckError(f"cocotb produced no test cases in {xml_path}")

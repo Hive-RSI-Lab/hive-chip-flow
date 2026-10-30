@@ -102,3 +102,47 @@ def test_exit_kills_a_backgrounded_straggler():
         capture_output=True, text=True)
     assert done.returncode == 0 and done.stdout == "ran\n"
     assert alive(tag) == []
+
+
+# Stall, not wall: a tool is a hang when it stops making progress, however
+# long it has run (checklib.STALL_S). These hold the two sides of that.
+
+@pytest.fixture
+def fast_poll(monkeypatch):
+    monkeypatch.setattr(checklib, "STALL_POLL_S", 0.5)
+
+
+def test_stalled_tool_is_ended_on_no_progress_not_the_wall(fast_poll):
+    tag = f"simtag-{uuid.uuid4().hex}"
+    start = time.monotonic()
+    with pytest.raises(checklib.ToolStalled) as info:
+        checklib.run_group(sim_tree(tag), timeout=600, stall=2)
+    assert time.monotonic() - start < 60
+    assert isinstance(info.value, subprocess.TimeoutExpired)
+    assert "no progress" in str(info.value)
+    assert "stalled" in checklib.timeout_why(info.value)
+    assert alive(tag) == []
+
+
+def test_working_tool_outlives_its_stall_window(fast_poll):
+    # spins on CPU for twice the stall window: never a hang, however slow
+    spin = ("import time; e = time.monotonic() + 3\n"
+            "while time.monotonic() < e: pass\nprint('done')")
+    done = checklib.run_group([sys.executable, "-c", spin], timeout=600,
+                              stall=1.5, capture_output=True, text=True)
+    assert done.returncode == 0 and done.stdout == "done\n"
+
+
+def test_wall_ceiling_still_holds_a_spinning_tool(fast_poll):
+    spin = "while True: pass"
+    with pytest.raises(subprocess.TimeoutExpired) as info:
+        checklib.run_group([sys.executable, "-c", spin], timeout=2, stall=60)
+    assert not isinstance(info.value, checklib.ToolStalled)
+    assert "wall ceiling" in checklib.timeout_why(info.value)
+
+
+def test_stall_s_env_override(monkeypatch):
+    monkeypatch.setenv("CHIP_FLOW_STALL_S", "42")
+    assert checklib.stall_s() == 42
+    monkeypatch.setenv("CHIP_FLOW_STALL_S", "nonsense")
+    assert checklib.stall_s() == checklib.STALL_S

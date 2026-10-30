@@ -72,7 +72,9 @@ INFO_NAME = "log/coverage.info"
 EXCLUDE_REL = "rtl/cover_exclude.yaml"
 DEFAULT_LINE_MIN = 95.0
 DEFAULT_TOGGLE_MIN = 90.0
-TIMEOUT_S = 240.0
+# A wall ceiling only, ten times the old fixed limit: the tool is ended
+# sooner when it stops making progress (checklib.STALL_S).
+TIMEOUT_S = 2400.0
 
 TOGGLE_LABEL_RE = re.compile(r":[01]->[01]$")
 DA_RE = re.compile(r"^DA:(\d+),(-?\d+)")
@@ -187,11 +189,11 @@ def write_coverage_info(ws: Path, coverage_dat: Path) -> Path:
     verilator build in front of it."""
     info_path = ws / INFO_NAME
     info_path.parent.mkdir(parents=True, exist_ok=True)
-    proc = subprocess.run(
+    proc = checklib.run_tool(
         [str(EDA_BIN), "verilator_coverage", "--write-info",
          str(info_path), str(coverage_dat)],
         cwd=str(ws), capture_output=True, text=True, encoding="utf-8",
-        errors="replace", timeout=TIMEOUT_S)
+        errors="replace", wall=TIMEOUT_S)
     if proc.returncode != 0 or not info_path.is_file():
         raise CheckError(
             f"verilator_coverage --write-info exited {proc.returncode}: "

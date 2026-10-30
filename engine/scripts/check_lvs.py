@@ -54,7 +54,9 @@ from checklib import CheckError  # noqa: E402
 
 SCRIPT = "check_lvs"
 EDA_BIN = REPO / "bin" / "eda"
-TIMEOUT_S = 180.0
+# A wall ceiling only, ten times the old fixed limit: the tool is ended
+# sooner when it stops making progress (checklib.STALL_S).
+TIMEOUT_S = 1800.0
 # The PDK spice models LibreLane's own netgen-lvs step reads alongside the
 # post-synthesis netlist (its own generated lvs_script.lvs, read once to get
 # this list - gf180mcuD's standard cells plus the two IO libraries the flow
@@ -137,12 +139,12 @@ def run(argv=None):
     lvs_script.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
     try:
-        proc = subprocess.run(
+        proc = checklib.run_tool(
             [str(EDA_BIN), "netgen", "-batch", f"source {lvs_script}"],
             stdin=subprocess.DEVNULL, capture_output=True, text=True,
-            encoding="utf-8", errors="replace", timeout=TIMEOUT_S)
+            encoding="utf-8", errors="replace", wall=TIMEOUT_S)
     except subprocess.TimeoutExpired as exc:
-        raise CheckError(f"eda netgen timed out after {TIMEOUT_S:g}s: {exc}") from exc
+        raise CheckError(f"eda netgen {checklib.timeout_why(exc)}: {exc}") from exc
 
     report_text = (report_path.read_text(encoding="utf-8", errors="replace")
                   if report_path.is_file() else "")
