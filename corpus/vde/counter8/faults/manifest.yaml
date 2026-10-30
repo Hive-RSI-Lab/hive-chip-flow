@@ -56,6 +56,11 @@ faults:
     gate: timing
     plant: plant_timing.py
     expect: {status: fail, kind: setup_violation}
+  # the PLL's miss (cf3aa2e): final/sdc froze one corner's constraints
+  - name: timing_slow_corner_constraint
+    gate: timing
+    plant: plant_timing_corner_sdc.py
+    expect: {status: fail, kind: setup_violation}
   - name: drc_metal_spacing_violation
     gate: drc
     plant: plant_drc.py
