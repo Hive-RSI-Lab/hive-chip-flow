@@ -131,7 +131,17 @@ fails while a row and its probe disagree.
   the planted-fault rungs then get `CHIP_FLOW_SCORE_FAULT_BUDGET` seconds
   (1500). A step that didn't run or finish counts as not clean, never as
   passed. `chip-flow score --no-run`
-  reads only, in seconds. A known block not under `blocks/` yet scores 0.
+  reads only, in seconds.
+  Main's score runs on GitHub Actions too: the `score` job in
+  `.github/workflows/test.yml`, beside `test`, on every push to main (and
+  on a dispatch of main), runs `.hive/project.json`'s score command
+  unchanged and ends with `hive-score: <number>`, which the Hive reads as
+  main's score instead of measuring on its own machine. The step and fault
+  caches carry from run to run in the Actions cache, so a merge re-runs
+  only what it staled; a cold cache takes every known block through its
+  gates (about two hours). A red or missing `score` run leaves the Hive
+  scoring here, as before. The workflow takes `workflow_dispatch`, so the
+  Hive can start CI by hand on a PR that got no run. A known block not under `blocks/` yet scores 0.
 
 ## What it never does
 

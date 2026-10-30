@@ -8,10 +8,14 @@
 name: test
 
 # A PR runs it on its head; push is main only, so a PR branch is not run twice.
+# workflow_dispatch lets the Hive start it by hand on a branch whose PR got
+# no run (core.GitHub.StartCI dispatches a workflow that names both
+# pull_request and workflow_dispatch, and else closes and reopens the PR).
 on:
   pull_request:
   push:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -35,3 +39,57 @@ jobs:
           rc=$?
           echo "bin/chip-flow test: $((SECONDS - start))s, exit $rc" | tee -a "$GITHUB_STEP_SUMMARY"
           exit $rc
+
+  # Main's score, read by the Hive from this job's log instead of a run on
+  # its own machine, where worker turns hold every other turn behind
+  # "waiting: main's measure": the Hive looks for a job named score whose
+  # last line is "hive-score: <number>" (ihsan-sa/hive's
+  # internal/mod/improve/forgescore.go). It runs the score command
+  # .hive/project.json names, unchanged, so a change to the score is
+  # measured here as it would be there. A red or missing run is no red on
+  # main: the Hive then scores on its own machine, as before.
+  score:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    continue-on-error: true
+    runs-on: ubuntu-24.04
+    # A cold cache re-runs every known block's gates, hardens included,
+    # and the fault rungs (about two hours); a warm one only what the merge
+    # staled. The step's own limit is below the job's so the cache is
+    # saved even from a run cut short.
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      # The score's step and fault caches (bin/score.py's cache_root, under
+      # ~/.cache/chip-flow here) are keyed by the hash of what each run
+      # read, so any older one is safe to start from: restore the newest,
+      # save a new one every run (a cache key can't be overwritten).
+      - uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/.cache/chip-flow/steps
+            ~/.cache/chip-flow/faults
+          key: chip-flow-score-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: chip-flow-score-
+      - uses: ./.github/actions/toolchain
+      - name: the score (.hive/project.json's score command)
+        timeout-minutes: 310
+        shell: bash
+        run: |
+          cmd=$(python3 -c 'import json; print(json.load(open(".hive/project.json"))["score"]["command"])')
+          start=$SECONDS
+          bash -c "$cmd" 2>&1 | tee "$RUNNER_TEMP/score.log"
+          rc=${PIPESTATUS[0]}
+          echo "$cmd: $((SECONDS - start))s, exit $rc" | tee -a "$GITHUB_STEP_SUMMARY"
+          test "$rc" = 0
+          n=$(tail -n 1 "$RUNNER_TEMP/score.log" | awk '{ print $NF }')
+          [[ "$n" =~ ^-?[0-9]+(\.[0-9]+)?$ ]]
+          echo "hive-score: $n" | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: |
+            ~/.cache/chip-flow/steps
+            ~/.cache/chip-flow/faults
+          key: chip-flow-score-${{ github.run_id }}-${{ github.run_attempt }}
