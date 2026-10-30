@@ -280,3 +280,61 @@ def test_run_rung_excludes_release_from_the_untouched_reference_precheck(
     result = faults.run_rung(tmp_root, rung, "vde", gates={})
     assert calls == ["release"]   # never called a second time for a precheck
     assert result["problems"] == []
+
+
+REFUSAL_MANIFEST = """\
+version: 1
+faults:
+  - name: r
+    gate: lint
+    plant: plant_a.py
+    expect: {status: refused, error: "names the pad"}
+"""
+
+
+def _refusal_run(tmp_path, monkeypatch, outcome):
+    rung = make_rung(tmp_path, REFUSAL_MANIFEST)
+    (rung / "faults" / "plant_a.py").write_text(
+        "def plant(ws):\n    pass\n", encoding="utf-8")
+    calls: list[str] = []
+
+    def fake_run_gate(ws, gate_name, gates, skill):
+        calls.append(gate_name)
+        if len(calls) == 1:
+            return {}, {"status": "pass", "failing": []}   # clean reference
+        if isinstance(outcome, Exception):
+            raise outcome
+        return {}, outcome
+
+    monkeypatch.setattr(faults, "run_gate", fake_run_gate)
+    tmp_root = tmp_path / "scratch"
+    tmp_root.mkdir()
+    return faults.run_rung(tmp_root, rung, "vde", gates={})["problems"]
+
+
+def test_a_refusal_fault_is_caught_when_the_gate_refuses_with_its_text(
+        tmp_path, monkeypatch):
+    assert _refusal_run(tmp_path, monkeypatch,
+                        CheckError("the SDC names the pad bit")) == []
+
+
+def test_a_refusal_fault_that_runs_to_a_verdict_is_a_mismatch(
+        tmp_path, monkeypatch):
+    # a gate that ran on what it should have refused, pass or fail
+    for verdict in ("pass", "fail"):
+        problems = _refusal_run(tmp_path / verdict, monkeypatch,
+                                {"status": verdict, "failing": []})
+        assert len(problems) == 1 and "expected a refusal" in problems[0]
+
+
+def test_a_refusal_with_other_text_is_a_mismatch(tmp_path, monkeypatch):
+    problems = _refusal_run(tmp_path, monkeypatch,
+                            RuntimeError("check_lint report status is error: "
+                                         "no toolchain"))
+    assert len(problems) == 1 and "no toolchain" in problems[0]
+
+
+def test_a_refusal_expectation_needs_its_text():
+    problems = faults.check_refusal("f", lambda: ({}, {"status": "pass"}),
+                                    {"status": "refused"})
+    assert problems and "needs the 'error'" in problems[0]

@@ -21,6 +21,11 @@ faults:
     gate: sim_tt
     plant: plant_sim_tt.py
     expect: {status: fail, kind: sim_bound_fail}
+  # the PLL's false refusal (08842a6): a recovered gmin step is no error
+  - name: sim_tt_op_recovered_after_dynamic_gmin_failed
+    gate: sim_tt
+    plant: plant_sim_tt_gmin_recovered.py
+    expect: {status: pass}
   - name: sim_pvt_meets_typical_loses_headroom
     gate: sim_pvt
     plant: plant_sim_pvt.py

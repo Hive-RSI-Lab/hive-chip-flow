@@ -9,6 +9,11 @@ faults:
     gate: top_harden
     plant: plant_top_harden.py
     expect: {status: fail, kind: ua_pin_off_template}
+  # the PLL's miss (bbbee72): the top dropped the digital side's SDC
+  - name: top_harden_digital_sdc_names_crossing_pad
+    gate: top_harden
+    plant: plant_top_harden_sdc_crossing.py
+    expect: {status: refused, error: "names uio_out[0], which in the top is the macro pin"}
   - name: top_lvs_macro_pin_unconnected
     gate: top_lvs
     plant: plant_top_lvs.py
