@@ -64,33 +64,12 @@ test)
 	# gate (tests/test_corpus_faults.py, real tools, under its own cap); the
 	# rungs that harden stay in tests/check-harden-faults.sh, too slow here.
 	#
-	# Both run with their scratch in memory: TMPDIR (so pytest's tmp_path,
-	# every test's workspace and git repo) on /dev/shm, a tmpfs in the Hive's
-	# check sandbox, and fsync a no-op (libeatmydata, when the machine has
-	# it). On a shared disk under io pressure each write waits on the
-	# kernel's throttle and ext4's journal and one fsync took 2.3-4.3 s: the
-	# whole test took 33 min of wall (engine suite 1033 s on ~25 s of CPU)
-	# with fsync off alone, past the Hive's 30 min check, and 5.5 min with
-	# tmpfs too. Test scratch needs no durability; the engine's crash
-	# safety is tested through safelib's FAULT_HOOK, not the disk. The
-	# scratch is ~60 MB; with no writable /dev/shm it stays where it was.
-	for so in /usr/lib/x86_64-linux-gnu/libeatmydata.so \
-		/usr/lib/aarch64-linux-gnu/libeatmydata.so /usr/lib/libeatmydata.so \
-		/usr/lib64/libeatmydata.so ''; do
-		[ -n "$so" ] && [ -e "$so" ] && { export LD_PRELOAD="$so${LD_PRELOAD:+ $LD_PRELOAD}"; break; }
-	done
-	[ -n "$so" ] ||
-		echo "chip-flow test: no libeatmydata here, so every fsync waits on the disk" >&2
-	scratch=
-	if [ -d /dev/shm ] && [ -w /dev/shm ]; then
-		scratch=$(mktemp -d /dev/shm/chip-flow-test.XXXXXX) || scratch=
-	fi
-	if [ -n "$scratch" ]; then
-		trap 'rm -rf "$scratch"' EXIT
-		export TMPDIR="$scratch"
-	else
-		echo "chip-flow test: no writable /dev/shm, so the tests' scratch stays on ${TMPDIR:-/tmp}" >&2
-	fi
+	# Both run with their scratch in memory and fsync off
+	# (tests/lib/scratch.sh says how and why).
+	# shellcheck source=tests/lib/scratch.sh
+	. "$here/tests/lib/scratch.sh"
+	test_scratch
+	if [ -n "$TEST_SCRATCH" ]; then trap 'rm -rf "$TEST_SCRATCH"' EXIT; fi
 	cd "$here"
 	bash tests/check-engine.sh
 	timeout 1200 "$eda" python -m pytest -q -p no:cacheprovider \

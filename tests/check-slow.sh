@@ -33,5 +33,10 @@ cd "$REPO_ROOT"
 # box away from a false-red timeout kill, not a real hang. Tests also
 # marked `harden_faults` (whole corpus rungs, several top hardens each) run
 # in tests/check-harden-faults.sh instead, so they never eat this cap.
-exec timeout 1800 "$EDA_BIN" python -m pytest tests/ -q \
+# Scratch in memory and fsync off: tests/lib/scratch.sh.
+# shellcheck source=tests/lib/scratch.sh
+. "$REPO_ROOT/tests/lib/scratch.sh"
+test_scratch
+if [ -n "$TEST_SCRATCH" ]; then trap 'rm -rf "$TEST_SCRATCH"' EXIT; fi
+timeout 1800 "$EDA_BIN" python -m pytest tests/ -q \
   -m "slow and not harden_faults"
