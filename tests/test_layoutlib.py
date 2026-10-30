@@ -200,6 +200,7 @@ def test_parasitic_extraction_sets_thresholds_after_ext2spice_lvs(tmp_path, monk
     def fake(args, cwd=None, timeout=None, stdin_text=None):
         seen["tcl"] = stdin_text.splitlines()
         (tmp_path / "top.ext").write_text("tech gf180mcuD\n")
+        (tmp_path / "top.res.ext").write_text("scale 1000 1 0.5\n")
         (tmp_path / "top.pex.spice").write_text(".subckt top\n.ends\n")
         return FakeProc()
 
@@ -273,6 +274,58 @@ def test_lost_couplings_skips_a_device_body_the_netlist_never_names():
     assert layoutlib.lost_couplings(ext, "X0 bmsb vout rm1\n") == []
 
 
+def c_to(pex_text, net, other):
+    """fF of every C line between net (or its .tN/.nN) and other."""
+    import re
+    total = 0.0
+    for line in pex_text.splitlines():
+        parts = line.split()
+        if not parts or not parts[0].startswith("C"):
+            continue
+        ends = sorted(re.sub(r"\.[tn]\d+$", "", n) for n in parts[1:3])
+        if ends == sorted([net, other]):
+            total += float(parts[3].rstrip("f"))
+    return total
+
+
+# extresist's rnode C on the mirror's split net sums to its coupling to iout
+# (94.35 aF), and ext2spice writes it to vss besides the coupling itself
+def test_rnode_c_is_the_coupling_c_again():
+    import re
+    rnode = sum(float(m.group(1)) for m in re.finditer(
+        r'^rnode "a_38_n132[^"]*" \S+ (\S+)',
+        fixture_text("named.res.ext"), re.MULTILINE))
+    assert rnode == pytest.approx(94.3498, abs=1e-3)
+
+
+def test_uncount_rnode_caps_brings_a_split_nets_c_back_to_the_ext():
+    pex = fixture_text("named.pex.spice")
+    assert c_to(pex, "a_38_n132", "vss") == pytest.approx(1.40705)
+    out, changed = layoutlib.uncount_rnode_caps(
+        fixture_text("named.ext"), fixture_text("named.res.ext"), pex)
+    # its .ext substrate C, 1347.82 aF; the coupling and the net no
+    # extresist split are left as they were
+    assert changed == {"a_38_n132": [1.40705, 1.34782]}
+    assert c_to(out, "a_38_n132", "vss") == pytest.approx(1.34782, abs=1e-5)
+    assert c_to(out, "a_38_n132", "iout") == pytest.approx(0.09435)
+    assert c_to(out, "iout", "vss") == pytest.approx(0.55748)
+    assert layoutlib.lost_couplings(fixture_text("named.ext"), out) == []
+
+
+def test_uncount_rnode_caps_leaves_a_netlist_with_no_split_net_alone():
+    pex = "C0 a vss 1f\n"
+    assert layoutlib.uncount_rnode_caps(
+        'substrate "vss" 0 0 0 0 m1\nnode "a" 0 500 0 0 m1\n',
+        "scale 1000 1 0.5\n", pex) == (pex, {})
+
+
+def test_uncount_rnode_caps_refuses_without_one_substrate():
+    with pytest.raises(layoutlib.LayoutError, match="substrate"):
+        layoutlib.uncount_rnode_caps(
+            'node "a" 0 500 0 0 m1\n', 'rnode "a.t0" 0 10 0 0 0\n',
+            "C0 a.t0 vss 1f\n")
+
+
 def test_parasitic_extraction_labels_unlabelled_nets_before_extresist(
         tmp_path, monkeypatch):
     fake_pdk(tmp_path, monkeypatch)
@@ -283,6 +336,8 @@ def test_parasitic_extraction_labels_unlabelled_nets_before_extresist(
         name = "unlabelled.ext" if len(runs) == 1 else "named.ext"
         (tmp_path / "top.ext").write_text(fixture_text(name))
         if len(runs) == 2:
+            (tmp_path / "top.res.ext").write_text(
+                fixture_text("named.res.ext"))
             (tmp_path / "top.pex.spice").write_text(
                 fixture_text("named.pex.spice"))
         return FakeProc()
@@ -294,6 +349,10 @@ def test_parasitic_extraction_labels_unlabelled_nets_before_extresist(
     assert "extresist all" not in runs[0]
     second = runs[1]
     assert second.index("label a_38_n132 c p") < second.index("extract all")
+    # the netlist written is the one with the double count taken off
+    assert c_to(
+        (tmp_path / "top.pex.spice").read_text(), "a_38_n132", "vss") == \
+        pytest.approx(1.34782, abs=1e-4)
 
 
 def test_parasitic_extraction_refuses_a_netlist_that_lost_couplings(
@@ -302,6 +361,8 @@ def test_parasitic_extraction_refuses_a_netlist_that_lost_couplings(
 
     def fake(args, cwd=None, timeout=None, stdin_text=None):
         (tmp_path / "top.ext").write_text(fixture_text("unlabelled.ext"))
+        (tmp_path / "top.res.ext").write_text(
+            fixture_text("unlabelled.res.ext"))
         (tmp_path / "top.pex.spice").write_text(
             fixture_text("unlabelled.pex.spice"))
         return FakeProc()

@@ -582,6 +582,84 @@ def lost_couplings(ext_text: str, pex_text: str,
     return lost
 
 
+_EXT_SUBSTRATE_RE = re.compile(r'^substrate\s+"([^"]+)"')
+# a sub-node extresist wrote: rnode "name" R C x y ... - C in aF
+_RNODE_RE = re.compile(r'^rnode\s+"([^"]+)"\s+\S+\s+(\S+)')
+
+
+def uncount_rnode_caps(ext_text: str, res_ext_text: str,
+                       pex_text: str) -> tuple[str, dict]:
+    """pex_text with each resist-split net's C to the substrate net brought
+    back to what magic's .ext gives it, and {net: [before_ff, after_ff]}.
+
+    extresist gives each sub-node it writes (rnode, in .res.ext) a share of
+    the net's coupling C - on every split net of the pll the rnode C sums
+    to that net's coupling C in the .ext exactly - and ext2spice writes
+    those shares as C to the substrate net while still writing the
+    coupling capacitors themselves, so a split net carried its coupling C
+    twice. A split net's C lines to the substrate net (its own node C plus
+    the rnode shares) are scaled together to its .ext substrate C plus any
+    .ext coupling to the substrate net: the coupling stays where it is
+    real, between the nets, and the spread along the wire stays."""
+    import netlistlib
+
+    subs = [_ext_net(m.group(1)) for m in map(
+        _EXT_SUBSTRATE_RE.match, ext_text.splitlines()) if m]
+    shares: dict[str, float] = {}
+    for line in res_ext_text.splitlines():
+        m = _RNODE_RE.match(line)
+        if m:
+            net = _pex_net(_ext_net(m.group(1)))
+            shares[net] = shares.get(net, 0.0) + float(m.group(2)) / 1e3
+    split = {net for net, ff in shares.items() if ff > 0}
+    if not split:
+        return pex_text, {}
+    if len(subs) != 1:
+        raise LayoutError(
+            f"the .ext names {len(subs)} substrate nets, not one - the "
+            "rnode C extresist double-counts cannot be taken back off a "
+            "net's C to the substrate")
+    sub = subs[0]
+    split.discard(sub)
+    target: dict[str, float] = {}
+    for n in ext_nodes(ext_text):
+        net = _ext_net(n["name"])
+        target[net] = target.get(net, 0.0) + n["cap"] / 1e3
+    for line in ext_text.splitlines():
+        m = _EXT_CAP_RE.match(line)
+        if m:
+            a, b = _ext_net(m.group(1)), _ext_net(m.group(2))
+            if sub in (a, b) and a != b:
+                net = b if a == sub else a
+                target[net] = target.get(net, 0.0) + float(m.group(3)) / 1e3
+    lines = pex_text.splitlines(keepends=True)
+    to_sub: dict[str, list[tuple[int, float]]] = {}
+    for i, line in enumerate(lines):
+        parts = line.split()
+        if len(parts) < 4 or parts[0][:1].lower() != "c":
+            continue
+        a, b = (_pex_net(node) for node in parts[1:3])
+        value = netlistlib.spice_number(parts[3])
+        if value is None or sub not in (a, b) or a == b:
+            continue
+        net = b if a == sub else a
+        if net in split:
+            to_sub.setdefault(net, []).append((i, value))
+    changed = {}
+    for net, found in sorted(to_sub.items()):
+        have = sum(v for _i, v in found) * 1e15
+        want = target.get(net, 0.0)
+        if have <= want * (1.0 + 1e-6):
+            continue
+        scale = want / have
+        for i, value in found:
+            parts = lines[i].split()
+            parts[3] = f"{value * scale * 1e15:.6g}f"
+            lines[i] = " ".join(parts) + "\n"
+        changed[net] = [round(have, 5), round(want, 5)]
+    return "".join(lines), changed
+
+
 def run_magic_extract(work_dir, gds_path, topcell: str, *, parasitics: bool,
                       timeout: float = 180.0) -> tuple[Path, str]:
     """Extract the GDS to SPICE with magic. Without parasitics this is the
@@ -595,7 +673,9 @@ def run_magic_extract(work_dir, gds_path, topcell: str, *, parasitics: bool,
     had to name itself (name_unlabelled_nets), then checks that each
     pair of top-cell nets came back with the coupling C the .ext gives it
     (lost_couplings); a pair that did not is a refusal, never an
-    optimistic netlist.
+    optimistic netlist. extresist also writes each split net's coupling C
+    a second time, as C to the substrate (uncount_rnode_caps takes that
+    back off), so the netlist written is magic's with those lines scaled.
 
     Order matters: `ext2spice lvs` resets cthresh and rthresh to infinity,
     so it must come before the thresholds, never after them."""
@@ -638,13 +718,24 @@ def run_magic_extract(work_dir, gds_path, topcell: str, *, parasitics: bool,
             f"magic extraction produced no {out_path.name} - the run did "
             f"not complete: {out[-2000:]}")
     if parasitics:
-        if not ext_path.is_file():
-            raise LayoutError(
-                f"magic extraction wrote no {ext_path.name} to check "
-                f"{out_path.name}'s capacitance against: {out[-2000:]}")
-        lost = lost_couplings(
-            ext_path.read_text(encoding="utf-8", errors="replace"),
+        res_path = base.with_suffix(".res.ext")
+        for need in (ext_path, res_path):
+            if not need.is_file():
+                raise LayoutError(
+                    f"magic extraction wrote no {need.name} to check "
+                    f"{out_path.name}'s capacitance against: {out[-2000:]}")
+        ext_text = ext_path.read_text(encoding="utf-8", errors="replace")
+        pex_text, uncounted = uncount_rnode_caps(
+            ext_text, res_path.read_text(encoding="utf-8", errors="replace"),
             out_path.read_text(encoding="utf-8", errors="replace"))
+        if uncounted:
+            out_path.write_text(pex_text, encoding="utf-8")
+            out += (f"\nC to the substrate scaled back to the .ext's on "
+                    f"{len(uncounted)} resist-split net(s) (fF, "
+                    f"before -> after): " + ", ".join(
+                        f"{net} {a:g} -> {b:g}"
+                        for net, (a, b) in uncounted.items()) + "\n")
+        lost = lost_couplings(ext_text, pex_text)
         if lost:
             shown = ", ".join(f"{a}-{b} ({d['pex_ff']:g} of "
                               f"{d['ext_ff']:g} fF)"

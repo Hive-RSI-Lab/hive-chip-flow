@@ -1,0 +1,22 @@
+scale 1000 1 0.5
+killnode "a_38_n132#"
+rnode "a_38_n132.t1" 0 16.338 138 400 0
+rnode "a_38_n132.t2" 0 27.433 688 800 0
+rnode "a_38_n132.t0" 0 16.3322 88 400 0
+rnode "a_38_n132.n0" 0 34.2466 218 -58 0
+resist "a_38_n132.n0" "a_38_n132.t2" 73.9646
+resist "a_38_n132.n0" "a_38_n132.t0" 44.3619
+resist "a_38_n132.t1" "a_38_n132.n0" 2.07237
+rnode "vss" 0 0 258 1904 0
+rnode "vss.t0" 0 0 688 800 0
+rnode "vss.t2" 0 0 88 400 0
+rnode "vss.t3" 0 0 38 400 0
+rnode "vss.t1" 0 0 638 800 0
+rnode "vss.n0" 0 0 558 1854 0
+resist "vss.n0" "vss.t0" 1026.54
+resist "vss.t0" "vss.t2" 912.067
+resist "vss" "vss.t3" 3.52184
+resist "vss.n0" "vss.t1" 1.95691
+resist "vss" "vss.n0" 0.27
+device msubckt nfet_03v3 38 0 39 1  "vss.t2" "a_38_n132.t0" 200 0 "vss.t3" 800 97600,1844 "a_38_n132.t1" 800 97600,1844
+device msubckt nfet_03v3 638 0 639 1  "vss.t0" "a_38_n132.t2" 200 0 "vss.t1" 1600 195200,3444 "iout" 1600 195200,3444
