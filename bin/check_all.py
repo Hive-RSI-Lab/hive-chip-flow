@@ -15,8 +15,9 @@ docs/workarounds.md (score.probes).
 
 With --record, blocks/<name>/check-all.json records each block's run: when,
 on which tree, each step's outcome (pass, fail, or waived: failed under a
-waiver) and a hash per step of what it ran from (score.step_sources: the
-block's files, bin/eda and the engine files that gate reads). The block
+waiver), a hash per step of what it ran from (score.step_sources: the
+block's files, bin/eda and the engine files that gate reads), and each
+step's wall and CPU seconds (step_wall_s, step_cpu_s: the score's speed term). The block
 itself stays as it was. That record is what the score reads (bin/score.py):
 commit it.
 
@@ -28,6 +29,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import resource
 import shutil
 import subprocess
 import sys
@@ -72,6 +74,12 @@ def run_gate(ws: Path, skill: str, gate: str, logs: Path, tag: str) -> tuple[boo
         "".join(f"\n      - {m[:300]}" for m in msgs[:8])
 
 
+def _child_cpu() -> float:
+    """CPU seconds the gates' processes have used so far (user + system)."""
+    r = resource.getrusage(resource.RUSAGE_CHILDREN)
+    return r.ru_utime + r.ru_stime
+
+
 def waivers(ws: Path) -> list[str]:
     """The gates the workspace's reports/waivers.json waives (attest.py)."""
     try:
@@ -82,7 +90,8 @@ def waivers(ws: Path) -> list[str]:
         if isinstance(data, list) else []
 
 
-def record(b: score.Block, sources: dict[str, str], outcomes: dict[str, str]) -> None:
+def record(b: score.Block, sources: dict[str, str], outcomes: dict[str, str],
+           times: dict[str, tuple[float, float]]) -> None:
     """Write the block's run to blocks/<name>/check-all.json."""
     tree = Path(os.environ.get("EDA_TOOLCHAIN") or "").name or None
     (b.path / score.RECORD).write_text(json.dumps({
@@ -90,6 +99,8 @@ def record(b: score.Block, sources: dict[str, str], outcomes: dict[str, str]) ->
         "toolchain": tree,
         "steps": outcomes,
         "step_sources": {s: sources[s] for s in outcomes},
+        "step_wall_s": {s: times[s][0] for s in outcomes},
+        "step_cpu_s": {s: times[s][1] for s in outcomes},
     }, indent=1) + "\n", encoding="utf-8")
     print(f"  recorded in {b.path / score.RECORD}", flush=True)
 
@@ -135,11 +146,13 @@ def main() -> int:
         logs.mkdir(exist_ok=True)
         print(f"{b.name}:", flush=True)
         outcomes: dict[str, str] = {}
+        times: dict[str, tuple[float, float]] = {}
         for w, g, waived in plan:
             ws = dst / w.rel if w.rel != "." else dst
-            t0 = time.monotonic()
+            t0, c0 = time.monotonic(), _child_cpu()
             ok, why = run_gate(ws, w.skill, g, logs, w.tag)
             dt = time.monotonic() - t0
+            times[f"{w.tag}/{g}"] = (round(dt, 1), round(_child_cpu() - c0, 1))
             outcomes[f"{w.tag}/{g}"] = "pass" if ok else "waived" if waived else "fail"
             if not ok and waived:
                 print(f"  waived {w.tag}/{g} ({dt:.0f} s): {why}", flush=True)
@@ -148,7 +161,7 @@ def main() -> int:
                   flush=True)
             failed += not ok
         if a.record:
-            record(b, sources, outcomes)
+            record(b, sources, outcomes, times)
     if not a.no_probes:
         table = score.read_workarounds(ROOT / "docs" / "workarounds.md")
         for p in score.probes(table):
