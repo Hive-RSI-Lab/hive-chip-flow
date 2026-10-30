@@ -43,6 +43,22 @@ def make_ws_with_harden(tmp_path: Path, corners=("nom_tt_025C_3v30",)) -> Path:
         bucket = corner.split("_", 1)[0]
         (final / "spef" / bucket).mkdir(parents=True, exist_ok=True)
         (final / "spef" / bucket / f"{top}.{bucket}.spef").write_text("x", encoding="utf-8")
+    # the run's resolved config, recorded where harden ran (here: a design
+    # directory somewhere else, as when the workspace was copied since).
+    (ws / "harden" / "flow.sdc").write_text("x", encoding="utf-8")
+    (final.parent / "resolved.json").write_text(json.dumps({
+        "meta": {"version": 1},
+        "DESIGN_DIR": "/elsewhere/ws/harden",
+        "SIGNOFF_SDC_FILE": "/elsewhere/ws/harden/flow.sdc",
+        "PNR_SDC_FILE": "/elsewhere/ws/harden/flow.sdc",
+        "CLOCK_PERIOD": 20.0,
+        "CLOCK_PORT": "clk",
+        "IO_DELAY_CONSTRAINT": 20,
+        "RUN_MCSTA": True,
+        "STA_CORNERS": ["nom_tt_025C_3v30", "max_ss_125C_3v00"],
+        "SYNTH_DRIVING_CELL": "gf180mcu_fd_sc_mcu7t5v0__inv_1/ZN",
+        "EXTRA_LIBS": None,
+    }), encoding="utf-8")
     return ws
 
 
@@ -56,6 +72,10 @@ def _patch_common(monkeypatch, tmp_path):
     def fake_pdk_root(*a, **kw):
         return Path("/fake/toolchain/foss/pdks")
     monkeypatch.setattr(check_timing, "_pdk_root", fake_pdk_root)
+    scripts = tmp_path / "librelane_scripts"
+    scripts.mkdir(exist_ok=True)
+    (scripts / "base.sdc").write_text("x", encoding="utf-8")
+    monkeypatch.setattr(check_timing, "_scripts_dir", lambda pdk_root: scripts)
 
 
 def test_no_harden_output_refuses(tmp_path, capsys):
@@ -265,9 +285,157 @@ def test_real_opensta_catches_fanout_and_cap(tmp_path, extra_sdc, expect):
     (final / "sdc" / "tt_um_tiny.sdc").write_text(TINY_SDC + extra_sdc, encoding="utf-8")
     (final / "spef" / "nom" / "tt_um_tiny.nom.spef").write_text(TINY_SPEF, encoding="utf-8")
     r = check_timing.run_corner(final, "tt_um_tiny", corner,
-                                check_timing._pdk_root(), tmp_path)
+                                check_timing._pdk_root(), tmp_path,
+                                final / "sdc" / "tt_um_tiny.sdc", "")
     assert r["setup_ws"] > 0 and r["hold_ws"] > 0, r
     for want in expect:
         assert any(v.startswith(want) for v in r["violators"]), r
     if not expect:
         assert r["violators"] == [], r
+
+
+# pll's harden/constraints.sdc shape: a clock period picked from the loaded
+# std-cell liberty's name, so only an SDC read per corner gets it right.
+PER_CORNER_SDC = """proc tiny_period {} {
+    foreach lib [get_libs *] {
+        if {[string match *__ss_* [get_name $lib]]} { return 100 }
+    }
+    return $::env(CLOCK_PERIOD)
+}
+create_clock -name clk -period [tiny_period] [get_ports clk]
+set_input_delay 0 -clock clk [get_ports a]
+set_output_delay 0 -clock clk [get_ports y]
+"""
+
+
+@pytest.mark.slow
+def test_real_opensta_reads_a_per_corner_sdc_per_corner(tmp_path):
+    """Real OpenSTA: an SDC whose clock period comes from the corner's
+    liberty (100 ns at ss) and from ::env(CLOCK_PERIOD) (10 ns elsewhere)
+    gets each corner's own period, with the run's config in ::env."""
+    final = tmp_path / "ws" / "harden" / "runs" / "run" / "final"
+    (final / "nl").mkdir(parents=True)
+    (final / "nl" / "tt_um_tiny.nl.v").write_text(TINY_NETLIST, encoding="utf-8")
+    for bucket in ("nom", "max"):
+        (final / "spef" / bucket).mkdir(parents=True)
+        (final / "spef" / bucket / f"tt_um_tiny.{bucket}.spef").write_text(
+            TINY_SPEF, encoding="utf-8")
+    harden = tmp_path / "ws" / "harden"
+    (harden / "constraints.sdc").write_text(PER_CORNER_SDC, encoding="utf-8")
+    (final.parent / "resolved.json").write_text(json.dumps({
+        "DESIGN_DIR": "/elsewhere/harden",
+        "SIGNOFF_SDC_FILE": "/elsewhere/harden/constraints.sdc",
+        "CLOCK_PERIOD": 10, "IO_DELAY_CONSTRAINT": 20,
+        "TIME_DERATING_CONSTRAINT": 0, "MAX_FANOUT_CONSTRAINT": 10,
+        "CLOCK_UNCERTAINTY_CONSTRAINT": 0.25,
+        "CLOCK_TRANSITION_CONSTRAINT": 0.15, "OUTPUT_CAP_LOAD": 5,
+    }), encoding="utf-8")
+    pdk_root = check_timing._pdk_root()
+    sdc, env_tcl = check_timing.signoff_sdc(tmp_path / "ws", final.parent,
+                                            pdk_root)
+    assert sdc == harden / "constraints.sdc"
+    tt = check_timing.run_corner(final, "tt_um_tiny", "nom_tt_025C_3v30",
+                                 pdk_root, tmp_path, sdc, env_tcl)
+    ss = check_timing.run_corner(final, "tt_um_tiny", "max_ss_125C_3v00",
+                                 pdk_root, tmp_path, sdc, env_tcl)
+    # one inverter pair's delay is well under a nanosecond: the slacks sit
+    # near each corner's own period
+    assert 9 < tt["setup_ws"] < 10, tt
+    assert 98 < ss["setup_ws"] < 100, ss
+
+
+def _sta_scripts(ws: Path) -> dict:
+    return {p.name: p.read_text(encoding="utf-8")
+            for p in (ws / "log" / "timing_work").glob(".sta_*.tcl")}
+
+
+def _passing_sta(monkeypatch):
+    def fake_run(cmd, **kwargs):
+        return subprocess.CompletedProcess(
+            cmd, 0, stdout="worst slack max 7.97\nworst slack min 2.23\n"
+            + CLEAN_COUNTS, stderr="")
+    monkeypatch.setattr(check_timing.subprocess, "run", fake_run)
+
+
+def test_each_corner_reads_the_signoff_sdc_under_librelanes_env(
+        tmp_path, monkeypatch, capsys):
+    """The signoff SDC itself, not final/sdc (one step's write_sdc, frozen
+    at whichever corner it had loaded), read once per corner with the run's
+    config in ::env as LibreLane's STAPostPNR has it, so an SDC that picks a
+    value per corner gets each corner's own."""
+    ws = make_ws_with_harden(tmp_path, corners=("nom_tt_025C_3v30",
+                                                "max_ss_125C_3v00"))
+    _patch_common(monkeypatch, tmp_path)
+    _passing_sta(monkeypatch)
+    assert check_timing.main(["--workspace", str(ws)]) == 0
+    scripts = _sta_scripts(ws)
+    assert set(scripts) == {".sta_nom_tt_025C_3v30.tcl",
+                            ".sta_max_ss_125C_3v00.tcl"}
+    harden = ws / "harden"
+    for name, tcl in scripts.items():
+        corner = name[len(".sta_"):-len(".tcl")]
+        assert "final/sdc" not in tcl
+        assert f"read_sdc {harden / 'flow.sdc'}\n" in tcl
+        # DESIGN_DIR and the paths under it rebased onto this workspace
+        assert f"set ::env(DESIGN_DIR) {harden}\n" in tcl
+        assert f"set ::env(SIGNOFF_SDC_FILE) {harden / 'flow.sdc'}\n" in tcl
+        assert "/elsewhere" not in tcl
+        assert "set ::env(CLOCK_PERIOD) 20.0\n" in tcl
+        assert "set ::env(RUN_MCSTA) 1\n" in tcl
+        assert ("set ::env(STA_CORNERS) "
+                "\"nom_tt_025C_3v30 max_ss_125C_3v00\"\n") in tcl
+        assert "EXTRA_LIBS" not in tcl and "::env(meta)" not in tcl
+        assert "set ::env(OPENLANE_SDC_IDEAL_CLOCKS) 0\n" in tcl
+        assert f"set ::env(_CURRENT_CORNER_NAME) {corner}\n" in tcl
+        assert "set ::env(IO_PCT)" in tcl
+        # everything set before the SDC is read
+        assert tcl.index("::env(DESIGN_DIR)") < tcl.index("read_sdc")
+        assert tcl.index("read_liberty") < tcl.index("read_sdc")
+
+
+def test_no_design_sdc_reads_librelanes_base_sdc(tmp_path, monkeypatch,
+                                                  capsys):
+    ws = make_ws_with_harden(tmp_path)
+    resolved = ws / "harden" / "runs" / "run" / "resolved.json"
+    config = json.loads(resolved.read_text(encoding="utf-8"))
+    config["SIGNOFF_SDC_FILE"] = config["PNR_SDC_FILE"] = None
+    config["FALLBACK_SDC"] = "/an/older/tree/librelane/scripts/base.sdc"
+    resolved.write_text(json.dumps(config), encoding="utf-8")
+    _patch_common(monkeypatch, tmp_path)
+    _passing_sta(monkeypatch)
+    assert check_timing.main(["--workspace", str(ws)]) == 0
+    tcl = next(iter(_sta_scripts(ws).values()))
+    base = tmp_path / "librelane_scripts" / "base.sdc"
+    assert f"read_sdc {base}\n" in tcl
+    assert f"set ::env(SCRIPTS_DIR) {base.parent}\n" in tcl
+
+
+def test_no_resolved_config_refuses(tmp_path, monkeypatch, capsys):
+    ws = make_ws_with_harden(tmp_path)
+    (ws / "harden" / "runs" / "run" / "resolved.json").unlink()
+    _patch_common(monkeypatch, tmp_path)
+    _passing_sta(monkeypatch)
+    code = check_timing.main(["--workspace", str(ws)])
+    out = json.loads(capsys.readouterr().out)
+    assert code == 2, out
+    assert "resolved.json" in out["error"]
+
+
+def test_missing_signoff_sdc_refuses(tmp_path, monkeypatch, capsys):
+    ws = make_ws_with_harden(tmp_path)
+    (ws / "harden" / "flow.sdc").unlink()
+    _patch_common(monkeypatch, tmp_path)
+    _passing_sta(monkeypatch)
+    code = check_timing.main(["--workspace", str(ws)])
+    out = json.loads(capsys.readouterr().out)
+    assert code == 2, out
+    assert "signoff SDC" in out["error"]
+
+
+def test_value_to_tcl_matches_librelane():
+    assert check_timing.value_to_tcl(True) == "1"
+    assert check_timing.value_to_tcl(3) == "3"
+    assert check_timing.value_to_tcl(["a b", "c"]) == '"a b" c'
+    assert check_timing.value_to_tcl({"k": [1, 2]}) == 'k "1 2"'
+    assert check_timing.tcl_escape("") == '""'
+    assert check_timing.tcl_escape('x $y [z] "q"') == r'"x \$y \[z] \"q\""'

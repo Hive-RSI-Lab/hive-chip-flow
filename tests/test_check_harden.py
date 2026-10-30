@@ -520,9 +520,9 @@ tt_pins:
 @pytest.mark.slow
 def test_two_clock_harden_and_timing_run_on_the_design_sdc(tmp_path):
     """A real LibreLane run of a block with two clock domains: harden runs
-    on flow.sdc (base SDC + harden/constraints.sdc), and the final/sdc the
-    timing gate reads carries the design's second clock, so harden and
-    timing check the same constraints and both pass."""
+    on flow.sdc (base SDC + harden/constraints.sdc), final/sdc carries the
+    design's second clock, and the timing gate, reading flow.sdc per corner
+    under the run's resolved config, passes on the same constraints."""
     import check_timing
     ws = tmp_path / "ws"
     for sub in ("rtl", "spec", "harden"):

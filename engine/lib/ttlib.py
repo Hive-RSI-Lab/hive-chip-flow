@@ -797,8 +797,9 @@ def _domain_port(spec: dict, domain: str) -> str | None:
 # LibreLane's own base SDC first - the primary clock on CLOCK_PORT at the
 # spec's CLOCK_PERIOD, I/O delays, drive and load, exactly what a
 # single-clock harden gets - then this file, and points PNR_SDC_FILE and
-# SIGNOFF_SDC_FILE at it. The timing gate reads final/sdc, which LibreLane's
-# signoff STA writes back out of that same file, so the two cannot disagree.
+# SIGNOFF_SDC_FILE at it. The timing gate reads that same file per corner,
+# under the run's resolved config, as LibreLane's signoff STA does, so the
+# two cannot disagree.
 HARDEN_SDC_NAME = "constraints.sdc"
 FLOW_SDC_NAME = "flow.sdc"
 _SDC_CLOCK_CMDS = ("create_clock", "create_generated_clock")
