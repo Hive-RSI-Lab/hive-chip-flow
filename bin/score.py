@@ -30,10 +30,25 @@ record. A step is clean when:
   through a shim in bin/ or an edit made by hand in the block's files.
 
 A known block not under blocks/ yet, or with no record, scores 0. Blocks
-under blocks/ that known.json doesn't list are printed, not scored. The
-score reads files and hashes them, in seconds; check-all is what runs the gates, and the
-test holds docs/workarounds.md to its probes. Prints one line per block,
-then the number alone.
+under blocks/ that known.json doesn't list are printed, not scored.
+check-all is what runs the gates, and the test holds docs/workarounds.md
+to its probes.
+
+That pass share is the first of three terms, each out of 100, so the score
+keeps showing a gain once every known block is clean:
+
+- pass: 100 x the mean clean share above;
+- faults: 100 x the share of the corpus's planted faults (corpus/<skill>/
+  <rung>/faults/manifest.yaml) their gates catch, from faults.py's runs,
+  cached outside git by a hash of what each rung's run reads and re-run
+  only when that changes (bin/score_faults.py); and
+- speed: per known block, its clean share x 100 x R / (R + its check-all
+  CPU seconds, the record's step_cpu_s summed), R = SPEED_R, averaged: a
+  check-all half as costly scores closer to 100, never past it, and a
+  record with no times scores 0 here. CPU, not wall, seconds: the
+  machine is shared, and a gate's wall time swings with its load.
+
+Prints one line per block and rung, each term, then the score alone.
 """
 from __future__ import annotations
 
@@ -52,6 +67,7 @@ KNOWN = ROOT / "blocks" / "known.json"
 RECORD = "check-all.json"   # in each block's dir, written by check-all --record
 PROBES = ROOT / "tests" / "workarounds"
 SIDES = (("analog", "ade"), ("digital", "vde"))
+SPEED_R = 3600.0   # CPU seconds at which a clean block's speed term is 50
 _ROW = re.compile(r"^\|\s*([a-z0-9][a-z0-9-]*)\s*\|(.*)\|\s*$")
 
 
@@ -340,6 +356,22 @@ def block_share(b: Block, table: dict[str, Workaround]) -> tuple[float, str]:
     return ok / len(steps), line + (f"; not: {'; '.join(bad)}" if bad else "")
 
 
+def block_cpu(b: Block) -> float | None:
+    """The CPU seconds its check-all record's steps took, None with no times."""
+    try:
+        rec = json.loads((b.path / RECORD).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    cpu = rec.get("step_cpu_s")
+    if not isinstance(cpu, dict) or set(cpu) != set(rec.get("steps") or {}) or not cpu:
+        return None
+    return float(sum(cpu.values()))
+
+
+def speed(share: float, cpu: float | None) -> float:
+    return 0.0 if cpu is None else share * 100 * SPEED_R / (SPEED_R + cpu)
+
+
 def main() -> int:
     try:
         table = read_workarounds(ROOT / "docs" / "workarounds.md")
@@ -348,22 +380,38 @@ def main() -> int:
     except (OSError, ValueError) as e:
         print(f"score: {e}", file=sys.stderr)
         return 1
-    shares = []
+    shares, speeds = [], []
     for k in known:
         b = blocks.get(k["name"])
         if b is None:
             share, line = 0.0, f"not under blocks/ yet ({k['repo']} at {k['commit']})"
+            cpu = None
         else:
             share, line = block_share(b, table)
+            cpu = block_cpu(b)
         shares.append(share)
-        print(f"{k['name']}: {line}")
+        speeds.append(speed(share, cpu))
+        print(f"{k['name']}: {line}; " + ("no step times" if cpu is None else f"{cpu:.0f} CPU s"))
+    import score_faults   # it imports this module: here, not at the top
+    try:
+        caught, planted, rungs = score_faults.fault_share()
+    except (OSError, ValueError) as e:
+        print(f"score: {e}", file=sys.stderr)
+        return 1
+    for line in rungs:
+        print(line)
     for name in sorted(set(blocks) - {k["name"] for k in known}):
         print(f"{name}: not scored (not in blocks/known.json)")
     print(f"known blocks through every gate: {sum(s == 1 for s in shares)}/{len(shares)}")
     print(f"workarounds listed: {len(table)} "
           f"({sum(w.kind == 'shim' for w in table.values())} shim, "
           f"{sum(w.kind == 'hand' for w in table.values())} by hand)")
-    print(f"{100 * sum(shares) / len(shares):.2f}")
+    terms = {"pass": 100 * sum(shares) / len(shares),
+             "faults": 100 * caught / planted if planted else 0.0,
+             "speed": sum(speeds) / len(speeds)}
+    print(f"planted faults caught: {caught}/{planted}")
+    print("terms: " + ", ".join(f"{k} {v:.2f}" for k, v in terms.items()))
+    print(f"{sum(terms.values()):.2f}")
     return 0
 
 

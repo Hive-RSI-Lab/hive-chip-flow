@@ -130,3 +130,85 @@ def test_a_step_recorded_stale_is_not_clean(tmp_path, monkeypatch):
         f.write("Z = 2\n")
     share, line = score.block_share(b, {})
     assert share == 0.5 and "top/sim (stale)" in line
+
+
+def test_speed_term_falls_with_cpu_and_needs_times():
+    assert score.speed(1.0, None) == 0
+    assert score.speed(1.0, 0) == 100
+    assert score.speed(1.0, score.SPEED_R) == 50
+    assert score.speed(0.5, score.SPEED_R) == 25
+    assert score.speed(1.0, 100) > score.speed(1.0, 200)
+
+
+def test_block_cpu_sums_the_records_step_times(tmp_path):
+    b = _block(tmp_path, {"lint": {"status": "pass"}, "sim": {"status": "pass"}},
+               {"top/lint": "pass", "top/sim": "pass"})
+    assert score.block_cpu(b) is None
+    rec = json.loads((b.path / score.RECORD).read_text())
+    rec["step_cpu_s"] = {"top/lint": 1.5}
+    (b.path / score.RECORD).write_text(json.dumps(rec))
+    assert score.block_cpu(b) is None   # a step with no time: no speed
+    rec["step_cpu_s"]["top/sim"] = 2.5
+    (b.path / score.RECORD).write_text(json.dumps(rec))
+    assert score.block_cpu(b) == 4.0
+
+
+import score_faults  # noqa: E402
+
+
+def test_every_corpus_manifest_reads():
+    rungs = score_faults.read_rungs()
+    assert {r.id for r in rungs} >= {"vde/uart", "ade/mirror", "msde/dac_tile"}
+    assert all(r.faults for r in rungs)
+    assert [r for r in rungs if r.id == "vde/counter8"][0].hardens()
+
+
+def _rung(tmp_path) -> score_faults.Rung:
+    return score_faults.Rung("vde", "toy", tmp_path, [("a", "lint"), ("b", "sim")])
+
+
+def _report(*msgs, status=None):
+    return {"status": status or ("violations" if msgs else "pass"),
+            "violations": [{"msg": m} for m in msgs]}
+
+
+def test_caught_counts_faults_no_problem_names(tmp_path):
+    r = _rung(tmp_path)
+    assert score_faults.caught(r, _report()) == {"a", "b"}
+    assert score_faults.caught(r, _report("toy/b: expected gate status 'fail'")) == {"a"}
+    # a failing reference proves no catch, nor does a run that errored
+    assert score_faults.caught(r, _report("toy: untouched reference fails gate 'lint'")) == set()
+    assert score_faults.caught(r, {"status": "error"}) == set()
+
+
+def test_fault_share_caches_and_refuses_what_didnt_run(tmp_path, monkeypatch):
+    monkeypatch.setenv("CHIP_FLOW_CACHE", str(tmp_path / "cache"))
+    monkeypatch.setattr(score_faults, "fault_sources", lambda r, *a: "k-" + r.name)
+    r = _rung(tmp_path)
+    runs = []
+
+    def runner(rung, timeout):
+        runs.append(rung.name)
+        return _report("toy/a: missed"), 1.0, ""
+
+    assert score_faults.fault_share([r], budget=0, runner=runner)[:2] == (0, 2)
+    assert runs == []
+    got, planted, lines = score_faults.fault_share([r], budget=10, runner=runner)
+    assert (got, planted, runs) == (1, 2, ["toy"]) and "missed: a" in lines[0]
+    # cached: no second run, even with no budget
+    assert score_faults.fault_share([r], budget=0, runner=runner)[:2] == (1, 2)
+    assert runs == ["toy"]
+    # a run that left no report counts nothing and isn't cached
+    r2 = score_faults.Rung("vde", "two", tmp_path, [("c", "lint")])
+    got, _, lines = score_faults.fault_share(
+        [r2], budget=10, runner=lambda rung, t: (None, 5.0, "killed after 1 s"))
+    assert got == 0 and "killed" in lines[0]
+    assert not (tmp_path / "cache" / "faults" / "k-two.json").exists()
+
+
+def test_fault_sources_moves_with_the_rung(tmp_path):
+    r = [x for x in score_faults.read_rungs() if x.id == "vde/spi_fifo"][0]
+    a = score_faults.fault_sources(r)
+    other = [x for x in score_faults.read_rungs() if x.id == "vde/uart"][0]
+    assert a != score_faults.fault_sources(other)
+    assert a == score_faults.fault_sources(r)
