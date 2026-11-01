@@ -226,11 +226,20 @@ def _cdc_not_applicable(ws: Path) -> str | None:
         return None
 
 
+def _macro_lib_not_applicable(ws: Path) -> str | None:
+    """/msde's `macro_lib`, not applicable when the analog spec declares no
+    macro_timing. A top SDC with a clock on the macro's pin and no declaration
+    is refused by top_harden, so this cannot hide a macro-sourced clock."""
+    import check_macro_lib
+    return check_macro_lib.not_applicable_at_release(ws)
+
+
 # (skill, gate) -> fn(ws) -> reason str when the block's own spec declares
 # the gate not applicable, None when the gate is owed. Deliberately a short
 # explicit list, never a general carve-out (see applicable_gates).
 NOT_APPLICABLE = {("ade", "mc"): _mc_not_applicable,
-                  ("vde", "cdc"): _cdc_not_applicable}
+                  ("vde", "cdc"): _cdc_not_applicable,
+                  ("msde", "macro_lib"): _macro_lib_not_applicable}
 
 
 def not_applicable_reason(ws: Path, skill: str, gate: str) -> str | None:

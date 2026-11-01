@@ -359,6 +359,18 @@ gates:
       max_count: 0
       fault: "control word polarity inverted"
       description: "Every top-level measure inside its bound."
+    macro_lib:
+      phase: P3
+      tool: macro_lib
+      fail_severities: [error]
+      max_count: 0
+      fault: "a limit the analog spec does not state"
+      description: >-
+        One liberty per STA corner for the analog macro's crossing pins,
+        measured by ngspice from an arc list: input capacitance, output delay
+        and transition against load, the spec's max_transition and
+        max_capacitance, and the macro-sourced clocks' ceilings. A block
+        declaring no macro_timing is not applicable.
     top_harden:
       phase: P3
       tool: top_harden

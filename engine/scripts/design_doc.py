@@ -90,6 +90,7 @@ GATE_WHAT = {
     "sim_pvt": "PVT corners", "bench_strength": "bench mutants",
     "mc": "Monte Carlo", "pex_sim": "post-layout sim",
     "split": "interface agrees", "cosim": "mixed-signal cosim",
+    "macro_lib": "analog macro timing abstract",
     "top_harden": "top-level harden", "top_drc": "top-level DRC",
     "top_lvs": "top-level LVS",
 }

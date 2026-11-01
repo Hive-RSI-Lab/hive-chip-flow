@@ -32,7 +32,7 @@ resolved to that root, and led by `bin/eda python`, by the time it reaches
 
 ## The workspace: one msde block, two nested runs
 
-    blocks/<name>/          skill msde: split, cosim, top_harden, top_drc, top_lvs, precheck, release
+    blocks/<name>/          skill msde: split, cosim, macro_lib, top_harden, top_drc, top_lvs, precheck, release
       brief/                the task's spec, verbatim
       interface.yaml        every crossing signal (splitter)
       digital_spec.yaml     the digital side's copy of the same entries
@@ -99,7 +99,7 @@ side's skill and nested workspace, then re-check what it touched here.
 P0 Intake - P1 Split -
 P2 The two nested runs, independent: analog to its own release, digital
    to its own release (its own harden and signoff included) -
-P3 cosim, then the top gates (top_harden, top_drc, top_lvs, precheck) -
+P3 cosim, then the top gates (macro_lib, top_harden, top_drc, top_lvs, precheck) -
 P4 Release -[H2: sign-off]- then the design document
 ```
 
@@ -125,12 +125,20 @@ So there is no hand-written macro config and no top netlist. What
 pins, one supply (`vdd...`) and one ground (`vss...`/`gnd...`). It
 refuses (exit 2) and names the mismatch otherwise.
 
+The macro's timing is the analog spec's to state: `macro_timing` in
+`analog/spec/spec.yaml` (schema in `engine/lib/macrolib.py`) lists the limits, the
+arcs and the macro-sourced clocks' records. `macro_lib` writes one liberty per STA
+corner, `top_harden` hands them to LibreLane as the macro's `lib` view, and an SDC
+period on a macro pin that disagrees with the record runs no harden. With no
+declaration the pins stay ideal to STA, and a clock on a macro pin is refused.
+
 Gates (`engine/reference/gates.yaml`, msde rows), in pipeline order:
 
 | Gate | Phase | Passes when | Script |
 |---|---|---|---|
 | split | P1 | every crossing signal appears in both side specs with matching direction, level, domain, width and load | `check_split.py` |
 | cosim | P3 | every top-level measure inside its bound, the digital side toggled, the analog side ran | `check_cosim.py`, cocotbext-ams |
+| macro_lib | P3 | one liberty per STA corner for the macro's crossing pins, from the analog spec's `macro_timing` arc list; not applicable with no `macro_timing` | `check_macro_lib.py` |
 | top_harden | P3 | the assembled top hardens with the analog GDS as a macro: no failing step, GDS, LEF, netlist, SDF, metrics (a job) | `check_top_harden.py` |
 | top_drc | P3 | 0 violations, magic and klayout, on the top's final GDS | `check_top_drc.py` |
 | top_lvs | P3 | the top's final GDS matches the powered netlist, the analog block compared device by device | `check_top_lvs.py` |
@@ -158,7 +166,7 @@ it and never passes a refused one.
 ## Edit classes and the nested cascade
 
 msde's own edit classes (`invalidation.yaml`) are `spec_edit` and
-`interface_edit`, which both mark `split`, `cosim`, `top_harden`, `top_drc`,
+`interface_edit`, which both mark `split`, `cosim`, `macro_lib`, `top_harden`, `top_drc`,
 `top_lvs` and `release`, and `top_sdc_edit` (the integrator's `top.sdc`),
 which marks `top_harden` onward. `docs/design.md` 1.6 adds that `interface_edit` marks both
 nested runs' `spec_edit`, and a plain `state.py edit` cannot reach a
