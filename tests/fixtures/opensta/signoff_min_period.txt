@@ -1,0 +1,30 @@
+worst slack max 0.02
+worst slack min 0.05
+chipflow_violation_counts slew 0 cap 0 fanout 0
+chipflow_check_setup_begin
+chipflow_section min_pulse_width
+                                     Required  Actual
+Pin                                    Width   Width   Slack
+------------------------------------------------------------
+f3/CLK (high)                           0.71    0.71    0.00 (VIOLATED)
+
+chipflow_section min_period
+                                                 Min        
+Pin                                   Period  Period   Slack
+------------------------------------------------------------
+f0/CLK                                  1.50    1.54   -0.04 (VIOLATED)
+f1/CLK                                  1.50    1.54   -0.04 (VIOLATED)
+f3/CLK                                  1.50    1.54   -0.04 (VIOLATED)
+fd/CLK                                  1.50    1.54   -0.04 (VIOLATED)
+
+chipflow_section clock_gating_setup
+Group                                  Slack
+--------------------------------------------
+No paths found.
+
+chipflow_section clock_gating_hold
+Group                                  Slack
+--------------------------------------------
+No paths found.
+
+chipflow_section end

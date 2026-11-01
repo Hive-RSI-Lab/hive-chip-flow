@@ -1,0 +1,17 @@
+worst slack max 18.52
+worst slack min -10.00
+chipflow_violation_counts slew 0 cap 0 fanout 0
+chipflow_check_setup_begin
+chipflow_section min_pulse_width
+chipflow_section min_period
+chipflow_section clock_gating_setup
+Group                                  Slack
+--------------------------------------------
+No paths found.
+
+chipflow_section clock_gating_hold
+Group                                  Slack
+--------------------------------------------
+gated clock                           -10.00
+
+chipflow_section end

@@ -1,0 +1,22 @@
+worst slack max 5.00
+worst slack min -0.07
+chipflow_violation_counts slew 0 cap 0 fanout 0
+chipflow_check_setup_begin
+Warning: There is 1 unclocked register/latch pin.
+  f2/CLK
+Warning: There are 2 unconstrained endpoints.
+  z
+  f2/D
+chipflow_section min_pulse_width
+chipflow_section min_period
+chipflow_section clock_gating_setup
+Group                                  Slack
+--------------------------------------------
+No paths found.
+
+chipflow_section clock_gating_hold
+Group                                  Slack
+--------------------------------------------
+No paths found.
+
+chipflow_section end

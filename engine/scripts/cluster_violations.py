@@ -171,6 +171,19 @@ FIXER_HINTS: dict[str, str] = {
     "hold_violation": "harden",
     "slew_or_cap_or_fanout_violation": "harden",
     "clock_unconstrained": "review",
+    # check_setup / signoff check types (#70, #72): an unclocked register,
+    # an unconstrained endpoint or a dead generated clock is the design
+    # SDC's (harden/constraints.sdc, harden's); a clock gate's enable
+    # timing likewise. A clock period or phase under the liberty's min
+    # period / min pulse width is the spec's clock, so "review".
+    # combinational_loop already routes to rtl (lint's kind, above).
+    "unclocked_register": "harden",
+    "unconstrained_endpoint": "harden",
+    "generated_clock_unreachable": "harden",
+    "check_setup": "harden",
+    "clock_gating_violation": "harden",
+    "min_pulse_width_violation": "review",
+    "min_period_violation": "review",
 
     # drc (check_drc.py)
     "magic_drc_violation": "harden",

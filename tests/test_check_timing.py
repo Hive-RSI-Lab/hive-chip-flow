@@ -22,7 +22,14 @@ import pytest  # noqa: E402
 import ttlib  # noqa: E402
 
 FIXTURES = REPO / "tests" / "fixtures" / "opensta"
-CLEAN_COUNTS = "chipflow_violation_counts slew 0 cap 0 fanout 0\n"
+# check_setup and the min pulse width/min period/clock gating sections as a
+# clean OpenSTA 3.1.0 run prints them (markers only, no findings).
+CLEAN_SIGNOFF = ("chipflow_check_setup_begin\n"
+                 + "".join(f"chipflow_section {s}\n"
+                           for s in check_timing.SIGNOFF_SECTIONS)
+                 + "chipflow_section end\n")
+CLEAN_COUNTS = ("chipflow_violation_counts slew 0 cap 0 fanout 0\n"
+                + CLEAN_SIGNOFF)
 
 
 def make_ws_with_harden(tmp_path: Path, corners=("nom_tt_025C_3v30",)) -> Path:
@@ -181,7 +188,8 @@ def _check_types_with_good_slack() -> str:
     lines = (FIXTURES / "check_types_violators.txt").read_text(
         encoding="utf-8").splitlines()
     body = [ln for ln in lines if not ln.startswith("worst slack")]
-    return "worst slack max 7.97\nworst slack min 2.23\n" + "\n".join(body) + "\n"
+    return ("worst slack max 7.97\nworst slack min 2.23\n" + "\n".join(body)
+            + "\n" + CLEAN_SIGNOFF)
 
 
 def test_parse_check_types_reads_the_real_opensta_format():
@@ -439,3 +447,206 @@ def test_value_to_tcl_matches_librelane():
     assert check_timing.value_to_tcl({"k": [1, 2]}) == 'k "1 2"'
     assert check_timing.tcl_escape("") == '""'
     assert check_timing.tcl_escape('x $y [z] "q"') == r'"x \$y \[z] \"q\""'
+
+
+
+# ------------------------------------------------- check_setup (issue #70)
+# and min pulse width / min period / clock gating (issue #72). Fixtures are
+# real OpenSTA 3.1.0 transcripts of run_corner's own script on the tiny
+# designs below (TINY2_*).
+
+def _fixture(name: str) -> str:
+    return (FIXTURES / name).read_text(encoding="utf-8")
+
+
+def _good_slack(text: str) -> str:
+    body = [ln for ln in text.splitlines() if not ln.startswith("worst slack")]
+    return "worst slack max 7.97\nworst slack min 2.23\n" + "\n".join(body) + "\n"
+
+
+def test_parse_check_setup_reads_unclocked_and_unconstrained():
+    found = check_timing.parse_check_setup(_fixture("check_setup_unclocked.txt"))
+    assert found == {"unclocked_register": ["f2/CLK"],
+                     "unconstrained_endpoint": ["z", "f2/D"]}
+
+
+def test_parse_check_setup_reads_a_loop_and_multiple_clocks():
+    found = check_timing.parse_check_setup(
+        _fixture("check_setup_loop_multiclock.txt"))
+    assert found["multiple_clock"] == ["f0/CLK"]
+    # the loop listing's "| loop cut point" and dashed rule are not items
+    assert found["combinational_loop"] == ["x1/ZN", "x2/I", "x2/ZN", "x1/A2"]
+
+
+def test_parse_check_setup_keeps_an_unknown_heading():
+    text = ("chipflow_check_setup_begin\n"
+            "Warning: There are 2 frobbed widgets.\n  u1\n  u2\n"
+            "chipflow_section min_pulse_width\n")
+    assert check_timing.parse_check_setup(text) == {
+        "frobbed widgets": ["u1", "u2"]}
+
+
+def test_parse_check_setup_without_marker_refuses():
+    with pytest.raises(check_timing.CheckError, match="check_setup never ran"):
+        check_timing.parse_check_setup("worst slack max 1\n")
+
+
+def test_parse_signoff_reads_min_period_and_pulse_width():
+    found = check_timing.parse_signoff_checks(_fixture("signoff_min_period.txt"))
+    assert found["min_period"] == ["f0/CLK", "f1/CLK", "f3/CLK", "fd/CLK"]
+    assert found["min_pulse_width"] == ["f3/CLK (high)"]
+    assert found["clock_gating_setup"] == [] == found["clock_gating_hold"]
+
+
+def test_parse_signoff_reads_clock_gating():
+    found = check_timing.parse_signoff_checks(_fixture("signoff_clock_gating.txt"))
+    assert found["clock_gating_hold"] == ["gated clock (slack -10.00)"]
+    assert found["clock_gating_setup"] == []
+
+
+@pytest.mark.parametrize("drop", ["chipflow_section end",
+                                  "chipflow_section min_period"])
+def test_parse_signoff_with_a_missing_marker_refuses(drop):
+    text = "\n".join(ln for ln in CLEAN_SIGNOFF.splitlines() if ln != drop)
+    with pytest.raises(check_timing.CheckError):
+        check_timing.parse_signoff_checks(text)
+
+
+def _gate(tmp_path, monkeypatch, capsys, sta_out, spec_extra=""):
+    ws = make_ws_with_harden(tmp_path)
+    if spec_extra:
+        spec = ws / "spec" / "spec.yaml"
+        spec.write_text(spec.read_text(encoding="utf-8") + spec_extra,
+                        encoding="utf-8")
+    _patch_common(monkeypatch, tmp_path)
+
+    def fake_run(cmd, **kwargs):
+        return subprocess.CompletedProcess(cmd, 0, stdout=sta_out, stderr="")
+    monkeypatch.setattr(check_timing.checklib, "run_tool", fake_run)
+    code = check_timing.main(["--workspace", str(ws)])
+    return code, json.loads(capsys.readouterr().out)
+
+
+def test_unclocked_bank_fails_with_finite_positive_slack(tmp_path, monkeypatch, capsys):
+    """#70's fault: one register bank clocked by a divider flop with no
+    create_generated_clock. The rest of the design has finite, positive
+    slack - the old gate passed it."""
+    code, out = _gate(tmp_path, monkeypatch, capsys,
+                      _good_slack(_fixture("check_setup_unclocked.txt")))
+    assert code == 1, out
+    kinds = {v["kind"] for v in out["violations"]}
+    assert kinds == {"unclocked_register", "unconstrained_endpoint"}, kinds
+    unclocked = next(v for v in out["violations"]
+                     if v["kind"] == "unclocked_register")
+    assert unclocked["refs"] == ["f2/CLK"] and "f2/CLK" in unclocked["msg"]
+
+
+def test_unconstrained_ok_waives_named_endpoints_only(tmp_path, monkeypatch, capsys):
+    code, out = _gate(tmp_path, monkeypatch, capsys,
+                      _good_slack(_fixture("check_setup_unclocked.txt")),
+                      "timing: {unconstrained_ok: [z, 'f2/*']}\n")
+    assert code == 1, out
+    # the endpoints are waived; the unclocked register is not
+    assert {v["kind"] for v in out["violations"]} == {"unclocked_register"}
+
+
+def test_unconstrained_ok_not_a_list_refuses(tmp_path, monkeypatch, capsys):
+    code, out = _gate(tmp_path, monkeypatch, capsys, _good_slack(
+        "chipflow_violation_counts slew 0 cap 0 fanout 0\n" + CLEAN_SIGNOFF),
+        "timing: {unconstrained_ok: z}\n")
+    assert code == 2, out
+    assert "unconstrained_ok" in out["error"]
+
+
+def test_multiple_clocks_are_a_fact_not_a_failure(tmp_path, monkeypatch, capsys):
+    text = _fixture("check_setup_loop_multiclock.txt")
+    code, out = _gate(tmp_path, monkeypatch, capsys, _good_slack(text))
+    assert code == 1, out
+    assert {v["kind"] for v in out["violations"]} == {"combinational_loop"}
+    corner = out["corners"]["nom_tt_025C_3v30"]
+    assert corner["multiple_clock"] == ["f0/CLK"]
+
+
+@pytest.mark.parametrize("fixture,kinds", [
+    ("signoff_min_period.txt", {"min_period_violation",
+                                "min_pulse_width_violation"}),
+    ("signoff_clock_gating.txt", {"clock_gating_violation"}),
+])
+def test_signoff_checks_fail_with_positive_slack(tmp_path, monkeypatch, capsys,
+                                                 fixture, kinds):
+    code, out = _gate(tmp_path, monkeypatch, capsys,
+                      _good_slack(_fixture(fixture)))
+    assert code == 1, out
+    assert {v["kind"] for v in out["violations"]} == kinds
+
+
+TINY2_NETLIST = """module tt_um_tiny2(input clk, input a, input en, output y, output z, output w);
+ wire q0, qn0, div, g;
+ gf180mcu_fd_sc_mcu7t5v0__dffq_1 f0(.D(a), .CLK(clk), .Q(q0));
+ gf180mcu_fd_sc_mcu7t5v0__dffq_1 f1(.D(q0), .CLK(clk), .Q(y));
+ gf180mcu_fd_sc_mcu7t5v0__dffq_1 fd(.D(qn0), .CLK(clk), .Q(div));
+ gf180mcu_fd_sc_mcu7t5v0__inv_1 i0(.I(div), .ZN(qn0));
+ gf180mcu_fd_sc_mcu7t5v0__dffq_1 f2(.D(q0), .CLK(div), .Q(z));
+ gf180mcu_fd_sc_mcu7t5v0__and2_1 ga(.A1(clk), .A2(en), .Z(g));
+ gf180mcu_fd_sc_mcu7t5v0__dffq_1 f3(.D(q0), .CLK(g), .Q(w));
+endmodule
+"""
+TINY2_SPEF = (TINY_SPEF.split("*D_NET")[0].replace("tt_um_tiny", "tt_um_tiny2")
+              + "*D_NET q0 0.001\n*CONN\n*I f0:Q O\n*I f1:D I\n*END\n")
+
+
+def tiny2_sdc(period=20, waveform="", source="clk", generated=True,
+              en_delay=15, outputs="y w z"):
+    return (f"create_clock -name clk -period {period} {waveform}[get_ports clk]\n"
+            + (f"create_generated_clock -name div -source [get_ports {source}] "
+               "-divide_by 2 [get_pins fd/Q]\n" if generated else "")
+            + "set_input_delay 1 -clock clk [get_ports a]\n"
+            f"set_input_delay {en_delay} -clock clk [get_ports en]\n"
+            f"set_output_delay 0 -clock clk [get_ports {{{outputs}}}]\n")
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("sdc,setup,signoff", [
+    # known-clean: a /2 divider with its generated clock, a gated clock
+    # whose enable settles while the clock is low.
+    (tiny2_sdc(), {}, {}),
+    # #70: the divider's create_generated_clock forgotten
+    (tiny2_sdc(generated=False), {"unclocked_register": ["f2/CLK"]}, {}),
+    # #70: the generated clock keyed on a source that reaches nothing
+    (tiny2_sdc(source="en"), {"generated_clock_unreachable": ["div"]}, {}),
+    # #70: an output with no output delay
+    (tiny2_sdc(outputs="y w"), {"unconstrained_endpoint": ["z"]}, {}),
+    # #72: 0.3 ns high phase, setup/hold still met
+    (tiny2_sdc(waveform="-waveform {0 0.3} "), {},
+     {"min_pulse_width": "f0/CLK (high)"}),
+    # #72: period under dffq_1's liberty min_period (1.54 ns at tt)
+    (tiny2_sdc(period=1.52, en_delay=1.0), {}, {"min_period": "f0/CLK"}),
+    # #72: the clock gate's enable changes while the clock is high
+    (tiny2_sdc(en_delay=0), {}, {"clock_gating_hold": "gated clock (slack"}),
+])
+def test_real_opensta_catches_check_setup_and_signoff_faults(
+        tmp_path, sdc, setup, signoff):
+    corner = "nom_tt_025C_3v30"
+    final = tmp_path / "final"
+    for sub in ("nl", "sdc", "spef/nom"):
+        (final / sub).mkdir(parents=True)
+    (final / "nl" / "tt_um_tiny2.nl.v").write_text(TINY2_NETLIST, encoding="utf-8")
+    (final / "sdc" / "t.sdc").write_text(sdc, encoding="utf-8")
+    (final / "spef" / "nom" / "tt_um_tiny2.nom.spef").write_text(
+        TINY2_SPEF, encoding="utf-8")
+    r = check_timing.run_corner(final, "tt_um_tiny2", corner,
+                                check_timing._pdk_root(), tmp_path,
+                                final / "sdc" / "t.sdc", "")
+    for kind, items in setup.items():
+        assert set(items) <= set(r["check_setup"].get(kind, [])), r
+    if not setup:
+        assert r["check_setup"] == {}, r
+    for section in check_timing.SIGNOFF_SECTIONS:
+        if section in signoff:
+            assert any(i.startswith(signoff[section])
+                       for i in r["signoff"][section]), r
+        else:
+            assert r["signoff"][section] == [], (section, r)
+    if not setup and not signoff:
+        assert r["setup_ws"] > 0 and r["hold_ws"] > 0, r
+        assert check_timing.signoff_violations(r, "tt_um_tiny2", []) == []
