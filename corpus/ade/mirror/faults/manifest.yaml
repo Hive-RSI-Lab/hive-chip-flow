@@ -50,6 +50,12 @@ faults:
     expect:
       status: fail
       kind: DF.14_LV
+  - name: antenna_on_internal_gate
+    gate: drc
+    plant: plant_drc_antenna.py
+    expect:
+      status: fail
+      kind: ANT.16_i_ANT.2
   - name: output_device_sized_differently
     gate: lvs
     plant: plant_lvs_sized_differently.py

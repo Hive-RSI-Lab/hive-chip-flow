@@ -1148,6 +1148,7 @@ def run(argv=None):
     import check_harden
     inner, _out = check_harden.run(["--workspace", str(top)])
     facts = {k: inner[k] for k in ("top", "run_tag", "resumed", "wall_s",
+                                   "signoff_metrics",
                                    "run_dir", "metrics", "qor") if k in inner}
     lef = (top / "harden" / "runs" / check_harden.RUN_TAG / "final" / "lef"
            / f"{ttlib.wrapper_name(spec)}.lef")

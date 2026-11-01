@@ -1,0 +1,21 @@
+{
+ "antenna__violating__nets": 0,
+ "antenna__violating__pins": 0,
+ "antenna_diodes_count": 0,
+ "design__instance__count": 1510,
+ "design__instance__count__cover": 0,
+ "design__instance__count__hold_buffer": 0,
+ "design__instance__count__macros": 0,
+ "design__instance__count__padcells": 0,
+ "design__instance__count__setup_buffer": 0,
+ "design__instance__count__stdcell": 600,
+ "design__power_grid_violation__count": 0,
+ "ir__drop__avg": 3.65e-05,
+ "ir__drop__worst": 0.000292,
+ "ir__voltage__worst": 3.3,
+ "route__antenna_violation__count": 0,
+ "timing__drv__floating__nets": 2,
+ "timing__drv__floating__pins": 0,
+ "timing__unannotated_net__count": 13,
+ "timing__unannotated_net_filtered__count": 0
+}

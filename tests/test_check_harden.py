@@ -53,6 +53,14 @@ def make_ws(tmp_path: Path) -> Path:
 FAKE_VERSIONS = {"python": "3.1.0.dev3\n", "yosys": "Yosys 0.69 (git sha1 x)\n",
                  "openroad": "v2.0-fake\n"}
 
+CLEAN_SIGNOFF_METRICS = {
+    "antenna__violating__nets": 0, "route__antenna_violation__count": 0,
+    "timing__drv__floating__nets": 0,
+    "timing__unannotated_net_filtered__count": 0,
+    "design__power_grid_violation__count": 0,
+    "ir__drop__worst": 0.001, "ir__voltage__worst": 3.3,
+}
+
 
 def _fake_run_factory(librelane_behavior):
     """librelane_behavior(cwd: Path) -> CompletedProcess-like namespace for
@@ -151,7 +159,8 @@ def test_pass_when_flow_completes_and_final_artifacts_exist(tmp_path, monkeypatc
             if fmt == "metrics.json":
                 (final / "metrics.json").parent.mkdir(parents=True, exist_ok=True)
                 (final / "metrics.json").write_text(
-                    json.dumps({"design__instance__count": 42}), encoding="utf-8")
+                    json.dumps({"design__instance__count": 42,
+                                **CLEAN_SIGNOFF_METRICS}), encoding="utf-8")
             else:
                 d = final / fmt
                 d.mkdir(parents=True, exist_ok=True)

@@ -62,16 +62,34 @@ refusal, never a pass", enforced here three ways):
     `violations` finding (a launcher/flow that silently drops output is
     exactly the "missing report" case the review calls out), never a
     silent pass.
+
+Signoff metrics: LibreLane only reports antenna violations left after repair,
+floating nets, unannotated parasitics, PDN violations and IR drop, and exits 0
+whatever they say. `signoff_metrics()` judges them against gates.yaml's
+`harden_metrics` limits; the report carries the whole table as
+`signoff_metrics`. A metric that is absent or not a finite number is a
+`signoff_metric_missing` finding, never read as zero. spec.yaml's optional
+`harden_signoff` sets `ir_budget_pct` (default gates.yaml's) and
+`floating_nets_waived: {net: reason}`.
+
+Floating nets carry their names in the log of the step that counted them.
+TT's repair step counts the power nets, so every TT harden records at least
+VPWR and VGND there: a named power net does not count. A count the log does
+not name in full (a trimmed run dir) fails, since nothing shows what floats.
 """
 from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
+import re
 import subprocess
 import sys
 import time
 from pathlib import Path
+
+import yaml
 
 SCRIPTS = Path(__file__).resolve().parent
 ENGINE = SCRIPTS.parent
@@ -94,6 +112,139 @@ RUN_TAG = "run"
 # one).
 DEFAULT_TIMEOUT_S = 3600.0
 EXPECTED_FORMATS = ("gds", "lef", "nl", "sdf", "spef", "metrics.json")
+GATES_YAML = ENGINE / "reference" / "gates.yaml"
+POWER_NETS = {"VPWR", "VGND"}  # ttlib.harden_config's VDD_PIN/GND_PIN
+_FLOATING_RE = re.compile(r"found (\d+) floating nets")
+_ANTENNA_NET_RE = re.compile(r"^\s*Net:?\s+(\S+)", re.MULTILINE)
+
+
+def _step_number(path: Path) -> int:
+    m = re.match(r"(\d+)-", path.name)
+    return int(m.group(1)) if m else -1
+
+
+def _step_dirs(run_dir: Path, pattern: str) -> list[Path]:
+    """A run's top-level step dirs matching pattern, latest last."""
+    return sorted((d for d in run_dir.glob(pattern) if d.is_dir()),
+                  key=_step_number)
+
+
+def floating_net_names(run_dir: Path) -> list[str] | None:
+    """The nets the latest step to count floating nets named in its log
+    (`found N floating nets.` then one indented name per line), or None when
+    no log names all N."""
+    for step in reversed(_step_dirs(run_dir, "[0-9]*-*")):
+        for log in sorted(step.glob("*.log")):
+            lines = log.read_text(encoding="utf-8",
+                                  errors="replace").splitlines()
+            for i, line in reversed(list(enumerate(lines))):
+                m = _FLOATING_RE.search(line)
+                if not m:
+                    continue
+                count = int(m.group(1))
+                names = [ln.strip() for ln in lines[i + 1:i + 1 + count]]
+                if len(names) == count and all(
+                        n and ln.startswith(" ") and len(n.split()) == 1
+                        for n, ln in zip(names, lines[i + 1:i + 1 + count])):
+                    return names
+                return None
+    return None
+
+
+def antenna_net_names(run_dir: Path) -> tuple[list[str], str | None]:
+    """(nets, report path) from the latest check-antennas step's report."""
+    for step in reversed(_step_dirs(run_dir, "[0-9]*-openroad-checkantennas*")):
+        rpt = step / "reports" / "antenna.rpt"
+        if rpt.is_file():
+            text = rpt.read_text(encoding="utf-8", errors="replace")
+            return (sorted(set(_ANTENNA_NET_RE.findall(text))),
+                    str(rpt.relative_to(run_dir)))
+    return [], None
+
+
+def _number(metrics: dict, name: str) -> float | None:
+    v = metrics.get(name)
+    if isinstance(v, bool) or not isinstance(v, (int, float)) \
+            or not math.isfinite(v):
+        return None
+    return v
+
+
+def signoff_metrics(metrics: dict, signoff: dict, run_dir: Path, top: str,
+                    limits: dict | None = None):
+    """(table, violations): each of gates.yaml's harden_metrics against its
+    limit. signoff is speclib.harden_signoff(spec)."""
+    if limits is None:
+        limits = yaml.safe_load(
+            GATES_YAML.read_text(encoding="utf-8"))["harden_metrics"]
+    table, violations = {}, []
+
+    def finding(kind, msg, refs=(), **extras):
+        violations.append(checklib.violation(
+            "harden", "error", None, top, kind, list(refs), msg,
+            "check_harden", **extras))
+
+    for name, rule in limits.items():
+        value = _number(metrics, name)
+        kind = rule["kind"]
+        row = {"value": value}
+        table[name] = row
+        if value is None:
+            row["status"] = "missing"
+            finding("signoff_metric_missing",
+                    f"metrics.json has no number for {name} "
+                    f"({metrics.get(name)!r}): {kind} was not judged",
+                    refs=[name], metric=name)
+            continue
+        if "max_pct_vdd" in rule:
+            pct = signoff.get("ir_budget_pct", rule["max_pct_vdd"])
+            worst = _number(metrics, rule["vdd_metric"])
+            if worst is None:
+                row["status"] = "missing"
+                finding("signoff_metric_missing",
+                        f"metrics.json has no number for {rule['vdd_metric']}"
+                        f": cannot size the {pct}% budget for {name}",
+                        refs=[rule["vdd_metric"]], metric=rule["vdd_metric"])
+                continue
+            # the worst rail voltage plus the drop is the rail's nominal
+            limit = (worst + value) * pct / 100.0
+            msg = (f"{name} {value:g} V is over {pct:g}% of "
+                   f"{worst + value:g} V ({limit:g} V)")
+        else:
+            limit = rule["max"]
+            msg = f"{name} is {value:g}, limit {limit:g}"
+        row["limit"] = limit
+        refs: list[str] = []
+        extras: dict = {}
+        over = value > limit
+        if kind == "floating_net":
+            names = floating_net_names(run_dir) if over else []
+            row["nets"] = names
+            if over and names is None:
+                msg += "; no step log names them all, so none can be excused"
+            elif over:
+                waived = signoff.get("floating_nets_waived", {})
+                row["power_nets"] = sorted(POWER_NETS & set(names))
+                row["waived"] = sorted(set(names) & set(waived))
+                real = sorted(set(names) - POWER_NETS - set(waived))
+                row["unused_waivers"] = sorted(set(waived) - set(names))
+                over = bool(real)
+                refs = real
+                msg = f"floating nets: {', '.join(real)}"
+        elif kind == "antenna_violation" and over:
+            refs, report = antenna_net_names(run_dir)
+            extras = {"report": report}
+            if refs:
+                msg += f": {', '.join(refs)}"
+            elif report:
+                msg += f"; {report} names none"
+            else:
+                msg += "; no check-antennas report in the run"
+        row["status"] = "over" if over else "ok"
+        if over:
+            finding(kind, msg, refs=refs or [name], metric=name, value=value,
+                    limit=limit, **extras)
+    return table, violations
 
 
 def _pdk_root() -> Path:
@@ -131,6 +282,11 @@ def run(argv=None):
     problems = ttlib.validate_tt_pins(spec)
     if problems:
         raise CheckError("tt_pins does not fit the tile: " + "; ".join(problems))
+    signoff = speclib.harden_signoff(spec)
+    if signoff is None:
+        raise CheckError("spec.yaml 'harden_signoff' is malformed: it takes "
+                         "ir_budget_pct (0-100) and floating_nets_waived "
+                         "({net: reason}) - run spec_lint and fix it")
 
     rtl_dir = ws / "rtl"
     rtl_files = sorted(rtl_dir.glob("*.v")) + sorted(rtl_dir.glob("*.sv"))
@@ -255,10 +411,18 @@ def run(argv=None):
                             pdk=statelib.pdk_version())
         qor["wall_s"] = wall_s
 
+    # Judged only when the flow finished: a failed flow already has its
+    # finding, and an unfinished run's metrics say nothing about a design.
+    signoff_table = None
+    if proc.returncode == 0 and metrics_path.is_file():
+        signoff_table, signoff_violations = signoff_metrics(
+            metrics, signoff, run_dir, top)
+        violations += signoff_violations
+
     payload = checklib.report(SCRIPT, ws / "rtl", violations, top=top,
                               run_tag=RUN_TAG, resumed=resumed, wall_s=wall_s,
                               run_dir=str(run_dir), metrics=metric_subset,
-                              qor=qor)
+                              qor=qor, signoff_metrics=signoff_table)
     return payload, args.out
 
 
