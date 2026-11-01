@@ -1,6 +1,7 @@
 * r2r_dac_tb.cir - static (DC) bench for r2r_dac_analog (P3 spec bench,
 * written from spec/spec.md, spec/spec.yaml and spec/topology.md only).
 *
+* static_ramp_codes: 256  (dnl_max_abs, inl_max_abs, monotonic: convlib.static_ramp)
 * sim_timeout_s: 600  (256-code sweep plus 66 one-unit +-1 % re-sweeps: timed out at 60 s at ff/125 C on a loaded host)
 *
 * Measures (spec.yaml names): dnl_max_abs, inl_max_abs, monotonic,
@@ -20,7 +21,9 @@
 * enough to settle (e.g. 200 ns)": it reads the same end-of-step value
 * without a 51 us transient. vout drives the assumed pad load (R_pad in
 * series with C_load; C is open at DC). LSB_meas = (v(255)-v(0))/255,
-* end-point fit, exactly spec.md's Measures table.
+* end-point fit, exactly spec.md's Measures table: sim_run reads the wrdata
+* sweep back and scores it through the engine's convlib.static_ramp, so DNL,
+* INL and monotonic are not computed in this deck.
 *
 * inl_sens_1pct_max: each unit resistor +1 % and -1 %, one at a time, INL
 * re-evaluated over all 256 codes. Re-sweeping 50 times costs 2-3 min per
@@ -114,15 +117,11 @@ save @r.xdut.xrtb.rt1[i] @r.xdut.xrtb.rt1[resistance] @r.xdut.xrtb.rt2[resistanc
 * ---- nominal 256-code sweep -> dc1 ------------------------------------
 dc vcode 0 255 1
 let vo = v(vout)
+set numdgt=15
+wrdata {{RAMP_FILE}} vo
 let vs = v(vdd)[0]
 let lsb = (vo[255] - vo[0]) / 255
 let kk = vector(256)
-let inl = (vo - (vo[0] + kk*lsb)) / lsb
-let dv = vo[1,255] - vo[0,254]
-let dnl = dv/lsb - 1
-let inl_max_abs = vecmax(abs(inl))
-let dnl_max_abs = vecmax(abs(dnl))
-let monotonic = vecmin(dv) gt 0
 let v_zero_offset = vo[0]
 let fs_gain_err_lsb = ((vo[255] - vo[0]) - 255/256*vs) / (vs/256)
 let i_vdd_avg = mean(-i(vdd))
@@ -148,9 +147,6 @@ end
 
 echo
 echo "  Measurements for DC Analysis (r2r_dac_tb, computed in .control)"
-echo "dnl_max_abs = $&dnl_max_abs"
-echo "inl_max_abs = $&inl_max_abs"
-echo "monotonic = $&monotonic"
 echo "v_zero_offset = $&v_zero_offset"
 echo "fs_gain_err_lsb = $&fs_gain_err_lsb"
 echo "inl_sens_1pct_max = $&sens_worst"

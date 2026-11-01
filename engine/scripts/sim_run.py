@@ -51,6 +51,14 @@ else the spec's `sim_timeout_s: {<gate>: N}` (speclib.sim_timeout), else
 256-code DAC bench). The larger of the two wins, capped at
 MAX_BENCH_TIMEOUT. A run that times out is a `sim_engine_error_sim_timeout`
 finding, never a pass.
+
+Static ramp: a bench that sweeps a converter's codes does not compute DNL/INL
+in .control. It writes the sweep with `wrdata {{RAMP_FILE}} <vector>` and says
+how long the sweep is with a comment line, `* static_ramp_codes: 256`; this
+file reads it back and scores engine/lib/convlib.py's static_ramp measures
+(dnl_max_abs, inl_max_abs, inl_best_fit_max_abs, monotonic,
+missing_code_count) as if ngspice had printed them. A sweep missing, short or
+not in code order is a sim_static_ramp_refused error, never a pass.
 """
 from __future__ import annotations
 
@@ -77,6 +85,7 @@ EDA_BIN = REPO / "bin" / "eda"
 DEFAULT_TIMEOUT = 60.0
 MAX_BENCH_TIMEOUT = 3600.0
 BENCH_TIMEOUT_RE = re.compile(r"^\*\s*sim_timeout_s\s*[:=]\s*(\S+)", re.M | re.I)
+STATIC_RAMP_RE = re.compile(r"^\*\s*static_ramp_codes\s*[:=]\s*(\d+)\b", re.M | re.I)
 PDK_REL = Path("foss") / "pdks" / "gf180mcuD"
 
 
@@ -200,6 +209,33 @@ def bench_timeout(bench_name: str, bench_text: str, timeout: float) -> float:
     return max(timeout, want)
 
 
+def static_ramp_measures(path: Path, codes: int | None) -> dict[str, float]:
+    """The convlib.static_ramp measures of a `wrdata` sweep: lines of `x y`,
+    x the integer code 0, 1, ... Raises convlib.Refused for anything but one
+    finite level per code, in order. convlib (numpy) is imported here, not at
+    the top: most benches and every script that imports this file never ask."""
+    import convlib
+    if codes is None:
+        raise convlib.Refused("bad_input", "the bench uses {{RAMP_FILE}} with "
+                              "no `* static_ramp_codes: N` comment line")
+    if not path.is_file():
+        raise convlib.Refused("no_sweep", f"ngspice wrote no {path.name}")
+    xs, ys = [], []
+    try:
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if line.strip():
+                x, y = line.split()
+                xs.append(float(x))
+                ys.append(float(y))
+    except ValueError as exc:
+        raise convlib.Refused("bad_input", f"{path.name} is not `code level` "
+                              f"lines: {exc}") from exc
+    if len(ys) != codes or any(abs(x - k) > 1e-6 for k, x in enumerate(xs)):
+        raise convlib.Refused("bad_input", f"{path.name} must hold codes 0.."
+                              f"{codes - 1} in order; it has {len(ys)} lines")
+    return convlib.ramp_measures(convlib.static_ramp([float(y) for y in ys]))
+
+
 def run_bench_at_corner(eda_bin: Path, bench_name: str,
                         bench_template_text: str, bounds: list[dict],
                         subs: dict, corner: dict, out_dir: Path,
@@ -209,9 +245,17 @@ def run_bench_at_corner(eda_bin: Path, bench_name: str,
     real tb/ filename even when the text passed in is a mutant's - see
     check_bench_strength.py, which never writes a mutated bench to disk
     under tb/ itself)."""
-    text = simlib.materialize(bench_template_text, subs)
+    stem = f"{Path(bench_name).stem}__{corner['name']}"
     out_dir.mkdir(parents=True, exist_ok=True)
-    deck_path = out_dir / f"{Path(bench_name).stem}__{corner['name']}.cir"
+    # named after the deck: bench_strength runs mutants in parallel in one
+    # directory, and an old sweep must never be scored as this run's
+    ramp_path = None
+    if "{{RAMP_FILE}}" in bench_template_text:
+        ramp_path = out_dir / f"{stem}.ramp"
+        ramp_path.unlink(missing_ok=True)
+        subs = {**subs, "RAMP_FILE": ramp_path.name}
+    text = simlib.materialize(bench_template_text, subs)
+    deck_path = out_dir / f"{stem}.cir"
     deck_path.write_text(text, encoding="utf-8")
     timeout = bench_timeout(bench_name, bench_template_text, timeout)
     stdout, stderr, rc = simlib.run_ngspice(eda_bin, deck_path, out_dir, timeout)
@@ -220,6 +264,18 @@ def run_bench_at_corner(eda_bin: Path, bench_name: str,
     err_kinds = simlib.detect_engine_errors(stdout + "\n" + stderr)
 
     violations: list[dict] = []
+    if ramp_path is not None:
+        import convlib
+        m = STATIC_RAMP_RE.search(bench_template_text)
+        try:
+            measures.update(static_ramp_measures(
+                ramp_path, int(m.group(1)) if m else None))
+        except convlib.Refused as exc:
+            violations.append(checklib.violation(
+                check, "error", bench_name, None, "sim_static_ramp_refused",
+                [exc.kind, corner["name"]],
+                f"{bench_name} @ {corner['name']}: static_ramp refused: {exc}",
+                "convlib"))
     if err_kinds:
         tail_lines = [ln for ln in (stderr or stdout).strip().splitlines() if ln.strip()]
         detail = tail_lines[-1][:300] if tail_lines else "(no output)"
