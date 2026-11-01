@@ -330,3 +330,119 @@ def test_mc_timeout_comes_from_spec_then_flag(
     out = json.loads(capsys.readouterr().out)
     assert code == 0, out
     assert ngspice_timeouts and set(ngspice_timeouts) == {want}
+
+
+# --- m=N devices: the PDK's mismatch term reads par, not m (issue #98) ---
+
+MULT_NETLIST = """\
+* multiplied units
+.subckt mirror vdd iref iout vss
+XMREF iref iref vss vss nfet_03v3 w=2u l=1u m=4
+XMOUT iout iref vss vss nfet_03v3 w=2u l=1u
++ m={m_out} ; m=9 in a comment is not a parameter
+XMP1 a b vdd vdd pfet_03v3 w=1u l=1u m=1
+XMP2 a b vdd vdd pfet_03v3 w=1u l=1u m=2 par=2
+XSUB a b mysub m=3
+R1 a b 1k m=2
+.include 'models/extra.inc'
+.ends
+"""
+
+
+def test_add_par_for_multiplier_rewrites_multiplied_mos_only():
+    new, done = check_mc.add_par_for_multiplier(MULT_NETLIST)
+    assert [d["instance"] for d in done] == ["XMREF", "XMOUT"]
+    assert "XMREF iref iref vss vss nfet_03v3 w=2u l=1u m=4 par=4\n" in new
+    assert "+ m={m_out} par={m_out} ; m=9" in new
+    # m=1, an existing par, a user subckt, a resistor: untouched
+    for keep in ("pfet_03v3 w=1u l=1u m=1\n", "m=2 par=2\n",
+                 "XSUB a b mysub m=3\n", "R1 a b 1k m=2\n"):
+        assert keep in new
+    assert check_mc.add_par_for_multiplier(new)[1] == []  # idempotent
+
+
+def test_mc_decks_include_the_par_copy_never_the_block_netlist(
+        tmp_path, monkeypatch, capsys):
+    ws = make_ws(tmp_path, "mc: {enabled: true, runs: 2, yield_min: 0.5}\n")
+    (ws / "netlist" / "mirror.cir").write_text(MULT_NETLIST, encoding="utf-8")
+    eda = make_fake_eda(tmp_path, ["2.0", "2.1"])
+    monkeypatch.setattr(sim_run, "EDA_BIN", eda)
+    code = check_mc.main(["--workspace", str(ws)])
+    out = json.loads(capsys.readouterr().out)
+    assert code == 0, out
+    assert [d["instance"] for d in out["par_added"]] == ["XMREF", "XMOUT"]
+    assert (ws / "netlist" / "mirror.cir").read_text() == MULT_NETLIST
+    copy = ws / "log" / "mc" / "mirror__mc_par.cir"
+    text = copy.read_text()
+    assert "m=4 par=4" in text
+    # the relative include now resolves from the copy's directory
+    assert f"'{(ws / 'netlist').resolve()}/models/extra.inc'" in text
+    decks = sorted((ws / "log" / "mc").glob("mirror_tb__mc*__*.cir"))
+    assert len(decks) == 2
+    for deck in decks:
+        assert str(copy.resolve()) in deck.read_text()
+
+
+def test_netlist_without_multiplied_mos_is_included_as_is(tmp_path):
+    net = tmp_path / "n.cir"
+    net.write_text("XM1 d g s b nfet_03v3 w=1u l=1u\n", encoding="utf-8")
+    path, done = check_mc.mc_netlist(net, tmp_path / "out")
+    assert path == net and done == []
+    assert not (tmp_path / "out").exists()
+
+
+@pytest.mark.slow
+def test_real_m4_mismatch_matches_the_w4_device(tmp_path):
+    # Known answer (issue #98): one seeded op over 200 diode-connected
+    # nfet_03v3 pairs at 40 uA, w=2u m=4 next to w=8u. With par added, the
+    # m=4 sigma matches the w*4 device (the same area) within MC noise; the
+    # planted fault - the block's netlist as written, no par - gives about
+    # sqrt(4)=2x the sigma (measured 3.9 mV against 2.0 mV). With mismatch
+    # off, the rewrite leaves the DC point exactly where it was.
+    import re
+    import statistics
+
+    import corners as corners_mod
+    import simlib
+
+    n = 200
+    lines = ["* m=4 vs w*4"]
+    for i in range(n):
+        lines += [f"XA{i} a{i} a{i} 0 0 nfet_03v3 w=2u l=1u m=4",
+                  f"IA{i} 0 a{i} 40u",
+                  f"XB{i} b{i} b{i} 0 0 nfet_03v3 w=8u l=1u",
+                  f"IB{i} 0 b{i} 40u"]
+    net = tmp_path / "ka.cir"
+    net.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    bench = (".include '{{PDK}}/libs.tech/ngspice/design.spice'\n"
+             ".lib '{{PDK}}/libs.tech/ngspice/sm141064.spice' {{CORNER}}\n"
+             ".include '{{NETLIST}}'\n"
+             ".control\nop\nprint all\n.endc\n.end\n")
+    eda = sim_run.EDA_BIN
+    root = sim_run.toolchain_root(eda)
+    tt = corners_mod.corners_by_name(corners_mod.load(), ["tt"])[0]
+
+    def vgs(fixed: bool, mismatch: bool):
+        out = tmp_path / f"{'par' if fixed else 'asis'}_{int(mismatch)}"
+        nl, done = (check_mc.mc_netlist(net, out) if fixed else (net, []))
+        assert len(done) == (n if fixed else 0)
+        text = check_mc.inject_mc_params(bench, 7, False) if mismatch \
+            else bench
+        deck = out / "ka_tb.cir"
+        out.mkdir(parents=True, exist_ok=True)
+        deck.write_text(simlib.materialize(
+            text, sim_run.build_subs(root, nl, tt, 3.3, {})), encoding="utf-8")
+        stdout, _, _ = simlib.run_ngspice(eda, deck, out, 120)
+        v = {k.lower(): float(x) for k, x in re.findall(
+            r"^\s*(\S+)\s*=\s*([-+0-9.eE]+)\s*$", stdout, re.MULTILINE)}
+        return ([v[f"a{i}"] for i in range(n)], [v[f"b{i}"] for i in range(n)])
+
+    a_fix, b = vgs(True, True)
+    ratio = statistics.stdev(a_fix) / statistics.stdev(b)
+    assert 0.75 < ratio < 1.33, ratio
+    a_asis, b2 = vgs(False, True)
+    assert b2 == b  # same seed, same draws for the untouched devices
+    planted = statistics.stdev(a_asis) / statistics.stdev(b)
+    assert planted > 1.5, planted
+    # DC point: with mismatch off the rewrite changes nothing
+    assert vgs(True, False)[0] == vgs(False, False)[0]

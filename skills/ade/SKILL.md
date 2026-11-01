@@ -115,12 +115,12 @@ P6 -> done and never visits P7/P8.
 
 | Gate | Phase | Passes when | reads |
 |---|---|---|---|
-| spec_lint | P1 | every measure has bounds and a corner set; supply, devices declared; with `tb/` present, every spec measure has a bench bound and back | spec.yaml, tb/*.bounds.json |
+| spec_lint | P1 | every measure has bounds and a corner set; supply, devices declared; with `tb/` present, every spec measure has a bench bound and back; a matching-sensitive measure (offset, ratio, mismatch, INL/DNL) needs `mc.enabled: true` or a written `mc_waiver` | spec.yaml, tb/*.bounds.json |
 | netlist_lint | P4 | every device a gf180mcu_fd_pr model, no floating node, every declared device instantiated, a clean ngspice dry run | netlist/, tb/ |
 | sim_tt | P4 | every `.measure` inside its bound at typical | netlist/, tb/, sizing |
 | sim_pvt | P4 | every measure inside its bound at every corner (the default five, never fewer, or the spec's own PVT grid) | netlist/, tb/, sizing |
 | bench_strength | P4 | every device mutant (size doubled, connection removed, type flipped, bias halved; a B source's output stuck and gain halved) pushes a measure out; a declared device no mutant covers fails it, an undeclared one is a warning, and `devices_mutated` of `devices_total` says how much ran | netlist/, tb/, spec devices |
-| mc | P4 | Monte Carlo yield >= `mc.yield_min`, only when `mc.enabled: true` | netlist/, tb/, spec mc |
+| mc | P4 | Monte Carlo yield >= `mc.yield_min`, only when `mc.enabled: true`; an `m=N` MOS gets `par=N` in the MC deck, or the PDK gives it one unit's mismatch | netlist/, tb/, spec mc |
 | drc | P5 | 0 findings from klayout's GF180 signoff deck (magic DRC is not run) | layout/gen_<block>.py |
 | lvs | P5 | netgen: the generated layout matches `netlist/<block>.cir` at its sizing | layout/, netlist/, sizing |
 | pex_sim | P5 | magic extraction with R and C, then the pex bench at typical inside its bounds | layout/, layout_ref/ |

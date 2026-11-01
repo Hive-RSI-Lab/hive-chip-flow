@@ -76,6 +76,21 @@ CHECK_KINDS = {"sim", "formal", "both", "measure"}
 #         bounds: {min?, max?}        required, at least one of min/max
 #         corners: "default"|[str,...]|"all"   optional (default: "default")
 #         severity: error|warning     optional (default: error)
+#         statistical: mismatch|none  optional; `mismatch` marks a measure
+#                                      that only means something under
+#                                      device mismatch (offset, mirror or
+#                                      UP/DN ratio, INL/DNL), so spec_lint
+#                                      requires `mc.enabled: true` for it
+#                                      (lint_matching_measures). A name
+#                                      with a MATCHING_NAME_TOKENS token
+#                                      counts as `mismatch` unless the
+#                                      measure says `statistical: none`
+#                                      with an `mc_waiver` reason
+#         mc_waiver: str              the reason a matching-named measure
+#                                      needs no Monte Carlo (a digital
+#                                      divide ratio; resistors with no
+#                                      per-instance mismatch model), with
+#                                      `statistical: none`
 #     mc: {enabled: bool, runs?: int, yield_min?: float, global?: bool,
 #          seed?: int}   optional - runs?/seed? are check_mc.py's own
 #                        per-run count and seed base (`.option seed=<seed
@@ -100,6 +115,11 @@ ADE_MEASURE_CORNER_KINDS = {"default", "all"}
 SIM_TIMEOUT_CHECKS = ("netlist_lint", "sim_tt", "sim_pvt", "mc",
                       "bench_strength", "pex_sim")
 MAX_SIM_TIMEOUT_S = 3600.0
+# a measure name with one of these `_`-separated tokens is read as
+# matching-sensitive (lint_matching_measures)
+MATCHING_NAME_TOKENS = ("mismatch", "offset", "ratio", "inl", "dnl",
+                        "matching")
+STATISTICAL_KINDS = ("mismatch", "none")
 STD_CELL_PATTERN = r"^gf180mcu_fd_sc_mcu(7t|9t)5v0__[a-z0-9_]+$"
 
 
@@ -295,6 +315,89 @@ def footprint_um(spec: dict) -> dict | None:
                 or not 0 < v < float("inf"):
             return None
     return {"width": float(fp["width"]), "height": float(fp["height"])}
+
+
+def matching_by_name(name) -> bool:
+    """Does a measure's name say it is matching-sensitive? True when one
+    of its `_`-separated tokens (case-insensitive) is in
+    MATCHING_NAME_TOKENS: `cp_updn_mismatch_pct`, `vos_offset_mv`,
+    `inl_max_abs` - never a substring inside a token (`ratiometric`)."""
+    if not isinstance(name, str):
+        return False
+    return any(t in MATCHING_NAME_TOKENS for t in name.lower().split("_"))
+
+
+def lint_matching_measures(spec: dict, rel_path: str = "spec/spec.yaml",
+                           mc_corner_names=("tt",)
+                           ) -> tuple[list[dict], list[dict]]:
+    """A matching-sensitive measure (offset, mirror or UP/DN ratio,
+    INL/DNL) checked only at zero mismatch passes for the wrong reason:
+    sim_tt/sim_pvt run with the PDK's sw_stat_mismatch=0, so they see the
+    systematic part alone. Such a measure needs the mc gate - the one gate
+    that turns mismatch on - so this returns (violations, waived):
+
+    - `mismatch_measure_no_mc`: a measure with `statistical: mismatch`, or
+      a matching name (matching_by_name) without a waiver, in a spec with
+      no `mc.enabled: true`;
+    - `mismatch_measure_not_at_tt`: the same measure scoped by its own
+      `corners` list to corners without tt - the mc gate runs at tt only
+      (`mc_corner_names`: every name of that corner, corners.names_of),
+      so it would never score it;
+    - `bad_statistical`: `statistical` not in STATISTICAL_KINDS, or
+      `statistical: none` without a non-empty `mc_waiver` reason (the
+      name heuristic is overridden only with a written reason).
+
+    `waived` lists {measure, why} for each matching-named measure that
+    says `statistical: none` with a reason - reported, never silent."""
+    from checklib import violation
+
+    out: list[dict] = []
+    waived: list[dict] = []
+    mc_cfg = spec.get("mc")
+    mc_on = isinstance(mc_cfg, dict) and bool(mc_cfg.get("enabled"))
+    for m in spec.get("measures") or []:
+        if not isinstance(m, dict):
+            continue
+        name = m.get("name")
+        refs = [name] if isinstance(name, str) else []
+        stat = m.get("statistical")
+        waiver = m.get("mc_waiver")
+        if stat is not None and stat not in STATISTICAL_KINDS:
+            out.append(violation(
+                "spec_lint", "error", rel_path, None, "bad_statistical", refs,
+                f"measure {name!r} 'statistical' must be one of "
+                f"{list(STATISTICAL_KINDS)}, got {stat!r}", "speclib"))
+            continue
+        if stat == "none":
+            if not (isinstance(waiver, str) and waiver.strip()):
+                out.append(violation(
+                    "spec_lint", "error", rel_path, None, "bad_statistical",
+                    refs, f"measure {name!r} says 'statistical: none' with "
+                    "no 'mc_waiver' reason - write why mismatch cannot "
+                    "move it", "speclib"))
+            elif matching_by_name(name):
+                waived.append({"measure": name, "why": waiver.strip()})
+            continue
+        if stat != "mismatch" and not matching_by_name(name):
+            continue
+        if not mc_on:
+            out.append(violation(
+                "spec_lint", "error", rel_path, None, "mismatch_measure_no_mc",
+                refs, f"measure {name!r} is matching-sensitive "
+                f"({'statistical: mismatch' if stat else 'by its name'}) but "
+                "the spec has no 'mc: {enabled: true}' - sim_tt/sim_pvt run "
+                "at zero mismatch and check only its systematic part; turn "
+                "Monte Carlo on, or, if mismatch truly cannot move it, write "
+                "'statistical: none' with an 'mc_waiver' reason", "speclib"))
+        want = m.get("corners")
+        if isinstance(want, list) and not set(want) & set(mc_corner_names):
+            out.append(violation(
+                "spec_lint", "error", rel_path, None,
+                "mismatch_measure_not_at_tt", refs,
+                f"measure {name!r} is matching-sensitive but its corners "
+                f"{want} leave out tt, the one corner the mc gate runs - "
+                "Monte Carlo would never score it", "speclib"))
+    return out, waived
 
 
 def lint_measures_vs_bench_bounds(spec: dict, bench_bounds: dict[str, list[dict]],

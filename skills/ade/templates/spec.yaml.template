@@ -26,9 +26,14 @@ measures:
     bounds: {min: 0, max: 0}   # at least one of min/max, required
     # corners: default          # optional override, per-measure
     # severity: error           # optional: error | warning
+    # statistical: mismatch     # optional: mismatch | none. An offset, ratio,
+    #                           # mismatch or INL/DNL measure (by name, or
+    #                           # marked mismatch) needs mc.enabled below;
+    #                           # `none` needs an mc_waiver: <reason>
 
-# mc:                          # optional - only when the brief asks for a
-#   enabled: true               # yield number; check_mc.py reads this
+# mc:                          # when the brief asks for a yield number, or
+#   enabled: true               # a measure is matching-sensitive (above);
+#                               # check_mc.py reads this
 #   runs: 200
 #   yield_min: 0.95
 

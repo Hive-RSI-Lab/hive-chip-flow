@@ -21,7 +21,10 @@ declarations can drift apart with nothing else catching it). It also expands
 the spec's `corners` field through corners.spec_corners(), so a `{grid: ...}`
 sim_pvt would refuse is a `bad_corners` finding here, and a measure whose
 own `corners` list names a corner no sweep of the spec could run, by any of
-its names, is `measure_bad_corners` (measure_corner_names).
+its names, is `measure_bad_corners` (measure_corner_names). A matching-sensitive
+measure (offset, ratio, INL/DNL, UP/DN mismatch) in a spec without
+`mc.enabled: true` is `mismatch_measure_no_mc` (speclib.
+lint_matching_measures): every other sim gate runs at zero mismatch.
 """
 from __future__ import annotations
 
@@ -111,13 +114,18 @@ def run(argv=None):
                     f"measure {m.get('name')!r} names corner(s) {missing} "
                     f"no sweep of this spec runs, whatever its netlist "
                     f"holds: {sorted(swept)}", "corners"))
+    tt = corners_mod.corners_by_name(corners_mod.load(), ["tt"])[0]
+    matching, waived = speclib.lint_matching_measures(
+        spec, rel_path=SPEC_REL, mc_corner_names=corners_mod.names_of(tt))
+    violations += matching
     bench_bounds = load_bench_bounds(ws)
     violations += speclib.lint_measures_vs_bench_bounds(
         spec, bench_bounds, rel_path=SPEC_REL)
     # stamp() hashes exactly this path as input_digest; gate.py's own
     # record_gate cross-checks that against invalidation.yaml's gate_inputs
     # kinds[0] for this gate ("spec_yaml" for ade's spec_lint too).
-    payload = checklib.report(SCRIPT, spec_path, violations)
+    payload = checklib.report(SCRIPT, spec_path, violations,
+                              mc_waived=waived)
     return payload, args.out
 
 
