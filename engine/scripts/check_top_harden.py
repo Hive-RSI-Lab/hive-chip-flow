@@ -28,7 +28,11 @@ with M4's own harden (check_harden.run, the same LibreLane job):
                       (layout_gen, rebuilt from analog/layout/gen_<block>.py
                       like every ade layout gate does), a LEF abstract magic
                       writes from that GDS, a blackbox Verilog stub, and its
-                      sized .subckt for LVS
+                      sized .subckt for LVS; and, when analog/spec/spec.yaml
+                      declares macro_timing, its <cell>__<pvt>.lib from the
+                      macro_lib gate. The SDC's clocks on the macro's pins are
+                      then checked against the analog side's recorded ceiling
+                      (macrolib.check_sdc) and a disagreement runs no harden
 
 Analog pins that interface.yaml's `ua_pins: {<pin>: <k>}` names leave the
 chip on the Tiny Tapeout analog pad ua[k]: the top becomes an analog tile
@@ -93,6 +97,7 @@ sys.path.insert(0, str(SCRIPTS))
 sys.path.insert(0, str(ENGINE / "lib"))
 import checklib  # noqa: E402
 import layoutlib  # noqa: E402
+import macrolib  # noqa: E402
 import netlistlib  # noqa: E402
 import ttlib  # noqa: E402
 from checklib import CheckError  # noqa: E402
@@ -883,6 +888,60 @@ def top_sdc(ws: Path, dspec: dict, macro: dict) -> str | None:
     return None
 
 
+def macro_abstract(ws: Path, analog: Path, macro: dict, top: Path) -> dict | None:
+    """The macro_lib gate's output delivered into top/macros, with the clock
+    ceilings read again from the record (a record re-run after the gate must
+    count); None when the analog spec declares no macro_timing."""
+    import check_macro_lib
+    # analog_macro has already read this side; a missing file is that gate's
+    section = (check_macro_lib.declared(ws)
+               if (analog / "spec" / "spec.yaml").is_file() else None)
+    if section is None:
+        return None
+    try:
+        mt = macrolib.parse_spec(section, macro["cell"],
+                                 check_macro_lib.crossing_pins(ws))
+        if mt.extracted and (analog / mt.extracted).is_file():
+            macrolib.check_extracted(ws, macro["cell"], analog / mt.extracted)
+        libs = macrolib.deliver(ws, macro["cell"], top / "macros")
+        ceilings = macrolib.clock_ceilings(mt, analog)
+    except macrolib.Refused as exc:
+        raise CheckError(str(exc)) from exc
+    macro["files"].update({f"lib_{k}": v for k, v in libs.items()})
+    return {"ceilings": ceilings}
+
+
+def macro_clock_problems(ws: Path, abstract: dict | None, macro: dict,
+                         sdc: str | None, top: Path, dspec: dict) -> list[dict]:
+    """Each way the top SDC's clocks on macro pins disagree with the analog
+    side's record. With no abstract, any clock on a macro pin is itself the
+    problem: its period can only be a typed number."""
+    prefix = macro["instance"] + "/"
+    if abstract is None:
+        on_macro = [c for c in ttlib._sdc_commands(sdc or "")
+                    if c.startswith("create_clock") and prefix in c]
+        return [{"kind": "macro_clock_undeclared", "pin": None, "msg":
+                 f"the top SDC creates a clock on the macro ({c!r}) and "
+                 "analog/spec/spec.yaml declares no macro_timing, so its period "
+                 "follows no record"} for c in on_macro]
+    if not abstract["ceilings"] and not sdc:
+        return []
+    if sdc is None:
+        return [{"kind": "macro_clock_undefined", "pin": pin, "msg":
+                 f"the macro sources {pin} and the top has no SDC to clock it"}
+                for pin in abstract["ceilings"]]
+    clock = dspec.get("clock") or {}
+    env = {"CLOCK_PERIOD": clock.get("period_ns", 0),
+           "CLOCK_PORT": ttlib.clock_port(dspec) or "clk"}
+    try:
+        return macrolib.check_sdc(top / "harden" / ttlib.HARDEN_SDC_NAME,
+                                  top / "macros", macro["cell"],
+                                  abstract["ceilings"], macro["instance"],
+                                  ws / "log" / "macro_lib", env)
+    except macrolib.Refused as exc:
+        raise CheckError(str(exc)) from exc
+
+
 def assemble(ws: Path) -> tuple[Path, dict]:
     """Build top/ from the two nested workspaces; return its path and spec.
     A macro larger than the tile comes back with location None, and a ua
@@ -966,11 +1025,19 @@ def assemble(ws: Path) -> tuple[Path, dict]:
     if problems:
         raise CheckError("the assembled top's pins do not fit: "
                          + "; ".join(problems))
+    abstract = macro_abstract(ws, analog, macro, top)
     sdc = top_sdc(ws, dspec, macro)
     if sdc is not None:
+        if abstract:
+            sdc = macrolib.period_table_tcl(abstract["ceilings"]) + sdc
         (top / "harden").mkdir()
-        (top / "harden" / ttlib.HARDEN_SDC_NAME).write_text(
-            sdc, encoding="utf-8")
+        sdc_path = top / "harden" / ttlib.HARDEN_SDC_NAME
+        sdc_path.write_text(sdc, encoding="utf-8")
+    tspec["macro_clock_problems"] = macro_clock_problems(
+        ws, abstract, macro, sdc, top, dspec)
+    if tspec["macro_clock_problems"]:
+        return top, tspec
+    del tspec["macro_clock_problems"]
     import yaml
     # the macro's files relative to top/, as check_harden and top_lvs read
     # them: the spec is committed with the block, the machine's path is not
@@ -1104,6 +1171,14 @@ def run(argv=None):
             "top_harden", "error", None, "ua_pins", "ua_pin_off_template", [],
             f"interface.yaml ua_pins do not fit the analog tile: {p}", SCRIPT)
             for p in spec["ua_problems"]]
+        payload = checklib.report(SCRIPT, ws / "digital" / "rtl", violations,
+                                  macros=macros)
+        return payload, args.out
+    if spec.get("macro_clock_problems"):
+        violations = [checklib.violation(
+            "top_harden", "error", "top/harden/constraints.sdc", p.get("pin"),
+            p["kind"], [p["corner"]] if p.get("corner") else [], p["msg"], SCRIPT)
+            for p in spec["macro_clock_problems"]]
         payload = checklib.report(SCRIPT, ws / "digital" / "rtl", violations,
                                   macros=macros)
         return payload, args.out

@@ -138,6 +138,8 @@ artifact_kinds:
   # own top.sdc when there is one, else the digital side's design SDC with
   # each crossing port moved onto the macro's pin; both optional
   top_sdc:       {path: "top.sdc", norm: text_eol}
+  # the macro_lib gate's liberty and clock ceilings (engine/lib/macrolib.py)
+  macro_lib:     {path: "macro_lib", norm: dir_text}
   digital_sdc:   {path: "digital/harden/constraints.sdc", norm: text_eol}
   # The PDK (#138). A path starting ${PDK_ROOT} is resolved against the
   # toolchain's gf180mcuD tree (bin/eda --print-toolchain-root), not the
@@ -261,8 +263,15 @@ gate_inputs:
     # .subckt it writes to top/macros) + analog spec.yaml's `top`. The
     # digital side's harden config.json/override are NOT read: top/ is
     # rebuilt from scratch and check_harden generates top/harden itself.
+    # macro_lib: the sized .subckt, the analog spec's macro_timing (limits,
+    # arcs, clocks) and the models. The record a clock's ceiling comes from
+    # and an extracted netlist are named in the spec, so no static artifact
+    # covers them: top_harden re-reads the record and compares the netlist's
+    # hash itself.
+    macro_lib: [interface, analog_netlist, analog_sizing, analog_spec,
+                pdk_version, pdk_models, pdk_liberty]
     top_harden: [digital_rtl, interface, digital_spec, analog_layout,
-                 analog_netlist, analog_sizing, analog_spec, top_sdc,
+                 analog_netlist, analog_sizing, analog_spec, macro_lib, top_sdc,
                  digital_sdc, pdk_version, pdk_liberty, pdk_librelane,
                  pdk_magic, pdk_klayout, pdk_netgen]
     top_drc:  [top_gds, top_spec, pdk_version, pdk_magic, pdk_klayout]
@@ -385,7 +394,7 @@ edit_classes:
     spec_edit:
       mutates: [spec_yaml, spec_md]
       stale_artifacts: []
-      gates: [split, cosim, top_harden, top_drc, top_lvs, precheck, release]
+      gates: [split, cosim, macro_lib, top_harden, top_drc, top_lvs, precheck, release]
       human_hold: 2
     interface_edit:
       # "marks the top gates and both nested runs' spec_edit" (1.6). The
@@ -394,7 +403,7 @@ edit_classes:
       # top-level gates a plain `state.py edit` can reach on its own.
       mutates: [interface]
       stale_artifacts: []
-      gates: [split, cosim, top_harden, top_drc, top_lvs, precheck, release]
+      gates: [split, cosim, macro_lib, top_harden, top_drc, top_lvs, precheck, release]
       human_hold: 2
     top_sdc_edit:
       # the integrator's top.sdc: the top's clocks move, so the top GDS

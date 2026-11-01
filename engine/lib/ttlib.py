@@ -47,7 +47,8 @@ check_top_harden.py for an msde block's assembled top, never by hand:
         location: [x_um, y_um]         orientation: N
         power: {vdd: <macro pin>, vss: <macro pin>}
         pins: {<macro pin>: <port>}    # port = a key of spec.yaml `ports`
-        files: {gds: .., lef: .., vh: .., spice: ..}   # absolute paths
+        files: {gds: .., lef: .., vh: .., spice: ..,   # absolute paths
+                lib_<pvt>: ..}                         # optional, per corner
 A port a macro pin binds is wired to that macro inside the wrapper, so it
 takes NO tt_pins entry (and may not have one). Power pins go to VPWR/VGND
 through PDN_MACRO_CONNECTIONS, never through the wrapper.
@@ -1080,6 +1081,11 @@ def macro_config(macros: list[dict]) -> dict:
         "MACROS": {m["cell"]: {
             "gds": [m["files"]["gds"]], "lef": [m["files"]["lef"]],
             "vh": [m["files"]["vh"]], "spice": [m["files"]["spice"]],
+            # one liberty per PVT (macrolib), not EXTRA_LIBS: LibreLane loads
+            # those into every corner
+            **({"lib": {f"*_{k[4:]}": [v] for k, v in m["files"].items()
+                        if k.startswith("lib_")}}
+               if any(k.startswith("lib_") for k in m["files"]) else {}),
             "instances": {m["instance"]: {
                 "location": list(m["location"]),
                 "orientation": m.get("orientation", "N")}},

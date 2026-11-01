@@ -14,6 +14,10 @@ faults:
     gate: top_harden
     plant: plant_top_harden_sdc_crossing.py
     expect: {status: refused, error: "names uio_out[0], which in the top is the macro pin"}
+  - name: macro_lib_limit_unstated
+    gate: macro_lib
+    plant: plant_macro_lib.py
+    expect: {status: refused, error: "no limits for crossing pin"}
   - name: top_lvs_macro_pin_unconnected
     gate: top_lvs
     plant: plant_top_lvs.py
