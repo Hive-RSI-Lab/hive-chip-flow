@@ -213,7 +213,7 @@ def test_gate_is_registered_and_invalidated():
     import yaml
     gates = yaml.safe_load((REPO / "engine/reference/gates.yaml").read_text())
     inval = (REPO / "engine/reference/invalidation.yaml").read_text()
-    assert "lec" in str(gates) and re.search(r"^\s+lec:\s+\[rtl, harden", inval,
+    assert "lec" in str(gates) and re.search(r"^\s+lec:\s+\[harden, rtl", inval,
                                              re.M)
 
 
