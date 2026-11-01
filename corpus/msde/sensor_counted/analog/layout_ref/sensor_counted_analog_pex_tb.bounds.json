@@ -1,6 +1,9 @@
 {
   "measures": {
-    "f_osc": {"min": 3.8e6, "max": 5.2e6},
+    "f_osc": [
+      {"min": 3.8e6, "max": 5.2e6, "corners": ["tt"]},
+      {"min": 2.4e6, "max": 8.0e6, "corners": ["ss", "ff", "sf", "fs"]}
+    ],
     "duty": {"min": 0.4, "max": 0.6},
     "vstop": {"max": 0.3}
   }

@@ -1,7 +1,7 @@
-* r2r_dac_pex_tb.cir - the post-layout bench for the 2-bit ladder, typical
-* corner (docs/design.md 1.5's ade pex_sim row). It runs on the
+* r2r_dac_pex_tb.cir - the post-layout bench for the 2-bit ladder, at each
+* pex_sim corner (docs/design.md 1.5's ade pex_sim row). It runs on the
 * magic-extracted, parasitic-annotated netlist of this run's own GDS;
-* check_pex_sim.py fills in {pdk} and {extracted}.
+* check_pex_sim.py fills in its tokens.
 *
 * The same three codes as tb/r2r_dac_tb.cir, over one transient: blsb alone
 * at 15n, bmsb alone at 25n, both at 35n. rm1 needs the res_<corner>
@@ -9,7 +9,9 @@
 *
 * Bounds are the ladder at the rung's current sizing (1:1, what
 * sizing/sizing.yaml and the layout both carry; M8's spec wants 2:1 once
-* optimise has run): 0.66V, 1.98V, 2.64V unloaded, +-3%.
+* optimise has run): 0.2, 0.6, 0.8 of the supply unloaded, +-3%. A ladder
+* divides its supply, so these are read as fractions of vdd, the same bound
+* at every corner.
 *
 * These measures cannot move with parasitics: magic's extresist only splits
 * nets that reach a transistor, so the ladder extracts a few fF of C and no
@@ -17,12 +19,13 @@
 * bench proves the extracted netlist simulates; the parasitic-sensitive
 * check and its planted fault are on corpus/ade/mirror.
 .include '{pdk}/libs.tech/ngspice/design.spice'
-.lib '{pdk}/libs.tech/ngspice/sm141064.spice' typical
-.lib '{pdk}/libs.tech/ngspice/sm141064.spice' res_typical
+.lib '{pdk}/libs.tech/ngspice/sm141064.spice' {corner}
+.lib '{pdk}/libs.tech/ngspice/sm141064.spice' {res_corner}
 .include '{extracted}'
+.temp {temp_c}
 
-vbmsb bmsb 0 PWL(0 0 19.9n 0 20n 3.3 40n 3.3)
-vblsb blsb 0 PWL(0 0 9.9n 0 10n 3.3 19.9n 3.3 20n 0 29.9n 0 30n 3.3 40n 3.3)
+vbmsb bmsb 0 PWL(0 0 19.9n 0 20n {vdd} 40n {vdd})
+vblsb blsb 0 PWL(0 0 9.9n 0 10n {vdd} 19.9n {vdd} 20n 0 29.9n 0 30n {vdd} 40n {vdd})
 xdut bmsb blsb vout r2r_dac
 
 .control
@@ -30,5 +33,11 @@ tran 0.1n 40n
 meas tran vout_lsb find v(vout) at=15n
 meas tran vout_msb find v(vout) at=25n
 meas tran vout_both find v(vout) at=35n
+let vout_lsb_frac = vout_lsb/{vdd}
+let vout_msb_frac = vout_msb/{vdd}
+let vout_both_frac = vout_both/{vdd}
+print vout_lsb_frac
+print vout_msb_frac
+print vout_both_frac
 .endc
 .end

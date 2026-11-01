@@ -289,8 +289,10 @@ layout-fixer read `netlist/` and `sizing/` and edit only `layout/`.
   rm1 resistor as a short. `layoutlib` writes a per-run copy with that
   line fixed and refuses if the line has moved (docs/spikes/glayout.md,
   "M9 note"). A PDK update shows up as that refusal.
-- **`pex_sim` runs typical only, magic only.** klayout_pex and the
-  worst-corner post-layout sweep are not wired in.
+- **`pex_sim` is magic only, with no RC corners.** klayout_pex is not wired
+  in. The bench runs at the spec's `pex_corners`, default typical, slow/hot
+  and sim_pvt's worst per measure, so the corners move the devices, not the
+  extracted wire R and C.
 - **Nothing cross-checks `post_layout_bounds`.** spec.yaml carries it by
   convention; `pex_sim` reads only `layout_ref/<block>_pex_tb.bounds.json`.
   The reviewer at H2 compares the two by hand.

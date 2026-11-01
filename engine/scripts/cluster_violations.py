@@ -257,6 +257,7 @@ FIXER_HINTS: dict[str, str] = {
     "lvs_mismatch": "layout",
     "measure_out_of_bounds": "layout",
     "measure_missing": "testbench",
+    "pex_bench_not_corner_aware": "testbench",
 }
 
 # Kinds built at run time from a prefix (simlib.engine_error_violations:

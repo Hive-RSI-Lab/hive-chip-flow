@@ -1,7 +1,7 @@
 {
   "measures": {
-    "vout_lsb": {"min": 0.64, "max": 0.68},
-    "vout_msb": {"min": 1.92, "max": 2.04},
-    "vout_both": {"min": 2.56, "max": 2.72}
+    "vout_lsb_frac": {"min": 0.194, "max": 0.206},
+    "vout_msb_frac": {"min": 0.582, "max": 0.618},
+    "vout_both_frac": {"min": 0.776, "max": 0.824}
   }
 }

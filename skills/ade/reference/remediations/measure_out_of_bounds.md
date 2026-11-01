@@ -1,7 +1,7 @@
 # measure_out_of_bounds (pex_sim)
 
-A post-layout measure came out of its bound at typical, against the
-magic-extracted parasitic netlist. Routes to `layout` (the layout-fixer) -
+A post-layout measure came out of its bound at the corner the finding names,
+against the magic-extracted parasitic netlist. Routes to `layout` (the layout-fixer) -
 parasitics the routing itself added (a long, narrow output line's own R
 and C, an under-sized via count) are the layout's fault, distinct from
 `sim_bound_fail` (a pre-layout schematic miss, which routes to `sizing`).
@@ -13,7 +13,7 @@ routing segment on a sensitive node (the mirror's own `plant_pex_
 long_output_line.py` fault shape) is the common case - widen the trace or
 shorten the run in `layout/gen_<block>.py`.
 
-**Trap:** `pex_sim` runs typical only, magic's extractor only (SKILL.md's
-Known limits) - a fix that only looks better at typical may still be tight
-at a real corner; there is no gate here to catch that yet, so prefer a fix
-with real margin over one that only just clears the bound.
+**Trap:** `pex_sim` runs a chosen set of corners, on magic's extractor only,
+with no RC corners (SKILL.md's Known limits) - prefer a fix with real margin
+over one that only just clears the bound. Widening a bound, or scoping it
+away from the failing corner, is a spec decision, not a layout fix.
