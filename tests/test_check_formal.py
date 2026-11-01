@@ -88,6 +88,7 @@ def test_clean_design_proves_with_both_engines(tmp_path, capsys):
     assert code == 0, out
     assert out["status"] == "pass"
     assert out["proven"] == ["REQ-RESET"]
+    assert out["proven_by"] == {"REQ-RESET": "k-induction"}
     assert out["smt_status"] == "PASS"
     assert out["pdr_status"] == "PASS"
     assert out["cover_points"] == ["COVER_MAX"]
@@ -242,10 +243,16 @@ def test_classify_property_induction_trace_is_not_a_counterexample():
     # The uart run: basecase passed to depth 20, the induction step failed
     # on p_start_ignored_while_busy (sby tags that property <failure> with
     # trace_induct.vcd) and abc pdr proved it. An unreachable induction
-    # start state is bounded, not a counterexample.
+    # start state is not a counterexample - and pdr's PASS is a complete
+    # proof, so it is proven (issue #79: it used to be recorded bounded).
     verdict, violation = check_formal.classify_property(
         "P", "REQ", CASE_FAILED, {"basecase": "pass", "induction": "FAIL"},
         "PASS", 20)
+    assert verdict == "proven" and violation is None
+    # with pdr giving up too, no complete engine closed: bounded
+    verdict, violation = check_formal.classify_property(
+        "P", "REQ", CASE_FAILED, {"basecase": "pass", "induction": "FAIL"},
+        "UNKNOWN", 20)
     assert verdict == "bounded"
     assert violation["kind"] == "bounded_not_proven"
     # The planted fault: the same <failure> with the basecase failed is a
@@ -270,10 +277,10 @@ def test_classify_property_engine_disagreement():
 def test_classify_property_bounded_when_induction_does_not_converge(capsys):
     # docs/design.md section 2: "A property that only reaches a bounded
     # depth is recorded as bounded with its depth, and the gate never
-    # reports it as proven."
+    # reports it as proven." Bounded = neither complete engine closed.
     verdict, violation = check_formal.classify_property(
         "P", "REQ", CASE_OK, {"basecase": "pass", "induction": None},
-        "PASS", 20)
+        "UNKNOWN", 20)
     assert verdict == "bounded"
     assert violation["kind"] == "bounded_not_proven"
     assert violation["severity"] == "info"
@@ -295,13 +302,33 @@ def test_classify_property_pdr_error_raises():
             "ERROR", 20)
 
 
-def test_classify_property_pdr_unknown_raises():
-    import pytest
-    from checklib import CheckError
-    with pytest.raises(CheckError):
-        check_formal.classify_property(
-            "P", "REQ", CASE_OK, {"basecase": "pass", "induction": None},
-            "UNKNOWN", 20)
+def test_classify_property_pdr_unknown_or_fail_never_proves():
+    # k-induction alone is a complete proof; pdr UNKNOWN does not undo it
+    verdict, _ = check_formal.classify_property(
+        "P", "REQ", CASE_OK, {"basecase": "pass", "induction": "pass"},
+        "UNKNOWN", 20)
+    assert verdict == "proven"
+    # a pdr counterexample fails it even when induction passed and even
+    # when it is the only engine with a verdict
+    for ind in ("pass", "FAIL", None):
+        verdict, violation = check_formal.classify_property(
+            "P", "REQ", CASE_OK, {"basecase": "pass", "induction": ind},
+            "FAIL", 20)
+        assert verdict == "failed"
+        assert violation["kind"] == "engine_disagreement"
+    # a basecase counterexample fails it whatever pdr said
+    verdict, _ = check_formal.classify_property(
+        "P", "REQ", CASE_FAILED, {"basecase": "FAIL", "induction": None},
+        "UNKNOWN", 20)
+    assert verdict == "failed"
+
+
+def test_proven_by_names_the_engine_that_closed():
+    pb = check_formal.proven_by
+    assert pb({"basecase": "pass", "induction": "pass"}, "PASS") == "k-induction"
+    assert pb({"basecase": "pass", "induction": "FAIL"}, "PASS") == "pdr"
+    assert pb({"basecase": "pass", "induction": None}, "PASS") == "pdr"
+    assert pb({"basecase": "pass", "induction": "FAIL"}, "UNKNOWN") is None
 
 
 # The tail of corpus/vde/riscv's planted formal fault's pdr log
@@ -1298,3 +1325,66 @@ def test_pfd_cut_refuses_when_its_model_disagrees_with_clk2fflogic(
     out = json.loads(capsys.readouterr().out)
     assert code == 2, out
     assert "no longer matches" in out["error"]
+
+
+# Issue #79: a mod-10 counter in 8 bits. `cnt != 200` holds (cnt never leaves
+# 0..9) but is not k-inductive at depth 12: the unreachable chain
+# 188..199 satisfies it for 12 steps and then steps to 200. abc pdr finds
+# the strengthening (cnt < 10) itself and proves it; smtbmc's induction
+# step fails. Before #79 this came back bounded.
+RTL_MOD10 = """\
+module top (input wire clk, input wire rst, output reg [7:0] cnt);
+  always @(posedge clk)
+    if (rst) cnt <= 8'd0;
+    else cnt <= (cnt == 8'd9) ? 8'd0 : cnt + 8'd1;
+endmodule
+"""
+
+# the planted bug: wraps late (9 -> 10 -> ... 255 -> 0), so 200 is reached
+RTL_MOD10_LATE_WRAP = RTL_MOD10.replace("(cnt == 8'd9)", "(cnt == 8'd255)")
+
+FORMAL_MOD10 = """\
+module top_formal (input wire clk, input wire rst, output wire [7:0] cnt);
+  top dut (.clk(clk), .rst(rst), .cnt(cnt));
+`ifdef FORMAL
+  reg init = 1;
+  always @(posedge clk) init <= 0;
+  always @* if (init) assume (rst);
+  always @(posedge clk)
+    if (!init)
+      NEVER_200: assert (cnt != 8'd200);
+`endif
+endmodule
+"""
+
+
+def _mod10_ws(tmp_path, rtl, depth=12):
+    ws = _ws_with(tmp_path, rtl, FORMAL_MOD10, "NEVER_200")
+    spec = ws / "spec" / "spec.yaml"
+    spec.write_text(spec.read_text(encoding="utf-8").replace(
+        "depth: 12", f"depth: {depth}"), encoding="utf-8")
+    return ws
+
+
+@pytest.mark.slow
+def test_non_inductive_invariant_pdr_proves_is_proven(tmp_path, capsys):
+    code = check_formal.main(["--workspace", str(_mod10_ws(tmp_path, RTL_MOD10))])
+    out = json.loads(capsys.readouterr().out)
+    assert code == 0, out
+    assert out["proven"] == ["REQ-P"] and out["bounded"] == [], out
+    assert out["proven_by"] == {"REQ-P": "pdr"}, out
+    assert out["pdr_status"] == "PASS" and out["smt_status"] != "PASS", out
+    assert not [v for v in out["violations"]
+                if v["kind"] == "bounded_not_proven"], out
+
+
+@pytest.mark.slow
+def test_non_inductive_invariant_with_a_real_bug_still_fails(tmp_path, capsys):
+    # cnt reaches 200 at step ~201: past smt's basecase depth, so only
+    # pdr's counterexample catches it - and it must fail the gate.
+    code = check_formal.main(
+        ["--workspace", str(_mod10_ws(tmp_path, RTL_MOD10_LATE_WRAP))])
+    out = json.loads(capsys.readouterr().out)
+    assert code == 1, out
+    assert out["failed"] == ["REQ-P"] and out["proven"] == [], out
+    assert out["pdr_status"] == "FAIL", out
