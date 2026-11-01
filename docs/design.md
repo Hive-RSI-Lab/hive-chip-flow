@@ -86,6 +86,7 @@ Digital (`/vde`):
 | drc | magic DRC and klayout DRC, PDK decks | 0 violations from both | a metal spacing violation planted in the GDS |
 | lvs | netgen, magic-extracted layout versus the hardened netlist | match | one net split in two in the extracted layout netlist, the electrical effect of a missing via |
 | glsim | the sim suite on the gate-level netlist, then with SDF | every test passes both ways | a register read before it is written, which only X-propagation exposes |
+| lec | eqy on RTL against LibreLane's synth netlist and that netlist against `final/nl` (engine/lib/leclib.py), kepler-formal as a second engine on the netlist link | every flop's clock, set, reset and data and every output proved equal, nothing unproven | a stray gate in `final/nl` on a cone the visible tests never sensitise, which glsim passes |
 | precheck | tt-support-tools precheck, pinned | passes | a wrong top module name in info.yaml |
 | release | attest, strict | every applicable gate has a fresh recorded pass on the current inputs; waivers carry reason, approval and durability; every `check: measure` bound is inside its limits on its recorded source | an RTL edit after harden, which must refuse |
 

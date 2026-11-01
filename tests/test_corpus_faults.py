@@ -39,7 +39,7 @@ SKILLS = ("vde", "ade", "msde")
 WORKFLOW = REPO / ".github" / "workflows" / "checks.yml"
 
 HARDEN_RUNGS: dict[tuple[str, str], str] = {
-    ("vde", "counter8"): "harden, timing, drc, lvs, glsim and precheck's "
+    ("vde", "counter8"): "harden, timing, drc, lvs, glsim, lec and precheck's "
                          "plants each run a full LibreLane harden",
     ("msde", "dac_tile"): "top_harden, top_lvs and precheck each need a full "
                           "LibreLane top harden",

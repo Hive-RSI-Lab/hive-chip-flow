@@ -565,10 +565,17 @@ case "$TOOL" in
   # the solvers they spawn by name (yices is the one this image ships;
   # smtbmc's own --solver default already happens to be yices) are shimmed
   # once into the cache, not here.
-  sby|yosys-smtbmc|yosys-config|yosys-filterlib|yosys-witness)
+  sby|eqy|yosys-smtbmc|yosys-config|yosys-filterlib|yosys-witness)
     export PATH="$SHIM:$T/foss/tools/yosys/bin:$PATH"
     export PYTHONPATH="$PY_SITE${PYTHONPATH:+:$PYTHONPATH}"
     exec "$T/foss/tools/yosys/bin/$TOOL" "$@"
+    ;;
+
+  # kepler-formal links its own naja libraries from its own lib/ (no RUNPATH
+  # that survives the loader), so the plain fallback below cannot start it.
+  kepler-formal)
+    BASE_LIBPATH="$T/foss/tools/kepler-formal/lib:$BASE_LIBPATH"
+    run_elf "$T/foss/tools/kepler-formal/bin/kepler-formal" "$@"
     ;;
 
   # ---- cocotb / python -----------------------------------------------------

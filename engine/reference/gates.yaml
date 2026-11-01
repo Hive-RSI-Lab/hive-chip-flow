@@ -179,6 +179,19 @@ gates:
         a register read before it is written, which only X-propagation
         exposes
       description: "Every test passes both ways."
+    lec:
+      phase: P6
+      tool: lec
+      fail_severities: [error]
+      max_count: 0
+      fault: >-
+        a stray gate in final/nl on a cone the visible tests never sensitise,
+        which glsim passes
+      description: >-
+        RTL = LibreLane's synth netlist = final/nl, proved by eqy on every
+        flop's clock, set, reset and data and every output, with kepler-formal
+        as a second engine on the netlist link. An unproven point is a finding,
+        and a run dir trimmed of the synth view a refusal.
     precheck:
       phase: P6
       tool: precheck

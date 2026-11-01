@@ -213,6 +213,9 @@ gate_inputs:
     lvs:       [harden, spec_yaml_sans_formal, pdk_version, pdk_magic,
                 pdk_netgen]
     glsim:     [harden, tb, spec_yaml_sans_formal, pdk_version]
+    # lec reads rtl/ and the wrapper against harden's netlists, with cell
+    # functions from the std-cell liberty.
+    lec:       [rtl, harden, spec_yaml_sans_formal, pdk_version, pdk_liberty]
     precheck:  [harden, harden_info, spec_yaml_sans_formal, pdk_version,
                 pdk_magic, pdk_klayout]
     release:   [rtl, harden, pdk_version]
@@ -293,13 +296,13 @@ edit_classes:
       mutates: [spec_yaml, spec_md]
       stale_artifacts: [holdout]
       gates: [spec_lint, lint, sim, holdout, mutate, formal, cover, synth,
-              cdc, harden, timing, drc, lvs, glsim, precheck, release]
+              cdc, harden, timing, drc, lvs, glsim, lec, precheck, release]
       human_hold: 2
     rtl_edit:
       mutates: [rtl]
       stale_artifacts: []
       gates: [lint, sim, holdout, mutate, formal, cover, synth, cdc, harden,
-              timing, drc, lvs, glsim, precheck, release]
+              timing, drc, lvs, glsim, lec, precheck, release]
       human_hold: 1
     cdc_waiver_edit:
       # spec/cdc.yaml: a waiver is a claim a crossing is safe, so it holds 2
@@ -349,7 +352,7 @@ edit_classes:
     harden_config_edit:
       mutates: [harden_config, harden_override, harden_sdc, harden_info]
       stale_artifacts: []
-      gates: [harden, timing, drc, lvs, glsim, precheck, release]
+      gates: [harden, timing, drc, lvs, glsim, lec, precheck, release]
       human_hold: 2
   ade:
     spec_edit:
