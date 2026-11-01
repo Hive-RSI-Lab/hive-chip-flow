@@ -45,8 +45,8 @@ After the cascade, re-drive each side through its own router (`resume`)
 until it is fresh again, then the top gates. `top_harden` runs as a job
 (`jobs.py start`), even where the router lists it as a gate step.
 
-## Known gap
+## Freshness
 
-`split` hashes only `interface.yaml` (`invalidation.yaml` gate_inputs). An
-edit to a side spec alone does not stale a recorded `split` pass, so after
-touching either side spec, re-run `split` by hand.
+`split` hashes `interface.yaml` and both side specs (`digital_spec.yaml`,
+`analog_spec.yaml`; `invalidation.yaml` gate_inputs), so an edit to any of
+them stales a recorded `split` pass.

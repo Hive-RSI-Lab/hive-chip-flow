@@ -55,6 +55,8 @@
 #                    the block's workspace, chip-flow's root and PDK_ROOT as
 #                    placeholders: the config check_harden.py writes on every
 #                    run, whose absolute paths differ by machine and checkout.
+#   dir_bytes        all files under a directory, name-sorted, raw bytes
+#                    (the PDK's liberty: big, never hand-edited).
 #   dir_text         all files under a directory, name-sorted, each text_eol
 #                    normalized (rtl/, tb/, holdout/, formal/, ...).
 #   harden_signoff   a harden/ dir: its own files (config.json through
@@ -112,12 +114,46 @@ artifact_kinds:
   analog_layout: {path: "analog/layout", norm: dir_text}
   analog_netlist: {path: "analog/netlist", norm: dir_text}
   analog_sizing: {path: "analog/sizing/sizing.yaml", norm: json_canonical}
+  # the nested runs' own specs, read by the msde top gates: the digital
+  # spec.yaml's ports and tt_pins (top_harden copies it into top/spec), the
+  # analog spec.yaml's `top` (check_analog_lvs.reference_cell names the
+  # macro's .subckt from it)
+  digital_spec:  {path: "digital/spec/spec.yaml", norm: json_canonical}
+  analog_spec:   {path: "analog/spec/spec.yaml", norm: json_canonical}
+  # the two root-level side specs split checks against interface.yaml
+  # (check_split.SIDE_SPECS)
+  digital_side_spec: {path: "digital_spec.yaml", norm: json_canonical}
+  analog_side_spec:  {path: "analog_spec.yaml", norm: json_canonical}
   top_gds:       {path: "top/harden/runs/run/final/gds", norm: dir_text}
+  # what top_harden writes and top_lvs / top_drc read back: the assembled
+  # top's spec (macros, tt_pins), the analog macro's views (its sized
+  # .subckt is top_lvs's schematic side) and the powered netlist
+  top_spec:      {path: "top/spec/spec.yaml", norm: json_canonical}
+  top_macros:    {path: "top/macros", norm: dir_text}
+  top_pnl:       {path: "top/harden/runs/run/final/pnl", norm: dir_text}
   # the assembled top's SDC (check_top_harden.top_sdc): the integrator's
   # own top.sdc when there is one, else the digital side's design SDC with
   # each crossing port moved onto the macro's pin; both optional
   top_sdc:       {path: "top.sdc", norm: text_eol}
   digital_sdc:   {path: "digital/harden/constraints.sdc", norm: text_eol}
+  # The PDK (#138). A path starting ${PDK_ROOT} is resolved against the
+  # toolchain's gf180mcuD tree (bin/eda --print-toolchain-root), not the
+  # workspace; it hashes to None where there is no toolchain. A new image,
+  # ciel version or edited model/deck changes these hashes, so every gate
+  # that read the PDK goes stale instead of reading fresh on a PDK it never
+  # ran on. pdk_version is open_pdks' SOURCES line (the open_pdks commit the
+  # whole tree was built from - std-cell LEF/GDS/verilog ride on it); the
+  # rest are the files gates read through the PDK, by tool. PDK kinds hash
+  # through a stat-keyed cache (statelib._pdk_cache): the liberty dir is
+  # 330 MB.
+  pdk_version:   {path: "${PDK_ROOT}/SOURCES", norm: text_eol}
+  pdk_models:    {path: "${PDK_ROOT}/libs.tech/ngspice", norm: dir_text}
+  pdk_liberty:   {path: "${PDK_ROOT}/libs.ref/gf180mcu_fd_sc_mcu7t5v0/lib",
+                  norm: dir_bytes}
+  pdk_magic:     {path: "${PDK_ROOT}/libs.tech/magic", norm: dir_text}
+  pdk_netgen:    {path: "${PDK_ROOT}/libs.tech/netgen", norm: dir_text}
+  pdk_klayout:   {path: "${PDK_ROOT}/libs.tech/klayout", norm: dir_text}
+  pdk_librelane: {path: "${PDK_ROOT}/libs.tech/librelane", norm: dir_text}
 
 # What each gate reads, per skill (docs/design.md 1.5 tables). Every gate a
 # skill's edit_classes name must have an entry here, even a stub's - it is
@@ -150,20 +186,29 @@ gate_inputs:
     # edit left their passes fresh. cover takes the whole file, so a
     # `formal:` edit stales it too (spec_formal_edit's own set).
     cover:     [rtl, tb, spec_yaml]
-    synth:     [rtl, spec_yaml_sans_formal]
+    synth:     [rtl, spec_yaml_sans_formal, pdk_version, pdk_liberty]
     # spec_yaml (M4 review): harden reads tt_pins and clock.period_ns from
     # spec.yaml to build the wrapper and CLOCK_PERIOD, and timing, drc, lvs,
     # glsim and precheck all read `top` (and glsim tt_pins) from it too. A
     # period-only edit touches nothing under rtl/ or harden/, so without it
     # a recorded pass on the old period would still read fresh.
+    # pdk_* (#138): what each reads through PDK_ROOT - LibreLane the
+    # liberty, its own PDK config and the magic/klayout/netgen decks its
+    # signoff steps run; timing the std-cell liberty (stdcell_liberty_path);
+    # drc/lvs/precheck the PV decks; glsim the std-cell verilog
+    # (pdk_version). release attests the open_pdks commit.
     harden:    [rtl, harden_config, harden_override, harden_sdc, harden_info,
-                spec_yaml_sans_formal]
-    timing:    [harden, spec_yaml_sans_formal]
-    drc:       [harden, spec_yaml_sans_formal]
-    lvs:       [harden, spec_yaml_sans_formal]
-    glsim:     [harden, tb, spec_yaml_sans_formal]
-    precheck:  [harden, harden_info, spec_yaml_sans_formal]
-    release:   [rtl, harden]
+                spec_yaml_sans_formal, pdk_version, pdk_liberty,
+                pdk_librelane, pdk_magic, pdk_klayout, pdk_netgen]
+    timing:    [harden, spec_yaml_sans_formal, pdk_version, pdk_liberty]
+    drc:       [harden, spec_yaml_sans_formal, pdk_version, pdk_magic,
+                pdk_klayout]
+    lvs:       [harden, spec_yaml_sans_formal, pdk_version, pdk_magic,
+                pdk_netgen]
+    glsim:     [harden, tb, spec_yaml_sans_formal, pdk_version]
+    precheck:  [harden, harden_info, spec_yaml_sans_formal, pdk_version,
+                pdk_magic, pdk_klayout]
+    release:   [rtl, harden, pdk_version]
   ade:
     # kinds[0] is each script's own stamp path; the rest is what it reads
     # besides. spec_yaml: every gate below reads spec.yaml (top, supply,
@@ -175,23 +220,53 @@ gate_inputs:
     # for pins and its bench from tb/ or layout_ref/.
     spec_lint:      [spec_yaml]
     netlist_lint:   [netlist, spec_yaml]
-    sim_tt:         [netlist, tb, spec_yaml, sizing]
-    sim_pvt:        [netlist, tb, spec_yaml, sizing]
-    bench_strength: [netlist, tb, mutant_rulings, spec_yaml, sizing]
-    mc:             [netlist, tb, spec_yaml, sizing]
-    drc:            [layout, spec_yaml]
-    lvs:            [layout, netlist, spec_yaml, sizing]
-    pex_sim:        [layout, tb, layout_ref, netlist, spec_yaml]
-    release:        [netlist, layout, sizing, spec_yaml]
+    # pdk_* (#138): the sims read the ngspice models; drc/lvs/pex_sim build
+    # the layout from the PDK's klayout pcells (layoutlib.gf180_cells) and
+    # run magic/netgen/klayout decks; pex_sim simulates on the models.
+    sim_tt:         [netlist, tb, spec_yaml, sizing, pdk_version, pdk_models]
+    sim_pvt:        [netlist, tb, spec_yaml, sizing, pdk_version, pdk_models]
+    bench_strength: [netlist, tb, mutant_rulings, spec_yaml, sizing,
+                     pdk_version, pdk_models]
+    mc:             [netlist, tb, spec_yaml, sizing, pdk_version, pdk_models]
+    drc:            [layout, spec_yaml, pdk_version, pdk_magic, pdk_klayout]
+    lvs:            [layout, netlist, spec_yaml, sizing, pdk_version,
+                     pdk_magic, pdk_netgen, pdk_klayout]
+    pex_sim:        [layout, tb, layout_ref, netlist, spec_yaml, pdk_version,
+                     pdk_models, pdk_magic, pdk_klayout]
+    release:        [netlist, layout, sizing, spec_yaml, pdk_version]
   msde:
-    split:    [interface]
-    # the bench simulates the released RTL and the sized analog netlist
-    cosim:    [interface, tb, digital_rtl, analog_netlist, analog_sizing]
-    top_harden: [digital_rtl, analog_layout, top_sdc, digital_sdc]
-    top_drc:  [top_gds]
-    top_lvs:  [top_gds, analog_layout]
-    precheck: [top_gds, interface]
-    release:  [interface, digital_rtl, analog_layout]
+    # #113: every file each gate opens (tests/test_msde_freshness.py plants
+    # an edit per input and checks exactly these gates go stale).
+    # split reads interface.yaml and the two root-level side specs.
+    split:    [interface, digital_side_spec, analog_side_spec]
+    # the bench simulates the released RTL and the sized analog netlist; its
+    # analog model (ideal or transistor .sp) lives in tb/. A calibrated
+    # model's source has no file of its own until model_check (#107) lands.
+    cosim:    [interface, tb, digital_rtl, analog_netlist, analog_sizing,
+               pdk_version, pdk_models]
+    # check_top_harden.assemble: interface.yaml (signals, widths, ua_pins,
+    # tiles), the digital spec.yaml (ports, tt_pins, everything copied into
+    # top/spec), digital/rtl, digital/harden/constraints.sdc or top.sdc, and
+    # the analog macro: layout generator + netlist + sizing (the sized
+    # .subckt it writes to top/macros) + analog spec.yaml's `top`. The
+    # digital side's harden config.json/override are NOT read: top/ is
+    # rebuilt from scratch and check_harden generates top/harden itself.
+    top_harden: [digital_rtl, interface, digital_spec, analog_layout,
+                 analog_netlist, analog_sizing, analog_spec, top_sdc,
+                 digital_sdc, pdk_version, pdk_liberty, pdk_librelane,
+                 pdk_magic, pdk_klayout, pdk_netgen]
+    top_drc:  [top_gds, top_spec, pdk_version, pdk_magic, pdk_klayout]
+    # top_lvs: the GDS, the powered netlist and the macro .subckt in
+    # top/macros; that .subckt derives from analog netlist + sizing, so
+    # those are inputs too - a sizing edit after top_harden stales top_lvs
+    # before top_harden has rewritten top/macros.
+    top_lvs:  [top_gds, analog_layout, top_spec, top_macros, top_pnl,
+               analog_netlist, analog_sizing, pdk_version, pdk_magic,
+               pdk_netgen]
+    precheck: [top_gds, interface, pdk_version, pdk_magic, pdk_klayout]
+    release:  [interface, digital_rtl, analog_layout, digital_spec,
+               analog_netlist, analog_sizing, digital_side_spec,
+               analog_side_spec, pdk_version]
 
 # Edit-class taxonomy -> what an edit of that class makes stale (docs/
 # design.md 1.6, one block per skill).

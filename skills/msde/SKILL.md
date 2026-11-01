@@ -254,10 +254,6 @@ step up and record it; never silently drop a tier.
   `docs/spikes/dcosim.md`), and the working bench (`corpus/msde/
   ring_osc_div`) simulates an `ideal` analog model. A transistor-level
   block inside the bridge has not converged reliably yet.
-- **`top_harden` hashes only `digital/rtl` and `analog/layout`.** A
-  change to the digital `spec.yaml` (its ports, its tt_pins) or to the
-  analog sizing does not stale a recorded pass - re-run `top_harden`, then
-  `top_drc` and `top_lvs`, by hand after one.
 - **The macro sits in the middle of the tile**, placed by `top_harden`, at
   a size the analog layout decides. It moves off-centre by up to one stripe
   pitch where that lets the tile's power stripes reach its supplies. A
@@ -269,8 +265,7 @@ step up and record it; never silently drop a tier.
 - **`split` reads the two root-level side specs**, not the nested runs'
   own `spec.yaml` (`check_split.py`'s docstring). A nested spec-writer
   that drifts from `digital_spec.yaml` is caught by `cosim` or `top_lvs`,
-  not by `split`. And `split` hashes only `interface.yaml`, so re-run it
-  by hand after a side-spec-only edit.
+  not by `split`.
 - **No msde fixer routing in the engine.** `cluster_violations.FIXER_HINTS`
   has no split or cosim kinds; the playbook routes every msde order to the
   msde fixer instead (see the fix loop above).

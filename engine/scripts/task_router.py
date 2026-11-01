@@ -422,7 +422,9 @@ def workspace_context(ws: Path | None, imap: dict, skill: str | None = None) -> 
              "state": f"{ctx['workspace']}/state.json"}
     for kind in imap["artifact_kinds"]:
         rel = statelib.kind_path(kind, imap, registry)
-        slots[kind] = f"{ctx['workspace']}/{rel}"
+        slots[kind] = (str(statelib.resolve(ctx["workspace"], rel))
+                       if statelib.is_pdk_path(rel)
+                       else f"{ctx['workspace']}/{rel}")
     for slot, sub in DIR_SLOTS.items():
         slots[slot] = f"{ctx['workspace']}/{sub}"
     ctx["slots"] = slots

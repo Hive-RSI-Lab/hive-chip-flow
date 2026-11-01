@@ -306,3 +306,24 @@ def test_the_release_record_carries_a_scope_out_made_at_h1(tmp_path):
     (ws / "state.json").write_text(json.dumps(data), encoding="utf-8")
     att, problems = attest_mod.build(ws)
     assert att is None and any("does not verify" in p for p in problems)
+
+
+def test_the_release_record_pins_the_pdk_and_verify_refuses_another(
+        tmp_path, monkeypatch):
+    """#138: checks.json names the open_pdks commit it was signed off on;
+    the same record under a toolchain carrying another PDK does not
+    verify."""
+    pin = {"name": "gf180mcuD", "open_pdks": "1689ac3f", "ciel": "1689ac3f",
+           "root": "/t"}
+    monkeypatch.setattr(attest_mod.statelib, "pdk_version", lambda: dict(pin))
+    ws = make_ws(tmp_path)
+    pass_every_gate(ws, "msde")
+    att, problems = attest_mod.build(ws)
+    assert problems == []
+    assert att["pdk"] == {"name": "gf180mcuD", "open_pdks": "1689ac3f",
+                          "ciel": "1689ac3f"}
+    attest_mod.write_attestation(ws, att)
+    assert attest_mod.verify(ws)["valid"] is True
+    pin["open_pdks"] = "deadbeef"
+    v = attest_mod.verify(ws)
+    assert v["valid"] is False and "PDK" in v["reason"]
