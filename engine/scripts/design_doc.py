@@ -85,7 +85,7 @@ GATE_WHAT = {
     "cdc": "clock domain crossings",
     "harden": "LibreLane to GDS", "timing": "OpenSTA signoff",
     "drc": "magic + klayout DRC", "lvs": "netgen LVS",
-    "glsim": "gate-level sim", "precheck": "Tiny Tapeout precheck",
+    "glsim": "gate-level sim", "lec": "logical equivalence", "precheck": "Tiny Tapeout precheck",
     "netlist_lint": "ngspice dry run", "sim_tt": "typical corner",
     "sim_pvt": "PVT corners", "bench_strength": "bench mutants",
     "mc": "Monte Carlo", "pex_sim": "post-layout sim",

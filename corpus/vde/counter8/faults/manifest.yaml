@@ -77,6 +77,10 @@ faults:
     gate: glsim
     plant: plant_glsim_sdf.py
     expect: {status: fail, kind: test_failed}
+  - name: lec_stray_gate_glsim_cannot_see
+    gate: lec
+    plant: plant_lec.py
+    expect: {status: fail, kind: lec_not_equivalent}
   - name: precheck_wrong_top_module_name
     gate: precheck
     plant: plant_precheck.py

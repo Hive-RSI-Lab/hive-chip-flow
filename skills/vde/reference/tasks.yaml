@@ -165,6 +165,8 @@ verbs:
         why: "extracted layout matches the hardened netlist"
       - gate: glsim
         why: "the sim suite on the gate-level netlist, functional then SDF"
+      - gate: lec
+        why: "RTL = synth netlist = final/nl, proved, not simulated"
       - gate: precheck
         why: "tt-support-tools precheck"
       - note: "P7 optimise is optional and not part of a default full-run -

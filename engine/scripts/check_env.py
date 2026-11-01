@@ -52,6 +52,9 @@ DEFAULT_TIMEOUT = 30.0
 CLI_TOOLS: dict[str, tuple[list[str], re.Pattern]] = {
     "yosys": (["yosys", "--version"], re.compile(r"Yosys \S+")),
     "sby": (["sby", "--version"], re.compile(r"SBY \S+")),
+    "eqy": (["eqy", "--version"], re.compile(r"EQY \S+")),
+    "kepler-formal": (["kepler-formal", "--version"],
+                      re.compile(r"naja git hash: \S+")),
     "verilator": (["verilator", "--version"], re.compile(r"Verilator \S+")),
     "iverilog": (["iverilog", "-V"],
                  re.compile(r"Icarus Verilog version \S+")),

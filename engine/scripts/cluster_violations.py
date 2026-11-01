@@ -208,6 +208,13 @@ FIXER_HINTS: dict[str, str] = {
     # lvs (check_lvs.py)
     "netlist_mismatch": "harden",
 
+    # lec (check_lec.py): a netlist that differs is harden's to redo; what the
+    # proof could not decide is not a fixer's to argue with.
+    "lec_not_equivalent": "harden",
+    "lec_unproven": "review",
+    "lec_unmodelled_cell": "review",
+    "lec_engines_disagree": "review",
+
     # precheck (check_precheck.py) - glsim's own kinds (test_failed/
     # test_skipped) are shared with sim/holdout above.
     "precheck_failed": "harden",

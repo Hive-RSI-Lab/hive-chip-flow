@@ -134,6 +134,7 @@ Gates (from `engine/reference/gates.yaml`, run via `gate.py --gate <name>
 | drc | P6 | 0 violations, magic + klayout |
 | lvs | P6 | extracted layout matches the hardened netlist |
 | glsim | P6 | the sim suite passes on the gate-level netlist, functional then SDF |
+| lec | P6 | RTL = LibreLane's synth netlist = `final/nl`, proved on every flop pin and output; needs the run dir's synth step, so a trimmed run refuses |
 | precheck | P6 | tt-support-tools precheck passes |
 | release | P8 | every applicable gate fresh-pass; waivers carry reason+approval+durability; every `check: measure` bound inside its limits on the recorded value its `source` names (`engine/scripts/measures.py` prints the table any time) |
 
