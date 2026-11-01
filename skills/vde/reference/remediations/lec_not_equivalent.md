@@ -16,5 +16,9 @@ change encoding, and the data and output cones that read it then differ. Look fo
 `(* fsm_encoding = "none" *)` on the state register in rtl/ and re-harden, so the
 netlist keeps the RTL's encoding. Don't waive it.
 
+A flop in `unmatched.gold` with a cone reading it may be one synthesis removed as
+constant (it only ever holds one value). This gate can't tell that from a lost
+flop, so it fails: remove the flop from rtl/ if it really is constant.
+
 `pin_kind` clock, set or reset with a cone that looks right means the flop type
 changed (edge or reset polarity).

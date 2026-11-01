@@ -42,7 +42,7 @@ init attributes; `rtl_init` says if the RTL has any), timing, and sequential
 equivalence: retiming or a recoded FSM moves state, so names no longer match
 and it fails rather than passing. `unmatched` lists key points in one view
 only: those pass only if nothing observable reads them (a duplicate flop the
-synthesiser merged).
+synthesiser merged). So a flop synthesis removed as constant fails if read.
 """
 from __future__ import annotations
 

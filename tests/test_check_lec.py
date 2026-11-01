@@ -33,10 +33,10 @@ module counter8 (input wire clk, input wire rst, output reg [7:0] count);
   always @(posedge clk)
     if (rst) begin state <= A; count <= 8'd0; end
     else case (state)
-      A: begin state <= B; count <= 8'd1; end
-      B: begin state <= C; count <= 8'd2; end
-      C: begin state <= D; count <= 8'd4; end
-      D: begin state <= A; count <= 8'd8; end
+      A: begin state <= B; count <= count + 8'd1; end
+      B: begin state <= C; count <= count + 8'd2; end
+      C: begin state <= D; count <= count + 8'd4; end
+      D: begin state <= A; count <= count + 8'd8; end
     endcase
 endmodule
 """
