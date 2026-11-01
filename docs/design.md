@@ -134,7 +134,7 @@ Mixed-signal (`/msde`):
 | cosim | ngspice `d_cosim` running the Icarus-compiled digital side inside the analog bench | every top-level measure inside its bound | control word polarity inverted |
 | top_drc | magic and klayout on the assembled GDS | 0 | a planted spacing violation |
 | top_lvs | netgen on the assembled GDS, the analog block as a subcircuit | match | a macro pin left unconnected |
-| release | attest, strict | both nested runs released, top gates fresh | a stale nested release |
+| release | attest, strict | both nested runs released, top gates fresh; every file in the staged tree held by a gate record (release/manifest.json) | a stale nested release |
 
 ### 1.6 The stale map
 

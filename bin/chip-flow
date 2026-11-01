@@ -25,6 +25,9 @@
 #                              --no-run reads only
 #   chip-flow eda <tool> ...   bin/eda: any tool from the tree (ngspice,
 #                              xschem, magic, netgen, klayout, yosys, ...)
+#   chip-flow release --verify DIR
+#                              re-hash a submission tree against the
+#                              release/manifest.json its release wrote
 #   chip-flow <script> [args]  engine/scripts/<script>.py with the tree's
 #                              python (gate, state, task_router, faults, ...)
 #

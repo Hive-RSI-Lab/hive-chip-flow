@@ -40,6 +40,13 @@ exists, carries the right skill, and its own reports/checks.json still
 verifies against its current files and state (attest.py verify) - so a
 nested RTL or netlist edit after that side released reads as a stale
 nested release and refuses here, whatever the top gates say.
+
+A hardened tile (vde or msde) also gets release/manifest.json, in the workspace
+and in the staged tree: each deliverable's sha256 and the gate records holding
+it (manifestlib.py, issue #132). A file in the tree no gate holds refuses as
+`deliverable_untied`. A refused release writes the manifest too, marked
+`released: false`; checks.json's tt_submission holds the digest of a released
+one. `chip-flow release --verify DIR` checks a submission tree against it.
 """
 from __future__ import annotations
 
@@ -55,6 +62,7 @@ sys.path.insert(0, str(SCRIPTS))
 sys.path.insert(0, str(ENGINE / "lib"))
 import checklib  # noqa: E402
 import attest as attest_mod  # noqa: E402
+import manifestlib  # noqa: E402
 import measurelib  # noqa: E402
 import speclib  # noqa: E402
 import statelib  # noqa: E402
@@ -127,16 +135,28 @@ def run(argv=None):
         nested = nested_problems(ws)
         if nested:
             att, problems = None, problems + nested
-    # A hardened vde tile ships through a TT workflow: the GDS it ships must
-    # be the one the gates signed off (ttship.py). Staged even when the
+    # A hardened tile ships through a TT workflow: the GDS it ships must be
+    # the one the gates signed off (ttship.py), and every file in the tree
+    # must be held by a gate record (manifestlib.py). Staged even when the
     # gates refuse, so the tree that would ship is there to look at.
     tt_record = None
-    if skill == "vde" and (ws / "harden" / "config.json").is_file():
-        ship, tt_record = ttship.release_check(ws, args.tt_repo)
+    harden = ttship.HARDEN_DIR.get(skill)
+    is_tile = harden and (ws / harden / "config.json").is_file()
+    repo = Path(args.tt_repo) if args.tt_repo else ws / "release" / "tt"
+    entries: list[dict] = []
+    try:
+        waivers = attest_mod.load_waivers(ws)
+    except ValueError:
+        waivers = []    # attest.build above has already refused on this
+    if is_tile:
+        ship, tt_record = ttship.release_check(ws, repo, skill=skill)
         if ship:
             att, problems = None, problems + ship
-        elif att is not None:
-            att = with_tt_submission(att, tt_record)
+        if tt_record:
+            entries, untied = manifestlib.deliverables(ws, skill, repo, tt_record,
+                                                       waivers)
+            if untied:
+                att, problems = None, problems + untied
     # issue #89: every vde `check: measure` bound is read from the gate
     # record it names; a bound it misses, or a number nobody recorded,
     # refuses the release (missing is never a pass)
@@ -165,9 +185,21 @@ def run(argv=None):
                            if ":" in p else None,
                            "nested_not_released" if p.startswith("nested_")
                            else "tt_ship_mismatch" if p.startswith("tt_")
+                           else "deliverable_untied"
+                           if p.startswith("deliverable_untied")
                            else "gate_not_ready", [], p, "attest")
         for p in problems
     ]
+    manifest = None
+    if is_tile:
+        manifest = manifestlib.write(
+            ws, repo, skill, entries, tt_record or {}, att,
+            [v["msg"] for v in violations], waivers)
+        if att is not None:
+            sealed = {k: v for k, v in tt_record.items() if k != "sources"}
+            att = with_tt_submission(att, {
+                **sealed, "manifest": manifestlib.PATH,
+                "manifest_sha256": manifest["manifest_sha256"]})
 
     facts: dict = {}
     if att is not None:
@@ -180,7 +212,11 @@ def run(argv=None):
             "waived": waived,
         }
     if tt_record is not None:
-        facts["tt_submission"] = tt_record
+        facts["tt_submission"] = {k: v for k, v in tt_record.items()
+                                  if k != "sources"}
+    if manifest is not None:
+        facts["manifest"] = manifestlib.PATH
+        facts["manifest_released"] = manifest["released"]
     if measures:
         facts["measures"] = measures
 
