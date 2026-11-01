@@ -1113,6 +1113,17 @@ def choose_netlist(extracted, schematic) -> tuple[Path, str]:
                   f"schematic ({schematic}) exists")
 
 
+def _write_verdict(out_dir: Path, library: str, ok: bool, text: str) -> Path:
+    """One file per corner, this run's verdict: a rerun into the same directory
+    must not leave an earlier pass's .lib beside its rejection, or the reverse."""
+    good = out_dir / f"{library}.lib"
+    rejected = out_dir / f"{library}.rejected.lib"
+    path, other = (good, rejected) if ok else (rejected, good)
+    other.unlink(missing_ok=True)
+    path.write_text(text, encoding="utf-8")
+    return path
+
+
 def characterize(cell: str, *, template_lib: Path, corners: list[dict],
                  nominal_vdd: float, out_dir: Path, pdk: Path, schematic=None,
                  extracted=None, cell_text: str | None = None,
@@ -1176,9 +1187,7 @@ def characterize(cell: str, *, template_lib: Path, corners: list[dict],
         banner = (f"/* charlib (lctime): {cell} at {name}, {vdd:g} V, "
                   f"{corner['temp_c']} C, process {corner['process']}, "
                   f"{netlist_kind} netlist. Timing and input capacitance only. */\n")
-        path = out_dir / (f"{library}.lib" if check["ok"]
-                          else f"{library}.rejected.lib")
-        path.write_text(banner + lib_text, encoding="utf-8")
+        path = _write_verdict(out_dir, library, check["ok"], banner + lib_text)
         report["corners"][name] = {"lib": str(path), "vdd": vdd, "check": check}
         ok = ok and check["ok"]
     report["ok"] = ok

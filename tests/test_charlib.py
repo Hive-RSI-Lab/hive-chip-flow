@@ -223,6 +223,15 @@ def test_assemble_refuses_axes_that_were_not_asked_for():
     assert exc.value.kind == "table_axes"
 
 
+def test_a_rejected_rerun_leaves_no_earlier_lib_behind(tmp_path):
+    good, bad = tmp_path / "c__tt.lib", tmp_path / "c__tt.rejected.lib"
+    assert charlib._write_verdict(tmp_path, "c__tt", True, "first") == good
+    assert charlib._write_verdict(tmp_path, "c__tt", False, "second") == bad
+    assert not good.exists() and bad.read_text() == "second"
+    assert charlib._write_verdict(tmp_path, "c__tt", True, "third") == good
+    assert not bad.exists() and good.read_text() == "third"
+
+
 def test_pick_is_a_subset_of_the_template_only():
     assert charlib.pick([1, 2, 3], [0, 2]) == [1, 3]
     assert charlib.pick([1, 2, 3], None) == [1, 2, 3]
