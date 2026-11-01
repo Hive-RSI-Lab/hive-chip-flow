@@ -280,8 +280,16 @@ def run(argv=None):
     outcomes = []
     all_violations = []
     measures_by_bench: dict[str, list[dict]] = {}
+    not_scored: list[str] = []
+    tt_names = corners_mod.names_of(tt_corner)
     for bench_path, bounds_path in sim_run.find_benches(ws):
         bounds = simlib.load_bounds(bounds_path)
+        # MC runs at tt alone, so a bench with no bound scored there has
+        # nothing to judge (a bench that holds its stimulus for one corner
+        # prints no measure at tt, and would read as one sample repeated)
+        if not any(simlib.scored_at(b, tt_names) for b in bounds):
+            not_scored.append(bench_path.name)
+            continue
         template_text, bench_par = add_par_for_multiplier(
             bench_path.read_text(encoding="utf-8"))
         par_added += [dict(d, bench=bench_path.name) for d in bench_par]
@@ -327,7 +335,7 @@ def run(argv=None):
         SCRIPT, ws / "netlist", violations, top=top, applicable=True,
         runs=total, hits=hits, yield_frac=round(yield_frac, 4),
         yield_min=yield_min, seeds=seeds, par_added=par_added,
-        results=outcomes,
+        not_scored=not_scored, results=outcomes,
         sample_violations=all_violations[:20])
     return payload, args.out
 
