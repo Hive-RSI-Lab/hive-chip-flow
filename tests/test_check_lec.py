@@ -25,6 +25,23 @@ import leclib  # noqa: E402
 import speclib  # noqa: E402
 
 
+# counter8's ports with a state machine yosys's fsm pass recognises and recodes.
+FSM = """\
+module counter8 (input wire clk, input wire rst, output reg [7:0] count);
+  localparam A = 2'd0, B = 2'd1, C = 2'd2, D = 2'd3;
+  reg [1:0] state;
+  always @(posedge clk)
+    if (rst) begin state <= A; count <= 8'd0; end
+    else case (state)
+      A: begin state <= B; count <= 8'd1; end
+      B: begin state <= C; count <= 8'd2; end
+      C: begin state <= D; count <= 8'd4; end
+      D: begin state <= A; count <= 8'd8; end
+    endcase
+endmodule
+"""
+
+
 def _plant_module():
     path = REPO / "corpus" / "vde" / "counter8" / "faults" / "plant_lec.py"
     spec = importlib.util.spec_from_file_location("plant_lec", path)
@@ -313,6 +330,39 @@ def test_unmodelled_cell_is_a_finding_not_a_pass(ws):
         "endmodule", f"  {fx.CELL}icgtp_1 stray_icg (.CLK(clk), .E(ena), "
         ".TE(ena), .Q());\nendmodule", 1), encoding="utf-8")
     assert "lec_unmodelled_cell" in kinds(run(ws))
+
+
+@pytest.mark.slow
+def test_register_on_a_memory_read_keeps_its_name(tmp_path):
+    """spi_fifo: folded into the read port, its flops have no name to match and
+    a correct design fails."""
+    ws = fx.build(tmp_path / "ws", REPO / "corpus" / "vde" / "spi_fifo")
+    p = run(ws)
+    assert p["status"] == "pass", p["violations"]
+    assert p["links"]["rtl_vs_synth"]["unmatched"] == {"gold": [], "gate": []}
+
+
+@pytest.mark.slow
+def test_recoded_fsm_fails_rather_than_passes(tmp_path):
+    """Sequential equivalence is out of scope: the state register keeps its
+    name and changes encoding. Pinned until that gap closes."""
+    rung = tmp_path / "rung"
+    (rung / "rtl").mkdir(parents=True)
+    (rung / "tb").mkdir()
+    shutil.copy(fx.RUNG / "spec.yaml", rung / "spec.yaml")
+    (rung / "rtl" / "counter8.v").write_text(FSM, encoding="utf-8")
+    p = run(fx.build(tmp_path / "ws", rung))
+    assert kinds(p) == ["lec_not_equivalent"]
+    assert any("state" in (v.get("key_point") or "")
+               or v.get("output") for v in p["violations"])
+    assert not points(p, "synth_vs_final")
+
+    # What lec_not_equivalent.md tells a block to do about it.
+    (rung / "rtl" / "counter8.v").write_text(FSM.replace(
+        "reg [1:0] state", '(* fsm_encoding = "none" *) reg [1:0] state'),
+        encoding="utf-8")
+    p = run(fx.build(tmp_path / "ws2", rung))
+    assert p["status"] == "pass", p["violations"]
 
 
 @pytest.mark.slow

@@ -11,17 +11,23 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 EDA = REPO / "bin" / "eda"
 RUNG = REPO / "corpus" / "vde" / "counter8"
-WRAPPER = "tt_um_counter8"
 CELL = "gf180mcu_fd_sc_mcu7t5v0__"
+
+
+def _wrapper(ws: Path) -> str:
+    import speclib
+    import ttlib
+    return ttlib.wrapper_name(speclib.load_spec(ws / "spec" / "spec.yaml"))
 
 
 def synth_path(ws: Path) -> Path:
     return (ws / "harden" / "runs" / "run" / "06-yosys-synthesis" /
-            f"{WRAPPER}.nl.v")
+            f"{_wrapper(ws)}.nl.v")
 
 
 def final_path(ws: Path) -> Path:
-    return ws / "harden" / "runs" / "run" / "final" / "nl" / f"{WRAPPER}.nl.v"
+    return (ws / "harden" / "runs" / "run" / "final" / "nl" /
+            f"{_wrapper(ws)}.nl.v")
 
 
 def pnr_edits(netlist: str) -> str:
@@ -47,27 +53,29 @@ endmodule"""
     return text.replace("endmodule", extra, 1)
 
 
-def build(ws: Path) -> Path:
+def build(ws: Path, rung: Path = RUNG) -> Path:
     """The workspace with its run dir. Needs the eda image."""
     import check_synth
     import speclib
     import ttlib
     (ws / "spec").mkdir(parents=True)
-    shutil.copy(RUNG / "spec.yaml", ws / "spec" / "spec.yaml")
-    shutil.copytree(RUNG / "rtl", ws / "rtl")
-    shutil.copytree(RUNG / "tb", ws / "tb")
+    shutil.copy(rung / "spec.yaml", ws / "spec" / "spec.yaml")
+    shutil.copytree(rung / "rtl", ws / "rtl")
+    shutil.copytree(rung / "tb", ws / "tb")
     spec = speclib.load_spec(ws / "spec" / "spec.yaml")
     (ws / "harden").mkdir()
-    wrapper = ws / "harden" / f"{WRAPPER}.v"
+    top = ttlib.wrapper_name(spec)
+    wrapper = ws / "harden" / f"{top}.v"
     wrapper.write_text(ttlib.generate_tt_wrapper(spec), encoding="utf-8")
     liberty = check_synth.liberty_path(check_synth.toolchain_root(),
                                        check_synth.choose_std_cell(spec))
     synth = synth_path(ws)
     synth.parent.mkdir(parents=True)
+    sources = " ".join(str(f) for f in check_synth.collect_sources(ws))
     script = ws / "fixture.ys"
     script.write_text(f"""\
-read_verilog -sv -DSYNTHESIS {ws}/rtl/counter8.v {wrapper}
-synth -flatten -top {WRAPPER}
+read_verilog -sv -DSYNTHESIS {sources} {wrapper}
+synth -flatten -top {top}
 dfflibmap -liberty {liberty}
 abc -liberty {liberty}
 hilomap -singleton -hicell {CELL}tieh Z -locell {CELL}tiel ZN
