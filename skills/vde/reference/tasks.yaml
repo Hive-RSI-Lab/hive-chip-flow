@@ -143,8 +143,9 @@ verbs:
         why: "no latches, unmapped cells or combinational loops - almost
               always an RTL fix when it fails, never a hand-edited netlist"
       - gate: cdc
-        why: "every crossing between inferred clock domains synchronised and
-              every clock gate glitch-free, or waived with a reason in
+        why: "every crossing between inferred clock domains synchronised,
+              every clock gate glitch-free and every async reset's release
+              synchronised per domain, or waived with a reason in
               spec/cdc.yaml - the waiver is the person's call, not a fixer's"
       - note: "Write log/P5-digest.md before advancing."
       - do: "scripts/state.py set-phase --workspace {ws} --phase P6"
