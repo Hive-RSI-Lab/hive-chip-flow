@@ -1,6 +1,6 @@
 """engine/scripts/check_pex_sim.py: the ade `pex_sim` gate (docs/design.md
 1.5, 5, "### M9."). Real magic parasitic extraction (every capacitor, and
-extresist's wire resistance) then ngspice at typical corner against the
+extresist's wire resistance) then ngspice at the block's corners against the
 corpus's own layout_ref/ post-layout bench + .bounds.json."""
 from __future__ import annotations
 
@@ -352,7 +352,10 @@ def test_clean_mirror_pex_sim_passes(tmp_path):
     assert code == 0, out
     assert out["violations"] == []
     assert out["parasitics"]["r"] > 0 and out["parasitics"]["c"] > 0
-    assert set(out["measured"]) == {"v(iout)", "f3db"}
+    assert set(out["measured"]) == {"vdrop", "f3db"}
+    # no sim_pvt record in a scratch ws: the whole sweep, and it passes
+    assert out["corners"] == ["tt", "ss", "ff", "sf", "fs"]
+    assert set(out["measured_by_corner"]) == set(out["corners"])
     gate_result = gate.evaluate("pex_sim", _pex_sim_gate_row(), out)
     assert gate_result["status"] == "pass"
 
@@ -365,9 +368,9 @@ def test_clean_r2r_dac_pex_sim_passes(tmp_path):
     assert out["parasitics"]["c"] > 0
     m = out["measured"]
     # the three codes of a 1:1 ladder, the rung's current sizing
-    assert abs(m["vout_lsb"] - 0.66) < 0.02
-    assert abs(m["vout_msb"] - 1.98) < 0.02
-    assert abs(m["vout_both"] - 2.64) < 0.02
+    assert abs(m["vout_lsb_frac"] - 0.2) < 0.006
+    assert abs(m["vout_msb_frac"] - 0.6) < 0.018
+    assert abs(m["vout_both_frac"] - 0.8) < 0.024
 
 
 @pytest.mark.slow
@@ -380,10 +383,256 @@ def test_long_output_line_fails_pex_sim(tmp_path):
     mod.plant(ws)
     code, out = run_json(["--workspace", str(ws)], tmp_path)
     assert code == 1, out
-    bad = {v["refs"][0] for v in out["violations"]}
-    assert bad == {"f3db"}
+    assert {"f3db", "tt"} <= {r for v in out["violations"] for r in v["refs"]}
     gate_result = gate.evaluate("pex_sim", _pex_sim_gate_row(), out)
     assert gate_result["status"] == "fail"
+
+
+def _plant(ws, name):
+    path = CORPUS / "mirror" / "faults" / name
+    spec = importlib.util.spec_from_file_location(name[:-3], path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    mod.plant(ws)
+
+
+@pytest.mark.slow
+def test_a_fault_only_slow_hot_shows_fails_and_names_the_corner(tmp_path):
+    ws = make_ws(tmp_path, "mirror")
+    _plant(ws, "plant_pex_line_slow_corner_only.py")
+    code, out = run_json(["--workspace", str(ws)], tmp_path)
+    assert code == 1, out
+    failed = {tuple(sorted(v["refs"])) for v in out["violations"]}
+    assert failed == {("f3db", "ss"), ("f3db", "sf")}, out["violations"]
+    assert all("@ s" in v["msg"] for v in out["violations"])
+    assert 5e8 <= out["measured_by_corner"]["tt"]["f3db"]
+    assert gate.evaluate("pex_sim", _pex_sim_gate_row(), out)["status"] == "fail"
+
+
+@pytest.mark.slow
+def test_typical_only_pass_on_that_fault_is_what_the_sweep_catches(tmp_path):
+    # what the gate did before corners: typical alone passes this layout
+    ws = make_ws(tmp_path, "mirror")
+    _plant(ws, "plant_pex_line_slow_corner_only.py")
+    spec = ws / "spec" / "spec.yaml"
+    spec.write_text(spec.read_text(encoding="utf-8") + "pex_corners: [tt]\n",
+                    encoding="utf-8")
+    code, out = run_json(["--workspace", str(ws)], tmp_path)
+    assert code == 0, out
+    assert out["corners"] == ["tt"]
+
+
+@pytest.mark.slow
+def test_default_selection_with_a_sim_pvt_record_still_runs_slow_hot(
+        tmp_path, monkeypatch):
+    # sim_pvt never measured f3db and saw no wire C: slow/hot is in anyway
+    ws = make_ws(tmp_path, "mirror")
+    _plant(ws, "plant_pex_line_slow_corner_only.py")
+    monkeypatch.setattr(check_pex_sim, "fresh_sim_pvt_results",
+                        lambda _ws: [{"corner": "ff",
+                                      "measures": {"iout_raw": 3e-5}}])
+    code, out = run_json(["--workspace", str(ws)], tmp_path)
+    assert code == 1, out
+    assert out["corners"] == ["tt", "ss"]
+    assert {r for v in out["violations"] for r in v["refs"]} == {"f3db", "ss"}
+
+
+SWEEP = [{"name": "tt", "process": "typical", "temp_c": 27, "supply_pct": 0},
+         {"name": "ss", "process": "ss", "temp_c": 125, "supply_pct": -10},
+         {"name": "ff", "process": "ff", "temp_c": -40, "supply_pct": 10},
+         {"name": "sf", "process": "sf", "temp_c": 125, "supply_pct": -10},
+         {"name": "fs", "process": "fs", "temp_c": -40, "supply_pct": 10}]
+GRID = [{"name": "tt_m40c", "process": "typical", "temp_c": -40, "supply_pct": 0},
+        {"name": "tt_27c", "process": "typical", "temp_c": 27, "supply_pct": 0},
+        {"name": "ss_27c", "process": "ss", "temp_c": 27, "supply_pct": 0},
+        {"name": "ss_125c_vm10", "process": "ss", "temp_c": 125,
+         "supply_pct": -10},
+        {"name": "ss_pff", "process": "ss", "temp_c": 125, "supply_pct": -10,
+         "passive": "ff"}]
+
+
+def _names(corners):
+    return [c["name"] for c in corners]
+
+
+def test_typical_and_slow_are_found_in_a_grid():
+    assert check_pex_sim.typical_corner(GRID)["name"] == "tt_27c"
+    assert check_pex_sim.slow_corner(GRID)["name"] == "ss_125c_vm10"
+    assert check_pex_sim.slow_corner(SWEEP[:1]) is None
+
+
+def test_worst_corner_is_least_margin_to_the_pex_bound_per_measure():
+    bounds = [{"measure": "f", "min": 100.0}, {"measure": "G", "min": 0.0,
+                                               "max": 10.0},
+              {"measure": "not_in_sim_pvt", "max": 1.0}]
+    results = [{"corner": "tt", "measures": {"f": 150.0, "g": 5.0}},
+               {"corner": "ff", "measures": {"f": 300.0, "g": 9.5}},
+               {"corner": "sf", "measures": {"f": 90.0, "g": 4.0}}]
+    assert check_pex_sim.worst_corners(SWEEP, bounds, results) == ["sf", "ff"]
+
+
+def test_worst_corner_honours_a_bounds_scope():
+    bounds = [{"measure": "f", "min": 100.0, "corners": ["tt", "ff"]}]
+    results = [{"corner": "tt", "measures": {"f": 150.0}},
+               {"corner": "ff", "measures": {"f": 300.0}},
+               {"corner": "ss", "measures": {"f": 1.0}}]
+    assert check_pex_sim.worst_corners(SWEEP, bounds, results) == ["tt"]
+
+
+@pytest.mark.parametrize("field, results, want, source", [
+    (None, None, ["tt", "ss", "ff", "sf", "fs"], "whole sweep"),
+    (None, [], ["tt", "ss"], "sim_pvt"),
+    (None, [{"corner": "fs", "measures": {"f": 1.0}}], ["tt", "ss", "fs"],
+     "sim_pvt"),
+    ("all", None, ["tt", "ss", "ff", "sf", "fs"], "all"),
+    (["ff"], None, ["tt", "ff"], "pex_corners"),   # typical is never dropped
+    (["tt"], [{"corner": "fs", "measures": {"f": 1.0}}], ["tt"], "pex_corners"),
+])
+def test_select_corners(field, results, want, source):
+    picked, got, unswept = check_pex_sim.select_corners(
+        field, SWEEP, [{"measure": "f", "min": 0.0}], results)
+    assert _names(picked) == want and source in got and unswept == []
+
+
+def test_a_bounds_own_corner_joins_the_set_or_is_unswept():
+    in_sweep = {"measure": "f", "min": 0.0, "corners": ["ff"]}
+    picked, _, unswept = check_pex_sim.select_corners(
+        ["tt"], SWEEP, [in_sweep], None)
+    assert _names(picked) == ["tt", "ff"] and unswept == []
+    outside = {"measure": "f", "min": 0.0, "corners": ["tt_pss"]}
+    _, _, unswept = check_pex_sim.select_corners(["tt"], SWEEP, [outside], None)
+    assert unswept == [outside]
+
+
+@pytest.mark.parametrize("field", ["ss", [], [1], ["nope"], {"grid": 1}])
+def test_bad_pex_corners_refuses(field):
+    with pytest.raises(CheckError, match="pex_corners"):
+        check_pex_sim.select_corners(field, SWEEP, [], None)
+
+
+def test_a_grid_name_selects_by_any_of_its_names():
+    picked, _, _ = check_pex_sim.select_corners(
+        ["tt_27c", "ss_125c_vm10"], GRID, [], None)
+    assert _names(picked) == ["tt_27c", "ss_125c_vm10"]
+
+
+def test_unaware_tokens_names_what_the_corners_move():
+    typ = SWEEP[:1]
+    bare = "* typical only\n"
+    assert check_pex_sim.unaware_tokens(bare, typ, ["resistor"]) == []
+    assert check_pex_sim.unaware_tokens(bare, SWEEP, []) == [
+        "corner", "temp_c", "vdd"]
+    assert check_pex_sim.unaware_tokens(bare, SWEEP, ["resistor", "mim_cap"]) == [
+        "corner", "temp_c", "vdd", "res_corner", "mim_corner"]
+    aware = "{corner} {temp_c} {vdd}"
+    assert check_pex_sim.unaware_tokens(aware, SWEEP, []) == []
+    # a single non-typical corner moves them too
+    assert check_pex_sim.unaware_tokens(bare, SWEEP[1:2], []) == [
+        "corner", "temp_c", "vdd"]
+    # a sweep whose resistors are pinned by a scope-out owes no res_corner
+    pinned = [dict(c, pinned={"resistor": "typical"}) for c in SWEEP]
+    assert "res_corner" not in check_pex_sim.unaware_tokens(
+        bare, pinned, ["resistor"])
+
+
+def test_a_typical_only_bench_under_a_corner_sweep_is_a_finding_and_no_sim_runs(
+        unlaunchable_eda, tmp_path, monkeypatch):
+    import layoutlib
+    ws = unlaunchable_eda
+    _rc_extract(monkeypatch)
+    _spec(ws, "top: blk\nsupply: {vdd: 3.3}\n")
+    (ws / "netlist" / "blk.cir").write_text(
+        ".subckt blk a b\nR1 a b 1k\n.ends\n", encoding="utf-8")
+
+    def no_sim(*a, **k):
+        raise AssertionError("a bench ran")
+    monkeypatch.setattr(layoutlib, "run_eda", no_sim)
+    code, out = run_json(["--workspace", str(ws)], tmp_path)
+    assert code == 1, out
+    assert {v["kind"] for v in out["violations"]} == {
+        "pex_bench_not_corner_aware"}
+    assert {r for v in out["violations"] for r in v["refs"]} == {
+        "corner", "temp_c", "vdd"}
+
+
+def _spec(ws, text):
+    (ws / "spec").mkdir(exist_ok=True)
+    (ws / "spec" / "spec.yaml").write_text(text, encoding="utf-8")
+
+
+def _aware_bench(ws, bounds):
+    (ws / "layout_ref" / "blk_pex_tb.cir").write_text(
+        ".lib x {corner}\n.temp {temp_c}\nv1 a 0 {vdd}\n.end\n",
+        encoding="utf-8")
+    (ws / "layout_ref" / "blk_pex_tb.bounds.json").write_text(
+        json.dumps({"measures": bounds}), encoding="utf-8")
+
+
+def test_each_corner_gets_its_own_deck_values_and_bound(
+        unlaunchable_eda, tmp_path, monkeypatch):
+    import layoutlib
+    ws = unlaunchable_eda
+    _rc_extract(monkeypatch)
+    _spec(ws, "top: blk\nsupply: {vdd: 3.3}\npex_corners: [ss]\n")
+    (ws / "netlist" / "blk.cir").write_text(
+        ".subckt blk a b\nR1 a b 1k\n.ends\n", encoding="utf-8")
+    _aware_bench(ws, {"x": [{"min": 1, "corners": ["tt"]},
+                            {"min": 3, "corners": ["ss"]}]})
+    decks = {}
+
+    def sim(bench, cwd, timeout, failed_measures):
+        decks[bench.name] = bench.read_text(encoding="utf-8")
+        return "x = 2.0\n"
+    monkeypatch.setattr(layoutlib, "run_ngspice", sim)
+    code, out = run_json(["--workspace", str(ws)], tmp_path)
+    assert code == 1, out
+    ss = decks["blk_pex_tb__ss.cir"]
+    assert ".lib x ss\n" in ss and ".temp 125\n" in ss and "v1 a 0 2.97\n" in ss
+    tt = decks["blk_pex_tb__tt.cir"]
+    assert ".lib x typical\n" in tt and "v1 a 0 3.3\n" in tt
+    [v] = out["violations"]
+    assert v["kind"] == "measure_out_of_bounds" and "x @ ss = 2" in v["msg"]
+    assert out["measured"] == {"x": 2.0}  # typical's
+    assert out["measured_by_corner"] == {"tt": {"x": 2.0}, "ss": {"x": 2.0}}
+
+
+def test_a_corner_with_no_scored_bound_is_skipped_and_listed(
+        unlaunchable_eda, tmp_path, monkeypatch):
+    import layoutlib
+    ws = unlaunchable_eda
+    _rc_extract(monkeypatch)
+    _spec(ws, "top: blk\nsupply: {vdd: 3.3}\npex_corners: [ss]\n")
+    (ws / "netlist" / "blk.cir").write_text(
+        ".subckt blk a b\nR1 a b 1k\n.ends\n", encoding="utf-8")
+    _aware_bench(ws, {"x": {"min": 1, "corners": ["tt"]}})
+    monkeypatch.setattr(layoutlib, "run_ngspice",
+                        lambda *a, **k: "x = 2.0\n")
+    code, out = run_json(["--workspace", str(ws)], tmp_path)
+    assert code == 0, out
+    assert list(out["measured_by_corner"]) == ["tt"]
+    assert [n["corner"] for n in out["not_scored"]] == ["ss"]
+
+
+def test_a_stale_sim_pvt_record_is_no_record(tmp_path, monkeypatch):
+    import statelib
+    ws = tmp_path
+    rec = ws / "reports" / "recorded" / "gate-sim_pvt.json"
+    assert check_pex_sim.fresh_sim_pvt_results(ws) is None
+    rec.parent.mkdir(parents=True)
+    results = [{"corner": "ff", "measures": {"f": 1.0}}]
+    rec.write_text(json.dumps({"inputs_at_start": {"netlist": "a"},
+                               "facts": {"results": results}}),
+                   encoding="utf-8")
+    monkeypatch.setattr(statelib, "gate_input_hashes",
+                        lambda *a, **k: {"netlist": "a"})
+    assert check_pex_sim.fresh_sim_pvt_results(ws) == results
+    # a record from before pdk_* were inputs is judged on what it holds
+    monkeypatch.setattr(statelib, "gate_input_hashes",
+                        lambda *a, **k: {"netlist": "a", "pdk_models": "x"})
+    assert check_pex_sim.fresh_sim_pvt_results(ws) == results
+    monkeypatch.setattr(statelib, "gate_input_hashes",
+                        lambda *a, **k: {"netlist": "b"})
+    assert check_pex_sim.fresh_sim_pvt_results(ws) is None
 
 
 def _unlabelled_mirror(tmp_path):
@@ -440,10 +689,11 @@ def _rc_extract(monkeypatch):
 # defaults when the spec says nothing."
 @pytest.mark.parametrize("spec, flag, want", [
     (None, [], 120.0),
-    ("top: blk\n", [], 120.0),
-    ("top: blk\nsim_timeout_s: {pex_sim: 900}\n", [], 900.0),
-    ("top: blk\nsim_timeout_s: {sim_tt: 900}\n", [], 120.0),
-    ("top: blk\nsim_timeout_s: {pex_sim: 900}\n", ["--timeout", "30"], 30.0),
+    ("top: blk\npex_corners: [tt]\n", [], 120.0),
+    ("top: blk\npex_corners: [tt]\nsim_timeout_s: {pex_sim: 900}\n", [], 900.0),
+    ("top: blk\npex_corners: [tt]\nsim_timeout_s: {sim_tt: 900}\n", [], 120.0),
+    ("top: blk\npex_corners: [tt]\nsim_timeout_s: {pex_sim: 900}\n",
+     ["--timeout", "30"], 30.0),
     (None, ["--timeout", "30"], 30.0),
 ])
 def test_pex_sim_timeout_comes_from_spec_then_flag(unlaunchable_eda, tmp_path,
@@ -481,7 +731,7 @@ def test_pex_sim_timeout_is_a_refusal_naming_the_spec_knob(unlaunchable_eda,
     ws = unlaunchable_eda
     (ws / "spec").mkdir()
     (ws / "spec" / "spec.yaml").write_text(
-        "top: blk\nsim_timeout_s: {pex_sim: 0.3}\n", encoding="utf-8")
+        "top: blk\npex_corners: [tt]\nsim_timeout_s: {pex_sim: 0.3}\n", encoding="utf-8")
     _rc_extract(monkeypatch)
     slow = ws.parent / "slow_eda"
     slow.write_text("#!/usr/bin/env bash\nexec sleep 5\n", encoding="utf-8")
@@ -491,6 +741,7 @@ def test_pex_sim_timeout_is_a_refusal_naming_the_spec_knob(unlaunchable_eda,
     assert code == 2, out
     assert "0.3 s limit" in out["remediation"]
     assert "sim_timeout_s: {pex_sim: <seconds>}" in out["remediation"]
+    assert "at corner tt" in out["remediation"]
 
 
 def test_pex_sim_refuses_a_bad_spec_timeout(unlaunchable_eda, monkeypatch,

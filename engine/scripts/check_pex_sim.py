@@ -17,16 +17,48 @@ gives it: an optimistic netlist is never benched. klayout_pex as the second
 extractor is not wired up at M9.
 
 Then it runs the block's post-layout bench, `tb/<block>_pex_tb.cir` or
-`layout_ref/<block>_pex_tb.cir`, at the typical corner against the
-extracted netlist, and checks every value the bench prints (`print` or
-`meas` in its .control block, "name = value") against the same-stem
-`.bounds.json`'s `measures` map ({name: {min, max}}). A bench here should
+`layout_ref/<block>_pex_tb.cir`, against the extracted netlist at each
+corner of its corner set (below), and checks every value the bench prints
+(`print` or `meas` in its .control block, "name = value") against the
+same-stem `.bounds.json`'s `measures` map ({name: {min, max}}, or a list of
+those for a measure with a different bound per corner). A bench here should
 measure what parasitics move - a pole, a delay, a settling time - not only
 a DC point that a wire's capacitance cannot touch.
 
-The bench template carries two substitution tokens, `{pdk}` (the resolved
-toolchain's PDK root) and `{extracted}` (the parasitic netlist this run
-just produced), so it runs unchanged on any host. The bench instantiates
+Corner set. Extraction runs once; only the bench repeats, so the cost is
+one ngspice run per corner. The corners come from spec.yaml's `corners`
+through sim_run.spec_sweep, the expansion sim_pvt uses, and `pex_corners`
+picks among them:
+  - absent: typical, the sweep's slow/hot/low-supply corner, and for each
+    bounded measure sim_pvt also measured, the corner where sim_pvt's value
+    came closest to (or past) this bound. Slow/hot is always in because
+    sim_pvt ran the schematic: it never saw the wire R and C, so a measure
+    it found safest at slow can still be the one a long route breaks there.
+    With no fresh sim_pvt record to read, the whole sweep.
+  - a list of corner names (any name corners.names_of accepts): those, and
+    typical, which is never dropped.
+  - "all": the whole sweep.
+A bound may carry a `corners` list, as a sim sidecar's does (simlib.
+scored_at); such a bound is scored only there, and the corners it names join
+the set, so no bound goes unscored because of the selection. A bound naming
+a corner outside the sweep is `sim_bound_not_swept`. A corner no bound is
+scored at is skipped and listed in `not_scored`.
+
+Every finding names its corner. The report keeps `measured` (the typical
+corner's values, or the first corner run when no bound is scored at typical),
+and adds `corners`, `corner_source`, `measured_by_corner` and `not_scored`.
+R/C extraction corners (cworst/rcworst) are not here: GF180 ships no corner
+tech for magic, so the wire R and C are the same at every corner above.
+
+The bench template carries substitution tokens, filled by str.format: `{pdk}`
+(the resolved toolchain's PDK root) and `{extracted}` (the parasitic netlist
+this run just produced), so it runs unchanged on any host, and per corner
+`{corner}` (the transistor .lib section), `{res_corner}` and `{mim_corner}`
+(the passive .lib sections, res_<p> and mimcap_<p>), `{temp_c}` and `{vdd}`.
+A bench that hard-codes any of these while the corner set moves it would run
+every corner as typical and pass them unseen, so it is a
+`pex_bench_not_corner_aware` finding and nothing is run. `pex_corners:
+[<typical>]` is the one way to keep a typical-only bench. The bench instantiates
 the extracted cell positionally in the pin order of M8's netlist, and magic
 numbers ports in an order of its own, so the extracted `.subckt` line is
 rewritten into the reference's pin order first; a pin set that differs is
@@ -58,17 +90,13 @@ layout one, and is left to ngspice to refuse.
 
 The bench run has a time limit: --timeout when given, else the spec's
 `sim_timeout_s: {pex_sim: N}` (speclib.sim_timeout; a large RC netlist can
-take minutes), else 120 s. A run past it is a refusal whose remediation
-names that knob, never a pass.
-
-"the worst corner" (docs/design.md 1.5) is not run here - M9's own
-boundary is proving the extract-then-resim path on typical; the full
-corner sweep is `/ade`'s `sim_pvt`-style job, out of scope until the skill
-session lands.
+take minutes), else 120 s, per corner. A run past it is a refusal whose
+remediation names that knob and the corner, never a pass.
 """
 from __future__ import annotations
 
 import argparse
+import math
 import re
 import subprocess
 import sys
@@ -79,10 +107,14 @@ ENGINE = SCRIPTS.parent
 sys.path.insert(0, str(SCRIPTS))
 sys.path.insert(0, str(ENGINE / "lib"))
 import checklib  # noqa: E402
+import corners as corners_mod  # noqa: E402
 import layoutlib  # noqa: E402
 import layout_gen  # noqa: E402
 import netlistlib  # noqa: E402
+import sim_run  # noqa: E402
+import simlib  # noqa: E402
 import speclib  # noqa: E402
+import statelib  # noqa: E402
 from checklib import CheckError  # noqa: E402
 
 SCRIPT = "check_pex_sim"
@@ -235,6 +267,182 @@ def probe_findings(bench_text: str, ref_text: str, extracted_text: str,
         "magic") for net in sorted(missing)]
 
 
+# ---- the corner set ---------------------------------------------------------
+def bound_list(measures: dict, where: str) -> list[dict]:
+    """The sidecar's `measures` map as simlib-shaped bounds, [{measure, min,
+    max, corners?}, ...]. A measure holds one bound or a list of them."""
+    out = []
+    for name, entry in measures.items():
+        for b in entry if isinstance(entry, list) else [entry]:
+            if not isinstance(b, dict):
+                raise CheckError(f"{where}: measure {name!r} must be a "
+                                 "{min, max, corners} mapping or a list of them")
+            out.append({**b, "measure": name})
+    return out
+
+
+def _named(sweep: list[dict], name: str) -> dict | None:
+    return next((c for c in sweep if name in corners_mod.names_of(c)), None)
+
+
+def typical_corner(sweep: list[dict]) -> dict:
+    """The sweep's nearest thing to tt at 27 C and nominal supply."""
+    tts = [c for c in sweep if c["process"] == "typical"
+           and corners_mod.passive_of(c) == "typical"] or sweep
+    return min(tts, key=lambda c: (abs(c["supply_pct"]), abs(c["temp_c"] - 27)))
+
+
+def slow_corner(sweep: list[dict]) -> dict | None:
+    """The sweep's slow, hot, low-supply corner, passives moving with the
+    transistors (ss, not ss_pff, on a tie). None with no ss corner."""
+    slows = [c for c in sweep if c["process"] == "ss"]
+    return min(slows, key=lambda c: (-c["temp_c"], c["supply_pct"],
+                                     corners_mod.passive_of(c) != "ss"),
+               default=None)
+
+
+def _margin(value: float, bound: dict) -> float:
+    """Distance from `value` to the nearest side of `bound`; negative past it."""
+    sides = []
+    if bound.get("min") is not None:
+        sides.append(value - bound["min"])
+    if bound.get("max") is not None:
+        sides.append(bound["max"] - value)
+    return min(sides) if sides else math.inf
+
+
+def worst_corners(sweep: list[dict], bounds: list[dict],
+                  results: list[dict]) -> list[str]:
+    """For each bound, the sweep corner where sim_pvt's value of that measure
+    (`results`, its report's) has the least margin to this bound. A measure
+    sim_pvt did not print contributes nothing. Pure."""
+    worst = []
+    for b in bounds:
+        key = b["measure"].lower()
+        best = None
+        for c in sweep:
+            if not simlib.scored_at(b, corners_mod.names_of(c)):
+                continue
+            for r in results:
+                if r.get("corner") != c["name"]:
+                    continue
+                for name, v in (r.get("measures") or {}).items():
+                    if name.lower() == key and isinstance(v, (int, float)):
+                        m = _margin(v, b)
+                        if best is None or m < best[0]:
+                            best = (m, c["name"])
+        if best is not None:
+            worst.append(best[1])
+    return worst
+
+
+def fresh_sim_pvt_results(ws: Path) -> list[dict] | None:
+    """The recorded sim_pvt gate's per-corner results, or None when there is
+    no record or its inputs have moved since: a stale record says nothing
+    about which corner is worst now."""
+    rec_path = ws / "reports" / "recorded" / "gate-sim_pvt.json"
+    if not rec_path.is_file():
+        return None
+    rec = checklib.load_json(rec_path, "the recorded sim_pvt gate")
+    recorded = rec.get("inputs_at_start")
+    results = (rec.get("facts") or {}).get("results")
+    if not recorded or not results:
+        return None
+    imap = statelib.load_map()
+    current = statelib.gate_input_hashes(ws, "ade", "sim_pvt", imap)
+    # a record older than the pdk_* inputs does not carry them: judged on the
+    # inputs it holds, since the design's own inputs are what move the margins
+    if not current or any(k in recorded and recorded[k] != v
+                          for k, v in current.items()):
+        return None
+    return results
+
+
+def select_corners(field, sweep: list[dict], bounds: list[dict],
+                   results: list[dict] | None
+                   ) -> tuple[list[dict], str, list[dict]]:
+    """(corners to run in sweep order, where the choice came from, bounds
+    scoped only to corners outside the sweep). `field` is the spec's
+    `pex_corners` (None when absent); a name outside the sweep refuses."""
+    if field == "all" or (field is None and results is None):
+        picked = list(sweep)
+        source = ("pex_corners: all" if field == "all" else
+                  "the whole sweep: no fresh sim_pvt record to pick from")
+    elif field is None:
+        slow = slow_corner(sweep)
+        picked = [typical_corner(sweep)] + ([slow] if slow else []) + [
+            _named(sweep, n) for n in worst_corners(sweep, bounds, results)]
+        source = "typical, slow/hot, and sim_pvt's worst per measure"
+    else:
+        problem = pex_corners_problem(field, sweep)
+        if problem:
+            raise CheckError(problem)
+        picked = [typical_corner(sweep)] + [_named(sweep, n) for n in field]
+        source = "spec.yaml pex_corners"
+    unswept = []
+    for b in bounds:
+        scope = b.get("corners")
+        if scope in (None, "all"):
+            continue
+        scope = scope if isinstance(scope, list) else [scope]
+        hits = [_named(sweep, n) for n in scope if _named(sweep, n)]
+        if hits:
+            picked += hits
+        else:
+            unswept.append(b)
+    names = {c["name"] for c in picked}
+    return [c for c in sweep if c["name"] in names], source, unswept
+
+
+def pex_corners_problem(field, sweep: list[dict]) -> str | None:
+    """What is wrong with a spec's `pex_corners`, or None. spec_lint and the
+    gate both ask here."""
+    if field == "all":
+        return None
+    if not (isinstance(field, list) and field
+            and all(isinstance(n, str) for n in field)):
+        return ("spec.yaml 'pex_corners' must be \"all\" or a non-empty list "
+                "of corner names")
+    known = set().union(*(corners_mod.names_of(c) for c in sweep))
+    bad = [n for n in field if n not in known]
+    if bad:
+        return (f"spec.yaml 'pex_corners' names {bad}, which the spec's "
+                f"corners do not sweep; swept: {sorted(known)}")
+    return None
+
+
+def unaware_tokens(template: str, corners: list[dict],
+                   passives: list[str]) -> list[str]:
+    """The tokens the bench must use for `corners` and does not. Pure."""
+    def moves(fn) -> bool:
+        return len({fn(c) for c in corners}) > 1 or fn(corners[0]) != fn(BASE)
+    need = []
+    if moves(lambda c: c["process"]):
+        need.append("corner")
+    if moves(lambda c: c["temp_c"]):
+        need.append("temp_c")
+    if moves(lambda c: c["supply_pct"]):
+        need.append("vdd")
+    for device, token in (("resistor", "res_corner"), ("mim_cap", "mim_corner")):
+        if device in passives and moves(
+                lambda c, d=device: corners_mod.passive_of(c, d)):
+            need.append(token)
+    return [t for t in need if "{" + t + "}" not in template]
+
+
+# what a bench hard-coding everything is correct at
+BASE = {"process": "typical", "temp_c": 27, "supply_pct": 0}
+
+
+def corner_tokens(corner: dict, nominal_vdd) -> dict:
+    vdd = (f"{corners_mod.resolve_vdd(corner, nominal_vdd):.6g}"
+           if nominal_vdd is not None else "")
+    return {"corner": corner["process"],
+            "res_corner": f"res_{corners_mod.passive_of(corner, 'resistor')}",
+            "mim_corner": f"mimcap_{corners_mod.passive_of(corner, 'mim_cap')}",
+            "temp_c": corner["temp_c"], "vdd": vdd}
+
+
 def run(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--workspace", required=True, help="block workspace")
@@ -247,15 +455,16 @@ def run(argv=None):
 
     ws = Path(args.workspace).resolve()  # tools run with cwd=log/
     spec_path = ws / "spec" / "spec.yaml"
-    timeout = speclib.sim_timeout(
-        speclib.load_spec(spec_path) if spec_path.is_file() else None,
-        "pex_sim", args.timeout, DEFAULT_TIMEOUT)
+    spec = speclib.load_spec(spec_path) if spec_path.is_file() else None
+    timeout = speclib.sim_timeout(spec, "pex_sim", args.timeout,
+                                  DEFAULT_TIMEOUT)
     block = layout_gen.block_of(ws, args.block)
     bench_tpl, bounds_path = find_bench(ws, block)
     bounds = checklib.load_json(bounds_path, "pex_sim bounds")
     measures = bounds.get("measures")
     if not isinstance(measures, dict) or not measures:
         raise CheckError(f"{bounds_path} has no non-empty 'measures' map")
+    bound_rows = bound_list(measures, str(bounds_path))
 
     import check_analog_lvs
     ref_path = check_analog_lvs.find_reference_netlist(ws, block)
@@ -280,9 +489,30 @@ def run(argv=None):
     extracted.write_text(reorder_pins(raw_text, topcell, ref_pins),
                          encoding="utf-8")
 
+    if spec is None:
+        # spec_lint refuses a block with no spec long before this gate; a
+        # bare workspace has no sweep to read, so typical is all there is
+        sweep, field, nominal_vdd = [dict(BASE, name="tt")], None, None
+        corner_list, source, unswept = sweep, "no spec.yaml: typical only", []
+    else:
+        sweep, _scoped = sim_run.spec_sweep(ws)
+        field, nominal_vdd = spec.get("pex_corners"), (spec.get("supply")
+                                                       or {}).get("vdd")
+        corner_list, source, unswept = select_corners(
+            field, sweep, bound_rows,
+            None if field is not None else fresh_sim_pvt_results(ws))
+
+    template = bench_tpl.read_text(encoding="utf-8")
+    if "{vdd}" in template and (isinstance(nominal_vdd, bool) or not isinstance(
+            nominal_vdd, (int, float))):
+        raise CheckError(f"{bench_tpl.name} uses {{vdd}} and spec.yaml has no "
+                         "numeric 'supply.vdd' - run spec_lint first")
     pdk = layoutlib.pdk_root()
-    bench_text = bench_tpl.read_text(encoding="utf-8").format(
-        pdk=pdk, extracted=extracted.resolve())
+
+    def deck(corner: dict) -> str:
+        return template.format(pdk=pdk, extracted=extracted.resolve(),
+                               **corner_tokens(corner, nominal_vdd))
+    bench_text = deck(corner_list[0])
 
     # a floating ground or an unlabelled probe is not a bench worth running:
     # the findings alone
@@ -297,60 +527,108 @@ def run(argv=None):
             parasitics=parasitics, measured={})
         return payload, args.out
 
-    bench_path = work_dir / f"{block}_pex_tb.cir"
-    layoutlib.fresh(bench_path)
-    bench_path.write_text(bench_text, encoding="utf-8")
-
-    # a meas whose trigger/target never happened (a latch that decided the
-    # wrong way never lets outn fall) comes back by name and is a finding
-    # below; any other ngspice error still refuses the gate
-    never_met: set[str] = set()
-    try:
-        sim_out = layoutlib.run_ngspice(bench_path, cwd=work_dir,
-                                        timeout=timeout,
-                                        failed_measures=never_met)
-    except layoutlib.LayoutError as exc:
-        if isinstance(exc.__cause__, subprocess.TimeoutExpired):
-            raise CheckError(speclib.timeout_hint("pex_sim", timeout)) from exc
-        raise
-    values = layoutlib.parse_ngspice_prints(sim_out)
-    if not values:
-        raise CheckError(
-            "ngspice produced no parseable 'name = value' print lines - "
-            f"the bench did not measure anything: {sim_out[-2000:]}")
+    corner_names = [c["name"] for c in corner_list]
+    rel_bounds = str(bounds_path.relative_to(ws))
+    rel_bench = str(bench_tpl.relative_to(ws))
+    passives = corners_mod.passive_devices(ref_text)
+    refused = [checklib.violation(
+        "pex_sim", "error", rel_bench, topcell, "pex_bench_not_corner_aware",
+        [token], f"{bench_tpl.name} never uses {{{token}}}, and this run's "
+        f"corners ({', '.join(corner_names)}) move it: every corner would "
+        "simulate as typical and pass unseen. Use the token in the bench (the "
+        f"bench-writer), or keep it typical-only with `pex_corners: "
+        f"[{typical_corner(sweep)['name']}]` in spec.yaml", "check_pex_sim")
+        for token in unaware_tokens(template, corner_list, passives)]
+    refused += [checklib.violation(
+        "pex_sim", "error", rel_bounds, topcell, "sim_bound_not_swept",
+        [b["measure"]], f"{b['measure']}: its bound is scoped to "
+        f"{b.get('corners')}, which the spec's corners do not sweep, so it "
+        "would never be scored", "check_pex_sim") for b in unswept]
+    if refused:
+        payload = checklib.report(
+            SCRIPT, ws / "layout", refused, topcell=topcell, gds=rel_gds,
+            extracted=str(extracted.relative_to(ws)), parasitics=parasitics,
+            measured={}, corners=corner_names, corner_source=source)
+        return payload, args.out
 
     violations = []
-    measured = {}
-    rel_bounds = str(bounds_path.relative_to(ws))
-    for name, bound in measures.items():
-        key = name.lower()
-        if key in never_met and key not in values:
-            violations.append(checklib.violation(
-                "pex_sim", "error", rel_bounds, topcell, "measure_missing",
-                [name], f"{name}: the bench's trigger/target condition was "
-                "never met (ngspice: 'failed!') - the circuit never made "
-                "the transition this measure times", "ngspice"))
+    by_corner: dict[str, dict] = {}
+    not_scored = []
+    for corner in corner_list:
+        cname = corner["name"]
+        names = corners_mod.names_of(corner)
+        scored = [b for b in bound_rows if simlib.scored_at(b, names)]
+        if not scored:
+            not_scored.append({"corner": cname,
+                               "reason": "no bound is scored at this corner"})
             continue
-        if key not in values:
-            violations.append(checklib.violation(
-                "pex_sim", "error", rel_bounds, topcell, "measure_missing",
-                [name], f"bench never printed a value for {name!r} "
-                f"(printed: {sorted(values)})", "ngspice"))
-            continue
-        v = values[key]
-        measured[name] = v
-        lo, hi = bound.get("min"), bound.get("max")
-        if (lo is not None and v < lo) or (hi is not None and v > hi):
-            violations.append(checklib.violation(
-                "pex_sim", "error", rel_bounds, topcell,
-                "measure_out_of_bounds", [name],
-                f"{name} = {v:.6g}, outside bound [{lo}, {hi}]", "ngspice"))
+        bench_path = work_dir / f"{block}_pex_tb__{cname}.cir"
+        layoutlib.fresh(bench_path)
+        bench_path.write_text(deck(corner), encoding="utf-8")
+
+        # a meas whose trigger/target never happened (a latch that decided
+        # the wrong way never lets outn fall) comes back by name and is a
+        # finding below; any other ngspice error still refuses the gate
+        never_met: set[str] = set()
+        try:
+            sim_out = layoutlib.run_ngspice(bench_path, cwd=work_dir,
+                                            timeout=timeout,
+                                            failed_measures=never_met)
+        except layoutlib.LayoutError as exc:
+            if isinstance(exc.__cause__, subprocess.TimeoutExpired):
+                raise CheckError(f"at corner {cname}: " + speclib.timeout_hint(
+                    "pex_sim", timeout)) from exc
+            raise CheckError(f"at corner {cname}: {exc}") from exc
+        values = layoutlib.parse_ngspice_prints(sim_out)
+        if not values:
+            raise CheckError(
+                f"at corner {cname}: ngspice produced no parseable 'name = "
+                "value' print lines - the bench did not measure anything: "
+                f"{sim_out[-2000:]}")
+
+        measured = by_corner.setdefault(cname, {})
+        for bound in scored:
+            name = bound["measure"]
+            key = name.lower()
+            if key in never_met and key not in values:
+                violations.append(checklib.violation(
+                    "pex_sim", "error", rel_bounds, topcell, "measure_missing",
+                    [name, cname], f"{name} @ {cname}: the bench's trigger/"
+                    "target condition was never met (ngspice: 'failed!') - "
+                    "the circuit never made the transition this measure times",
+                    "ngspice"))
+                continue
+            if key not in values:
+                violations.append(checklib.violation(
+                    "pex_sim", "error", rel_bounds, topcell, "measure_missing",
+                    [name, cname], f"{name} @ {cname}: bench never printed a "
+                    f"value for it (printed: {sorted(values)})", "ngspice"))
+                continue
+            v = values[key]
+            measured[name] = v
+            lo, hi = bound.get("min"), bound.get("max")
+            if (not math.isfinite(v) or (lo is not None and v < lo)
+                    or (hi is not None and v > hi)):
+                violations.append(checklib.violation(
+                    "pex_sim", "error", rel_bounds, topcell,
+                    "measure_out_of_bounds", [name, cname],
+                    f"{name} @ {cname} = {v:.6g}, outside bound [{lo}, {hi}]",
+                    "ngspice"))
+
+    if not by_corner:
+        raise CheckError(
+            f"no bound in {bounds_path.name} is scored at any of "
+            f"{corner_names}: a gate with nothing to run is a refusal")
+    typical = typical_corner(corner_list)["name"]
+    measured = by_corner.get(typical) or next(iter(by_corner.values()))
 
     payload = checklib.report(
         SCRIPT, ws / "layout", violations, topcell=topcell,
         gds=str(gds_path.relative_to(ws)),
         extracted=str(extracted.relative_to(ws)),
-        parasitics=parasitics, measured=measured)
+        parasitics=parasitics, measured=measured, corners=corner_names,
+        corner_source=source, measured_by_corner=by_corner,
+        not_scored=not_scored)
     return payload, args.out
 
 

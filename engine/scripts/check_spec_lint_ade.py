@@ -114,6 +114,14 @@ def run(argv=None):
                     f"measure {m.get('name')!r} names corner(s) {missing} "
                     f"no sweep of this spec runs, whatever its netlist "
                     f"holds: {sorted(swept)}", "corners"))
+        pex = spec.get("pex_corners")
+        if swept is not None and isinstance(pex, list):
+            missing = [c for c in pex if c not in swept]
+            if missing:
+                violations.append(checklib.violation(
+                    "spec_lint", "error", SPEC_REL, None, "bad_pex_corners",
+                    missing, f"pex_corners names corner(s) {missing} no sweep "
+                    f"of this spec runs: {sorted(swept)}", "corners"))
     tt = corners_mod.corners_by_name(corners_mod.load(), ["tt"])[0]
     matching, waived = speclib.lint_matching_measures(
         spec, rel_path=SPEC_REL, mc_corner_names=corners_mod.names_of(tt))

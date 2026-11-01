@@ -2,7 +2,10 @@
   "measures": {
     "vdiff_pos": {"min": 2.5},
     "vdiff_neg": {"max": -2.5},
-    "tdelay": {"min": 1.0e-10, "max": 5.0e-10},
+    "tdelay": [
+      {"min": 1.0e-10, "max": 5.0e-10, "corners": ["tt", "ff", "fs"]},
+      {"min": 1.0e-10, "max": 7.5e-10, "corners": ["ss", "sf"]}
+    ],
     "vreset": {"min": 2.6}
   }
 }

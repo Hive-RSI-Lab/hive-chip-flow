@@ -112,6 +112,10 @@ CHECK_KINDS = {"sim", "formal", "both", "measure"}
 #                        own default; the check's --timeout flag overrides
 #                        it (sim_timeout()). A run past it is still a
 #                        refusal or a finding, never a pass
+#     pex_corners: "all" | [name, ...]   optional; the corners of the
+#                        spec's sweep pex_sim runs its bench at. Absent:
+#                        typical, slow/hot and sim_pvt's worst per measure
+#                        (check_pex_sim.py's docstring)
 
 ADE_MEASURE_CORNER_KINDS = {"default", "all"}
 # the gates that run ngspice, each with a --timeout and a default of its own
@@ -250,6 +254,13 @@ def lint_spec_ade(spec: dict, rel_path: str = "spec/spec.yaml") -> list[dict]:
         problem = sim_timeout_problem(spec["sim_timeout_s"])
         if problem:
             bad("bad_sim_timeout", problem)
+
+    if "pex_corners" in spec:
+        field = spec["pex_corners"]
+        if field != "all" and not (isinstance(field, list) and field and all(
+                isinstance(n, str) for n in field)):
+            bad("bad_pex_corners", "spec.yaml 'pex_corners' must be \"all\" "
+                                   "or a non-empty list of corner names")
 
     return out
 

@@ -79,13 +79,17 @@ the same measures when the spec names none explicitly) only - not
 
 **Protocol:**
 1. Write `layout_ref/<block>_pex_tb.cir`: same instantiation discipline as
-   the spec bench, but against `{pdk}`/`{extracted}` tokens (literal
+   the spec bench, but against `{pdk}`/`{extracted}` and the per-corner
+   `{corner}`/`{res_corner}`/`{mim_corner}`/`{temp_c}`/`{vdd}` tokens (literal
    `.format()` braces, not `{{...}}` - `check_pex_sim.py`'s own docstring)
    and measuring what PARASITICS move - a pole, a delay, a settling time -
    never only a DC point a wire's R/C cannot touch.
 2. Write `layout_ref/<block>_pex_tb.bounds.json`: `{"measures": {...}}`
    from `post_layout_bounds`, or the spec's own bounds when the spec names
-   none - say which you used in SUMMARY.
+   none - say which you used in SUMMARY. Each bound is judged at every
+   corner the gate runs: where a value rightly moves with the corner, read
+   it against vdd, or scope the bound (`"corners": [...]`, or a list of
+   bounds for one measure).
 3. `check_pex_sim.py` runs the bench positionally against the extracted
    cell in `netlist/<block>.cir`'s pin order - keep your instantiation in
    that same order.

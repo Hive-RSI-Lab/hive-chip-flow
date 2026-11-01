@@ -123,7 +123,7 @@ Analog (`/ade`):
 | mc | ngspice Monte Carlo, only when the spec asks | yield at or above the spec | a window typical meets but mismatch misses (not applicable when the spec asks for no MC) |
 | drc | magic and klayout | 0 | a planted spacing violation |
 | lvs | netgen, extracted layout versus the sized netlist | match | a device sized differently in the generator than in the netlist |
-| pex_sim | magic ext2spice with parasitics (klayout_pex second), then the bench at typical and the worst corner | every measure inside `post_layout_bounds` | an output routed on a long minimum-width metal1 line |
+| pex_sim | magic ext2spice with parasitics (klayout_pex second), then the bench at typical and the worst corners (`pex_corners`) | every measure inside `post_layout_bounds` at each | an output routed on a long minimum-width metal1 line |
 | release | attest, strict | as digital | as digital |
 
 Mixed-signal (`/msde`):

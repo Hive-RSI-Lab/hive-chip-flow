@@ -1,7 +1,7 @@
-* comparator_pex_tb.cir - the post-layout bench for the comparator, typical
-* corner (docs/design.md 1.5's ade pex_sim row). It runs on the magic-
+* comparator_pex_tb.cir - the post-layout bench for the comparator, at each
+* pex_sim corner (docs/design.md 1.5's ade pex_sim row). It runs on the magic-
 * extracted, parasitic-annotated netlist of this run's own GDS;
-* check_pex_sim.py fills in {pdk} and {extracted}, never a path typed by hand.
+* check_pex_sim.py fills in its tokens, never a path typed by hand.
 *
 * tb/comparator_tb.cir's stimulus with a 10mV input step, not 1mV: clk
 * rises at 5n with inp 10mV above inn, the inputs swap during the reset at
@@ -20,13 +20,15 @@
 * 1mV decision took 0.63ns, past the 0.5ns bound. At 10mV the reference
 * decides both ways with tdelay 0.41ns; the bounds are unchanged.
 .include '{pdk}/libs.tech/ngspice/design.spice'
-.lib '{pdk}/libs.tech/ngspice/sm141064.spice' typical
+.lib '{pdk}/libs.tech/ngspice/sm141064.spice' {corner}
 .include '{extracted}'
+.temp {temp_c}
 
-vdd vdd 0 dc 3.3
-vclk clk 0 PULSE(0 3.3 5n 50p 50p 4.95n 10n)
-vinp inp 0 PWL(0 1.655 11n 1.655 11.1n 1.645 30n 1.645)
-vinn inn 0 PWL(0 1.645 11n 1.645 11.1n 1.655 30n 1.655)
+.param vcm={vdd}/2
+vdd vdd 0 dc {vdd}
+vclk clk 0 PULSE(0 {vdd} 5n 50p 50p 4.95n 10n)
+vinp inp 0 PWL(0 {{vcm+5m}} 11n {{vcm+5m}} 11.1n {{vcm-5m}} 30n {{vcm-5m}})
+vinn inn 0 PWL(0 {{vcm-5m}} 11n {{vcm-5m}} 11.1n {{vcm+5m}} 30n {{vcm+5m}})
 xdut inp inn clk outp outn vdd 0 strongarm_comparator
 cloadp outp 0 10f
 cloadn outn 0 10f
@@ -36,7 +38,8 @@ ediff vd 0 outp outn 1
 tran 10p 20n
 meas tran vdiff_pos find v(vd) at=9.5n
 meas tran vdiff_neg find v(vd) at=19.5n
-meas tran tdelay trig v(clk) val=1.4 rise=1 targ v(outn) val=1.4 fall=1
+let vth = {vdd}*1.4/3.3
+meas tran tdelay trig v(clk) val=$&vth rise=1 targ v(outn) val=$&vth fall=1
 * a trig/targ meas line carries "targ= trig=" after its value, which
 * check_pex_sim.py does not read; print the vector on a line of its own
 print tdelay
