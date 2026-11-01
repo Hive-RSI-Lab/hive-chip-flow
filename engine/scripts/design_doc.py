@@ -326,6 +326,14 @@ def gate_numbers(r: dict) -> str:
     elif g == "timing" and isinstance(f.get("corners"), dict):
         s, h = worst_slack(f["corners"])
         parts.append(f"worst setup slack {num(s)} ns, hold {num(h)} ns over {len(f['corners'])} corners")
+    elif g == "harden" and isinstance(f.get("qor"), dict):
+        m = f["qor"].get("metrics") or {}
+        if m.get("stdcell_count") is not None:
+            parts.append(f"{m['stdcell_count']:.0f} cells")
+        if m.get("utilization") is not None:
+            parts.append("utilisation " + pct(m["utilization"]))
+        if m.get("wirelength") is not None:
+            parts.append(f"wirelength {num(m['wirelength'])} \\textmu m")
     elif g in ("drc", "top_drc") and "magic_count" in f:
         parts.append(f"magic {f['magic_count']}, klayout {f.get('klayout_count')} violations")
     elif g in ("lvs", "top_lvs"):
@@ -527,9 +535,21 @@ def ppa_section(recs: dict, spec: dict, skill: str) -> str:
                          "signoff corners (timing gate).")
         else:
             lines.append(r"Timing: \textcolor{accent}{no timing result is recorded}.")
+    harden = recs.get("harden")
+    qor = (harden or {}).get("facts", {}).get("qor") if (harden or {}).get("ran") else None
+    qm = (qor or {}).get("metrics") or {}
+    if qm:
+        got = [(k, w, u) for k, w, u in (
+            ("stdcell_area", "standard-cell area", r" \textmu m\textsuperscript{2}"),
+            ("utilization", "utilisation", ""), ("wirelength", "routed wirelength", r" \textmu m"),
+            ("power_total", "total power", " W")) if qm.get(k) is not None]
+        if got:
+            lines.append("After place and route: " + ", ".join(
+                f"{w} {pct(qm[k]) if k == 'utilization' else num(qm[k]) + u}"
+                for k, w, u in got) + " (harden gate).")
     power = [r for r in recs.values() if r.get("ran") and
              any("power" in k for k in (r.get("facts") or {}))]
-    if not power:
+    if not power and qm.get("power_total") is None:
         lines.append("No gate in this flow measures power, so this document gives no power figure.")
     out.append(" ".join(lines) + "\n")
     if skill == "vde" and timing and timing["ran"] and isinstance(timing["facts"].get("corners"), dict):
