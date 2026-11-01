@@ -120,7 +120,7 @@ Gates (from `engine/reference/gates.yaml`, run via `gate.py --gate <name>
 
 | Gate | Phase | Passes when |
 |---|---|---|
-| spec_lint | P1 | every requirement has an id, a check kind and, for `measure`, bounds |
+| spec_lint | P1 | every requirement has an id, a check kind and, for `measure`, bounds that each name a recorded `source` (release checks them) |
 | lint | P4 | no errors; warnings only from an allowlist with reasons |
 | sim | P4 | every test passes and every requirement id has a tagged test |
 | holdout | P4 | every held-out test passes; result names requirement ids only |
@@ -134,7 +134,7 @@ Gates (from `engine/reference/gates.yaml`, run via `gate.py --gate <name>
 | lvs | P6 | extracted layout matches the hardened netlist |
 | glsim | P6 | the sim suite passes on the gate-level netlist, functional then SDF |
 | precheck | P6 | tt-support-tools precheck passes |
-| release | P8 | every applicable gate fresh-pass; waivers carry reason+approval+durability |
+| release | P8 | every applicable gate fresh-pass; waivers carry reason+approval+durability; every `check: measure` bound inside its limits on the recorded value its `source` names (`engine/scripts/measures.py` prints the table any time) |
 
 Sidecars: `rtl/lint_allow.yaml` (optional, lint's allowlist) lives inside
 `rtl/` on purpose - the `rtl` dir_text hash already covers an edit to it.

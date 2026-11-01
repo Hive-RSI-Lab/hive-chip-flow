@@ -390,6 +390,9 @@ def run(argv=None):
     payload = checklib.report(
         SCRIPT, ws / "rtl", violations, top=top, std_cell=std_cell,
         cells={k: v for k, v in sorted(cells.items())}, area=area,
+        # totals a `check: measure` bound can name (measurelib.py, #89)
+        cell_count=sum(cells.values()),
+        non_liberty_cells=sum(v for n, v in cells.items() if n not in known),
         netlist=str(out_v.relative_to(ws)))
     return payload, args.out
 

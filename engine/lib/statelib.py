@@ -130,6 +130,17 @@ def _norm_json_canonical(path: Path) -> bytes:
                       separators=(",", ":")).encode("utf-8")
 
 
+def _req_sans_source(req):
+    """A requirement without the source/note of its measure bounds."""
+    if not (isinstance(req, dict) and req.get("check") == "measure"
+            and isinstance(req.get("bounds"), dict)):
+        return req
+    bounds = {n: ({k: v for k, v in b.items() if k not in ("source", "note")}
+                  if isinstance(b, dict) else b)
+              for n, b in req["bounds"].items()}
+    return {**req, "bounds": bounds}
+
+
 def _norm_json_canonical_sans_formal(path: Path) -> bytes:
     """json_canonical of spec.yaml without its top-level `formal:` key - the
     spec as every vde gate that never reads `formal:` sees it (only
@@ -141,6 +152,12 @@ def _norm_json_canonical_sans_formal(path: Path) -> bytes:
     if not isinstance(doc, dict):
         raise ValueError(f"{path} is not a mapping")
     doc = {k: v for k, v in doc.items() if k != "formal"}
+    # a measure bound's source/note say where release reads a number, and no
+    # gate that hashes this reads them, so wiring a source into a hardened
+    # block leaves its passes fresh (measurelib.py, #89). Limits still count.
+    reqs = doc.get("requirements")
+    if isinstance(reqs, list):
+        doc["requirements"] = [_req_sans_source(r) for r in reqs]
     return json.dumps(doc, sort_keys=True, ensure_ascii=True,
                       separators=(",", ":")).encode("utf-8")
 

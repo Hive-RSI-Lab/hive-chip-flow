@@ -16,9 +16,13 @@ requirements:
     property: REQ_<SHORT_NAME_FORMAL>   # legal Verilog label - no dashes
 
   # - id: REQ-<SHORT-NAME-MEASURE>       # rare in /vde; common in /ade
-  #   text: <a numeric bound a testbench measures>
+  #   text: <a numeric bound a recorded gate result holds>
   #   check: measure
-  #   bounds: {min: 0, max: 0}
+  #   # each bound names the recorded fact it is held to: <gate>.<facts path>
+  #   # in reports/recorded/gate-<gate>.json (msde:<gate>.<path> for the
+  #   # enclosing msde block's); release fails a bound it misses or a value
+  #   # nobody recorded (engine/lib/measurelib.py)
+  #   bounds: {<name>: {max: 0, source: synth.cell_count}}
 
 ports:
   clk: {dir: input, width: 1}
