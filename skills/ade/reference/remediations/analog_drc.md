@@ -24,6 +24,13 @@ layer name via `layoutlib.drc_layer_of()`, `module` the cell):**
   within the PDK's own distance. Add `layoutlib.psub_tap()`/`nwell_tap()`
   near the offending region (see `corpus/ade/mirror/layout/gen_mirror.py`'s
   own tap placement for the pattern).
+- `ANT.*` - an antenna finding (the finding's `net` and `ratio` say where).
+  Metal on a gate collects charge while it is etched. An `error` is a net with
+  no pin: its ratio is final, so fix it in the generator. Cut the long run and
+  jump up to a higher metal near the gate, or tie a `diode_nd2ps_03v3` to the
+  net (its area earns credit in the ratio). An `info` is a pin net, whose ratio
+  also depends on the chip's routing: it passes here, and whoever integrates
+  the block judges it.
 
 **Trap:** never widen a spacing in the generator "just to be safe" without
 reading which rule it fixes - a shape moved to satisfy one rule can create

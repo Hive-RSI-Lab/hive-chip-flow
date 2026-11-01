@@ -320,6 +320,27 @@ def footprint_um(spec: dict) -> dict | None:
     return {"width": float(fp["width"]), "height": float(fp["height"])}
 
 
+def harden_signoff(spec: dict) -> dict | None:
+    """spec.yaml's optional `harden_signoff` ({} when absent), or None when
+    malformed: ir_budget_pct a number in (0, 100], floating_nets_waived a
+    mapping of net name to a non-empty reason."""
+    hs = spec.get("harden_signoff", {}) if isinstance(spec, dict) else {}
+    if not isinstance(hs, dict) \
+            or set(hs) - {"ir_budget_pct", "floating_nets_waived"}:
+        return None
+    if "ir_budget_pct" in hs:
+        v = hs["ir_budget_pct"]
+        if isinstance(v, bool) or not isinstance(v, (int, float)) \
+                or not 0 < v <= 100:
+            return None
+    if "floating_nets_waived" in hs:
+        w = hs["floating_nets_waived"]
+        if not isinstance(w, dict) or not all(
+                isinstance(r, str) and r.strip() for r in w.values()):
+            return None
+    return hs
+
+
 def matching_by_name(name) -> bool:
     """Does a measure's name say it is matching-sensitive? True when one
     of its `_`-separated tokens (case-insensitive) is in
@@ -628,6 +649,11 @@ def lint_spec(spec: dict, rel_path: str = "spec/spec.yaml") -> list[dict]:
     tt_pins = spec.get("tt_pins")
     if tt_pins is not None and (not isinstance(tt_pins, dict) or not tt_pins):
         bad("tt_pins_empty", "'tt_pins' is present but not a non-empty mapping")
+
+    if harden_signoff(spec) is None:
+        bad("bad_harden_signoff",
+            "'harden_signoff' takes ir_budget_pct (a number in (0, 100]) and "
+            "floating_nets_waived ({net: non-empty reason}), nothing else")
 
     clock = spec.get("clock")
     if clock is not None:

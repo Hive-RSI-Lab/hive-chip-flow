@@ -67,19 +67,27 @@ DRC_DECK_REL = "libs.tech/klayout/tech/drc/gf180mcu.drc"
 # which judge a whole chip's fill and gate-to-metal ratios, so a lone block
 # with no floorplan around it cannot pass or fail them. The variant is the
 # PDK's name (gf180mcuD: 5 metals, 11K top), never a fixed letter: variant
-# A is a 3-metal stack, and its mslot deck dies on metal4_drawn.
+# A is a 3-metal stack, and its mslot deck dies on metal4_drawn. The antenna
+# deck runs on its own (run_klayout_antenna), since its verdict depends on
+# whether the net has a pin.
 DRC_SKIPPED = {
     "density": "metal and poly density is a whole-chip figure; a lone "
                "block has no fill around it",
-    "antenna": "the gate-to-metal ratio depends on the routing the chip "
-               "puts on the block's pins",
     "dummy": "the dummy-fill decks (DCF/DPF/DMF, e.g. DCF.1a: the space "
              "between COMP must be filled) check fill a lone block does not "
              "have yet; the chip's fill step adds it (msde's top_harden "
              "fills an analog macro, which the chip's fill skips), for the "
              "same reason density is off",
 }
-DRC_DECKS = ",".join(["all", *(f"-{d}" for d in DRC_SKIPPED)])
+DRC_DECKS = ",".join(["all", "-antenna", *(f"-{d}" for d in DRC_SKIPPED)])
+# (conductor layers bottom to top, each joined to the next; text layers on the
+# metal they name) - klayout's connectivity for naming an antenna finding's net
+_NET_STACK = [("poly2", (30, 0)), ("contact", (33, 0)), ("metal1", (34, 0)),
+              ("via1", (35, 0)), ("metal2", (36, 0)), ("via2", (38, 0)),
+              ("metal3", (42, 0)), ("via3", (40, 0)), ("metal4", (46, 0)),
+              ("via4", (41, 0)), ("metal5", (81, 0))]
+_NET_LABELS = {"metal1": (34, 10), "metal2": (36, 10), "metal3": (42, 10),
+               "metal4": (46, 10), "metal5": (81, 10)}
 
 
 class LayoutError(RuntimeError):
@@ -367,7 +375,8 @@ def require_ok(proc, what: str) -> str:
     return out
 
 
-def run_klayout_drc(gds_path, topcell: str, out_rdb, timeout: float = 240.0) -> str:
+def run_klayout_drc(gds_path, topcell: str, out_rdb, timeout: float = 240.0,
+                    decks: str = DRC_DECKS) -> str:
     deck = pdk_root() / DRC_DECK_REL
     if not deck.is_file():
         raise LayoutError(f"no klayout GF180 DRC deck at {deck}")
@@ -377,7 +386,7 @@ def run_klayout_drc(gds_path, topcell: str, out_rdb, timeout: float = 240.0) -> 
          "-rd", f"input={gds_path}", "-rd", f"topcell={topcell}",
          "-rd", f"report={out_rdb}", "-rd", "run_mode=flat",
          "-rd", "verbose=false", "-rd", f"variant={pdk_root().name}",
-         "-rd", f"decks={DRC_DECKS}", "-rd", "threads=2", "-rd", "workers=1"],
+         "-rd", f"decks={decks}", "-rd", "threads=2", "-rd", "workers=1"],
         cwd=Path(out_rdb).parent, timeout=timeout)
     out = require_ok(proc, "klayout DRC")
     if "DRC RESULT" not in out:
@@ -389,8 +398,59 @@ def run_klayout_drc(gds_path, topcell: str, out_rdb, timeout: float = 240.0) -> 
     return out
 
 
+def run_klayout_antenna(gds_path, topcell: str, out_rdb,
+                        timeout: float = 240.0) -> str:
+    return run_klayout_drc(gds_path, topcell, out_rdb, timeout, decks="antenna")
+
+
+def nets_of_polygons(gds_path, topcell: str,
+                     polygons: list[str]) -> list[list[str | None]]:
+    """For each klayout polygon string `(x,y;x,y;...)` in um, the nets whose
+    drawn shape it is or lies inside: exact matches if any, else containment.
+    A net is its label (several labels: comma-joined), or None when unlabelled.
+    An empty list means no conductor matched."""
+    import klayout.db as kdb
+
+    layout = kdb.Layout()
+    layout.read(str(gds_path))
+    cell = layout.cell(topcell)
+    if cell is None:
+        raise LayoutError(f"{gds_path} has no cell named {topcell!r}")
+    l2n = kdb.LayoutToNetlist(kdb.RecursiveShapeIterator(layout, cell, []))
+    regions = {}
+    for name, (layer, datatype) in _NET_STACK:
+        regions[name] = l2n.make_layer(layout.layer(layer, datatype), name)
+        l2n.connect(regions[name])
+    for (_a, _), (_b, _) in zip(_NET_STACK, _NET_STACK[1:]):
+        l2n.connect(regions[_a], regions[_b])
+    for metal, (layer, datatype) in _NET_LABELS.items():
+        text = l2n.make_text_layer(layout.layer(layer, datatype), f"{metal}_t")
+        l2n.connect(text, regions[metal])
+    l2n.extract_netlist()
+    circuit = next(l2n.netlist().each_circuit_top_down())
+    shapes = []  # (net name, merged shapes of that net on one layer)
+    for net in circuit.each_net():
+        for region in regions.values():
+            on_layer = l2n.shapes_of_net(net, region, True).merged()
+            if not on_layer.is_empty():
+                shapes.append((net.name or None, on_layer))
+    out = []
+    for text in polygons:
+        try:
+            poly = kdb.DPolygon.from_s(text).to_itype(layout.dbu)
+        except RuntimeError:
+            out.append([])
+            continue
+        probe = kdb.Region(poly)
+        exact = [n for n, r in shapes if any(p == poly for p in r.each())]
+        within = exact or [n for n, r in shapes if (probe - r).is_empty()]
+        out.append(sorted(set(within), key=str))
+    return out
+
+
 _LAYER_PREFIXES = [
     ("OFFGRID", "offgrid"),
+    ("ANT.", "antenna"),
     ("CO.", "contact"), ("DF.", "comp"), ("PL.", "poly2"),
     ("NP.", "nplus"), ("PP.", "pplus"), ("NW.", "nwell"),
     ("MET1", "metal1"), ("M1.", "metal1"),
@@ -411,7 +471,7 @@ def drc_layer_of(category: str) -> str:
 
 def parse_drc_rdb(path) -> list[dict]:
     """Parse a klayout .lyrdb report database into
-    [{category, description, cell, value}, ...] - one per violation
+    [{category, description, cell, value, values}, ...] - one per violation
     instance. A report with zero <item> entries is a real clean pass, NOT
     treated as "no rules loaded" here (run_klayout_drc already refused that
     case by requiring the 'DRC RESULT' banner)."""
@@ -431,6 +491,7 @@ def parse_drc_rdb(path) -> list[dict]:
             "description": cats.get(cat, cat),
             "cell": cell or None,
             "value": values[0] if values else None,
+            "values": values,
         })
     return items
 

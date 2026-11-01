@@ -124,6 +124,102 @@ def test_missing_guard_ring_fails_drc_with_df14(tmp_path):
     assert gate_result["status"] == "fail"
 
 
+def _antenna_findings(out):
+    return [v for v in out["violations"] if v["kind"].startswith("ANT.")]
+
+
+@pytest.mark.slow
+def test_long_metal_on_an_internal_gate_fails_on_that_net(tmp_path):
+    ws = make_ws(tmp_path, "mirror")
+    plant = import_plant("mirror", "plant_drc_antenna.py")
+    plant(ws)
+    code, out = run_json(["--workspace", str(ws)], tmp_path)
+    assert code == 1, out
+    found = _antenna_findings(out)
+    assert {v["kind"] for v in found} == {"ANT.16_i_ANT.2"}, out
+    assert all(v["severity"] == "error" and not v["pin_net"] for v in found)
+    assert found[0]["net"] == "ant_gate"
+    assert found[0]["ratio"] > 400
+    assert out["antenna"]["internal"] == 1
+    assert gate.evaluate("drc", _drc_gate_row(), out)["status"] == "fail"
+
+
+@pytest.mark.slow
+def test_long_metal_on_a_pin_net_is_info_with_the_ratio(tmp_path):
+    ws = make_ws(tmp_path, "mirror")
+    path = CORPUS / "mirror" / "faults" / "plant_drc_antenna.py"
+    spec = importlib.util.spec_from_file_location("plant_antenna", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    mod.plant_on_pin(ws)
+    code, out = run_json(["--workspace", str(ws)], tmp_path)
+    found = _antenna_findings(out)
+    assert found, out
+    assert all(v["severity"] == "info" and v["pin_net"] for v in found), out
+    assert found[0]["net"] == "vdd"
+    assert found[0]["ratio"] > 400
+    assert out["antenna"]["pin_nets"] == len(found)
+    assert out["antenna"]["pins_from"] == "netlist"
+    assert code == 1, out  # raw findings; gate.py decides what counts
+    assert gate.evaluate("drc", _drc_gate_row(), out)["status"] == "pass"
+
+
+def _fake_antenna(monkeypatch, tmp_path, nets, values):
+    """check_analog_drc.run against a canned antenna report and net lookup."""
+    import layout_gen
+    import layoutlib
+
+    ws = tmp_path / "ws"
+    (ws / "netlist").mkdir(parents=True)
+    (ws / "netlist" / "blk.cir").write_text(
+        ".subckt blk a b\n.ends\n", encoding="utf-8")
+    gds = ws / "layout" / "blk.gds"
+    monkeypatch.setattr(layout_gen, "build",
+                        lambda ws_, block: (gds, "blk", None, None))
+    monkeypatch.setattr(layoutlib, "run_klayout_drc",
+                        lambda g, t, rdb: Path(rdb).write_text(
+                            RDB_EMPTY, encoding="utf-8"))
+    monkeypatch.setattr(layoutlib, "run_klayout_antenna",
+                        lambda g, t, rdb: Path(rdb).write_text(
+                            RDB_EMPTY, encoding="utf-8"))
+    monkeypatch.setattr(layoutlib, "gds_bbox_um", lambda p, c: {
+        "x0": 0, "y0": 0, "x1": 1, "y1": 1, "width": 1, "height": 1})
+    items = [{"category": "ANT.1", "description": "d", "cell": "blk",
+              "value": "polygon: (0,0;0,1;1,1;1,0)", "values": values}]
+    calls = iter([[], items])
+    monkeypatch.setattr(layoutlib, "parse_drc_rdb", lambda p: next(calls))
+    monkeypatch.setattr(layoutlib, "nets_of_polygons", lambda *a: [nets])
+    return ws
+
+
+@pytest.mark.parametrize("nets, severity", [
+    (["a"], "info"),            # a port of the netlist's .subckt
+    (["A"], "info"),            # spice names ignore case
+    (["a,inner"], "info"),      # two labels on one net, one of them a port
+    (["inner"], "error"),       # a label, but not a port
+    ([None], "error"),          # no label at all
+    ([], "error"),              # matched no conductor: never downgraded
+    (["a", "inner"], "error"),  # ambiguous: never downgraded
+])
+def test_antenna_severity_follows_the_net(monkeypatch, tmp_path, nets, severity):
+    ws = _fake_antenna(monkeypatch, tmp_path, nets,
+                       ["polygon: x", "[#RATIO] float: 512.5"])
+    payload, _out = check_analog_drc.run(["--workspace", str(ws)])
+    found = _antenna_findings(payload)
+    assert [v["severity"] for v in found] == [severity]
+    assert found[0]["ratio"] == 512.5
+    # an info is a raw finding that gate.py does not count (fail_severities)
+    assert gate.evaluate("drc", _drc_gate_row(), payload)["status"] == (
+        "pass" if severity == "info" else "fail")
+
+
+def test_no_netlist_counts_every_label_as_a_pin(tmp_path):
+    (tmp_path / "netlist").mkdir()
+    assert check_analog_drc.block_pins(tmp_path, "blk") == (None, "labels")
+    assert check_analog_drc._is_pin_net("any", None)
+    assert not check_analog_drc._is_pin_net(None, None)
+
+
 def test_unlaunchable_klayout_is_a_refusal_not_a_stale_pass(unlaunchable_eda, tmp_path, capsys):
     ws = unlaunchable_eda
     code, out = run_err(["--workspace", str(ws)], capsys)
@@ -143,7 +239,9 @@ def test_drc_keeps_metal_and_via_rules_on():
     assert tokens[0] == "all"
     assert sorted(t for t in tokens if t.startswith("-")) == [
         "-antenna", "-density", "-dummy"]
-    assert all(layoutlib.DRC_SKIPPED[t[1:]] for t in tokens[1:])
+    # antenna runs on its own, so only the other two count as skipped
+    assert sorted(layoutlib.DRC_SKIPPED) == ["density", "dummy"]
+    assert all(layoutlib.DRC_SKIPPED.values())
 
 
 def test_report_names_the_skipped_decks_and_why(tmp_path, monkeypatch):
@@ -160,6 +258,7 @@ def test_report_names_the_skipped_decks_and_why(tmp_path, monkeypatch):
         Path(rdb).write_text(RDB_EMPTY, encoding="utf-8")
 
     monkeypatch.setattr(layoutlib, "run_klayout_drc", fake_drc)
+    monkeypatch.setattr(layoutlib, "run_klayout_antenna", fake_drc)
     # no GDS is written, so the footprint check measures a stand-in bbox
     monkeypatch.setattr(layoutlib, "gds_bbox_um", lambda p, c: {
         "x0": 0, "y0": 0, "x1": 1, "y1": 1, "width": 1, "height": 1})

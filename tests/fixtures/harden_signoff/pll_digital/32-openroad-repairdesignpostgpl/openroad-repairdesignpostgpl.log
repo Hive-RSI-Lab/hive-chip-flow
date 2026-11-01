@@ -1,0 +1,7 @@
+[INFO RSZ-0038] Inserted 3 buffers in 1 nets.
+[INFO RSZ-0042] Inserted 16 tie gf180mcu_fd_sc_mcu7t5v0__tiel instances.
+[INFO RSZ-0042] Inserted 2 tie gf180mcu_fd_sc_mcu7t5v0__tieh instances.
+[WARNING RSZ-0020] found 2 floating nets.
+ VGND
+ VPWR
++ detailed_placement -max_displacement  500 100 

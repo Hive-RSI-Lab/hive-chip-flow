@@ -41,6 +41,18 @@
 
 version: 1
 
+# Limits check_harden.py (so harden and top_harden) holds LibreLane's
+# metrics.json to. A metric that is absent is a finding, never zero. `kind` is
+# the finding kind; ir__drop__worst's limit is a share of the rail, and
+# spec.yaml's harden_signoff.ir_budget_pct overrides the share.
+harden_metrics:
+  antenna__violating__nets: {max: 0, kind: antenna_violation}
+  route__antenna_violation__count: {max: 0, kind: antenna_violation}
+  timing__drv__floating__nets: {max: 0, kind: floating_net}
+  timing__unannotated_net_filtered__count: {max: 0, kind: unannotated_net}
+  design__power_grid_violation__count: {max: 0, kind: pdn_violation}
+  ir__drop__worst: {max_pct_vdd: 5, vdd_metric: ir__voltage__worst, kind: ir_drop_over_budget}
+
 gates:
   vde:
     spec_lint:
@@ -117,7 +129,8 @@ gates:
       fault: "a design too large for the tile"
       description: >-
         The flow finishes with no failing step and produces GDS, LEF,
-        netlist, SDF, metrics.
+        netlist, SDF, metrics; the signoff metrics are present and inside
+        harden_metrics' limits.
     timing:
       phase: P6
       tool: timing
@@ -331,7 +344,8 @@ gates:
       description: >-
         The digital side hardens in the TT tile with the analog GDS as a
         macro: the flow finishes with no failing step and produces GDS,
-        LEF, netlist, SDF, metrics.
+        LEF, netlist, SDF, metrics; the signoff metrics are present and
+        inside harden_metrics' limits.
     top_drc:
       phase: P3
       tool: top_drc
