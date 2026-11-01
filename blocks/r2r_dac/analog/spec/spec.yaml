@@ -68,10 +68,18 @@ measures:
   - name: dnl_max_abs
     bounds: {max: 0.5}
     severity: error
+    statistical: none
+    mc_waiver: GF180's ngspice poly resistors carry no per-instance mismatch
+      (mis_r=0), so Monte Carlo would sample only the driver cells' FETs;
+      resistor matching is bounded by inl_sens_1pct_max instead (see mc above)
   # 2. INL, same sweep, end-point fit, max |INL| in LSB. [brief]
   - name: inl_max_abs
     bounds: {max: 0.5}
     severity: error
+    statistical: none
+    mc_waiver: GF180's ngspice poly resistors carry no per-instance mismatch
+      (mis_r=0), so Monte Carlo would sample only the driver cells' FETs;
+      resistor matching is bounded by inl_sens_1pct_max instead (see mc above)
   # 3. Monotonicity: 1 when v(k) > v(k-1) for every k = 1..255, else 0.
   #    [brief] pass/fail per corner
   - name: monotonic
@@ -83,6 +91,9 @@ measures:
   - name: v_zero_offset
     bounds: {max: 6.45e-3}
     severity: warning
+    statistical: none
+    mc_waiver: the code-0 output above ground, set by the pull-down drivers' Ron
+      into the ladder at every corner - not a matched-pair offset
   # 4b. Full-scale gain error in LSB: ((v(255) - v(0)) - 255/256*VDD) /
   #     (VDD/256), with VDD the corner's own rail. The brief compares
   #     v(255)-v(0) with the ideal 255/256*VDD and calls the residual the
@@ -157,6 +168,10 @@ measures:
   - name: inl_sens_1pct_max
     bounds: {max: 0.5}
     severity: warning
+    statistical: none
+    mc_waiver: GF180's ngspice poly resistors carry no per-instance mismatch
+      (mis_r=0), so Monte Carlo would sample only the driver cells' FETs;
+      resistor matching is bounded by inl_sens_1pct_max instead (see mc above)
   # 8. Supply current over the full-code sweep, amperes. The brief budgets
   #    "a few to ~15 mA" average (its own R = 250 ohm estimate); the peak
   #    bound adds the 7 pF load's slew current through ~380 ohm (~9 mA) to

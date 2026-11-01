@@ -80,8 +80,14 @@ mc: {enabled: bool, runs?, yield_min?, global?, seed?}   # only when the
 
 ## Hard rules
 - Never write a topology, a netlist, or a testbench - those are P2/P3/P4.
-- Never mark `mc.enabled: true` unless the brief actually asks for a yield
-  number - Monte Carlo costs real wall time.
+- Mark `mc.enabled: true` when the brief asks for a yield number, or when
+  any measure is matching-sensitive (an offset, a mirror or UP/DN ratio,
+  a mismatch, INL/DNL): sim_tt/sim_pvt run at zero mismatch, so only the
+  mc gate checks such a measure, and spec_lint refuses it without MC
+  (`mismatch_measure_no_mc`). Give such a measure `statistical: mismatch`
+  when its name does not say so. A name that reads matching-sensitive but
+  is not (a digital divide ratio) gets `statistical: none` plus an
+  `mc_waiver` reason. Otherwise leave MC off - it costs real wall time.
 - A measure's `name`, once used, is load-bearing (the bench-writer's
   `.bounds.json` ties to it) - do not rename one on a revision without
   checking what already references it.

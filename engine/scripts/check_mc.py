@@ -32,6 +32,13 @@ agauss()-driven per-instance mismatch parameters (mis_vth, mis_k, mis_r,
 ...), and yield = the fraction with zero bound violations, scored against
 `mc.yield_min`.
 
+The PDK's MOS mismatch term reads the instance's `par` but not its `m`, so
+an `m=N` device would draw one unit's sigma (sqrt(N) too much). The MC
+decks therefore include a copy of the netlist in which every multiplied
+nfet_*/pfet_* instance also carries `par=N` (add_par_for_multiplier; the
+same for devices in the bench), listed in the report's `par_added`; the
+block's own netlist is never edited.
+
 Two refusals a caller must not be able to talk this gate out of: `mc.runs:
 0` is refused outright (CheckError, exit 2), never silently widened back up
 to DEFAULT_RUNS - an explicit "run zero samples" is not the same request as
@@ -101,6 +108,100 @@ def inject_mc_params(template_text: str, seed: int, do_global: bool) -> str:
     return new_text
 
 
+# The PDK subckts whose Pelgrom term reads `par` but not `m`: each
+# computes p_sqrtarea = sqrt((l-par_l)*par*(w-par_w)) and passes `m` only to
+# its inner MOSFET, so an `m=N` instance gets ONE unit's mismatch sigma,
+# sqrt(N) too large. (The poly/diffusion resistors set mis_r=0 - no
+# per-instance mismatch at all - and the MIM caps carry none either.)
+_MOS_MODEL_RE = re.compile(r"^[np]fet_0[356]v[03](?:_dss|_nvt)?$",
+                           re.IGNORECASE)
+_PARAM_RE = re.compile(r"(?<![\w.])(m|par)\s*=\s*('[^']*'|\{[^}]*\}|[^\s]+)",
+                       re.IGNORECASE)
+
+
+def _logical_lines(text: str) -> list[list[int]]:
+    """Group physical line indexes into SPICE logical lines (a line plus
+    its `+` continuations)."""
+    groups: list[list[int]] = []
+    for i, ln in enumerate(text.split("\n")):
+        if ln.lstrip().startswith("+") and groups:
+            groups[-1].append(i)
+        else:
+            groups.append([i])
+    return groups
+
+
+def _strip_comment(ln: str) -> str:
+    for mark in (" ;", " $", "\t;", "\t$"):
+        k = ln.find(mark)
+        if k >= 0:
+            ln = ln[:k]
+    return ln
+
+
+def add_par_for_multiplier(text: str) -> tuple[str, list[dict]]:
+    """Give every `X... <nfet_*/pfet_*> ... m=N` instance (N not 1) a
+    matching `par=N`, so the PDK's mismatch term sees the total area
+    (m=N par=N: the right DC point AND the right sigma; m=4 alone measured
+    sd 3.9 mV against 1.8 mV for the same total width). An instance that
+    already writes `par` is left as it is. Returns (new text, [{instance,
+    model, m}] rewritten). Used on the MC deck's netlist copy only."""
+    lines = text.split("\n")
+    done: list[dict] = []
+    for group in _logical_lines(text):
+        first = lines[group[0]].lstrip()
+        if not first[:1] in ("x", "X"):
+            continue
+        body = " ".join(_strip_comment(lines[i]).lstrip().lstrip("+")
+                        for i in group)
+        toks = body.split()
+        model = None
+        for t in toks[1:]:
+            if "=" in t:
+                break
+            model = t
+        if not model or not _MOS_MODEL_RE.match(model):
+            continue
+        params = {k.lower(): v for k, v in _PARAM_RE.findall(body)}
+        mval = params.get("m")
+        if mval is None or "par" in params or mval.strip("'{}") == "1":
+            continue
+        last = group[-1]
+        code = _strip_comment(lines[last])
+        lines[last] = code.rstrip() + f" par={mval}" + lines[last][len(code):]
+        done.append({"instance": toks[0], "model": model, "m": mval})
+    return "\n".join(lines), done
+
+
+_REL_INCLUDE_RE = re.compile(
+    r"^(\s*\.(?:include|inc|lib)\s+)(['\"]?)([^'\"\s]+)(['\"]?)",
+    re.IGNORECASE | re.MULTILINE)
+
+
+def mc_netlist(netlist_path: Path, out_dir: Path) -> tuple[Path, list[dict]]:
+    """The netlist the MC decks include: the block's own when no instance
+    needs `par` (add_par_for_multiplier), else a rewritten copy under
+    out_dir (relative .include/.lib paths made absolute, so they still
+    resolve from there). The block's netlist file is never written."""
+    text = netlist_path.read_text(encoding="utf-8")
+    new_text, done = add_par_for_multiplier(text)
+    if not done:
+        return netlist_path, done
+    base = netlist_path.resolve().parent
+
+    def absolutize(m):
+        path = m.group(3)
+        if path.startswith(("/", "{{")):
+            return m.group(0)
+        return m.group(1) + m.group(2) + str(base / path) + m.group(4)
+
+    new_text = _REL_INCLUDE_RE.sub(absolutize, new_text)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    copy = out_dir / f"{netlist_path.stem}__mc_par{netlist_path.suffix}"
+    copy.write_text(new_text, encoding="utf-8")
+    return copy, done
+
+
 def mc_applicable(spec: dict) -> bool:
     """Does this spec ask for Monte Carlo? The ONE predicate for that
     question - this gate's own not-applicable branch below and attest.py's
@@ -168,17 +269,22 @@ def run(argv=None):
     netlist_path = sim_run.find_netlist(ws)
     tt_corner = corners_mod.corners_by_name(corners_mod.load(), ["tt"])[0]
     sizing = sim_run.load_sizing(ws)
-    subs = sim_run.build_subs(t_root, netlist_path, tt_corner, nominal_vdd, sizing)
 
     out_dir = ws / OUT_SUBDIR
     shutil.rmtree(out_dir, ignore_errors=True)
+    # m=N MOS instances get par=N in the MC copy of the netlist (and of each
+    # bench), or the PDK gives them one unit's mismatch: sqrt(N) too much
+    mc_net, par_added = mc_netlist(netlist_path, out_dir)
+    subs = sim_run.build_subs(t_root, mc_net, tt_corner, nominal_vdd, sizing)
 
     outcomes = []
     all_violations = []
     measures_by_bench: dict[str, list[dict]] = {}
     for bench_path, bounds_path in sim_run.find_benches(ws):
         bounds = simlib.load_bounds(bounds_path)
-        template_text = bench_path.read_text(encoding="utf-8")
+        template_text, bench_par = add_par_for_multiplier(
+            bench_path.read_text(encoding="utf-8"))
+        par_added += [dict(d, bench=bench_path.name) for d in bench_par]
         per_bench_measures = measures_by_bench.setdefault(bench_path.name, [])
         for i, seed in enumerate(seeds):
             mc_text = inject_mc_params(template_text, seed, do_global)
@@ -220,7 +326,8 @@ def run(argv=None):
     payload = checklib.report(
         SCRIPT, ws / "netlist", violations, top=top, applicable=True,
         runs=total, hits=hits, yield_frac=round(yield_frac, 4),
-        yield_min=yield_min, seeds=seeds, results=outcomes,
+        yield_min=yield_min, seeds=seeds, par_added=par_added,
+        results=outcomes,
         sample_violations=all_violations[:20])
     return payload, args.out
 

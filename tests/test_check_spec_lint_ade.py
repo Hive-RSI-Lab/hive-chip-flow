@@ -24,7 +24,7 @@ supply: {vdd: 3.3}
 devices: [xmref, xmout]
 corners: default
 measures:
-  - name: iout_ratio
+  - name: iout_ua
     bounds: {min: 1.8, max: 2.2}
 """
 
@@ -55,7 +55,7 @@ def test_clean_spec_with_no_tb_yet_passes(tmp_path, capsys):
 
 def test_matching_bench_bounds_passes(tmp_path, capsys):
     ws = make_ws(tmp_path)
-    write_bounds(ws, "mirror_tb", [{"measure": "iout_ratio", "min": 1.8, "max": 2.2}])
+    write_bounds(ws, "mirror_tb", [{"measure": "iout_ua", "min": 1.8, "max": 2.2}])
     code = check_spec_lint_ade.main(["--workspace", str(ws)])
     assert code == 0
     out = json.loads(capsys.readouterr().out)
@@ -75,7 +75,7 @@ def test_spec_measure_with_no_bench_bound_fails(tmp_path, capsys):
 def test_bench_bound_with_no_spec_measure_fails(tmp_path, capsys):
     ws = make_ws(tmp_path)
     write_bounds(ws, "mirror_tb", [
-        {"measure": "iout_ratio", "min": 1.8, "max": 2.2},
+        {"measure": "iout_ua", "min": 1.8, "max": 2.2},
         {"measure": "extra_measure", "min": 0, "max": 1},
     ])
     code = check_spec_lint_ade.main(["--workspace", str(ws)])
@@ -228,3 +228,90 @@ def test_bad_sim_timeout_is_refused(tmp_path, capsys, field):
     assert code == 1
     out = json.loads(capsys.readouterr().out)
     assert [v["kind"] for v in out["violations"]] == ["bad_sim_timeout"]
+
+
+# --- matching-sensitive measures need Monte Carlo (issue #97) ---
+
+MISMATCH_YAML = """\
+top: current_mirror
+supply: {vdd: 3.3}
+devices: [xmref, xmout]
+measures:
+  - name: iout_ratio
+    bounds: {min: 1.8, max: 2.2}
+"""
+
+
+def _lint(tmp_path, capsys, text):
+    ws = make_ws(tmp_path, text)
+    code = check_spec_lint_ade.main(["--workspace", str(ws)])
+    return code, json.loads(capsys.readouterr().out)
+
+
+def test_matching_measure_without_mc_is_refused(tmp_path, capsys):
+    # planted: a ratio checked only at zero mismatch
+    code, out = _lint(tmp_path, capsys, MISMATCH_YAML)
+    assert code == 1, out
+    assert [v["kind"] for v in out["violations"]] == ["mismatch_measure_no_mc"]
+    assert out["violations"][0]["refs"] == ["iout_ratio"]
+
+
+def test_matching_measure_with_mc_passes(tmp_path, capsys):
+    code, out = _lint(tmp_path, capsys, MISMATCH_YAML + "mc: {enabled: true}\n")
+    assert code == 0, out
+    assert out["mc_waived"] == []
+
+
+def test_mc_disabled_is_no_mc(tmp_path, capsys):
+    code, out = _lint(tmp_path, capsys, MISMATCH_YAML + "mc: {enabled: false}\n")
+    assert code == 1, out
+
+
+@pytest.mark.parametrize("name", ["cp_updn_mismatch_pct", "vos_offset_mv",
+                                  "inl_max_abs", "dnl_lsb", "pair_matching"])
+def test_name_heuristic(tmp_path, capsys, name):
+    code, out = _lint(tmp_path, capsys,
+                      MISMATCH_YAML.replace("iout_ratio", name))
+    assert code == 1, out
+
+
+@pytest.mark.parametrize("name", ["iout_ua", "ratiometric_gain", "vref"])
+def test_name_heuristic_reads_whole_tokens(tmp_path, capsys, name):
+    code, out = _lint(tmp_path, capsys,
+                      MISMATCH_YAML.replace("iout_ratio", name))
+    assert code == 0, out
+
+
+def test_statistical_mismatch_marks_any_name(tmp_path, capsys):
+    text = MISMATCH_YAML.replace("iout_ratio", "iout_ua") \
+        + "    statistical: mismatch\n"
+    code, out = _lint(tmp_path, capsys, text)
+    assert [v["kind"] for v in out["violations"]] == ["mismatch_measure_no_mc"]
+
+
+def test_waiver_needs_a_reason_and_is_reported(tmp_path, capsys):
+    code, out = _lint(tmp_path, capsys,
+                      MISMATCH_YAML + "    statistical: none\n")
+    assert code == 1 and out["violations"][0]["kind"] == "bad_statistical"
+    text = MISMATCH_YAML.replace("iout_ratio", "presc_div2_ratio") \
+        + "    statistical: none\n    mc_waiver: a digital divide ratio\n"
+    code, out = _lint(tmp_path / "w", capsys, text)
+    assert code == 0, out
+    assert out["mc_waived"] == [{"measure": "presc_div2_ratio",
+                                 "why": "a digital divide ratio"}]
+
+
+def test_bad_statistical_value(tmp_path, capsys):
+    code, out = _lint(tmp_path, capsys,
+                      MISMATCH_YAML + "    statistical: global\n")
+    assert [v["kind"] for v in out["violations"]] == ["bad_statistical"]
+
+
+def test_matching_measure_scoped_away_from_tt_is_refused(tmp_path, capsys):
+    text = MISMATCH_YAML.replace("bounds: {min: 1.8, max: 2.2}",
+                                 "bounds: {min: 1.8, max: 2.2}\n    corners: [ss, ff]") \
+        + "mc: {enabled: true}\n"
+    code, out = _lint(tmp_path, capsys, text)
+    assert [v["kind"] for v in out["violations"]] == ["mismatch_measure_not_at_tt"]
+    code, out = _lint(tmp_path / "t", capsys, text.replace("[ss, ff]", "[tt, ss]"))
+    assert code == 0, out
