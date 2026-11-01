@@ -26,7 +26,8 @@ from test_check_release import make_msde_ws  # noqa: E402
 from test_ttship import make_ws as make_vde_tile  # noqa: E402
 
 TOP = "tt_um_pll"
-WRAPPER = f"/* generated */\nmodule {TOP}(input wire clk);\n  core u(.clk(clk));\nendmodule\n"
+WRAPPER = (f"/* generated */\nmodule {TOP}(input wire clk, inout wire VGND, inout wire VDPWR);\n"
+           "  core u(.clk(clk));\nendmodule\n")
 BLACKBOX = "// generated\nmodule macro(input wire a);\nendmodule\n"
 
 
@@ -51,7 +52,7 @@ def make_msde_tile(tmp_path: Path, overlay: bool = False) -> Path:
         "meta": {"librelane_version": "3.1.0.dev3"}}))
     for view, name, data in (("gds", f"{TOP}.gds", b"gds bytes"),
                              ("lef", f"{TOP}.lef", b"lef bytes"),
-                             ("pnl", f"{TOP}.pnl.v", b"powered"),
+                             ("pnl", f"{TOP}.pnl.v", b"module x(inout VPWR, inout VGND); endmodule\n"),
                              ("spef/max", f"{TOP}.spef", b"spef")):
         (run / "final" / view).mkdir(parents=True)
         (run / "final" / view / name).write_bytes(data)
@@ -334,3 +335,43 @@ def test_refused_ship_check_on_msde(tmp_path, capsys):
     assert code == 1
     assert "tt_ship_mismatch" in {v["kind"] for v in out["violations"]}
     assert manifest(ws)["released"] is False
+
+
+# ------------------------------------------------------------ the netlist (#149)
+
+def test_msde_wrapper_with_no_power_pins_ships_the_powered_netlist(tmp_path, capsys):
+    # top_harden's generated wrapper has no VGND: TT's analog template's
+    # src/project.v would fail precheck, so the staged workflow names final/pnl
+    ws = make_msde_tile(tmp_path)
+    (ws / "top" / "harden" / f"{TOP}.v").write_text(f"module {TOP}(input wire clk);\nendmodule\n")
+    regate(ws)
+    released(ws, capsys)
+    tree = ws / "release" / "tt"
+    assert "verilog_path: gl/" in (tree / ".github/workflows/gds.yaml").read_text()
+    assert (tree / "gl" / f"{TOP}.v").read_bytes() == (
+        ws / f"top/harden/runs/run/final/pnl/{TOP}.pnl.v").read_bytes()
+    assert verify(capsys, ws)[0] == 0
+    (tree / "gl" / f"{TOP}.v").write_text("changed")
+    code, out = verify(capsys, ws)
+    assert code == 1
+    assert ("deliverable_changed", f"gl/{TOP}.v") in {
+        (v["kind"], v["file"]) for v in out["violations"]}
+
+
+def test_msde_with_a_powered_top_ships_it_and_has_no_gl_job(tmp_path, capsys):
+    ws = make_msde_tile(tmp_path)
+    released(ws, capsys)
+    tree = ws / "release" / "tt"
+    wf = (tree / ".github/workflows/gds.yaml").read_text()
+    assert "verilog_path: src/project.v" in wf and "gl_test" not in wf
+    assert not (tree / "gl").exists()
+
+
+def test_msde_workflow_with_no_netlist_refused(tmp_path, capsys):
+    ws = make_msde_tile(tmp_path)
+    released(ws, capsys)
+    wf = ws / "release/tt/.github/workflows/gds.yaml"
+    wf.write_text(wf.read_text().replace("          verilog_path: src/project.v\n", ""))
+    assert check_release.main(["--workspace", str(ws)]) == 1
+    out = json.loads(capsys.readouterr().out)
+    assert any(v["msg"].startswith("tt_verilog_missing") for v in out["violations"])

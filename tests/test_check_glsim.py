@@ -38,6 +38,8 @@ def make_ws(tmp_path: Path, with_sdf: bool = True, with_nl: bool = True) -> Path
     if with_nl:
         (final / "nl").mkdir(parents=True)
         (final / "nl" / "tt_um_counter8.nl.v").write_text("x", encoding="utf-8")
+        (final / "pnl").mkdir(parents=True)
+        (final / "pnl" / "tt_um_counter8.pnl.v").write_text("x", encoding="utf-8")
     else:
         final.mkdir(parents=True)
     if with_sdf:
@@ -310,9 +312,10 @@ def _escaped_ws(tmp_path, monkeypatch, nl_text=None):
     ws = make_ws(tmp_path)
     _patch_pdk(monkeypatch, tmp_path)
     final = ws / "harden" / "runs" / "run" / "final"
-    (final / "nl" / "tt_um_counter8.nl.v").write_text(
-        nl_text if nl_text is not None else (ESCAPED / "top.nl.v").read_text(),
-        encoding="utf-8")
+    for view, name in (("nl", "nl"), ("pnl", "pnl")):
+        (final / view / f"tt_um_counter8.{name}.v").write_text(
+            nl_text if nl_text is not None else (ESCAPED / "top.nl.v").read_text(),
+            encoding="utf-8")
     (final / "sdf" / check_glsim.SDF_CORNER /
      f"tt_um_counter8__{check_glsim.SDF_CORNER}.sdf").write_text(
         (ESCAPED / "top.sdf").read_text(), encoding="utf-8")
@@ -346,7 +349,7 @@ def test_escaped_dot_instance_is_renamed_in_the_sdf_passs_own_copies(
     assert "wire \\u.clk ;" in nl and "wire clkbuf_u__clk;" in nl
     # only the sdf pass builds from the renamed copy
     assert str(build_dir / "sdf_icarus.nl.v") in built["build_sdf.log"]
-    nl_src = ws / "harden" / "runs" / "run" / "final" / "nl" / "tt_um_counter8.nl.v"
+    nl_src = ws / "harden" / "runs" / "run" / "final" / "pnl" / "tt_um_counter8.pnl.v"
     assert str(nl_src) in built["build_functional.log"]
     assert str(nl_src) not in built["build_sdf.log"]
 
@@ -384,3 +387,99 @@ def test_escaped_dot_interconnect_annotates_under_real_icarus(tmp_path):
     assert run.returncode == 0, log
     assert "SDF ERROR" not in log, log
     assert "z rose at 8000" in log, log
+
+
+# ------------------------------------------------- the netlist the tile ships (#149)
+
+NL = """module t(input a, output y);
+ wire n;
+ inv_1 u1 (.I(a),
+    .ZN(n));
+ inv_1 \\u.2  (.I(n),
+    .ZN(y));
+ filltie_1 tap ();
+endmodule
+"""
+PNL = """module t(input a, output y, inout VPWR, inout VGND);
+ wire n;
+ inv_1 u1 (.I(a),
+    .ZN(n),
+    .VDD(VPWR),
+    .VNW(VPWR),
+    .VPW(VGND),
+    .VSS(VGND));
+ inv_1 \\u.2  (.I(n),
+    .ZN(y),
+    .VDD(VPWR),
+    .VNW(VPWR),
+    .VPW(VGND),
+    .VSS(VGND));
+ filltie_1 tap (.VDD(VPWR),
+    .VNW(VPWR),
+    .VPW(VGND),
+    .VSS(VGND));
+endmodule
+"""
+
+
+def _netlists(ws, nl=NL, pnl=PNL):
+    final = ws / "harden" / "runs" / "run" / "final"
+    (final / "nl" / "tt_um_counter8.nl.v").write_text(nl)
+    (final / "pnl" / "tt_um_counter8.pnl.v").write_text(pnl)
+    return final
+
+
+def test_functional_pass_simulates_the_powered_netlist(tmp_path, monkeypatch, capsys):
+    ws = make_ws(tmp_path)
+    _patch_pdk(monkeypatch, tmp_path)
+    final = _netlists(ws)
+    built = {}
+
+    class Runner(_runner_writing_logs().__class__):
+        def build(self, sources, log_file, **kw):
+            built[Path(log_file).name] = sources
+
+    code, out = _run(ws, monkeypatch, capsys, Runner())
+    assert code == 0, out
+    assert str(final / "pnl/tt_um_counter8.pnl.v") in built["build_functional.log"]
+    assert not any("sdf_icarus" in s or ".nl.v" in s for s in built["build_functional.log"])
+    assert any(s.endswith("sdf_icarus.nl.v") for s in built["build_sdf.log"])
+    defines = Path(built["build_functional.log"][0]).read_text()
+    assert "`define FUNCTIONAL" in defines and "`define USE_POWER_PINS" in defines
+    # what release reads to tie the shipped netlist to this run
+    assert out["netlists"]["pnl_sha256"] == check_glsim.ttship._sha256(
+        final / "pnl/tt_um_counter8.pnl.v")
+    assert out["netlists"]["nl_sha256"] == check_glsim.ttship._sha256(
+        final / "nl/tt_um_counter8.nl.v")
+
+
+def test_powered_netlist_of_another_design_is_a_violation(tmp_path, monkeypatch, capsys):
+    # sdf and lec read final/nl, the tile ships final/pnl: one swapped cell
+    # between them, and neither gate looks at both
+    ws = make_ws(tmp_path)
+    _patch_pdk(monkeypatch, tmp_path)
+    _netlists(ws, pnl=PNL.replace("inv_1 u1", "buf_1 u1"))
+    code, out = _run(ws, monkeypatch, capsys, _runner_writing_logs())
+    assert code == 1, out
+    assert [v["kind"] for v in out["violations"]] == ["pnl_differs_from_nl"]
+    assert "u1" in out["violations"][0]["msg"]
+
+
+@pytest.mark.parametrize("nl,pnl", [
+    (NL, PNL.replace(".I(n)", ".I(a)")),
+    (NL, PNL.replace(" filltie_1 tap", " filltie_2 tap")),
+    (NL.replace(" filltie_1 tap ();\n", ""), PNL),
+])
+def test_compare_netlists_sees_a_connection_or_a_cell(tmp_path, nl, pnl):
+    a, b = tmp_path / "a.v", tmp_path / "b.v"
+    a.write_text(nl)
+    b.write_text(pnl)
+    assert check_glsim.compare_netlists(a, b)
+
+
+def test_compare_netlists_ignores_only_the_power_pins(tmp_path):
+    a, b = tmp_path / "a.v", tmp_path / "b.v"
+    a.write_text(NL)
+    b.write_text(PNL)
+    assert check_glsim.compare_netlists(a, b) is None
+    assert [c[0] for c in check_glsim.netlist_cells(NL)] == ["filltie_1", "inv_1", "inv_1"]

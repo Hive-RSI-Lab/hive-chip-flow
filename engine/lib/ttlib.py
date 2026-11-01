@@ -588,10 +588,18 @@ def generate_glsim_harness(spec: dict, dut_instance: str = "dut",
     body.append(f"  wire tt_rst_n = {rst_n_expr};")
     body.extend(out_reads)
     body.append("")
+    body.append("`ifdef USE_POWER_PINS")
+    body.append("  wire tt_vpwr = 1'b1;")
+    body.append("  wire tt_vgnd = 1'b0;")
+    body.append("`endif")
     body.append(f"  {dut_module} {dut_instance} (")
     body.append("      .ui_in(tt_ui_in), .uo_out(tt_uo_out), .uio_in(tt_uio_in),")
     body.append("      .uio_out(tt_uio_out), .uio_oe(tt_uio_oe), .ena(tt_ena),")
     body.append("      .clk(tt_clk), .rst_n(tt_rst_n)")
+    # the powered netlist (final/pnl), which is what the tile ships
+    body.append("`ifdef USE_POWER_PINS")
+    body.append("      , .VPWR(tt_vpwr), .VGND(tt_vgnd)")
+    body.append("`endif")
     body.append("  );")
     if sdf_path is not None:
         body.append(f'  initial $sdf_annotate("{sdf_path}", {dut_instance});')

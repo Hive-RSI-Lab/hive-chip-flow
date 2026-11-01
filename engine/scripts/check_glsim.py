@@ -5,14 +5,17 @@
 
 Runs the SAME tb/*.py cocotb suite `sim` uses (docs/design.md section 2:
 "a design can be right in RTL and wrong after synthesis") against the
-hardened gate-level netlist (`harden/runs/run/final/nl/*.nl.v`), twice:
+hardened gate-level netlist, twice:
 
-  functional - the PDK's own cell models compiled with `-DFUNCTIONAL` (their
-  own convention, `` `ifndef FUNCTIONAL `` around every `specify` block -
-  engine/reference/tt/VENDORED.md), zero-delay, proves the netlist is
-  logically equivalent to the RTL through a real gate-level structural sim.
+  functional - the powered netlist the tile ships
+  (`harden/runs/run/final/pnl/*.pnl.v`, ttship.py), on the PDK's own cell
+  models compiled with `-DFUNCTIONAL` (their own convention, `` `ifndef
+  FUNCTIONAL `` around every `specify` block -
+  engine/reference/tt/VENDORED.md) and `-DUSE_POWER_PINS`, zero-delay, proves
+  the netlist is logically equivalent to the RTL through a real gate-level
+  structural sim.
 
-  sdf - the same models WITHOUT that define, built with -gspecify and
+  sdf - `final/nl/*.nl.v` on the same models WITHOUT those defines, built with -gspecify and
   -ginterconnect so the specify blocks stay live, with the
   hardened design's own nominal-corner SDF back-annotated
   (`$sdf_annotate`, engine/lib/ttlib.py's `generate_glsim_harness`) -
@@ -24,6 +27,12 @@ The harness (`ttlib.generate_glsim_harness`) is the tt_pins map read in
 reverse: a module named exactly spec['top'], the original RTL's own port
 list, wrapping the hardened `tt_um_<top>` netlist - so tb/*.py drives and
 observes it exactly as it drives the pre-synthesis RTL, unmodified.
+
+The two netlists must be one design: a final/pnl whose cells and connections,
+power pins aside, are not final/nl's is a `pnl_differs_from_nl` violation,
+since lec and the sdf pass read one and the tile ships the other. The report's
+`netlists` holds both sha256; release refuses a shipped netlist that is not
+the `pnl_sha256` recorded here.
 
 Passes when every test in tb/ passes BOTH ways (gates.yaml: "every test
 passes both ways"). Failure classification (the same three-way split every
@@ -58,6 +67,7 @@ import checklib  # noqa: E402
 import cocotblib  # noqa: E402
 import speclib  # noqa: E402
 import ttlib  # noqa: E402
+import ttship  # noqa: E402
 from checklib import CheckError  # noqa: E402
 
 SCRIPT = "check_glsim"
@@ -109,6 +119,33 @@ MODULE_RE = re.compile(r"^\s*module\s+(\w+)")
 SDF_SEGMENT_RE = re.compile(r"(?:[A-Za-z0-9_$]|\\\S)+")
 VERILOG_ESCAPED_RE = re.compile(r"\\(\S+)(?=\s)")
 SIMPLE_ID_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_$]*")
+# The cells' power pins, and the module's own power ports: what final/pnl has
+# and final/nl does not.
+CELL_POWER_PIN_RE = re.compile(r"\.(?:VDD|VSS|VNW|VPW)\(\s*\w+\s*\)\s*,?")
+INSTANCE_DECL_RE = re.compile(
+    r"^\s*(\w+)\s+(\\\S+\s|\w+)\s*\(((?:\s*\..*?)?\s*)\)\s*;", re.S | re.M)
+PIN_RE = re.compile(r"\.(\w+)\(\s*(.*?)\s*\)")
+
+
+def netlist_cells(text: str) -> list[tuple]:
+    """Every instance in a netlist as (cell, name, its pins but the power
+    pins), sorted, so a powered and an unpowered write of a design compare."""
+    text = re.sub(r"/\*.*?\*/|//[^\n]*", " ", text, flags=re.S)
+    text = CELL_POWER_PIN_RE.sub(" ", text)
+    return sorted((m.group(1), m.group(2).strip(),
+                   tuple(sorted(PIN_RE.findall(m.group(3)))))
+                  for m in INSTANCE_DECL_RE.finditer(text))
+
+
+def compare_netlists(nl: Path, pnl: Path) -> str | None:
+    """Why final/pnl is not final/nl with power pins added; None if it is."""
+    ours, theirs = (netlist_cells(p.read_text(encoding="utf-8", errors="replace"))
+                    for p in (nl, pnl))
+    if ours == theirs:
+        return None
+    only = sorted(set(ours) ^ set(theirs))
+    return (f"{len(ours)} instances in final/nl, {len(theirs)} in final/pnl, "
+            f"{len(only)} differ, first {only[0][1] if only else '(duplicates)'}")
 
 
 def escaped_dot_renames(sdf_text: str, nl_text: str) -> dict[str, str]:
@@ -304,7 +341,8 @@ def run_pass(name: str, ws: Path, spec: dict, final_dir: Path,
             functional: bool, sdf: Path | None) -> dict:
     top = spec["top"]
     dut_module = ttlib.wrapper_name(spec)
-    nl = final_dir / "nl" / f"{dut_module}.nl.v"
+    nl = (final_dir / "nl" / f"{dut_module}.nl.v" if sdf is not None
+          else final_dir / "pnl" / f"{dut_module}.pnl.v")
     if not nl.is_file():
         raise CheckError(f"no gate-level netlist at {nl} - has the harden "
                          "gate run?")
@@ -337,7 +375,8 @@ def run_pass(name: str, ws: Path, spec: dict, final_dir: Path,
     build_args = ["-gspecify", "-ginterconnect"] if sdf is not None else []
     if functional:
         defines_file = build_dir / "functional_define.v"
-        defines_file.write_text("`define FUNCTIONAL\n", encoding="utf-8")
+        defines_file.write_text("`define FUNCTIONAL\n`define USE_POWER_PINS\n",
+                                encoding="utf-8")
         sources = [defines_file, *sources]
 
     from cocotb_tools.runner import get_runner
@@ -422,8 +461,19 @@ def run(argv=None):
                 f"{res['message'] or f'see log/glsim_build/sim_{name}.log'}",
                 "cocotb", glsim_pass=name))
 
+    nl = final_dir / "nl" / f"{dut_module}.nl.v"
+    pnl = final_dir / "pnl" / f"{dut_module}.pnl.v"
+    differs = compare_netlists(nl, pnl)
+    if differs:
+        violations.append(checklib.violation(
+            "glsim", "error", str(pnl.relative_to(ws)), None,
+            "pnl_differs_from_nl", [],
+            f"the powered netlist is not the netlist with power pins: {differs}",
+            "check_glsim"))
     payload = checklib.report(SCRIPT, ws / "harden", violations, top=top,
-                              results=all_results, sdf=notes)
+                              results=all_results, sdf=notes,
+                              netlists={"nl_sha256": ttship._sha256(nl),
+                                        "pnl_sha256": ttship._sha256(pnl)})
     return payload, args.out
 
 
