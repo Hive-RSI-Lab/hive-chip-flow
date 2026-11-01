@@ -44,7 +44,8 @@ requirements:
   - id: REQ-PFD-DELAY-KEEP
     text: The PFD reset delay chain cells carry keep attributes and survive synthesis - the synthesised netlist contains at least 2 kept delay cells on the PFD reset path.
     check: measure
-    bounds: {kept_pfd_delay_cells: {min: 2}}
+    # the synthesised dlya_1 count: the PFD reset path's two kept cells are the only dlya_1s in the RTL
+    bounds: {kept_pfd_delay_cells: {min: 2, source: synth.cells.gf180mcu_fd_sc_mcu7t5v0__dlya_1}}
   # --- lock detector --------------------------------------------------------
   - id: REQ-LOCK-ASSERT
     text: lock asserts after K = 16 consecutive reference cycles in which neither pfd_up nor pfd_dn was still high at the falling edge of clk following the reference rising edge (wide-pulse threshold = half a reference period), and not before the 16th such cycle.
@@ -81,45 +82,61 @@ requirements:
   - id: REQ-LOOP-LOCK
     text: With the bench-only real-number model of pump, filter and VCO (Icp 20 uA, C1 20 pF, R 22 kOhm, C2 2 pF, Kvco 100 MHz/V, 50-200 MHz typical, 333 MHz fast) closing the loop, lock rises within 50 us at every (f_ref, N) point of the lock table - (5 MHz, N=2..5), (6.25 MHz, N=1..4), (10 MHz, N=1,2), (12.5 MHz, N=1,2).
     check: measure
-    bounds: {lock_time_us: {max: 50}}
+    bounds: {lock_time_us: {max: 50, source: "msde:cosim.measures.lock_time_us", note: "partial: the cosim's one operating point, not the whole lock table"}}
   - id: REQ-LOOP-FREQ
     text: At every lock-table point, after lock, the mean clk_fb period equals the reference period and the modelled VCO period equals the reference period / (8*N), each within 0.1 percent relative error.
     check: measure
-    bounds: {fb_period_rel_err: {max: 0.001}, vco_period_rel_err: {max: 0.001}}
+    bounds:
+      fb_period_rel_err: {max: 0.001, source: "msde:cosim.measures.fb_period_rel_err", note: "partial: one operating point"}
+      vco_period_rel_err: {max: 0.001, source: "msde:cosim.measures.vco_period_rel_err", note: "partial: one operating point"}
   - id: REQ-LOOP-VCTRL
     text: At every lock-table point the modelled Vctrl settles - its peak-to-peak variation over the last 10 us of the run is at most 20 mV.
     check: measure
-    bounds: {vctrl_pp_last_10us_mv: {max: 20}}
+    bounds: {vctrl_pp_last_10us_mv: {max: 20, source: "msde:cosim.measures.vctrl_pp_last_10us_mv", note: "partial: one operating point"}}
   - id: REQ-LOOP-RELOCK
     text: After a change of N between two lock-table points at the same f_ref, lock drops and rises again within 50 us of the change.
     check: measure
-    bounds: {relock_time_us: {max: 50}}
+    # no bench changes N mid-run yet, so this reads missing until the cosim records relock_time_us
+    bounds: {relock_time_us: {max: 50, source: "msde:cosim.measures.relock_time_us"}}
   - id: REQ-LOOP-MODEL-BENCH-ONLY
     text: The real-number loop model exists only under ifdef SIM - the synthesised netlist contains no real-valued or model logic and every synthesised cell is a gf180mcu_fd_sc_mcu7t5v0 standard cell.
     check: measure
-    bounds: {non_std_cells_in_netlist: {max: 0}}
+    bounds: {non_std_cells_in_netlist: {max: 0, source: synth.non_liberty_cells}}
   # --- bench strength -------------------------------------------------------
   - id: REQ-MUT-KILL
     text: The bench kills all four named mutants - swapped UP/DN, missing PFD reset, divider off by one, prescaler /4 - with a kill rate of 100 percent on that set.
     check: measure
-    bounds: {named_mutant_kill_rate: {min: 1.0}}
+    # mutate scores mcy's own mutant set and records no rate for these four, so this reads missing until it does
+    bounds: {named_mutant_kill_rate: {min: 1.0, source: mutate.named_kill_rate}}
   # --- timing and harden ----------------------------------------------------
   - id: REQ-TIM-PRE
     text: The generated clock clk_pre (vco_out/8) constrained at 50 MHz (20 ns) is met by the divider, the PFD feedback flop and the /16 flop with non-negative worst slack at the tt corner.
     check: measure
-    bounds: {clk_pre_wns_ns: {min: 0}}
+    # the timing gate records worst slack per corner over every clock: a lower bound on clk_pre's own
+    bounds: {clk_pre_wns_ns: {min: 0, source: timing.corners.max_tt_025C_3v30.setup_ws, note: "worst slack over every clock, a lower bound on this one"}}
   - id: REQ-TIM-REF
     text: The reference domain clk constrained at 12.5 MHz (80 ns) is met by the PFD reference flop, the lock detector and the control registers with non-negative worst slack.
     check: measure
-    bounds: {clk_wns_ns: {min: 0}}
+    # worst setup slack over every clock at tt: a lower bound on clk's own
+    bounds: {clk_wns_ns: {min: 0, source: timing.corners.max_tt_025C_3v30.setup_ws, note: "worst slack over every clock, a lower bound on this one"}}
   - id: REQ-TIM-VCO
     text: The three prescaler flops clocked by vco_out meet the Liberty minimum period (0.93 ns ff, 1.71 ns tt) and minimum pulse width at a 2.7 ns vco_out period (370 MHz, the analog spec's vco_fmax_ff_mhz ceiling at every corner) - each flop's toggle loop is under the 2.7 ns period at both corners. At ss (ss_125C_3v00) no library flop toggles at 2.7 ns, so there the first stage's toggle loop (clock-to-Q, inverter, setup, without the SDC's 0.25 ns uncertainty) is held to 3.65 ns (274 MHz), what the hand-placed dffrnq_2 + inv_1 reaches after routing. Evidence for that bound is tb/prescaler_margin.py on the ss_pff calibration. Acquiring from Vctrl = 0, every lock-table point locks with a stage of up to 3.65 ns, and the 5 MHz x 5 point (peak about 283 MHz) stops locking from 3.68 ns, so that point has no margin on the pre-layout netlist. REQ-RECOVER covers a VCO above the stage.
     check: measure
-    bounds: {vco_out_period_ns: {min: 2.7}, prescaler_min_period_ns_tt: {max: 1.71}, prescaler_min_period_ns_ff: {max: 0.93}}
+    # the 2.7 ns vco_out period is a constraint (harden/constraints.sdc), not a result; the Liberty min period and min
+    # pulse width are the timing gate's own min_period/min_pulse_width checks (any violation fails that gate); what it
+    # records per corner is worst setup/hold slack over every clock, vco_out included (ss is out of this
+    # requirement's scope, see the text; the timing gate holds it)
+    bounds:
+      setup_ws_tt: {min: 0, source: timing.corners.max_tt_025C_3v30.setup_ws}
+      setup_ws_ff: {min: 0, source: timing.corners.max_ff_n40C_3v60.setup_ws}
+      hold_ws_ff: {min: 0, source: timing.corners.min_ff_n40C_3v60.hold_ws}
   - id: REQ-HARDEN-STANDALONE
     text: The digital side hardens alone as tt_um_ihsan_sa_pll on the TT GF180 analog-tile footprint with the pin map in tt_pins, with zero DRC errors and zero LVS mismatches; the analog macro area is reserved later by the msde integrator, not by this run.
     check: measure
-    bounds: {drc_errors: {max: 0}, lvs_mismatches: {max: 0}}
+    bounds:
+      drc_errors_magic: {max: 0, source: drc.magic_count}
+      drc_errors_klayout: {max: 0, source: drc.klayout_count}
+      lvs_matched: {equals: true, source: lvs.matched}
 
 # Ports of the digital core. Crossing-signal names/widths are verbatim from
 # interface.yaml (a2d -> input, d2a -> output). The architect (P2) refines.

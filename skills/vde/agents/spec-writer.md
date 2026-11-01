@@ -76,8 +76,11 @@ loose first pass the architect refines is fine, an empty one is not.
    --gate spec_lint --workspace <ws> --commit "vde <block>: spec_lint
    pass"`. Fix every violation it
    reports before returning - `requirement_no_check` and
-   `requirement_measure_no_bounds` are the ones worth double-checking by
-   hand, since they are exactly `spec_lint`'s own planted-fault target.
+   `requirement_measure_no_bounds` / `requirement_measure_no_source` are
+   the ones worth double-checking by hand (a measure bound names the
+   recorded fact it is held to, `source: <gate>.<facts path>`, e.g.
+   `timing.corners.max_tt_025C_3v30.setup_ws`, `synth.cell_count`,
+   `mutate.kill_rate`, `drc.magic_count`; release reads it), since they are exactly `spec_lint`'s own planted-fault target.
 
 ## Hard rules
 - Never write RTL, a testbench, or a formal property - those are P3/P4.

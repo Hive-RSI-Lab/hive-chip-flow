@@ -98,9 +98,18 @@ def test_measure_requirement_needs_bounds():
 
     spec2 = {**GOOD_SPEC, "requirements": [
         {"id": "REQ-M", "text": "gain in range", "check": "measure",
-         "bounds": {"min": 1, "max": 2}},
+         "bounds": {"gain": {"min": 1, "max": 2,
+                             "source": "synth.area"}}},
     ]}
     assert speclib.lint_spec(spec2) == []
+
+    # issue #89: bounds that name no recorded source are checked by nothing
+    spec3 = {**GOOD_SPEC, "requirements": [
+        {"id": "REQ-M", "text": "gain in range", "check": "measure",
+         "bounds": {"min": 1, "max": 2}},
+    ]}
+    kinds = {v["kind"] for v in speclib.lint_spec(spec3)}
+    assert "requirement_measure_bad_bound" in kinds
 
 
 def test_formal_requirement_needs_a_property_label():

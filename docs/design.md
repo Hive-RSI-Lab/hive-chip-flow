@@ -72,7 +72,7 @@ Digital (`/vde`):
 
 | gate | tool | passes when | planted fault it must catch |
 |---|---|---|---|
-| spec_lint | speclib | every requirement has an id, a check kind and, for `measure`, bounds; tt_pins fit the tile | a requirement with no way to check it |
+| spec_lint | speclib | every requirement has an id, a check kind and, for `measure`, bounds that each name a recorded `source` (`<gate>.<facts path>`, measurelib; release fails a bound out of limits or never recorded); tt_pins fit the tile | a requirement with no way to check it |
 | lint | verilator --lint-only -Wall | no errors; warnings only from an allowlist with reasons | an `always @*` missing an else (latch) |
 | sim | cocotb 2 on Icarus | every test passes and every requirement id has a test tagged with it | counter wraps one early |
 | holdout | cocotb on `holdout/` | every held-out test passes; the result names requirement ids only | UART parity inverted where the visible tests do not look |
@@ -86,7 +86,7 @@ Digital (`/vde`):
 | lvs | netgen, magic-extracted layout versus the hardened netlist | match | one net split in two in the extracted layout netlist, the electrical effect of a missing via |
 | glsim | the sim suite on the gate-level netlist, then with SDF | every test passes both ways | a register read before it is written, which only X-propagation exposes |
 | precheck | tt-support-tools precheck, pinned | passes | a wrong top module name in info.yaml |
-| release | attest, strict | every applicable gate has a fresh recorded pass on the current inputs; waivers carry reason, approval and durability | an RTL edit after harden, which must refuse |
+| release | attest, strict | every applicable gate has a fresh recorded pass on the current inputs; waivers carry reason, approval and durability; every `check: measure` bound is inside its limits on its recorded source | an RTL edit after harden, which must refuse |
 
 **Clocks in harden and timing.** LibreLane's `CLOCK_PORT` is the spec's primary clock domain mapped through `tt_pins`, at `clock.period_ns`: `clock.primary`, or the only entry of `clock.domains`. With several domains and no `clock.primary`, harden refuses rather than take the first. Everything past that one clock (the other domains, generated clocks, false paths) goes in a hand-written `harden/constraints.sdc` against the TT wrapper's ports. Each run, harden writes `harden/flow.sdc`, which sources LibreLane's base SDC and then that file, and points `PNR_SDC_FILE` and `SIGNOFF_SDC_FILE` at it. Neither key can be set through the override. Harden refuses (exit 2) a spec with several domains and no `constraints.sdc`, and a `constraints.sdc` that defines a clock on the primary's port or name or leaves a domain without one. The timing gate reads that same signoff SDC once per corner, as LibreLane's signoff STA does: with the run's resolved config (`runs/run/resolved.json`) in `::env` and the corner's own liberty loaded, so harden and timing check one set of constraints, and an SDC that picks a value per corner (a clock period from the liberty's name) gets each corner's own. It never reads `final/sdc`, one step's write-back frozen at one corner's values. The RTL optimise loop builds its SDC from the spec alone, so it refuses such a block. A one-clock spec with no `constraints.sdc` hardens exactly as before.
 

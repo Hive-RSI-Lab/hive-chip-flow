@@ -23,6 +23,15 @@ without attest.py's own build() having produced a real attestation body.
 On success, writes reports/checks.json (attest.py's write_attestation) -
 docs/design.md section 2's "The record of what ran is the release."
 
+A vde block's `check: measure` requirements (issue #89) are checked here:
+each bound names the recorded gate fact it is held to (measurelib.py), and
+release fails `measure_out_of_bounds` for a value outside its limits and
+`measure_missing` for one no recorded run holds. A bound on the enclosing
+msde block's record is deferred to that block's release, which runs after
+cosim and checks it here too. facts.measures lists every bound as
+pass/fail/missing/deferred; `eda python engine/scripts/measures.py
+--workspace DIR` prints the same table any time before release.
+
 An msde block (M10) owes one thing more: "both nested runs released, top
 gates fresh" (docs/design.md 1.5's msde release row). Its two sides are
 nested workspaces at `digital/` (skill vde) and `analog/` (skill ade), each
@@ -46,6 +55,8 @@ sys.path.insert(0, str(SCRIPTS))
 sys.path.insert(0, str(ENGINE / "lib"))
 import checklib  # noqa: E402
 import attest as attest_mod  # noqa: E402
+import measurelib  # noqa: E402
+import speclib  # noqa: E402
 import statelib  # noqa: E402
 import ttship  # noqa: E402
 
@@ -126,7 +137,30 @@ def run(argv=None):
             att, problems = None, problems + ship
         elif att is not None:
             att = with_tt_submission(att, tt_record)
-    violations = [
+    # issue #89: every vde `check: measure` bound is read from the gate
+    # record it names; a bound it misses, or a number nobody recorded,
+    # refuses the release (missing is never a pass)
+    measures = []
+    if skill == "vde":
+        spec = speclib.load_spec(ws / "spec" / "spec.yaml")
+        measures = measurelib.evaluate(ws, spec)
+    elif skill == "msde" and (ws / "digital" / "spec" / "spec.yaml").is_file():
+        # digital deferred these to here: cosim runs after its release, and
+        # attest above has required this block's cosim fresh and passing
+        spec = speclib.load_spec(ws / "digital" / "spec" / "spec.yaml")
+        measures = measurelib.nested_msde_rows(ws / "digital", spec)
+    measure_violations = [
+        checklib.violation(
+            "release", "error", "spec/spec.yaml", None,
+            "measure_out_of_bounds" if m["status"] == "fail"
+            else "measure_missing", [m["req"]] if m["req"] else [],
+            f"{m['req']} {m['name']} ({m['source']}): "
+            + (m["why"] if m["status"] == "fail"
+               else f"no value: {m['why']}"), "measurelib")
+        for m in measures if m["status"] in ("fail", "missing")]
+    if measure_violations:
+        att = None
+    violations = measure_violations + [
         checklib.violation("release", "error", None, p.split(":", 1)[0]
                            if ":" in p else None,
                            "nested_not_released" if p.startswith("nested_")
@@ -147,6 +181,8 @@ def run(argv=None):
         }
     if tt_record is not None:
         facts["tt_submission"] = tt_record
+    if measures:
+        facts["measures"] = measures
 
     # stamp() hashes exactly this path as input_digest; gate.py's own
     # record_gate cross-checks that against invalidation.yaml's gate_inputs

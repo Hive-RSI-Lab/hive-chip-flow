@@ -18,7 +18,10 @@ exists, is the only artifact early enough):
       - id: str                 unique, non-empty
         text: str                non-empty prose
         check: sim|formal|both|measure
-        bounds: {...}            required when check == measure
+        bounds: {name: {min?, max?, equals?, source}}
+                                 required when check == measure; each
+                                 bound names the recorded fact it is held
+                                 to (measurelib.py, issue #89)
     ports: {name: {dir, width}} optional, loose
     tt_pins: {name: pin}         optional (M4+); a non-empty mapping when present
     clock: {period_ns, domains, primary?}  optional, loose; primary must
@@ -590,6 +593,23 @@ def lint_spec(spec: dict, rel_path: str = "spec/spec.yaml") -> list[dict]:
             bad("requirement_measure_no_bounds",
                f"{where} (id {rid!r}) has check: measure but no 'bounds'",
                refs=[rid] if rid else [])
+        elif check == "measure":
+            # issue #89: a measure is held to a recorded number, or it is
+            # checked by nothing (measurelib.py; release evaluates it)
+            import measurelib
+            bounds = req.get("bounds")
+            if not isinstance(bounds, dict):
+                bad("requirement_measure_bad_bound",
+                   f"{where} (id {rid!r}) bounds must be a mapping "
+                   "{name: {min?, max?, equals?, source}}",
+                   refs=[rid] if rid else [])
+            else:
+                known = {"vde": measurelib.gate_names("vde"),
+                         "msde": measurelib.gate_names("msde")}
+                for name, b in bounds.items():
+                    for kind, msg in measurelib.lint_bound(name, b, known):
+                        bad(kind, f"{where} (id {rid!r}): {msg}",
+                           refs=[rid] if rid else [])
         elif check in ("formal", "both"):
             # M3 (docs/design.md "### M3."): check_formal.py joins a
             # requirement to its assert/cover in formal/*.sv by this label,
