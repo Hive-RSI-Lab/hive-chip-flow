@@ -4,7 +4,7 @@
  "block": "r2r_dac",
  "workspace": "blocks/r2r_dac/digital",
  "created": "2026-09-25T08:51:49",
- "updated": "2026-11-01T05:04:24",
+ "updated": "2026-11-01T06:03:18",
  "phase": "P8",
  "toolchain": null,
  "gates": {
@@ -1368,9 +1368,9 @@
   "cdc": {
    "phase": "P5",
    "status": "pass",
-   "attempts": 1,
+   "attempts": 2,
    "last": {
-    "ts": "2026-11-01T05:04:24",
+    "ts": "2026-11-01T06:03:18",
     "status": "pass",
     "failing_count": 0,
     "total": 0,
@@ -1386,6 +1386,20 @@
    "history": [
     {
      "ts": "2026-11-01T05:04:24",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:08d2e63a30253fb8dcb71be29ca5aa7209711132e317fcb0e4bc99f0e226a305",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119",
+      "cdc_waivers": null,
+      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+      "pdk_liberty": "dir_bytes:f09377f057ab484ec9e5a45b205c99a5de399e2bdca886531bf9eefa57783f32"
+     },
+     "job": null
+    },
+    {
+     "ts": "2026-11-01T06:03:18",
      "status": "pass",
      "failing_count": 0,
      "total": 0,
@@ -1510,7 +1524,7 @@
    "path": "rtl",
    "kind": "rtl",
    "sha256": "dir_text:08d2e63a30253fb8dcb71be29ca5aa7209711132e317fcb0e4bc99f0e226a305",
-   "hashed": "2026-11-01T05:04:24"
+   "hashed": "2026-11-01T06:03:18"
   },
   "tb": {
    "path": "tb",
@@ -1548,7 +1562,7 @@
    "path": "spec/spec.yaml",
    "kind": "spec_yaml_sans_formal",
    "sha256": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119",
-   "hashed": "2026-11-01T05:04:24"
+   "hashed": "2026-11-01T06:03:18"
   },
   "harden_config": {
    "path": "harden/config.json",
@@ -1584,19 +1598,19 @@
    "path": "spec/cdc.yaml",
    "kind": "cdc_waivers",
    "sha256": null,
-   "hashed": "2026-11-01T05:04:24"
+   "hashed": "2026-11-01T06:03:18"
   },
   "pdk_version": {
    "path": "${PDK_ROOT}/SOURCES",
    "kind": "pdk_version",
    "sha256": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
-   "hashed": "2026-11-01T05:04:24"
+   "hashed": "2026-11-01T06:03:18"
   },
   "pdk_liberty": {
    "path": "${PDK_ROOT}/libs.ref/gf180mcu_fd_sc_mcu7t5v0/lib",
    "kind": "pdk_liberty",
    "sha256": "dir_bytes:f09377f057ab484ec9e5a45b205c99a5de399e2bdca886531bf9eefa57783f32",
-   "hashed": "2026-11-01T05:04:24"
+   "hashed": "2026-11-01T06:03:18"
   }
  },
  "open_issues": [
@@ -3058,6 +3072,14 @@
    "gate": "cdc",
    "status": "pass",
    "attempt": 1,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-11-01T06:03:18",
+   "event": "gate",
+   "gate": "cdc",
+   "status": "pass",
+   "attempt": 2,
    "failing_count": 0
   }
  ]

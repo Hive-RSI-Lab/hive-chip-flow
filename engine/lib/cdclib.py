@@ -18,7 +18,26 @@ SYNCHRONISED only when the D pin reads that one source through no logic and
 its Q feeds one thing, the D of a flop on the same clock and edge. The same
 Q pattern with logic ahead of it is comb_before_sync; anything else is
 unsynchronized. A flop's async set/reset reading another domain's FLOP is
-reported too; a reset PORT is reset-domain crossing, a separate check.
+reported too, unless that flop is a reset synchroniser's stage, whose whole
+job is to take an async assert from anywhere. A reset PORT is the next check.
+
+Reset release. Every flop's async set/reset pin is walked back to its sources
+(reset_report). A release is clean in a domain only through a RESET SYNCHRONISER
+clocked in that domain: at least 2 flops on one clock and edge, all async by one
+net, the first with D tied to the value opposite its reset, each stage's D
+straight from the stage before, and each stage but the last feeding only the
+next. Against that:
+  unsynced  a raw source (port, macro, ICG) reaches a flop's async pin. A port
+            spec/cdc.yaml places in that domain (`ports`) is taken as already
+            synchronous there; the default clock.primary is NOT assumed here,
+            since a reset that needs no synchroniser is a claim someone makes.
+  comb      logic on the reset net, per net and domain. Its raw sources are
+            still walked, so waiving the logic doesn't hide the release.
+  nonreset  a flop with no async reset of its own drives an async pin: nothing
+            defines that net until the flop's first clock.
+A flop in another domain on an async pin is the crossing above, not reported
+twice. A same-domain flop with a reset (a soft-reset register) is timed by STA,
+and is judged by what resets it. A stage's own raw reset is the point of it.
 
 Clock gates. A net on a clock path driven by logic rather than a buffer. An
 AND gate is glitch-free only if each enable comes straight from a flop or
@@ -47,7 +66,10 @@ LIB_AND = re.compile(r"__n?and\d_\d+$")
 LIB_OR = re.compile(r"__n?or\d_\d+$")
 LIB_MUX = re.compile(r"__mux\d_\d+$")
 LIB_CELL = re.compile(r"^gf180mcu_fd_sc_")
-ASYNC_PINS = ("R", "S", "RN", "SETN", "L", "AD")
+YOSYS_RST_FF = re.compile(r"^\$_DFF_[PN][PN]([01])_$")
+LIB_RST_FF = re.compile(r"__dffn?([rs])nq_\d+$")
+RESET_PINS = ("R", "S", "RN", "SETN", "L")
+ASYNC_PINS = RESET_PINS + ("AD",)
 SCAN_PINS = ("SI", "SE")
 
 
@@ -60,6 +82,8 @@ class Flop:
     data: list = field(default_factory=list)
     resets: list = field(default_factory=list)
     latch: bool = False
+    reset_pins: list = field(default_factory=list)  # ASYNC_PINS less load data
+    reset_value: str | None = None   # a plain one-reset flop's reset state
 
 
 @dataclass
@@ -126,7 +150,7 @@ class Netlist:
                                           bit("CLK") or bit("CLKN"))
             data = pins(("D",) + SCAN_PINS + (() if latch else ("E",)))
             ff = Flop(name, bit("Q"), clk, negedge, data, pins(ASYNC_PINS),
-                      latch)
+                      latch, pins(RESET_PINS), self._reset_value(typ))
             if ff.q is not None and ff.q not in CONST:
                 self.flops[ff.q] = ff
             self._read(ff.clk, ("clock", ff))
@@ -167,6 +191,16 @@ class Netlist:
         for out in outs:
             if out not in CONST:
                 self.combs[out] = Comb(kind, ins, select)
+
+    @staticmethod
+    def _reset_value(typ: str) -> str | None:
+        m = YOSYS_RST_FF.match(typ)
+        if m:
+            return m.group(1)
+        m = LIB_RST_FF.search(typ)
+        if m:
+            return "0" if m.group(1) == "r" else "1"
+        return None
 
     @staticmethod
     def _comb_kind(typ: str) -> str | None:
@@ -246,6 +280,7 @@ class Analysis:
         self.domains = self._flop_domains()
         self._walk_output_clocks()
         self.all_roots = sorted({r for d in self.domains.values() for r in d})
+        self.sync_stages_of = self._find_reset_syncs()
 
     # ---- clocks ----------------------------------------------------------
 
@@ -511,6 +546,8 @@ class Analysis:
                     add(status, leaf, ff, dst_dom, dom, stages + 1)
             for pin_bit in ff.resets:
                 leaves, _ = nl.cone(pin_bit)
+                if ff.q in self.sync_stages_of:
+                    break     # a reset synchroniser re-times this release
                 for leaf in sorted(leaves):
                     if leaf in nl.flops and self.domains[leaf] != dst_dom:
                         add("async_reset", leaf, ff, dst_dom,
@@ -522,6 +559,131 @@ class Analysis:
             out.append(g)
         out.sort(key=lambda g: (g["from"], g["to"], g["status"]))
         return out, sorted(no_domain)
+
+    # ---- reset release ---------------------------------------------------
+
+    def _sync_chain(self, last: Flop) -> list | None:
+        """The stages of the reset synchroniser ending at this flop, first
+        stage first; None if it isn't the end of one."""
+        nl = self.nl
+        chain, cur, seen = [], last, set()
+        while True:
+            if (cur.q in seen or cur.latch or len(cur.data) != 1
+                    or len(cur.reset_pins) != 1 or cur.reset_value is None
+                    or cur.reset_pins[0] in CONST):
+                return None
+            seen.add(cur.q)
+            chain.insert(0, cur)
+            d = cur.data[0]
+            if d in CONST:
+                break
+            base, inv = nl.canon(d)
+            prev = nl.flops.get(base)
+            if inv or prev is None or self._only_flop_load(prev) is not cur:
+                return None
+            cur = prev
+        first = chain[0]
+        if len(chain) < 2 or first.data[0] not in ("0", "1") \
+                or first.data[0] == first.reset_value:
+            return None
+        if len({nl.canon(f.reset_pins[0]) for f in chain}) != 1 \
+                or len({f.reset_value for f in chain}) != 1:
+            return None
+        return chain
+
+    def _find_reset_syncs(self) -> dict:
+        """{Q bit of every stage: the longest chain it belongs to}."""
+        out: dict[int, list] = {}
+        for ff in self.nl.flops.values():
+            chain = self._sync_chain(ff)
+            for stage in chain or []:
+                if len(chain) > len(out.get(stage.q, [])):
+                    out[stage.q] = chain
+        return out
+
+    def reset_syncs(self) -> list[dict]:
+        nl = self.nl
+        rows = {}
+        for chain in self.sync_stages_of.values():
+            last = chain[-1]
+            rows[last.q] = {
+                "net": nl.label(last.q), "stages": len(chain),
+                "stage_nets": [nl.label(f.q) for f in chain],
+                "reset": nl.label(nl.canon(last.reset_pins[0])[0]),
+                "clock": nl.label(nl.canon(last.clk)[0]),
+                "domain": sorted(self.domains[last.q])}
+        return sorted(rows.values(), key=lambda r: r["net"])
+
+    def _release_status(self, leaf, ff: Flop) -> str:
+        """How a source's release reaches this flop's async pin."""
+        nl = self.nl
+        dom = self.domains[ff.q]
+        stage = ff.q in self.sync_stages_of
+        if leaf in nl.flops:
+            if stage:
+                return "sync_stage"
+            if self.domains[leaf] != dom:
+                return "crossing"
+            if leaf in self.sync_stages_of:
+                return "synchronized"
+            return "same_domain_flop" if nl.flops[leaf].reset_pins \
+                else "nonreset"
+        if stage:
+            return "sync_stage"
+        if leaf in nl.in_ports:
+            declared = self.port_domains.get(base_name(nl.in_ports[leaf]))
+            if declared and declared != "async" and dom == {declared}:
+                return "declared_synchronous"
+        return "unsynced"
+
+    def reset_report(self) -> tuple[list, list]:
+        """(trees, findings). A tree row is one source reaching one domain;
+        a finding is {kind, net, aliases, domain, flops, clock_nets}."""
+        nl = self.nl
+        trees: dict[tuple, dict] = {}
+        comb: dict[tuple, dict] = {}
+
+        def bump(table, key, row_net_bit, ff, **fields):
+            label = nl.in_ports.get(row_net_bit) or nl.label(row_net_bit)
+            row = table.setdefault(key, {
+                "net": base_name(label),
+                "aliases": set(), "domain": sorted(self.domains[ff.q]),
+                "flops": 0, "clock_nets": set(), **fields})
+            row["aliases"].update(base_name(a) for a in nl.aliases(row_net_bit))
+            row["flops"] += 1
+            row["clock_nets"].add(nl.label(nl.canon(ff.clk)[0]))
+
+        for ff in nl.flops.values():
+            dom = tuple(sorted(self.domains[ff.q]))
+            for pin_bit in ff.reset_pins:
+                if pin_bit in CONST:
+                    continue
+                leaves, logic = nl.cone(pin_bit)
+                if logic:
+                    base = nl.canon(pin_bit)[0]
+                    bump(comb, (base_name(nl.label(base)), dom), base, ff)
+                for leaf in sorted(leaves):
+                    if not (leaf in nl.flops or leaf in nl.in_ports
+                            or leaf in nl.macros or leaf in nl.icgs):
+                        continue    # undriven: synth's no_driver reports it
+                    status = self._release_status(leaf, ff)
+                    key = (base_name(nl.label(leaf)), dom, status)
+                    bump(trees, key, leaf, ff, status=status,
+                         through_logic=logic)
+                    if logic:
+                        trees[key]["through_logic"] = True
+
+        def done(row):
+            return {**row, "aliases": sorted(row["aliases"]),
+                    "clock_nets": sorted(row["clock_nets"])}
+
+        rows = sorted((done(r) for r in trees.values()),
+                      key=lambda r: (r["net"], r["domain"], r["status"]))
+        findings = [{**r, "kind": r["status"]} for r in rows
+                    if r["status"] in ("unsynced", "nonreset")]
+        findings += [{**done(r), "kind": "comb"} for _, r in
+                     sorted(comb.items())]
+        return rows, findings
 
     # ---- reporting -------------------------------------------------------
 

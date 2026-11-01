@@ -44,6 +44,8 @@
   ],
   "crossings": [],
   "clock_gates": [],
+  "reset_trees": [],
+  "reset_syncs": [],
   "waived": [],
   "crosscheck": {
    "tool": "opensta",
@@ -59,7 +61,10 @@
   "not_checked": [
    "bus coherence (gray, handshake, multi-cycle)",
    "reconvergence of separately synchronised bits",
-   "reset-domain crossings"
+   "reset release order between domains",
+   "recovery/removal timing of a synchronised release (STA's)",
+   "a data path from a flop with no reset into a flop with one",
+   "a raw reset read synchronously (a data input: declare it `async` in ports to check it)"
   ]
  },
  "inputs_at_start": {
@@ -69,6 +74,6 @@
   "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
   "pdk_liberty": "dir_bytes:f09377f057ab484ec9e5a45b205c99a5de399e2bdca886531bf9eefa57783f32"
  },
- "recorded_ts": "2026-11-01T05:04:24",
- "attempts": 1
+ "recorded_ts": "2026-11-01T06:03:18",
+ "attempts": 2
 }

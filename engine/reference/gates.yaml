@@ -128,8 +128,9 @@ gates:
       fault: "a flop sampling another clock domain with no synchroniser"
       description: >-
         Clock domains inferred from the netlist; every crossing synchronised
-        by a clean 2-flop chain and every clock gate glitch-free, or waived
-        with a reason in spec/cdc.yaml. No sequential cell or no clock info
+        by a clean 2-flop chain, every clock gate glitch-free and every async
+        reset's release through a reset synchroniser in each domain it resets,
+        or waived with a reason in spec/cdc.yaml. No sequential cell or no clock info
         is not applicable, never clean.
     harden:
       phase: P6

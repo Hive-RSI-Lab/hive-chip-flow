@@ -89,3 +89,7 @@ faults:
     gate: cdc
     plant: plant_cdc.py
     expect: {status: fail, kind: cdc_unsynchronized}
+  - name: rdc_reset_sync_second_flop_removed
+    gate: cdc
+    plant: plant_rdc.py
+    expect: {status: fail, kind: rdc_unsynced_release}

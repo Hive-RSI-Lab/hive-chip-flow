@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """check_cdc.py - the cdc gate: clock domains from the netlist, every crossing
-synchronised or waived, no glitchy clock gate.
+and every async reset's release synchronised or waived, no glitchy clock gate.
 
     check_cdc.py --workspace DIR [--out FILE]
 
@@ -13,6 +13,9 @@ whose docstring has the rules. Findings:
   cdc_async_reset_crossing  a flop's async set/reset reads another domain's flop
   cdc_glitchy_clock_gate    logic on a clock with no glitch-free structure
   cdc_glitchy_clock_mux     a clock mux
+  rdc_unsynced_release      a raw reset reaches a domain with no synchroniser
+  rdc_comb_reset            a reset net driven by combinational logic
+  rdc_nonreset_drives_reset a flop with no reset of its own on an async pin
   cdc_clock_unknown         a flop's clock pin has no driver
   cdc_clock_undeclared      a clock root spec.yaml's clock.domains leaves out
   cdc_port_no_domain        several domains, no primary, no declared domain
@@ -26,6 +29,12 @@ waiver re-runs this gate and not every gate that reads spec.yaml):
     waivers:
       - {from: n_sel, to: "u_div.*", reason: "..."}   # a crossing
       - {clock: obs_int, reason: "..."}               # a clock gate or mux
+      - {reset: rst_n, domain: clk, reason: "..."}    # a reset, one domain
+      - {reset: u_pfd.pfd_clr, reason: "..."}         # a reset, every domain
+
+Reset checks read `ports` too, but only as written: `ports: {rst_n: clk}` says
+that port is already synchronous to clk. The clock.primary default a data input
+gets is not assumed for a reset.
 
 A waiver's names are globs over any alias of the net (buses without their
 index); a waived finding stays in the report under `waived`.
@@ -35,7 +44,8 @@ never clean. No sequential cell: nothing to check. Sequential cells but no
 `clock.domains` in spec.yaml: domains can't be anchored, and release still owes this
 gate (attest.py), since only the first is a declared exception. Out of scope,
 named in the report's `not_checked`: bus coherence (gray, handshake, MCP),
-reconvergence of separately synchronised bits, reset-domain crossings.
+reconvergence of separately synchronised bits, and the reset items in
+NOT_CHECKED below.
 
 Second view: the same netlist mapped to the liberty goes to OpenSTA with a
 clock on each root port, and `all_registers -clock` must count the flops
@@ -68,7 +78,11 @@ TIMEOUT_S = 600.0
 CDC_REL = "spec/cdc.yaml"
 NOT_CHECKED = ["bus coherence (gray, handshake, multi-cycle)",
                "reconvergence of separately synchronised bits",
-               "reset-domain crossings"]
+               "reset release order between domains",
+               "recovery/removal timing of a synchronised release (STA's)",
+               "a data path from a flop with no reset into a flop with one",
+               "a raw reset read synchronously (a data input: declare it "
+               "`async` in ports to check it)"]
 FLOP_CELL_RE = re.compile(r"__s?(?:dff|lat)")
 XCHECK_RE = re.compile(r"^CDC_XCHECK (\S+) (\d+)$", re.M)
 
@@ -78,6 +92,8 @@ CROSSING_KINDS = {
     "async_reset": "cdc_async_reset_crossing",
 }
 GATE_KINDS = {"mux": "cdc_glitchy_clock_mux"}
+RESET_KINDS = {"unsynced": "rdc_unsynced_release", "comb": "rdc_comb_reset",
+               "nonreset": "rdc_nonreset_drives_reset"}
 
 
 def load_cdc_yaml(ws: Path) -> dict:
@@ -100,11 +116,17 @@ def load_cdc_yaml(ws: Path) -> dict:
             raise CheckError(f"{CDC_REL}: every waiver needs a reason: {w!r}")
         if set(w) == {"clock", "reason"}:
             names = [w["clock"]]
+        elif set(w) in ({"reset", "reason"}, {"reset", "domain", "reason"}):
+            names = [w["reset"]]
+            if not isinstance(w.get("domain", ""), str):
+                raise CheckError(f"{CDC_REL}: a waiver's domain is a name: "
+                                 f"{w!r}")
         elif set(w) == {"from", "to", "reason"}:
             names = [w["from"], w["to"]]
         else:
-            raise CheckError(f"{CDC_REL}: a waiver is {{from, to, reason}} or "
-                             f"{{clock, reason}}: {w!r}")
+            raise CheckError(f"{CDC_REL}: a waiver is {{from, to, reason}}, "
+                             f"{{clock, reason}} or {{reset, domain?, reason}}"
+                             f": {w!r}")
         if not all(isinstance(n, str) and n.strip("*?") for n in names):
             raise CheckError(f"{CDC_REL}: a waiver must name its nets, not "
                              f"a bare wildcard: {w!r}")
@@ -218,6 +240,12 @@ def apply_waivers(findings: list[dict], waivers: list[dict]) -> tuple:
             if "clock" in w:
                 ok = "gate" in f and cdclib.waiver_matches(
                     w, f["gate"]["aliases"], "clock")
+            elif "reset" in w:
+                ok = "reset" in f and cdclib.waiver_matches(
+                    w, f["reset"]["aliases"], "reset") and (
+                    "domain" not in w or all(
+                        cdclib.waiver_matches(w, [root], "domain")
+                        for root in f["reset"]["domain"]))
             else:
                 ok = "crossing" in f and cdclib.waiver_matches(
                     w, f["crossing"]["from_aliases"], "from"
@@ -302,9 +330,25 @@ def run(argv=None):
             open_items.append(finding(
                 GATE_KINDS.get(g["kind"], "cdc_glitchy_clock_gate"),
                 f"clock net {g['net']}: {g['why']}", gate=g))
+    reset_trees, reset_findings = an.reset_report()
+    for r in reset_findings:
+        where = "/".join(r["domain"])
+        clocks = ", ".join(r["clock_nets"])
+        text = {
+            "unsynced": f"reset {r['net']} releases {r['flops']} flop(s) in "
+                        f"domain {where} (clock nets {clocks}) with no reset "
+                        "synchroniser in that domain",
+            "comb": f"reset net {r['net']} is driven by combinational logic "
+                    f"and resets {r['flops']} flop(s) in domain {where}: a "
+                    "glitch on it resets them",
+            "nonreset": f"flop {r['net']} has no async reset of its own and "
+                        f"drives the async pin of {r['flops']} flop(s) in "
+                        f"domain {where}: unknown until its first clock",
+        }[r["kind"]]
+        open_items.append(finding(RESET_KINDS[r["kind"]], text, reset=r))
     still, waived, unused = apply_waivers(open_items, cfg["waivers"])
     for f in still:
-        extra = {k: f[k] for k in ("crossing", "gate") if k in f}
+        extra = {k: f[k] for k in ("crossing", "gate", "reset") if k in f}
         violations.append(checklib.violation(
             "cdc", "error", None, top, f["kind"], [], f["msg"], "cdclib",
             **extra))
@@ -345,7 +389,8 @@ def run(argv=None):
     payload = checklib.report(
         SCRIPT, ws / "rtl", violations, top=top, applicable=True, checked=True,
         domains=an.all_roots, clocks=an.clocks(), crossings=crossings,
-        clock_gates=gates, waived=waived, crosscheck=xcheck,
+        clock_gates=gates, reset_trees=reset_trees,
+        reset_syncs=an.reset_syncs(), waived=waived, crosscheck=xcheck,
         not_checked=NOT_CHECKED)
     return payload, args.out
 

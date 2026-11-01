@@ -300,7 +300,20 @@ def test_pll_digital_known_crossings(tmp_path):
     assert gates["obs_int"]["kind"] == "mux" and not gates["obs_int"]["safe"]
     assert kinds(p) == sorted(
         ["cdc_unsynchronized"] * 3 + ["cdc_async_reset_crossing"] * 2
-        + ["cdc_glitchy_clock_mux"])
+        + ["cdc_glitchy_clock_mux"] + ["rdc_unsynced_release"] * 2
+        + ["rdc_comb_reset"] * 2)
+    # #90: the raw rst_n reaches both root domains, the issue's four were
+    # clock nets (the divided clocks are in vco_out's domain, and STA times
+    # them), and the PFD's clear is logic in each domain.
+    resets = {(v["reset"]["net"], tuple(v["reset"]["domain"])): v["reset"]
+              for v in p["violations"] if "reset" in v}
+    assert set(resets) == {("rst_n", ("clk",)), ("rst_n", ("vco_out",)),
+                           ("u_pfd.pfd_clr", ("clk",)),
+                           ("u_pfd.pfd_clr", ("vco_out",))}
+    assert resets["rst_n", ("vco_out",)]["clock_nets"] == [
+        "u_div.clk_fb", "u_div.clk_pre", "u_pre.pre_q0", "u_pre.pre_q1",
+        "u_pre.vco_out"]
+    assert p["reset_syncs"] == []
 
     # with every finding waived, the gate passes and lists them all
     (ws / "spec" / "cdc.yaml").write_text(yaml.safe_dump({"waivers": [
@@ -308,7 +321,263 @@ def test_pll_digital_known_crossings(tmp_path):
         {"from": "pfd_dn_q", "to": "u_lock.wide_q", "reason": "single sample"},
         {"from": "u_pfd.pfd_*", "to": "u_pfd.pfd_*", "reason": "PFD clear"},
         {"clock": "obs_int", "reason": "observation only"},
+        {"reset": "rst_n", "reason": "held until the clocks run"},
+        {"reset": "u_pfd.pfd_clr", "reason": "PFD clear, the function"},
     ]}), encoding="utf-8")
     p = run(ws)
     assert p["status"] == "pass", p["violations"]
-    assert len(p["waived"]) == 6
+    assert len(p["waived"]) == 10
+
+
+# ---- reset release (#90) -------------------------------------------------
+
+ONE_CLOCK = {"period_ns": 20, "domains": ["clk"]}
+
+# counter8 with an async reset; {sync} defines rst_i from the raw rst_n.
+COUNTER = """\
+module top (input wire clk, input wire clk2, input wire rst_n, input wire a,
+            output reg [7:0] count, output reg y);
+  wire rst_i;
+  reg s1, s2, s3, t1, t2, plain;
+  {sync}
+  always @(posedge clk or negedge rst_i)
+    if (!rst_i) count <= 8'd0; else count <= count + 8'd1;
+endmodule
+"""
+SYNC2 = """always @(posedge clk or negedge rst_n)
+    if (!rst_n) {s2, s1} <= 2'b00; else {s2, s1} <= {s1, 1'b1};
+  assign rst_i = s2;"""
+
+
+def counter(sync: str) -> str:
+    return COUNTER.format(sync=sync)
+
+
+def rdc_kinds(p) -> list[str]:
+    return [k for k in kinds(p) if k.startswith("rdc_")]
+
+
+@pytest.mark.slow
+def test_counter_with_two_flop_reset_sync_passes(tmp_path):
+    p = run(make_ws(tmp_path, counter(SYNC2), ONE_CLOCK))
+    assert p["status"] == "pass", p["violations"]
+    assert [(s["net"], s["stages"], s["reset"], s["domain"])
+            for s in p["reset_syncs"]] == [("rst_i", 2, "rst_n", ["clk"])]
+    assert {(r["net"], r["status"], r["flops"]) for r in p["reset_trees"]} == {
+        ("rst_n", "sync_stage", 2), ("rst_i", "synchronized", 8)}
+
+
+@pytest.mark.slow
+def test_three_stage_reset_sync_passes(tmp_path):
+    sync = """always @(posedge clk or negedge rst_n)
+    if (!rst_n) {s3, s2, s1} <= 3'b0; else {s3, s2, s1} <= {s2, s1, 1'b1};
+  assign rst_i = s3;"""
+    p = run(make_ws(tmp_path, counter(sync), ONE_CLOCK))
+    assert p["status"] == "pass", p["violations"]
+    assert [s["stages"] for s in p["reset_syncs"]] == [3]
+
+
+@pytest.mark.slow
+def test_active_high_reset_sync_passes(tmp_path):
+    rtl = """\
+module top (input wire clk, input wire rst, output reg [1:0] c);
+  reg s1, s2;
+  always @(posedge clk or posedge rst)
+    if (rst) {s2, s1} <= 2'b11; else {s2, s1} <= {s1, 1'b0};
+  always @(posedge clk or posedge s2)
+    if (s2) c <= 2'd0; else c <= c + 2'd1;
+endmodule
+"""
+    p = run(make_ws(tmp_path, rtl, ONE_CLOCK))
+    assert p["status"] == "pass", p["violations"]
+
+
+@pytest.mark.slow
+def test_sync_read_as_a_synchronous_reset_is_still_a_sync(tmp_path):
+    """A stage's raw reset is the point of it, whoever reads the output."""
+    rtl = """\
+module top (input wire clk, input wire rst_n, output reg c);
+  reg s1, s2;
+  always @(posedge clk or negedge rst_n)
+    if (!rst_n) {s2, s1} <= 2'b00; else {s2, s1} <= {s1, 1'b1};
+  always @(posedge clk) if (!s2) c <= 1'b0; else c <= ~c;
+endmodule
+"""
+    p = run(make_ws(tmp_path, rtl, ONE_CLOCK))
+    assert p["status"] == "pass", p["violations"]
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("sync", [
+    # the second flop removed
+    """always @(posedge clk or negedge rst_n)
+    if (!rst_n) s1 <= 1'b0; else s1 <= 1'b1;
+  assign rst_i = s1;""",
+    # D not tied
+    """always @(posedge clk or negedge rst_n)
+    if (!rst_n) {s2, s1} <= 2'b00; else {s2, s1} <= {s1, a};
+  assign rst_i = s2;""",
+    # D tied to the reset value: never releases
+    """always @(posedge clk or negedge rst_n)
+    if (!rst_n) {s2, s1} <= 2'b00; else {s2, s1} <= {s1, 1'b0};
+  assign rst_i = s2;""",
+    # the first stage has another load
+    SYNC2 + "\n  always @(posedge clk) y <= s1;",
+    # logic between the stages
+    """always @(posedge clk or negedge rst_n)
+    if (!rst_n) {s2, s1} <= 2'b00; else {s2, s1} <= {s1 & a, 1'b1};
+  assign rst_i = s2;""",
+    # stages on opposite edges
+    """always @(posedge clk or negedge rst_n)
+    if (!rst_n) s1 <= 1'b0; else s1 <= 1'b1;
+  always @(negedge clk or negedge rst_n)
+    if (!rst_n) s2 <= 1'b0; else s2 <= s1;
+  assign rst_i = s2;""",
+], ids=["no_second_flop", "d_not_tied", "d_is_reset_value", "first_stage_tapped",
+        "logic_between", "opposite_edges"])
+def test_not_a_reset_sync_fails(tmp_path, sync):
+    p = run(make_ws(tmp_path, counter(sync), ONE_CLOCK))
+    assert p["status"] == "violations"
+    assert "rdc_unsynced_release" in kinds(p), p["violations"]
+    assert p["reset_syncs"] == []
+    assert "rdc_comb_reset" not in kinds(p)
+
+
+@pytest.mark.slow
+def test_raw_reset_fails_waives_per_domain_and_stale_waiver_found(tmp_path):
+    ws = make_ws(tmp_path, counter("assign rst_i = rst_n;"), ONE_CLOCK)
+    p = run(ws)
+    assert rdc_kinds(p) == ["rdc_unsynced_release"]
+    v = next(v for v in p["violations"] if "reset" in v)
+    assert (v["reset"]["net"], v["reset"]["domain"], v["reset"]["flops"]) == (
+        "rst_n", ["clk"], 8)
+
+    cdc = ws / "spec" / "cdc.yaml"
+    cdc.write_text(yaml.safe_dump({"waivers": [
+        {"reset": "rst_n", "domain": "clk", "reason": "two cycles of margin"},
+    ]}), encoding="utf-8")
+    p = run(ws)
+    assert p["status"] == "pass", p["violations"]
+    assert [w["kind"] for w in p["waived"]] == ["rdc_unsynced_release"]
+
+    cdc.write_text(yaml.safe_dump({"waivers": [
+        {"reset": "rst_n", "domain": "clk2", "reason": "another domain"},
+    ]}), encoding="utf-8")
+    p = run(ws)
+    assert kinds(p) == ["cdc_waiver_unused", "rdc_unsynced_release"]
+
+
+@pytest.mark.slow
+def test_port_declared_synchronous_only_counts_in_its_domain(tmp_path):
+    ws = make_ws(tmp_path, counter("assign rst_i = rst_n;"), ONE_CLOCK,
+                 cdc={"ports": {"rst_n": "clk"}})
+    p = run(ws)
+    assert p["status"] == "pass", p["violations"]
+    assert p["reset_trees"][0]["status"] == "declared_synchronous"
+
+    rtl = counter("assign rst_i = rst_n;\n"
+                  "  always @(posedge clk2 or negedge rst_n)\n"
+                  "    if (!rst_n) plain <= 1'b0; else plain <= a;\n"
+                  "  always @(posedge clk2) y <= plain;")
+    (tmp_path / "two").mkdir()
+    ws = make_ws(tmp_path / "two", rtl, TWO_CLOCKS,
+                 cdc={"ports": {"rst_n": "clk", "a": "clk2"}})
+    p = run(ws)
+    assert [v["reset"]["domain"] for v in p["violations"]
+            if v["kind"] == "rdc_unsynced_release"] == [["clk2"]]
+
+
+@pytest.mark.slow
+def test_reset_anded_with_data_is_a_comb_reset(tmp_path):
+    p = run(make_ws(tmp_path, counter(SYNC2.replace(
+        "assign rst_i = s2;", "assign rst_i = s2 & a;")), ONE_CLOCK))
+    # `a` is a port on the reset net, so it is a raw release as well
+    assert rdc_kinds(p) == ["rdc_comb_reset", "rdc_unsynced_release"]
+    assert {v["reset"]["net"] for v in p["violations"]} == {"rst_i", "a"}
+    # the same logic with a flop in place of the port: only the logic
+    (tmp_path / "ff").mkdir()
+    sync = SYNC2.replace("assign rst_i = s2;", """\
+always @(posedge clk or negedge s2)
+    if (!s2) plain <= 1'b0; else plain <= a;
+  assign rst_i = s2 & plain;""")
+    p = run(make_ws(tmp_path / "ff", counter(sync), ONE_CLOCK))
+    assert rdc_kinds(p) == ["rdc_comb_reset"]
+    # raw, the release is judged as well: waiving the logic hides nothing
+    (tmp_path / "raw").mkdir()
+    p = run(make_ws(tmp_path / "raw", counter("assign rst_i = rst_n & a;"),
+                    ONE_CLOCK))
+    assert rdc_kinds(p) == ["rdc_comb_reset", "rdc_unsynced_release",
+                            "rdc_unsynced_release"]
+
+
+@pytest.mark.slow
+def test_flop_with_no_reset_on_an_async_pin(tmp_path):
+    sync = "always @(posedge clk) plain <= a;\n  assign rst_i = plain;"
+    p = run(make_ws(tmp_path, counter(sync), ONE_CLOCK))
+    assert rdc_kinds(p) == ["rdc_nonreset_drives_reset"]
+    # a sync whose last stage has no reset is this, and not a sync
+    sync = """always @(posedge clk or negedge rst_n)
+    if (!rst_n) s1 <= 1'b0; else s1 <= 1'b1;
+  always @(posedge clk) s2 <= s1;
+  assign rst_i = s2;"""
+    (tmp_path / "b").mkdir()
+    p = run(make_ws(tmp_path / "b", counter(sync), ONE_CLOCK))
+    assert rdc_kinds(p) == ["rdc_nonreset_drives_reset",
+                            "rdc_unsynced_release"]
+
+
+@pytest.mark.slow
+def test_soft_reset_register_in_its_own_domain_is_clean(tmp_path):
+    """A flop with a reset, timed by STA, itself reset from the sync."""
+    sync = SYNC2.replace("assign rst_i = s2;", """\
+always @(posedge clk or negedge s2)
+    if (!s2) plain <= 1'b0; else plain <= 1'b1;
+  assign rst_i = plain;""")
+    p = run(make_ws(tmp_path, counter(sync), ONE_CLOCK))
+    assert p["status"] == "pass", p["violations"]
+
+
+TWO_DOMAINS = """\
+module top (input wire clk, input wire clk2, input wire rst_n,
+            output reg a, output reg b);
+  reg s1, s2, t1, t2;
+  always @(posedge clk or negedge rst_n)
+    if (!rst_n) {s2, s1} <= 2'b00; else {s2, s1} <= {s1, 1'b1};
+  {second}
+  always @(posedge clk or negedge s2)
+    if (!s2) a <= 1'b0; else a <= ~a;
+  always @(posedge clk2 or negedge {reset_b})
+    if (!{reset_b}) b <= 1'b0; else b <= ~b;
+endmodule
+"""
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("second,reset_b,want", [
+    # a synchroniser in each domain
+    ("always @(posedge clk2 or negedge rst_n) if (!rst_n) {t2, t1} <= 2'b00;"
+     " else {t2, t1} <= {t1, 1'b1};", "t2", []),
+    # chained: clk2's sync takes its assert from clk's, its release in clk2
+    ("always @(posedge clk2 or negedge s2) if (!s2) {t2, t1} <= 2'b00;"
+     " else {t2, t1} <= {t1, 1'b1};", "t2", []),
+    # one domain raw
+    ("", "rst_n", ["rdc_unsynced_release"]),
+    # clk's synchroniser used in clk2: the crossing is the one finding
+    ("", "s2", ["cdc_async_reset_crossing"]),
+], ids=["each_domain", "chained", "one_raw", "wrong_domain"])
+def test_release_is_per_domain(tmp_path, second, reset_b, want):
+    rtl = TWO_DOMAINS.replace("{second}", second).replace("{reset_b}", reset_b)
+    p = run(make_ws(tmp_path, rtl, TWO_CLOCKS))
+    assert kinds(p) == want, p["violations"]
+
+
+@pytest.mark.slow
+def test_synchronous_reset_has_no_tree(tmp_path):
+    rtl = """\
+module top (input wire clk, input wire rst, output reg c);
+  always @(posedge clk) if (rst) c <= 1'b0; else c <= ~c;
+endmodule
+"""
+    p = run(make_ws(tmp_path, rtl, ONE_CLOCK))
+    assert p["status"] == "pass", p["violations"]
+    assert p["reset_trees"] == []
