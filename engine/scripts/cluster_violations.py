@@ -149,6 +149,17 @@ FIXER_HINTS: dict[str, str] = {
 
     # synth (check_synth.py)
     "combinational_loop": "rtl",
+    # cdc: the RTL's to fix. A waiver is the person's, never a fixer's.
+    "cdc_unsynchronized": "rtl",
+    "cdc_comb_before_sync": "rtl",
+    "cdc_async_reset_crossing": "rtl",
+    "cdc_glitchy_clock_gate": "rtl",
+    "cdc_glitchy_clock_mux": "rtl",
+    "cdc_clock_unknown": "rtl",
+    "cdc_clock_undeclared": "rtl",
+    "cdc_port_no_domain": "rtl",
+    "cdc_waiver_unused": "rtl",
+    "cdc_crosscheck_mismatch": "review",
     "no_driver": "rtl",
     "unmapped_cell": "rtl",
     "cell_not_in_liberty": "rtl",

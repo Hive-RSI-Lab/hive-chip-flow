@@ -175,7 +175,7 @@ def applicable_gates(skill: str, imap: dict | None = None) -> list[str]:
 
     One narrow exception is decided per build, not here: a gate the
     block's OWN current spec says it does not ask for (not_applicable_reason
-    below - today only /ade's `mc`) still appears in checks.json, as an ok
+    below - /ade's `mc`, /vde's `cdc`) still appears in checks.json, as an ok
     entry that did not run and says why, bound to spec.yaml's hash so
     attest.verify() notices the spec changing afterwards. It is never
     dropped from the list.
@@ -213,10 +213,24 @@ def _mc_not_applicable(ws: Path) -> str | None:
             "'mc.enabled: true'), re-read at this release")
 
 
+def _cdc_not_applicable(ws: Path) -> str | None:
+    """/vde's `cdc`, not applicable only to a netlist with no sequential
+    cell. A design with flops and no clock info is NOT CHECKED, and owes the
+    gate here: doubt never counts as "not applicable"."""
+    import check_cdc
+    import speclib
+    try:
+        return check_cdc.not_applicable_at_release(
+            ws, speclib.load_spec(ws / "spec" / "spec.yaml"))
+    except checklib.CheckError:
+        return None
+
+
 # (skill, gate) -> fn(ws) -> reason str when the block's own spec declares
 # the gate not applicable, None when the gate is owed. Deliberately a short
 # explicit list, never a general carve-out (see applicable_gates).
-NOT_APPLICABLE = {("ade", "mc"): _mc_not_applicable}
+NOT_APPLICABLE = {("ade", "mc"): _mc_not_applicable,
+                  ("vde", "cdc"): _cdc_not_applicable}
 
 
 def not_applicable_reason(ws: Path, skill: str, gate: str) -> str | None:

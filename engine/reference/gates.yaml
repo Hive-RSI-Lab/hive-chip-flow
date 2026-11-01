@@ -120,6 +120,17 @@ gates:
       max_count: 0
       fault: "a combinational loop"
       description: "No latches, unmapped cells or combinational loops."
+    cdc:
+      phase: P5
+      tool: cdc
+      fail_severities: [error]
+      max_count: 0
+      fault: "a flop sampling another clock domain with no synchroniser"
+      description: >-
+        Clock domains inferred from the netlist; every crossing synchronised
+        by a clean 2-flop chain and every clock gate glitch-free, or waived
+        with a reason in spec/cdc.yaml. No sequential cell or no clock info
+        is not applicable, never clean.
     harden:
       phase: P6
       tool: harden
