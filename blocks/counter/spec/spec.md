@@ -1,8 +1,8 @@
 # counter: 8-bit programmable counter on a Tiny Tapeout GF180 tile
 
-An 8-bit binary up-counter in the style of a 74-series bus counter: an
-asynchronous reset, a synchronous parallel load, a count enable and a
-tri-state output bus. The brief is `brief/spec.md` (the design's own
+An 8-bit binary up-counter in the style of a 74-series bus counter: a reset
+that asserts asynchronously and releases through a synchroniser, a
+synchronous parallel load, a count enable and a tri-state output bus. The brief is `brief/spec.md` (the design's own
 datasheet text, from ihsan-sa/ece298a-counter at `b2fd880`); this is the
 same design, written down as requirements.
 
@@ -16,6 +16,11 @@ One 8-bit count, priority reset > load > count > hold:
 | 2 | `LOAD = 1` and `OE = 0` | on the rising `clk` edge the count takes `uio_in` (D[7:0]) |
 | 3 | `ENABLE = 1` | on the rising `clk` edge the count goes up by one; 255 wraps to 0 |
 | 4 | otherwise | the count holds |
+
+`rst_n` comes off a pad asynchronous to `clk`, so its release goes through a
+two-flop synchroniser. After `rst_n` rises the count stays 0 through the
+first two rising `clk` edges, whatever `LOAD` and `ENABLE` are; the third
+edge is the first that follows rows 2 to 4. Its fall needs no clock.
 
 The count changes only on a rising `clk` edge, or when `rst_n` falls. Load
 beats count: `LOAD` and `ENABLE` together load D, with no +1. While `OE`
@@ -45,6 +50,6 @@ The block's ports are the tile's own, one to one:
 | uio_oe | out | 8 | 0xFF while OE is high, else 0x00 |
 | ena | in | 1 | unused |
 | clk | in | 1 | clock, 50 MHz |
-| rst_n | in | 1 | asynchronous reset, active low |
+| rst_n | in | 1 | reset, active low: asynchronous assert, release synchronised to clk |
 
 See `spec.yaml` for the requirements this maps to.

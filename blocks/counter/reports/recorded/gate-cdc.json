@@ -3,8 +3,8 @@
  "gate": "cdc",
  "phase": "P5",
  "tool": "cdc",
- "input_digest": "dir_text:76d0d45a5f2e829e5f862f5a22721b24d3fd4936126ddf971e6f241e20027591",
- "status": "fail",
+ "input_digest": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
+ "status": "pass",
  "criteria": {
   "fail_severities": [
    "error"
@@ -12,87 +12,13 @@
   "max_count": 0
  },
  "counts": {
-  "total": 1,
-  "by_severity": {
-   "error": 1
-  },
-  "by_source": {
-   "cdclib": 1
-  }
+  "total": 0,
+  "by_severity": {},
+  "by_source": {}
  },
- "failing_count": 1,
- "failing": [
-  {
-   "check": "cdc",
-   "severity": "error",
-   "file": null,
-   "module": "ece298a_counter",
-   "line": null,
-   "kind": "rdc_unsynced_release",
-   "refs": [],
-   "msg": "reset rst_n releases 8 flop(s) in domain clk (clock nets clk) with no reset synchroniser in that domain",
-   "source": "cdclib",
-   "items": [
-    {
-     "msg": "reset rst_n releases 8 flop(s) in domain clk (clock nets clk) with no reset synchroniser in that domain",
-     "file": null,
-     "line": null
-    }
-   ],
-   "reset": {
-    "net": "rst_n",
-    "aliases": [
-     "rst_n"
-    ],
-    "domain": [
-     "clk"
-    ],
-    "flops": 8,
-    "clock_nets": [
-     "clk"
-    ],
-    "status": "unsynced",
-    "through_logic": false,
-    "kind": "unsynced"
-   }
-  }
- ],
- "violations": [
-  {
-   "check": "cdc",
-   "severity": "error",
-   "file": null,
-   "module": "ece298a_counter",
-   "line": null,
-   "kind": "rdc_unsynced_release",
-   "refs": [],
-   "msg": "reset rst_n releases 8 flop(s) in domain clk (clock nets clk) with no reset synchroniser in that domain",
-   "source": "cdclib",
-   "items": [
-    {
-     "msg": "reset rst_n releases 8 flop(s) in domain clk (clock nets clk) with no reset synchroniser in that domain",
-     "file": null,
-     "line": null
-    }
-   ],
-   "reset": {
-    "net": "rst_n",
-    "aliases": [
-     "rst_n"
-    ],
-    "domain": [
-     "clk"
-    ],
-    "flops": 8,
-    "clock_nets": [
-     "clk"
-    ],
-    "status": "unsynced",
-    "through_logic": false,
-    "kind": "unsynced"
-   }
-  }
- ],
+ "failing_count": 0,
+ "failing": [],
+ "violations": [],
  "facts": {
   "top": "ece298a_counter",
   "applicable": true,
@@ -110,7 +36,7 @@
      "clk"
     ],
     "kind": "port",
-    "flops": 8,
+    "flops": 10,
     "edges": [
      "pos"
     ]
@@ -127,24 +53,53 @@
     "domain": [
      "clk"
     ],
+    "flops": 2,
+    "clock_nets": [
+     "clk"
+    ],
+    "status": "sync_stage",
+    "through_logic": false
+   },
+   {
+    "net": "rst_n_sync",
+    "aliases": [
+     "rst_n_sync"
+    ],
+    "domain": [
+     "clk"
+    ],
     "flops": 8,
     "clock_nets": [
      "clk"
     ],
-    "status": "unsynced",
+    "status": "synchronized",
     "through_logic": false
    }
   ],
-  "reset_syncs": [],
+  "reset_syncs": [
+   {
+    "net": "rst_n_sync",
+    "stages": 2,
+    "stage_nets": [
+     "rst_meta",
+     "rst_n_sync"
+    ],
+    "reset": "rst_n",
+    "clock": "clk",
+    "domain": [
+     "clk"
+    ]
+   }
+  ],
   "waived": [],
   "crosscheck": {
    "tool": "opensta",
    "ran": true,
    "sta": {
-    "clk": 8
+    "clk": 10
    },
    "cdclib": {
-    "clk": 8
+    "clk": 10
    },
    "match": true
   },
@@ -158,12 +113,12 @@
   ]
  },
  "inputs_at_start": {
-  "rtl": "dir_text:76d0d45a5f2e829e5f862f5a22721b24d3fd4936126ddf971e6f241e20027591",
-  "spec_yaml_sans_formal": "json_canonical_sans_formal:9cd947b44c33253dec630a4cdf770696ba55c1f631025236036335a3e34ed69f",
+  "rtl": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
+  "spec_yaml_sans_formal": "json_canonical_sans_formal:ec426c58dd9f2334b09759284010f4068e5638e331ac28be8742ab3fee1e7b69",
   "cdc_waivers": null,
   "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
   "pdk_liberty": "dir_bytes:f09377f057ab484ec9e5a45b205c99a5de399e2bdca886531bf9eefa57783f32"
  },
- "recorded_ts": "2026-11-01T06:03:19",
- "attempts": 3
+ "recorded_ts": "2026-11-01T11:10:41",
+ "attempts": 4
 }

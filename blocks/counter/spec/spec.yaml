@@ -4,20 +4,24 @@ requirements:
     text: while rst_n is low the count (uo_out) is 0, from the moment it falls with no clock edge needed, and reset beats load and count
     check: both
     property: REQ_RESET
+  - id: REQ-RELEASE
+    text: after rst_n rises the count stays 0 through the first two rising clk edges, whatever LOAD and ENABLE are; the third rising edge is the first that can change it
+    check: both
+    property: REQ_RELEASE
   - id: REQ-LOAD
-    text: with rst_n high, a rising clk edge that samples LOAD=1 and OE=0 makes the count the value uio_in had at that edge, whatever ENABLE is
+    text: once released (rst_n high through two rising clk edges, REQ-RELEASE), a rising clk edge that samples LOAD=1 and OE=0 makes the count the value uio_in had at that edge, whatever ENABLE is
     check: both
     property: REQ_LOAD
   - id: REQ-LOAD-OE
-    text: while OE is high LOAD is ignored; the count holds, or counts when ENABLE is high
+    text: once released, while OE is high LOAD is ignored; the count holds, or counts when ENABLE is high
     check: both
     property: REQ_LOAD_OE
   - id: REQ-COUNT
-    text: with rst_n high, a rising clk edge that samples ENABLE=1 and no load adds one to the count, 255 wrapping to 0
+    text: once released, a rising clk edge that samples ENABLE=1 and no load adds one to the count, 255 wrapping to 0
     check: both
     property: REQ_COUNT
   - id: REQ-HOLD
-    text: with rst_n high the count changes only on a rising clk edge, and an edge that samples neither a load nor ENABLE leaves it unchanged
+    text: once released the count changes only on a rising clk edge, and an edge that samples neither a load nor ENABLE leaves it unchanged
     check: both
     property: REQ_HOLD
   - id: REQ-BUS

@@ -3,7 +3,7 @@
  "gate": "synth",
  "phase": "P5",
  "tool": "synth",
- "input_digest": "dir_text:76d0d45a5f2e829e5f862f5a22721b24d3fd4936126ddf971e6f241e20027591",
+ "input_digest": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
  "status": "pass",
  "criteria": {
   "fail_severities": [
@@ -28,31 +28,34 @@
    "liberty": "gf180mcu_fd_sc_mcu7t5v0__tt_025C_3v30.lib"
   },
   "cells": {
-   "gf180mcu_fd_sc_mcu7t5v0__and2_1": 1,
-   "gf180mcu_fd_sc_mcu7t5v0__and3_1": 2,
-   "gf180mcu_fd_sc_mcu7t5v0__and4_1": 4,
-   "gf180mcu_fd_sc_mcu7t5v0__aoi211_1": 2,
-   "gf180mcu_fd_sc_mcu7t5v0__aoi21_1": 3,
-   "gf180mcu_fd_sc_mcu7t5v0__aoi221_1": 1,
+   "gf180mcu_fd_sc_mcu7t5v0__and2_1": 4,
+   "gf180mcu_fd_sc_mcu7t5v0__and3_1": 3,
+   "gf180mcu_fd_sc_mcu7t5v0__aoi211_1": 1,
+   "gf180mcu_fd_sc_mcu7t5v0__aoi21_1": 4,
    "gf180mcu_fd_sc_mcu7t5v0__aoi22_1": 2,
-   "gf180mcu_fd_sc_mcu7t5v0__clkinv_1": 4,
-   "gf180mcu_fd_sc_mcu7t5v0__dffrnq_1": 8,
-   "gf180mcu_fd_sc_mcu7t5v0__mux2_1": 1,
-   "gf180mcu_fd_sc_mcu7t5v0__nand2_1": 5,
-   "gf180mcu_fd_sc_mcu7t5v0__nand3_1": 3,
-   "gf180mcu_fd_sc_mcu7t5v0__nand4_1": 2,
-   "gf180mcu_fd_sc_mcu7t5v0__nor2_1": 7,
-   "gf180mcu_fd_sc_mcu7t5v0__nor3_1": 3,
+   "gf180mcu_fd_sc_mcu7t5v0__clkinv_1": 5,
+   "gf180mcu_fd_sc_mcu7t5v0__dffrnq_1": 10,
+   "gf180mcu_fd_sc_mcu7t5v0__mux2_1": 2,
+   "gf180mcu_fd_sc_mcu7t5v0__nand2_1": 7,
+   "gf180mcu_fd_sc_mcu7t5v0__nand3_1": 6,
+   "gf180mcu_fd_sc_mcu7t5v0__nor2_1": 1,
+   "gf180mcu_fd_sc_mcu7t5v0__nor3_1": 1,
    "gf180mcu_fd_sc_mcu7t5v0__oai211_1": 2,
-   "gf180mcu_fd_sc_mcu7t5v0__oai21_1": 1
+   "gf180mcu_fd_sc_mcu7t5v0__oai21_1": 2,
+   "gf180mcu_fd_sc_mcu7t5v0__oai32_1": 1,
+   "gf180mcu_fd_sc_mcu7t5v0__or2_1": 1
   },
-  "area": 1325.9008,
+  "area": 1437.856,
+  "cell_count": 52,
+  "non_liberty_cells": 0,
   "netlist": "synth/ece298a_counter.v"
  },
  "inputs_at_start": {
-  "rtl": "dir_text:76d0d45a5f2e829e5f862f5a22721b24d3fd4936126ddf971e6f241e20027591",
-  "spec_yaml_sans_formal": "json_canonical_sans_formal:9cd947b44c33253dec630a4cdf770696ba55c1f631025236036335a3e34ed69f"
+  "rtl": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
+  "spec_yaml_sans_formal": "json_canonical_sans_formal:ec426c58dd9f2334b09759284010f4068e5638e331ac28be8742ab3fee1e7b69",
+  "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+  "pdk_liberty": "dir_bytes:f09377f057ab484ec9e5a45b205c99a5de399e2bdca886531bf9eefa57783f32"
  },
- "recorded_ts": "2026-10-29T22:34:56",
- "attempts": 2
+ "recorded_ts": "2026-11-01T11:10:40",
+ "attempts": 3
 }

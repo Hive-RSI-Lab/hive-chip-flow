@@ -11,7 +11,8 @@
 #   ui[0] = LOAD, ui[1] = ENABLE, ui[2] = OE, ui[7:3] unused
 #   uio[7:0] = bidirectional bus: D[7:0] in when OE=0, Q[7:0] out when OE=1
 #   uo[7:0]  = Q[7:0] mirror, always driven
-#   rst_n    = asynchronous active-low reset
+#   rst_n    = active-low reset: asserts asynchronously, releases after two
+#              rising clk edges (REQ-RELEASE)
 
 import cocotb
 from cocotb.clock import Clock
@@ -26,6 +27,9 @@ OE = 0b100
 # A short settle delay used after a clock edge so non-blocking assignments have
 # been committed before the test samples an output.
 SETTLE_NS = 10
+
+# Rising clk edges the reset synchroniser takes to pass rst_n's release on.
+RELEASE_EDGES = 2
 
 
 def ctrl(load=False, enable=False, oe=False):
@@ -46,6 +50,9 @@ async def reset(dut, ui=0, uio=0):
     await ClockCycles(dut.clk, 2)
     await FallingEdge(dut.clk)
     dut.rst_n.value = 1
+    await Timer(SETTLE_NS, unit="ns")
+    for _ in range(RELEASE_EDGES):
+        await RisingEdge(dut.clk)
     await Timer(SETTLE_NS, unit="ns")
 
 
@@ -96,11 +103,56 @@ async def test_async_reset(dut):
     await Timer(SETTLE_NS, unit="ns")
     assert q(dut) == 0, f"count moved while rst_n held low: {q(dut)}"
 
-    # Release and confirm counting resumes from 0.
+    # Release and confirm counting resumes from 0, after the synchroniser.
     await FallingEdge(dut.clk)
     dut.rst_n.value = 1
+    for edge in range(RELEASE_EDGES):
+        await step(dut)
+        assert q(dut) == 0, f"count moved on release edge {edge + 1}: {q(dut)}"
     await step(dut)
-    assert q(dut) == 1, f"expected 1 on the first edge after reset, got {q(dut)}"
+    assert q(dut) == 1, f"expected 1 on the third edge after reset, got {q(dut)}"
+
+
+# req: REQ-RELEASE
+@cocotb.test()
+async def test_release_lags_two_edges(dut):
+    """A load or a count waits out the synchroniser, from any release point."""
+    await start_clock(dut)
+    await reset(dut)
+
+    for controls, after in ((ctrl(enable=True), 1),
+                            (ctrl(load=True, enable=True), 0xC3)):
+        dut.uio_in.value = 0xC3
+        dut.ui_in.value = controls
+        await FallingEdge(dut.clk)
+        dut.rst_n.value = 0
+        await Timer(SETTLE_NS, unit="ns")
+        assert q(dut) == 0
+        await FallingEdge(dut.clk)
+        # Off any clock edge: the release can't be timed by the pad.
+        await Timer(CLK_PERIOD_NS // 4, unit="ns")
+        dut.rst_n.value = 1
+        for edge in range(RELEASE_EDGES):
+            await step(dut)
+            assert q(dut) == 0, (
+                f"count moved on release edge {edge + 1}: 0x{q(dut):02X}")
+        await step(dut)
+        assert q(dut) == after, (
+            f"third edge should act: expected 0x{after:02X}, got 0x{q(dut):02X}")
+
+    # A reset pulse between edges, shorter than a cycle, restarts the wait.
+    dut.ui_in.value = ctrl(enable=True)
+    await FallingEdge(dut.clk)
+    dut.rst_n.value = 0
+    await Timer(CLK_PERIOD_NS // 8, unit="ns")
+    dut.rst_n.value = 1
+    await Timer(SETTLE_NS, unit="ns")
+    assert q(dut) == 0, f"a short pulse must clear the count: 0x{q(dut):02X}"
+    for edge in range(RELEASE_EDGES):
+        await step(dut)
+        assert q(dut) == 0, f"count moved after a short pulse: 0x{q(dut):02X}"
+    await step(dut)
+    assert q(dut) == 1
 
 
 # ---------------------------------------------------------------------------

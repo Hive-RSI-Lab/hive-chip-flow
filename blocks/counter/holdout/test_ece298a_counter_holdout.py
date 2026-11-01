@@ -13,6 +13,7 @@ from cocotb.triggers import FallingEdge, RisingEdge, Timer
 CLK_PERIOD_NS = 100
 SETTLE_NS = 10
 LOAD, ENABLE, OE = 0b001, 0b010, 0b100
+RELEASE_EDGES = 2  # rising edges the reset synchroniser takes
 
 
 async def _up(dut):
@@ -24,6 +25,8 @@ async def _up(dut):
     for _ in range(2):
         await FallingEdge(dut.clk)
     dut.rst_n.value = 1
+    for _ in range(RELEASE_EDGES):
+        await FallingEdge(dut.clk)
 
 
 async def _edge(dut):
@@ -31,11 +34,12 @@ async def _edge(dut):
     await Timer(SETTLE_NS, unit="ns")
 
 
-# req: REQ-RESET
+# req: REQ-RESET REQ-RELEASE
 @cocotb.test()
 async def test_reset_with_no_clock(dut):
     """Count up, stop the clock entirely, then pull rst_n: the count clears
-    with no edge at all, and counting resumes from 0 once released."""
+    with no edge at all, and counting resumes from 0 on the third edge after
+    the release."""
     dut.ena.value = 1
     dut.uio_in.value = 0
     dut.clk.value = 0
@@ -43,7 +47,7 @@ async def test_reset_with_no_clock(dut):
     await Timer(50, unit="ns")
     dut.rst_n.value = 1
     dut.ui_in.value = ENABLE
-    for _ in range(9):
+    for _ in range(RELEASE_EDGES + 9):
         await Timer(50, unit="ns")
         dut.clk.value = 1
         await Timer(50, unit="ns")
@@ -57,6 +61,12 @@ async def test_reset_with_no_clock(dut):
     assert int(dut.uio_out.value) == 0
     await Timer(500, unit="ns")
     dut.rst_n.value = 1
+    for _ in range(RELEASE_EDGES):
+        await Timer(50, unit="ns")
+        dut.clk.value = 1
+        await Timer(50, unit="ns")
+        dut.clk.value = 0
+        assert int(dut.uo_out.value) == 0, "count moved during the release"
     await Timer(50, unit="ns")
     dut.clk.value = 1
     await Timer(SETTLE_NS, unit="ns")
