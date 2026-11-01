@@ -61,12 +61,14 @@ but non-positive or malformed one is still refused (formal_settings).
 `depth` is the PROVE depth only - the k of smt's k-induction and pdr's run -
 so it should be what the asserts need for induction to close, which is
 usually small: k-induction proves unboundedly, it does not have to walk a
-long window. A deep `depth` makes smt's basecase infeasible (each step
+long window (and abc pdr, the other complete engine, needs no depth at
+all). A deep `depth` makes smt's basecase infeasible (each step
 costs seconds, so a ~1100-step basecase never finishes within the gate).
 The long reach - a measurement window, a full frame, a counter wrap - goes
 in `formal: {cover_depth: M}` (optional, M >= N), which only the cover task
 uses. A shallow `depth` is never a loophole: an assert whose induction does
-not close at it is still reported bounded, never proven.
+not close at it, and which pdr does not prove either, is still reported
+bounded, never proven.
 `formal: {timeout_s: T}` (optional, at most TIMEOUT_MAX_S) sets every sby
 task's timeout, which otherwise scales with that task's depth.
 
@@ -78,11 +80,13 @@ Three sby TASKS, same model; smt and pdr at `depth`, cov at `cover_depth`:
        per-property breakdown of THIS, only of which property failed, so a
        property that fails do so together at the task level; see
        _parse_task_status).
-  pdr  mode prove, engine abc pdr        - the second opinion (gates.yaml:
-       "abc pdr as the second opinion"). PDR gives no per-property
-       breakdown at all (proved empirically: its own XML collapses every
-       property into one "default" testcase) - only a design-level
-       PASS/FAIL, applied to every property as corroboration. A pdr
+  pdr  mode prove, engine abc pdr        - the second complete engine
+       (gates.yaml: "abc pdr as the second opinion"). PDR gives no
+       per-property breakdown at all (proved empirically: its own XML
+       collapses every property into one "default" testcase) - only a
+       design-level PASS/FAIL, applied to every property: a PASS is an
+       unbounded proof of every assert in the model (PDR is complete for
+       safety), a FAIL a counterexample to at least one. A pdr
        task whose DONE is ERROR only because yosys-witness crashed
        converting abc's counterexample to a trace still counts as FAIL
        (pdr_done_status).
@@ -101,13 +105,19 @@ Three sby TASKS, same model; smt and pdr at `depth`, cov at `cover_depth`:
        vacuous below.
 
 Per-property (ASSERT-kind) verdict, applied per `property:` label:
-  proven   smt task's own testcase has no <failure> AND smt's basecase AND
-           induction both report "pass" AND the pdr task's own DONE is PASS.
+  proven   smt's basecase reports "pass", pdr did not FAIL, AND any
+           complete engine closed the proof: smt's induction step reports
+           "pass" (proven_by k-induction) OR the pdr task's own DONE is
+           PASS (proven_by pdr - e.g. a non-inductive invariant whose
+           unreachable states keep the induction step from closing). The
+           report's `proven_by` names the engine per requirement.
   bounded  smt's basecase reports "pass" (no counterexample within `depth`
-           steps) but induction did not (an inconclusive/unproven induction
-           step, not a counterexample - sby also puts a <failure> on the
-           property whose induction step failed, with trace_induct.vcd,
-           and that is still bounded, never failed). Recorded with `depth` - "the
+           steps) but no complete engine closed: induction did not (an
+           inconclusive/unproven induction step, not a counterexample -
+           sby also puts a <failure> on the property whose induction step
+           failed, with trace_induct.vcd, and that is still bounded, never
+           failed) and pdr gave up (DONE UNKNOWN). A pdr ERROR is refused,
+           never folded into bounded. Recorded with `depth` - "the
            gate never reports it as proven" (docs/design.md section 2) -
            a severity "info" finding, visible but never counted toward the
            gate's fail_severities: bounded to the spec's own asked depth is
@@ -1118,6 +1128,23 @@ def check_cut_model(signal: str, smt_cases: dict[str, dict],
             "brought in line with it")
 
 
+def proven_by(smt_sub: dict[str, str | None], pdr_status: str) -> str | None:
+    """Which complete engine closed the proof: "k-induction" (smtbmc's
+    induction step passed), else "pdr" (abc pdr PASSed - PDR is complete for
+    safety properties and its PASS is design-level: no assert in the model
+    fails at any depth), else None. Like a commercial multi-engine run, a
+    property is proven as soon as ANY complete engine proves it: a
+    non-inductive invariant (unreachable states that keep the k-induction
+    step from closing) that pdr proves is proven, not bounded. Only says
+    which engine would close it; classify_property owns the counterexample
+    and basecase rules. Pure."""
+    if smt_sub.get("induction") == "pass":
+        return "k-induction"
+    if pdr_status == "PASS":
+        return "pdr"
+    return None
+
+
 def classify_property(label: str, rid: str, smt_case: dict,
                       smt_sub: dict[str, str | None], pdr_status: str,
                       depth: int) -> tuple[str, dict | None]:
@@ -1135,30 +1162,31 @@ def classify_property(label: str, rid: str, smt_case: dict,
             "formal", "error", None, None, "property_failed", [rid],
             f"requirement {rid} (property {label}): sby found a "
             "counterexample", "sby-smtbmc")
-    if pdr_status not in ("PASS", "FAIL"):
-        # ERROR or UNKNOWN (a solver crash, a timeout, an unusable model)
-        # used to fall through to the `basecase == "pass"` check below and
-        # come back "bounded" - a passing outcome - even though the second
-        # opinion gates.yaml calls for (pdr as corroboration) never actually
-        # ran. Refused here, before that fallback ever sees it.
+    if pdr_status not in ("PASS", "FAIL", "UNKNOWN"):
+        # ERROR (a solver crash, an unusable model) used to fall through to
+        # the `basecase == "pass"` check below and come back "bounded" - a
+        # passing outcome - on a model no engine could even read. Refused
+        # here, before that fallback ever sees it.
         raise CheckError(
             f"sby (pdr task) reached no verdict for property {label} "
             f"(requirement {rid}): pdr_status={pdr_status!r} is neither "
-            "PASS nor FAIL - never silently folded into bounded/proven")
+            "PASS, FAIL nor UNKNOWN - never silently folded into "
+            "bounded/proven")
     if pdr_status == "FAIL":
         return "failed", checklib.violation(
             "formal", "error", None, None, "engine_disagreement", [rid],
             f"requirement {rid} (property {label}): abc pdr found a "
             "counterexample smtbmc's k-induction did not", "sby-abc-pdr")
-    if smt_sub["basecase"] == "pass" and smt_sub["induction"] == "pass" \
-            and pdr_status == "PASS":
+    if smt_sub["basecase"] == "pass" and proven_by(smt_sub, pdr_status):
         return "proven", None
     if smt_sub["basecase"] == "pass":
+        # no complete engine closed: induction did not converge and pdr
+        # gave up (UNKNOWN) - only the basecase's bounded result stands
         return "bounded", checklib.violation(
             "formal", "info", None, None, "bounded_not_proven", [rid],
             f"requirement {rid} (property {label}): no counterexample "
             f"found to depth {depth} (spec.yaml formal.depth), but "
-            "induction did not converge - "
+            "neither k-induction converged nor abc pdr proved it - "
             "recorded as bounded, never as proven", "sby-smtbmc", depth=depth)
     raise CheckError(
         f"sby (smt task) reached no verdict for property {label} "
@@ -1400,6 +1428,7 @@ def run(argv=None):
         "cover_depth") is not None else "depth")
     violations = []
     proven, bounded, failed, vacuous = [], [], [], []
+    proven_engine: dict[str, str] = {}
     for label, rid in sorted(props.items()):
         verdict, violation = classify_property(
             label, rid, smt_cases[label], smt_sub, pdr_status, depth)
@@ -1412,6 +1441,8 @@ def run(argv=None):
             label, rid, verdict, violation, cov_case, cover_depth, cover_key)
         {"proven": proven, "bounded": bounded, "failed": failed,
          "vacuous": vacuous}[verdict].append(rid)
+        if verdict == "proven":
+            proven_engine[rid] = proven_by(smt_sub, pdr_status)
         if violation is not None:
             violations.append(violation)
 
@@ -1461,8 +1492,8 @@ def run(argv=None):
         SCRIPT, ws / "rtl", violations, top=top, formal_top=formal_top,
         depth=depth, cover_depth=cover_depth, frontend=frontend, frontend_why=frontend_why,
         multiclock=multiclock, multiclock_why=multiclock_why,
-        proven=sorted(proven), bounded=sorted(bounded),
-        failed=sorted(failed), vacuous=sorted(vacuous),
+        proven=sorted(proven), proven_by=dict(sorted(proven_engine.items())),
+        bounded=sorted(bounded), failed=sorted(failed), vacuous=sorted(vacuous),
         smt_status=smt_status, pdr_status=pdr_status,
         cover_points=sorted(covers),
         async_reset_cuts=applied_cuts or [],

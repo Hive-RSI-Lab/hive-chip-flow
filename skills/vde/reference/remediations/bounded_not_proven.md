@@ -1,8 +1,10 @@
 # bounded_not_proven (formal)
 
 Info severity - never fails the gate by itself. smtbmc's basecase found no
-counterexample within the spec's own `formal: {depth}`, but the induction
-step did not converge to a full proof. Routes to `formal` if it is ever
+counterexample within the spec's own `formal: {depth}`, but neither complete
+engine closed the proof: the k-induction step did not converge and abc pdr
+gave up (UNKNOWN). A property abc pdr proves is reported proven
+(`proven_by: pdr`), not bounded. Routes to `formal` if it is ever
 dispatched (rare, since it does not fail the gate on its own).
 
 **What to do:** nothing is required. If a human wants a full proof rather
