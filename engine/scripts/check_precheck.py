@@ -45,6 +45,7 @@ a `violations` finding, exit 1.
 from __future__ import annotations
 
 import argparse
+import os
 import shutil
 import subprocess
 import sys
@@ -153,12 +154,39 @@ def run(argv=None):
     if not final_dir.is_dir():
         raise CheckError(f"no {final_dir} - the harden gate has not run yet")
 
-    import os
     # test/fault hook only - see stage_precheck_run's docstring. Never set
     # by any real gate.py/jobs.py invocation.
     declared_top = os.environ.get("CHIP_FLOW_PRECHECK_TOP_OVERRIDE") or None
     run_dir = stage_precheck_run(ws, spec, final_dir, top, declared_top)
     staged_top = declared_top or top
+    proc, results_xml, output = invoke_precheck(run_dir, staged_top)
+    if not results_xml.is_file():
+        raise CheckError(
+            f"precheck.py wrote no {results_xml} (exit {proc.returncode}): "
+            f"{output[-2000:]}")
+
+    tree = ET.parse(results_xml)
+    violations = []
+    for tc in tree.iter("testcase"):
+        name = tc.attrib.get("name", "?")
+        err = tc.find("error")
+        if err is not None:
+            violations.append(checklib.violation(
+                "precheck", "error", None, name, "precheck_failed", [],
+                f"{name}: {err.attrib.get('message') or (err.text or '').strip()}",
+                "tt-precheck"))
+
+    # the stamped input is the gate's first input in invalidation.yaml, which
+    # state.py record_gate re-hashes: vde's `harden` (the harden dir), msde's
+    # `top_gds` (the top's final GDS dir)
+    stamped = final_dir / "gds" if msde else ws / "harden"
+    payload = checklib.report(SCRIPT, stamped, violations, top=top,
+                              checks_run=sum(1 for _ in tree.iter("testcase")))
+    return payload, args.out
+
+
+def invoke_precheck(run_dir: Path, staged_top: str):
+    """Run the staged precheck.py: (process, results.xml path, its output)."""
     precheck_dir = run_dir / "precheck"
     precheck_py = precheck_dir / "precheck.py"
 
@@ -184,31 +212,8 @@ def run(argv=None):
     except subprocess.TimeoutExpired as exc:
         raise CheckError(f"precheck.py {checklib.timeout_why(exc)}: {exc}") from exc
 
-    results_xml = precheck_dir / "reports" / "results.xml"
     output = (proc.stdout or "") + "\n" + (proc.stderr or "")
-    if not results_xml.is_file():
-        raise CheckError(
-            f"precheck.py wrote no {results_xml} (exit {proc.returncode}): "
-            f"{output[-2000:]}")
-
-    tree = ET.parse(results_xml)
-    violations = []
-    for tc in tree.iter("testcase"):
-        name = tc.attrib.get("name", "?")
-        err = tc.find("error")
-        if err is not None:
-            violations.append(checklib.violation(
-                "precheck", "error", None, name, "precheck_failed", [],
-                f"{name}: {err.attrib.get('message') or (err.text or '').strip()}",
-                "tt-precheck"))
-
-    # the stamped input is the gate's first input in invalidation.yaml, which
-    # state.py record_gate re-hashes: vde's `harden` (the harden dir), msde's
-    # `top_gds` (the top's final GDS dir)
-    stamped = final_dir / "gds" if msde else ws / "harden"
-    payload = checklib.report(SCRIPT, stamped, violations, top=top,
-                              checks_run=sum(1 for _ in tree.iter("testcase")))
-    return payload, args.out
+    return proc, precheck_dir / "reports" / "results.xml", output
 
 
 def main(argv=None) -> int:

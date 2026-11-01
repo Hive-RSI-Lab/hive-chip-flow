@@ -42,7 +42,7 @@ import ttship
 PATH = "release/manifest.json"
 SCHEMA = 1
 # Where a file nobody signed could hide: --verify refuses one it does not list.
-SHIPPED_DIRS = ("gds", "lef", "src", ".github/workflows")
+SHIPPED_DIRS = ("gds", "lef", "gl", "src", ".github/workflows")
 ARCHIVE_VIEWS = ("pnl", "sdf", "spef")
 HARDEN_GATE = {"vde": "harden", "msde": "top_harden"}
 _COMMENT = re.compile(r"/\*.*?\*/|//[^\n]*", re.S)

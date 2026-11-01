@@ -15,18 +15,27 @@ is under harden/, an msde top's under top/harden/):
 - `stage(ws, dest)` writes what the shuttle reads, in the TT repo layout:
   info.yaml, src/config.json (harden/config.json with its `dir::` files
   copied into src/), the RTL, wrapper and SDC it names, gds/ and lef/ (the
-  signed-off run's final views), and a .github/workflows/gds.yaml that
-  ships that GDS with custom_gds. It never overwrites a workflow already
-  there: that is the workflow the release checks.
+  signed-off run's final views), gl/<top>.v (final/pnl: the powered netlist
+  TT's precheck reads and glsim's functional pass simulated), test/ (the
+  block's cocotb suite, a Makefile for it and the glsim harness), and a
+  .github/workflows/gds.yaml that ships that GDS with custom_gds and runs the
+  suite on the shipped netlist. It never overwrites a workflow already there:
+  that is the workflow the release checks.
 - `stage_analog(ws, dest, sign)` is the same for an msde tile, in the shape
   of TT's analog template: no src/config.json, since TT takes the committed
-  GDS. It is what a block's hand-written assemble.py did, driven by top/.
+  GDS, and src/project.v as the netlist when it has power pins, else the
+  run's final/pnl. It is what a block's hand-written assemble.py did, driven
+  by top/.
 - `ship_problems(repo, signoff)` reads every workflow under repo/.github/
   workflows and refuses unless each step that ships the tile reproduces
   the signoff: a re-harden step must install the signoff LibreLane, get
   the signoff PDK and use the vendored tt-support-tools commit; a
   custom_gds step must point at a GDS and LEF whose sha256 are the
-  signed-off ones.
+  signed-off ones, and at a netlist (without one the action ships an empty
+  .v, which TT's precheck fails: "Verilog doesn't contain VGND"). A vde
+  tile's must be the run's final/pnl, by sha256, the one glsim recorded, and
+  a job must run the test suite on it on the signoff PDK: custom_gds writes
+  no PDK_VERSION, so TT's own gl_test action can't.
 
 `signoff(ws)` reads the signoff side from the run itself (resolved.json's
 meta.librelane_version, its PDK and PDK_ROOT, the PDK's SOURCES), so it is
@@ -43,7 +52,10 @@ from pathlib import Path
 
 import yaml
 
+import cocotblib
+import speclib
 import statelib
+import ttlib
 
 ENGINE_DIR = Path(__file__).resolve().parents[1]
 VENDORED_MD = ENGINE_DIR / "reference" / "tt" / "VENDORED.md"
@@ -51,6 +63,14 @@ RUN_TAG = "run"
 # Where each skill's tile is hardened.
 HARDEN_DIR = {"vde": "harden", "msde": "top/harden"}
 ACTION = "TinyTapeout/tt-gds-action"
+CIEL_ACTION = "TinyTapeout/ciel-action"
+# TT's analog template ships the tile's top as its netlist. An msde tile does
+# when that top has power pins (a hand-kept tt/src/project.v); top_harden's own
+# wrapper has none, so that tile ships its run's powered netlist instead.
+ANALOG_NETLIST = "src/project.v"
+# What the staged test job installs. cocotb is the image's, the one glsim
+# runs on; pytest is the TT template's.
+TEST_REQUIREMENTS = "pytest==8.4.2\ncocotb==2.1.0\n"
 # The tt-gds-action ref chip-flow's TT tiles ship with (the ttgf26c shuttle).
 DEFAULT_REF = "ttgf26c"
 # What the re-harden action does when its inputs are left out, per ref
@@ -65,6 +85,7 @@ PDK_FAMILY = {"gf180mcuD": "gf180mcu", "gf180mcuC": "gf180mcu",
               "ihp-sg13g2": "ihp-sg13g2"}
 _EXPR = re.compile(r"\$\{\{\s*([^}]*?)\s*\}\}")
 _SHA = re.compile(r"^[0-9a-f]{7,40}$")
+_COMMENT = re.compile(r"/\*.*?\*/|//[^\n]*", re.S)
 
 
 class ShipError(RuntimeError):
@@ -138,6 +159,7 @@ def signoff(ws: Path, pdk_hash=None, harden: str = "harden") -> dict:
     librelane = (cfg.get("meta") or {}).get("librelane_version")
     gds = run / "final" / "gds" / f"{top}.gds"
     lef = run / "final" / "lef" / f"{top}.lef"
+    pnl = run / "final" / "pnl" / f"{top}.pnl.v"
     return {
         "top_module": top,
         "librelane": librelane,
@@ -156,16 +178,99 @@ def signoff(ws: Path, pdk_hash=None, harden: str = "harden") -> dict:
         "gds_sha256": _sha256(gds),
         "lef": f"{harden}/runs/{RUN_TAG}/final/lef/{top}.lef",
         "lef_sha256": _sha256(lef),
+        "gl": f"{harden}/runs/{RUN_TAG}/final/pnl/{top}.pnl.v",
+        "gl_sha256": _sha256(pnl),
+        # A vde tile ships its run's netlist, which glsim simulated. An msde
+        # tile may ship TT's analog template's netlist (ANALOG_NETLIST).
+        "gl_is_shipped": harden == HARDEN_DIR["vde"],
+        "glsim_gl_sha256": _glsim_netlist(Path(ws)),
     }
+
+
+def _glsim_netlist(ws: Path) -> str | None:
+    """The sha256 of the powered netlist glsim's report says it simulated."""
+    try:
+        report = json.loads((ws / "reports" / "gate-glsim.json")
+                            .read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return (report.get("netlists") or {}).get("pnl_sha256")
 
 
 # --------------------------------------------------------------- staging
 
-def default_workflow(ref: str = DEFAULT_REF, tools_ref: str | None = None) -> str:
-    """The workflow chip-flow stages: ship the signed-off GDS as-is, then
-    run the shuttle's precheck on it (tools-ref pinned to the vendored
-    tt-support-tools, so it is the precheck we ran)."""
+GL_TEST_JOB = """
+  # Not TT's gl_test action: custom_gds writes pdk.json with no PDK_VERSION,
+  # so that action would ask ciel for `null`. Same steps, on the PDK this GDS
+  # was signed off on, against the netlist in the submission.
+  gl_test:
+    needs: gds
+    runs-on: ubuntu-24.04
+    env:
+      PDK_ROOT: /home/runner/pdk
+    steps:
+      - name: checkout repo
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Download GDS artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: tt_submission
+
+      - name: Install the signoff PDK
+        uses: {ciel}@v1
+        with:
+          pdk_name: {pdk}
+          pdk_version: {open_pdks}
+          pdk_root: /home/runner/pdk
+
+      - name: Setup python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Install Python packages
+        run: pip install -r test/requirements.txt
+
+      - name: Install iverilog
+        run: |
+          wget https://github.com/TinyTapeout/iverilog/releases/download/v13.0/iverilog_13.0-1_amd64.deb
+          sudo apt-get update -y
+          sudo apt-get install -y ./iverilog_13.0-1_amd64.deb
+
+      - name: Run the tests on the submission's netlist
+        run: |
+          cp tt_submission/*.v test/gate_level_netlist.v
+          cd test
+          rm -f results.xml
+          make clean
+          GATES=yes make
+          # make succeeds even when a test fails, so read results.xml
+          test -f results.xml
+          ! grep -E '<(failure|error)' results.xml
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: gatelevel_test_results
+          path: test/results.xml
+"""
+
+
+def default_workflow(ref: str = DEFAULT_REF, tools_ref: str | None = None,
+                     verilog_path: str = ANALOG_NETLIST,
+                     gl_test_pdk: str | None = None, pdk: str = "gf180mcuD") -> str:
+    """The workflow chip-flow stages: ship the signed-off GDS as-is with the
+    netlist at `verilog_path`, then run the shuttle's precheck on it (tools-ref
+    pinned to the vendored tt-support-tools, so it is the precheck we ran).
+    `gl_test_pdk`, an open_pdks commit, adds the job that runs test/ on that
+    netlist on that PDK."""
     tools = f"\n          tools-ref: {tools_ref}" if tools_ref else ""
+    gl_test = (GL_TEST_JOB.format(ciel=CIEL_ACTION, pdk=pdk, open_pdks=gl_test_pdk)
+               if gl_test_pdk else "")
     return f"""name: gds
 
 # Staged by chip-flow release (engine/lib/ttship.py): ships the GDS chip-flow
@@ -196,7 +301,8 @@ jobs:
           top_module: ${{{{ steps.top_module.outputs.TOP_MODULE }}}}
           gds_path: gds/${{{{ steps.top_module.outputs.TOP_MODULE }}}}.gds
           lef_path: lef/${{{{ steps.top_module.outputs.TOP_MODULE }}}}.lef
-          pdk: gf180mcuD{tools}
+          verilog_path: {verilog_path}
+          pdk: {pdk}{tools}
 
   precheck:
     needs: gds
@@ -205,6 +311,37 @@ jobs:
       - name: Run Tiny Tapeout Precheck
         uses: {ACTION}/precheck@{ref}
         with:{tools if tools else " {}"}
+{gl_test}"""
+
+
+def gl_test_makefile(top: str, modules: list[str], harness: str) -> str:
+    """test/Makefile: what glsim's functional pass builds, as TT's template
+    spells it (GATES=yes, gate_level_netlist.v copied in by the workflow)."""
+    return f"""# Staged by chip-flow release (engine/lib/ttship.py): the block's tb/ suite on
+# the gate-level netlist, as the glsim gate's functional pass runs it.
+SIM ?= icarus
+TOPLEVEL_LANG ?= verilog
+COCOTB_HDL_TIMEUNIT = 1ns
+COCOTB_HDL_TIMEPRECISION = 1ps
+
+ifneq ($(GATES),yes)
+$(error this tile ships a hardened netlist: run with GATES=yes)
+endif
+
+SIM_BUILD = sim_build/gl
+COMPILE_ARGS += -DGL_TEST
+COMPILE_ARGS += -DFUNCTIONAL
+COMPILE_ARGS += -DUSE_POWER_PINS
+VERILOG_SOURCES += $(PWD)/{harness}
+VERILOG_SOURCES += $(PDK_ROOT)/gf180mcuD/libs.ref/gf180mcu_fd_sc_mcu7t5v0/verilog/primitives.v
+VERILOG_SOURCES += $(PDK_ROOT)/gf180mcuD/libs.ref/gf180mcu_fd_sc_mcu7t5v0/verilog/gf180mcu_fd_sc_mcu7t5v0.v
+# copied in by the workflow from tt_submission
+VERILOG_SOURCES += $(PWD)/gate_level_netlist.v
+
+TOPLEVEL = {top}
+COCOTB_TEST_MODULES = {",".join(modules)}
+
+include $(shell cocotb-config --makefiles)/Makefile.sim
 """
 
 
@@ -261,12 +398,45 @@ def stage(ws: Path, dest: Path, sign: dict,
         f = ws / sign[kind]
         if f.is_file():
             put(f"{kind}/{top}.{kind}", f.read_bytes(), sign[kind])
+    if (ws / sign["gl"]).is_file():
+        put(f"gl/{top}.v", (ws / sign["gl"]).read_bytes(), sign["gl"])
+    _stage_gl_test(ws, put)
     wf = dest / ".github" / "workflows"
     if not any(wf.glob("*.y*ml")):
+        if not sign.get("open_pdks"):
+            raise ShipError("no open_pdks commit for the signed-off run, so "
+                            "there is no PDK to run its gate-level test on")
         put(".github/workflows/gds.yaml",
-            default_workflow(tools_ref=sign.get("tt_support_tools"))
+            default_workflow(tools_ref=sign.get("tt_support_tools"),
+                             verilog_path="gl/${{ steps.top_module.outputs.TOP_MODULE }}.v",
+                             gl_test_pdk=sign["open_pdks"], pdk=sign["pdk"])
             .encode("utf-8"))
     return written
+
+
+def _stage_gl_test(ws: Path, put) -> None:
+    """test/: tb/, the glsim harness and a Makefile. Nothing when the block
+    has no test modules or pin map; ship_problems then refuses."""
+    tb = ws / "tb"
+    spec_path = ws / "spec" / "spec.yaml"
+    if not tb.is_dir() or not spec_path.is_file():
+        return
+    modules = cocotblib.test_modules(tb)
+    spec = speclib.load_spec(spec_path)
+    if not modules or not spec.get("tt_pins"):
+        return
+    try:
+        harness = ttlib.generate_glsim_harness(spec)
+    except ttlib.TTError as exc:
+        raise ShipError(str(exc)) from exc
+    for p in sorted(tb.iterdir()):
+        if p.is_file():
+            put(f"test/{p.name}", p.read_bytes(), f"tb/{p.name}")
+    name = "glsim_harness.v"
+    put(f"test/{name}", harness.encode("utf-8"))
+    put("test/Makefile",
+        gl_test_makefile(spec["top"], modules, name).encode("utf-8"))
+    put("test/requirements.txt", TEST_REQUIREMENTS.encode("utf-8"))
 
 
 def stage_analog(ws: Path, dest: Path, sign: dict,
@@ -321,6 +491,15 @@ def stage_analog(ws: Path, dest: Path, sign: dict,
         shutil.copyfile(p, out)
         written.append(rel)
         sources[rel] = p.relative_to(ws).as_posix()
+    if not _has_power_pins(dest / ANALOG_NETLIST) and (ws / sign["gl"]).is_file():
+        out = dest / "gl" / f"{top}.v"
+        out.parent.mkdir(exist_ok=True)
+        shutil.copyfile(ws / sign["gl"], out)
+        written.append(f"gl/{top}.v")
+        sources[f"gl/{top}.v"] = sign["gl"]
+        verilog_path = "gl/${{ steps.top_module.outputs.TOP_MODULE }}.v"
+    else:
+        verilog_path = ANALOG_NETLIST
     wf = dest / ".github" / "workflows"
     kept_wf = sorted((tt / "workflows").glob("*.y*ml")) if (tt / "workflows").is_dir() else []
     if not any(wf.glob("*.y*ml")):
@@ -330,7 +509,8 @@ def stage_analog(ws: Path, dest: Path, sign: dict,
             written.append(f".github/workflows/{p.name}")
         if not kept_wf:
             (wf / "gds.yaml").write_text(
-                default_workflow(tools_ref=sign.get("tt_support_tools")),
+                default_workflow(tools_ref=sign.get("tt_support_tools"),
+                                 verilog_path=verilog_path, pdk=sign["pdk"]),
                 encoding="utf-8")
             written.append(".github/workflows/gds.yaml")
     (dest / "src" / "config.json").unlink(missing_ok=True)
@@ -374,6 +554,92 @@ def _resolve_path(path: str, top: str | None) -> str | None:
         return _EXPR.sub(rep, path)
     except KeyError:
         return None
+
+
+def _has_power_pins(path: Path) -> bool:
+    """What TT's precheck asks of the netlist (precheck.py power_pin_check)."""
+    if not path.is_file():
+        return False
+    text = path.read_text(encoding="utf-8", errors="replace")
+    text = _COMMENT.sub("", text).replace("VPWR", "VDPWR")
+    return "VGND" in text and "VDPWR" in text
+
+
+def _netlist_problems(repo: Path, where: str, raw: str | None, sign: dict,
+                      rec: dict) -> list[str]:
+    """A custom_gds step's verilog_path against the signoff."""
+    if not raw:
+        return [f"tt_verilog_missing: {where} has no verilog_path, so custom_gds "
+                "ships an empty .v and TT's precheck fails (\"Verilog doesn't "
+                "contain VGND\") - remove the workflow from the tree so release "
+                "stages one, or set verilog_path"]
+    rel = _resolve_path(raw, sign.get("top_module"))
+    digest = _sha256(repo / rel) if rel else None
+    rec["verilog_path"] = rel
+    rec["verilog_sha256"] = digest
+    if digest is None:
+        return [f"tt_verilog_missing: {where} ships verilog_path {raw!r}, which "
+                "is not a file in the repo"]
+    if not _has_power_pins(repo / rel):
+        return [f"tt_verilog_unpowered: {where} ships {rel} with no VGND or no "
+                "VPWR/VDPWR, which TT's precheck fails - it must be the powered "
+                "netlist"]
+    if sign.get("gl_is_shipped"):
+        if digest != sign.get("gl_sha256"):
+            return [f"tt_verilog_mismatch: {where} ships {rel} (sha256 "
+                    f"{digest[:12]}), not the signed-off {sign.get('gl')} "
+                    f"({(sign.get('gl_sha256') or 'none')[:12]})"]
+        rec["glsim_sha256"] = sign.get("glsim_gl_sha256")
+        if digest != sign.get("glsim_gl_sha256"):
+            return [f"tt_verilog_not_simulated: {rel} (sha256 {digest[:12]}) is "
+                    "not the netlist glsim's report says it simulated "
+                    f"({(sign.get('glsim_gl_sha256') or 'none')[:12]}) - run "
+                    "the glsim gate"]
+    elif rel != ANALOG_NETLIST and digest != sign.get("gl_sha256"):
+        return [f"tt_verilog_mismatch: {where} ships {rel} (sha256 {digest[:12]}), "
+                f"neither {ANALOG_NETLIST} nor the signed-off {sign.get('gl')}"]
+    return []
+
+
+def _gl_test_problems(repo: Path, sign: dict, ships_custom_gds: bool) -> list[str]:
+    """The test job of a custom_gds workflow: TT's gl_test action can't run,
+    any PDK it installs must be the signoff's, and a vde tile must have one."""
+    if not ships_custom_gds:
+        return []
+    problems = []
+    pinned = False
+    ran = False
+    for wf, step in _steps(repo):
+        uses = str(step.get("uses", ""))
+        parsed = _parse_uses(uses)
+        where = f"{wf} ({step.get('name') or uses})"
+        if parsed and parsed[0] == "gl_test":
+            problems.append(
+                f"tt_gl_test_no_pdk: {where} runs gl_test, which reads "
+                "PDK_VERSION from pdk.json; custom_gds writes none, so it asks "
+                "ciel for `null` - install the signoff PDK in a job of its own")
+        if re.match(rf"^{re.escape(CIEL_ACTION)}@", uses):
+            version = str((step.get("with") or {}).get("pdk_version") or "")
+            if _same_commit(version, sign.get("open_pdks")):
+                pinned = True
+            else:
+                problems.append(
+                    f"tt_gl_pdk_mismatch: {where} installs PDK {version!r}, "
+                    f"signed off on open_pdks {sign.get('open_pdks')}")
+        if "GATES=yes" in str(step.get("run", "")):
+            ran = True
+    if not sign.get("gl_is_shipped"):
+        return problems
+    if not (ran and pinned):
+        problems.append(
+            "tt_gl_test_missing: no workflow installs the signoff PDK with "
+            f"{CIEL_ACTION} and runs `GATES=yes make`, so nothing tests the "
+            "shipped netlist on the PDK it was signed off on")
+    if not (repo / "test" / "Makefile").is_file():
+        problems.append(
+            "tt_gl_test_missing: no test/Makefile - the block has no tb/test_*.py "
+            "or no tt_pins, so there is nothing to run on the shipped netlist")
+    return problems
 
 
 def ship_problems(repo: Path, sign: dict) -> tuple[list[str], dict]:
@@ -450,11 +716,15 @@ def ship_problems(repo: Path, sign: dict) -> tuple[list[str], dict]:
                         f"tt_{kind}_mismatch: {where} ships {rel} (sha256 "
                         f"{digest[:12]}), not the signed-off {sign.get(kind)} "
                         f"({(sign.get(f'{kind}_sha256') or 'none')[:12]})")
+            problems.extend(_netlist_problems(
+                repo, where, with_.get("verilog_path"), sign, rec))
             shipped.append(rec)
     if not any(s["mode"] in ("reharden", "custom_gds") for s in shipped):
         problems.append(
             f"tt_not_shipped: no workflow under {repo}/.github/workflows "
             f"ships the tile ({ACTION}@<ref> or {ACTION}/custom_gds@<ref>)")
+    problems.extend(_gl_test_problems(
+        repo, sign, any(s["mode"] == "custom_gds" for s in shipped)))
     return problems, {"steps": shipped}
 
 
