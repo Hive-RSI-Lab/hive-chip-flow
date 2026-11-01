@@ -196,6 +196,36 @@ def test_bit_identical_samples_across_runs_is_refused(tmp_path, monkeypatch, cap
     assert "identical" in out.get("error", "").lower()
 
 
+def test_bench_with_no_bound_at_tt_is_skipped_and_named(tmp_path, monkeypatch, capsys):
+    # A bench scoped to another corner prints no measure at tt. It has nothing
+    # for MC to judge, and must not read as one sample repeated.
+    ws = make_ws(tmp_path, "mc: {enabled: true, runs: 3, yield_min: 0.0}\n")
+    src = next((ws / "tb").glob("*.cir"))
+    shutil.copy(src, ws / "tb" / "other_tb.cir")
+    (ws / "tb" / "other_tb.bounds.json").write_text(json.dumps([
+        {"measure": "iout_ratio", "min": 0, "max": 9, "corners": ["ff_m40c_vp10"]}]))
+    eda = make_seed_dependent_fake_eda(tmp_path)
+    monkeypatch.setattr(sim_run, "EDA_BIN", eda)
+    code = check_mc.main(["--workspace", str(ws)])
+    out = json.loads(capsys.readouterr().out)
+    assert code == 0, out
+    assert out["not_scored"] == ["other_tb.cir"]
+    assert out["runs"] == 3
+    assert {r["bench"] for r in out["results"]} == {src.name}
+
+
+def test_only_benches_unscored_at_tt_is_not_a_pass(tmp_path, monkeypatch, capsys):
+    ws = make_ws(tmp_path, "mc: {enabled: true, runs: 3, yield_min: 0.0}\n")
+    for f in (ws / "tb").glob("*.bounds.json"):
+        f.write_text(json.dumps([
+            {"measure": "iout_ratio", "min": 0, "max": 9, "corners": ["ff_m40c_vp10"]}]))
+    monkeypatch.setattr(sim_run, "EDA_BIN", make_seed_dependent_fake_eda(tmp_path))
+    code = check_mc.main(["--workspace", str(ws)])
+    out = json.loads(capsys.readouterr().out)
+    assert code == 1, out
+    assert {v["kind"] for v in out["violations"]} == {"yield_all_failed"}
+
+
 def test_every_sample_failed_is_always_a_violation(tmp_path, monkeypatch, capsys):
     # yield_min set low enough that the old `yield_frac < yield_min` check
     # alone would pass a run where EVERY sample failed - that must still be
