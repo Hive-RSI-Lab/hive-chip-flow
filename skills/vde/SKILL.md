@@ -260,6 +260,17 @@ On gate fail (exit 1, result JSON has `failing` with a `kind`/`file`/
 - **`release`'s `gate_not_ready`** is `attest.py`'s own coverage refusal,
   not a design defect - it routes to `review`; read which gate is missing
   or stale and re-enter that phase, there is nothing here a script fixes.
+- **`release`'s `tt_ship_mismatch`** (`engine/lib/ttship.py`, #131): a
+  hardened tile's release stages the Tiny Tapeout repo at `release/tt/`
+  (`src/config.json` + RTL + SDC, `info.yaml`, the signed-off `gds/` and
+  `lef/`, and a `custom_gds` workflow if none is there) and refuses when a
+  workflow there ships anything but the signed-off GDS: a re-harden with
+  another LibreLane (the TT template's `tt-gds-action@ttgf26c` installs
+  3.0.14), on another PDK (the action cannot pin one; LibreLane fetches
+  its own) or another tt-support-tools ref, or a `custom_gds` whose GDS/LEF
+  sha256 is not the run's. `--tt-repo DIR` checks the real repo instead.
+  Both sides land in `reports/checks.json` under `tt_submission`. Fix the
+  workflow (use the staged one), never the check.
 - **A `mutate` survivor the fixer proves is an EQUIVALENT mutant** (found
   proving this on the uart rung, M5: a coding style yosys's `proc` pass
   elaborates into extra flops - e.g. a Verilog `function`'s own locals -
