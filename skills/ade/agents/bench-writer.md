@@ -59,6 +59,14 @@ A bench that sweeps many points (a 256-code DAC) carries a
 host; without it each corner's run is cut off at 60 s, and that is a
 finding.
 
+A converter's static curve is not computed in `.control`. Write the sweep with
+`wrdata {{RAMP_FILE}} <vector>` over a DC sweep of the integer code, with
+`set numdgt=15` first and a `* static_ramp_codes: <N>` comment line; sim_run
+scores it through `engine/lib/convlib.py`'s `static_ramp` as `dnl_max_abs`,
+`inl_max_abs` (endpoint line), `inl_best_fit_max_abs`, `monotonic` and
+`missing_code_count`. A bench or lab script with a sampled tone calls
+`convlib.dynamic` the same way, with fin from `convlib.coherent_tone`.
+
 **Hard rules:** never read or write `netlist/`. Never write a bound
 looser than the spec's own to make a future sizing pass easier - a bench
 that cannot fail proves nothing, and that is exactly what `bench_strength`
