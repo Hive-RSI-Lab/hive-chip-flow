@@ -162,6 +162,11 @@ FIXER_HINTS: dict[str, str] = {
     "flow_step_failed": "harden",
     "harden_missing_artifact": "harden",
 
+    # qor (qor.py, #65)
+    "qor_regression": "harden",
+    "qor_metric_missing": "harden",
+    "qor_not_reproducible": "harden",
+
     # timing (check_timing.py) - clock_unconstrained is the one timing kind
     # that does NOT route to "harden": an INF slack means the SDC's clock
     # reaches no path, which traces to spec.yaml's clock.domains/tt_pins

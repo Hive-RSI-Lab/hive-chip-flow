@@ -50,6 +50,10 @@ def make_ws(tmp_path: Path) -> Path:
     return ws
 
 
+FAKE_VERSIONS = {"python": "3.1.0.dev3\n", "yosys": "Yosys 0.69 (git sha1 x)\n",
+                 "openroad": "v2.0-fake\n"}
+
+
 def _fake_run_factory(librelane_behavior):
     """librelane_behavior(cwd: Path) -> CompletedProcess-like namespace for
     the `eda librelane ...` call; the `--print-toolchain-root` call always
@@ -57,6 +61,9 @@ def _fake_run_factory(librelane_behavior):
     def fake_run(cmd, cwd=None, **kwargs):
         if "--print-toolchain-root" in cmd:
             return subprocess.CompletedProcess(cmd, 0, stdout="/fake/toolchain\n", stderr="")
+        if cmd[1] in FAKE_VERSIONS:     # qorlib.env_versions (#65)
+            return subprocess.CompletedProcess(cmd, 0, stdout=FAKE_VERSIONS[cmd[1]],
+                                               stderr="")
         assert cmd[1] == "librelane", cmd
         return librelane_behavior(Path(cwd))
     return fake_run
@@ -160,6 +167,16 @@ def test_pass_when_flow_completes_and_final_artifacts_exist(tmp_path, monkeypatc
     assert out["status"] == "pass"
     assert out["violations"] == []
     assert out["metrics"]["design__instance__count"] == 42
+    # the full QoR record (#65): what the run wrote, what it did not
+    # (missing, never 0), the versions it ran on and the config hash
+    qor = out["qor"]
+    assert qor["metrics"]["instance_count"] == 42
+    assert qor["metrics"]["setup_ws"] is None
+    assert "setup_ws" in qor["missing"]
+    assert qor["versions"]["librelane"] == "3.1.0.dev3"
+    assert qor["versions"]["yosys"] == "0.69"
+    assert qor["versions"]["openroad"] == "v2.0-fake"
+    assert re.fullmatch(r"[0-9a-f]{64}", qor["config_sha256"])
 
 
 def test_no_tt_pins_refuses_before_touching_librelane(tmp_path, monkeypatch, capsys):

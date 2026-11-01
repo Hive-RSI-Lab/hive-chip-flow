@@ -128,7 +128,7 @@ Gates (from `engine/reference/gates.yaml`, run via `gate.py --gate <name>
 | formal | P4 | every property proven or bounded; every cover point reached |
 | cover | P4 | line >= 95%, toggle >= 90% on the DUT; exclusions carry reasons |
 | synth | P5 | no latches, unmapped cells or combinational loops |
-| harden (job) | P6 | LibreLane finishes clean, produces GDS/LEF/netlist/SDF/metrics |
+| harden (job) | P6 | LibreLane finishes clean, produces GDS/LEF/netlist/SDF/metrics; records the QoR table, tool versions and config hash (`chip-flow qor show`/`diff`/`repro`) |
 | timing | P6 | setup+hold slack >= 0 at every corner |
 | drc | P6 | 0 violations, magic + klayout |
 | lvs | P6 | extracted layout matches the hardened netlist |

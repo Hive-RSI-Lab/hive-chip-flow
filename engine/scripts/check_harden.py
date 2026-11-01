@@ -78,7 +78,9 @@ ENGINE = SCRIPTS.parent
 REPO = ENGINE.parent
 sys.path.insert(0, str(ENGINE / "lib"))
 import checklib  # noqa: E402
+import qorlib  # noqa: E402
 import speclib  # noqa: E402
+import statelib  # noqa: E402
 import ttlib  # noqa: E402
 from checklib import CheckError  # noqa: E402
 
@@ -242,9 +244,21 @@ def run(argv=None):
                                       "timing__hold"))
                      and ":" not in k}
 
+    # The full QoR table, the versions the run ran on and its config
+    # hashes (#65): what `qor diff` compares and `qor repro` replays. Only
+    # for a run that wrote metrics; a metric it did not write stays None
+    # and is listed in qor.missing, never read as 0.
+    qor = None
+    if metrics:
+        qor = qorlib.record(metrics, run_dir, config_path,
+                            env=qorlib.env_versions(EDA_BIN),
+                            pdk=statelib.pdk_version())
+        qor["wall_s"] = wall_s
+
     payload = checklib.report(SCRIPT, ws / "rtl", violations, top=top,
                               run_tag=RUN_TAG, resumed=resumed, wall_s=wall_s,
-                              run_dir=str(run_dir), metrics=metric_subset)
+                              run_dir=str(run_dir), metrics=metric_subset,
+                              qor=qor)
     return payload, args.out
 
 
