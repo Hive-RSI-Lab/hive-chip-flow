@@ -11,6 +11,7 @@ import sys
 from pathlib import Path
 
 import pytest
+import yaml
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "engine" / "scripts"))
@@ -212,7 +213,7 @@ def test_gate_is_registered_and_invalidated():
     import yaml
     gates = yaml.safe_load((REPO / "engine/reference/gates.yaml").read_text())
     inval = (REPO / "engine/reference/invalidation.yaml").read_text()
-    assert "lec" in str(gates) and re.search(r"^\s+lec:\s+\[rtl, harden", inval,
+    assert "lec" in str(gates) and re.search(r"^\s+lec:\s+\[harden, rtl", inval,
                                              re.M)
 
 
@@ -380,3 +381,12 @@ def test_rtl_change_after_harden_fails_the_rtl_link(ws):
     p = run(ws)
     assert kinds(p) == ["lec_not_equivalent"]
     assert points(p, "rtl_vs_synth") and not points(p, "synth_vs_final")
+
+
+def test_lec_result_records_against_its_own_stamp():
+    """gate_inputs' first kind is the one state.py compares a report's stamp
+    with. check_lec stamps ws/harden, so a lec listed under rtl could never be
+    recorded, proved or not."""
+    data = yaml.safe_load((REPO / "engine" / "reference" / "invalidation.yaml")
+                          .read_text(encoding="utf-8"))
+    assert data["gate_inputs"]["vde"]["lec"][0] == "harden"

@@ -93,9 +93,9 @@ def make_ws(tmp_path: Path) -> Path:
 
 
 def record_glsim(ws: Path, sha: str | None) -> None:
-    (ws / "reports").mkdir(exist_ok=True)
-    (ws / "reports" / "gate-glsim.json").write_text(
-        json.dumps({"netlists": {"pnl_sha256": sha}}))
+    (ws / "reports" / "recorded").mkdir(parents=True, exist_ok=True)
+    (ws / "reports" / "recorded" / "gate-glsim.json").write_text(
+        json.dumps({"facts": {"netlists": {"pnl_sha256": sha}}}))
 
 
 def pdk_hash(pdk=LL_PDK):
@@ -376,7 +376,7 @@ def test_run_pnl_replaced_after_glsim_is_refused(tmp_path):
 
 def test_no_glsim_record_of_the_netlist_is_refused(tmp_path):
     ws = make_ws(tmp_path)
-    (ws / "reports" / "gate-glsim.json").unlink()
+    (ws / "reports" / "recorded" / "gate-glsim.json").unlink()
     problems, _ = ttship.release_check(ws, pdk_hash=pdk_hash())
     assert rules(problems) == ["tt_verilog_not_simulated"]
     assert "run the glsim gate" in problems[0]

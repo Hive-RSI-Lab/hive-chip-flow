@@ -7,6 +7,7 @@ workflow gets wrong fails here, then the vendored precheck and the staged
 Makefile run on the result. The Actions jobs themselves don't run."""
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import subprocess
@@ -126,3 +127,14 @@ def test_staged_makefile_fails_on_a_broken_netlist(tree, tmp_path):
     assert broken != text
     results = run_staged_makefile(repo, tmp_path, broken.encode())
     assert [c for c in results.iter("testcase") if c.find("failure") is not None]
+
+
+def test_glsim_netlist_read_from_the_recorded_gate_result(tmp_path):
+    """gate.py records glsim under reports/recorded with the check's fields in
+    facts; that is the only copy a gate run leaves."""
+    rec = tmp_path / "reports" / "recorded"
+    rec.mkdir(parents=True)
+    (rec / "gate-glsim.json").write_text(json.dumps(
+        {"facts": {"netlists": {"pnl_sha256": "abc"}}}), encoding="utf-8")
+    assert ttship._glsim_netlist(tmp_path) == "abc"
+    assert ttship._glsim_netlist(tmp_path / "none") is None

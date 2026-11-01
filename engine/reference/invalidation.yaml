@@ -217,7 +217,7 @@ gate_inputs:
     glsim:     [harden, tb, spec_yaml_sans_formal, pdk_version]
     # lec reads rtl/ and the wrapper against harden's netlists, with cell
     # functions from the std-cell liberty.
-    lec:       [rtl, harden, spec_yaml_sans_formal, pdk_version, pdk_liberty]
+    lec:       [harden, rtl, spec_yaml_sans_formal, pdk_version, pdk_liberty]
     precheck:  [harden, harden_info, spec_yaml_sans_formal, pdk_version,
                 pdk_magic, pdk_klayout]
     release:   [rtl, harden, pdk_version]

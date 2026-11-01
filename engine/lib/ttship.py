@@ -190,11 +190,12 @@ def signoff(ws: Path, pdk_hash=None, harden: str = "harden") -> dict:
 def _glsim_netlist(ws: Path) -> str | None:
     """The sha256 of the powered netlist glsim's report says it simulated."""
     try:
-        report = json.loads((ws / "reports" / "gate-glsim.json")
+        report = json.loads((ws / "reports" / "recorded" / "gate-glsim.json")
                             .read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
-    return (report.get("netlists") or {}).get("pnl_sha256")
+    facts = report.get("facts") or {}
+    return (facts.get("netlists") or {}).get("pnl_sha256")
 
 
 # --------------------------------------------------------------- staging
