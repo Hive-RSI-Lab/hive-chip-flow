@@ -108,6 +108,9 @@ artifact_kinds:
   # the owner's per-mutant rulings on mutate/bench_strength survivors
   # (engine/lib/rulingslib.py); optional - absent hashes to None
   mutant_rulings: {path: "spec/mutant_rulings.yaml", norm: json_canonical}
+  # check_cdc.py's input-port domains and waivers. Its own file so a waiver
+  # re-runs cdc, not every gate that reads spec.yaml.
+  cdc_waivers: {path: "spec/cdc.yaml", norm: json_canonical}
   # msde (M10): the nested sides an msde block's top gates read, and the
   # assembled top's hardened GDS (engine/scripts/check_top_harden.py).
   digital_rtl:   {path: "digital/rtl", norm: dir_text}
@@ -187,6 +190,10 @@ gate_inputs:
     # `formal:` edit stales it too (spec_formal_edit's own set).
     cover:     [rtl, tb, spec_yaml]
     synth:     [rtl, spec_yaml_sans_formal, pdk_version, pdk_liberty]
+    # cdc reads `top`, clock and std_cell from spec.yaml; liberty for the
+    # cells RTL instantiates and its OpenSTA cross-check.
+    cdc:       [rtl, spec_yaml_sans_formal, cdc_waivers, pdk_version,
+                pdk_liberty]
     # spec_yaml (M4 review): harden reads tt_pins and clock.period_ns from
     # spec.yaml to build the wrapper and CLOCK_PERIOD, and timing, drc, lvs,
     # glsim and precheck all read `top` (and glsim tt_pins) from it too. A
@@ -286,14 +293,21 @@ edit_classes:
       mutates: [spec_yaml, spec_md]
       stale_artifacts: [holdout]
       gates: [spec_lint, lint, sim, holdout, mutate, formal, cover, synth,
-              harden, timing, drc, lvs, glsim, precheck, release]
+              cdc, harden, timing, drc, lvs, glsim, precheck, release]
       human_hold: 2
     rtl_edit:
       mutates: [rtl]
       stale_artifacts: []
-      gates: [lint, sim, holdout, mutate, formal, cover, synth, harden,
+      gates: [lint, sim, holdout, mutate, formal, cover, synth, cdc, harden,
               timing, drc, lvs, glsim, precheck, release]
       human_hold: 1
+    cdc_waiver_edit:
+      # spec/cdc.yaml: a waiver is a claim a crossing is safe, so it holds 2
+      # like a spec change. Nothing but cdc reads the file.
+      mutates: [cdc_waivers]
+      stale_artifacts: []
+      gates: [cdc, release]
+      human_hold: 2
     tb_edit:
       mutates: [tb]
       stale_artifacts: []

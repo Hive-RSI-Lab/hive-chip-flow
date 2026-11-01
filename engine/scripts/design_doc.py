@@ -82,6 +82,7 @@ GATE_WHAT = {
     "sim": "cocotb simulation", "holdout": "held-out tests",
     "mutate": "mutation score", "formal": "SymbiYosys proof",
     "cover": "code coverage", "synth": "Yosys synthesis",
+    "cdc": "clock domain crossings",
     "harden": "LibreLane to GDS", "timing": "OpenSTA signoff",
     "drc": "magic + klayout DRC", "lvs": "netgen LVS",
     "glsim": "gate-level sim", "precheck": "Tiny Tapeout precheck",

@@ -128,6 +128,7 @@ Gates (from `engine/reference/gates.yaml`, run via `gate.py --gate <name>
 | formal | P4 | every property proven or bounded; every cover point reached |
 | cover | P4 | line >= 95%, toggle >= 90% on the DUT; exclusions carry reasons |
 | synth | P5 | no latches, unmapped cells or combinational loops |
+| cdc | P5 | every crossing between inferred clock domains synchronised, every clock gate glitch-free, or waived with a reason in `spec/cdc.yaml`; no clock info is not checked, never clean |
 | harden (job) | P6 | LibreLane finishes clean, produces GDS/LEF/netlist/SDF/metrics; records the QoR table, tool versions and config hash (`chip-flow qor show`/`diff`/`repro`) |
 | timing | P6 | setup+hold slack >= 0 at every corner |
 | drc | P6 | 0 violations, magic + klayout |
@@ -138,6 +139,10 @@ Gates (from `engine/reference/gates.yaml`, run via `gate.py --gate <name>
 
 Sidecars: `rtl/lint_allow.yaml` (optional, lint's allowlist) lives inside
 `rtl/` on purpose - the `rtl` dir_text hash already covers an edit to it.
+`spec/cdc.yaml` (optional, the cdc gate's input-port domains and waivers) is
+its own artifact, so a waiver re-runs cdc and release, not every gate that
+reads spec.yaml. Any input that is not synchronous to `clock.primary` must be
+declared there: the gate cannot tell from the netlist.
 
 ## Run start / resume
 
@@ -219,6 +224,7 @@ On gate fail (exit 1, result JSON has `failing` with a `kind`/`file`/
    | formal | formal_edit | formal/ moved - re-run formal, mutate |
    | formal | spec_formal_edit | only spec.yaml's `formal:` key moved (depth, cover_depth) - re-run formal, cover; declare both classes when formal/ moved too |
    | synth | rtl_edit | a synth finding is almost always an RTL fix (fix_dispatch's own guidance) - the edit still lands in rtl/ |
+   | cdc | rtl_edit, or cdc_waiver_edit for `spec/cdc.yaml` | add the synchroniser or fix the gate in rtl/; a waiver or a port's domain is a design claim for the person, hold 2 |
    | harden | harden_config_edit | `harden/config.override.json` moved (M4+; config.json/info.yaml are regenerated each run) |
 
 6. Re-run the gate that failed with `--workspace` - EVERY attempt records

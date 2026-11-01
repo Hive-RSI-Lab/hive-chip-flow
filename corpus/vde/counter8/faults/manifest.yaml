@@ -81,3 +81,7 @@ faults:
     gate: precheck
     plant: plant_precheck.py
     expect: {status: fail, kind: precheck_failed}
+  - name: cdc_sample_with_no_synchroniser
+    gate: cdc
+    plant: plant_cdc.py
+    expect: {status: fail, kind: cdc_unsynchronized}
