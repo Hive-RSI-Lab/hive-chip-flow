@@ -35,6 +35,8 @@ nested release and refuses here, whatever the top gates say.
 from __future__ import annotations
 
 import argparse
+import hashlib
+import json
 import sys
 from pathlib import Path
 
@@ -45,6 +47,7 @@ sys.path.insert(0, str(ENGINE / "lib"))
 import checklib  # noqa: E402
 import attest as attest_mod  # noqa: E402
 import statelib  # noqa: E402
+import ttship  # noqa: E402
 
 SCRIPT = "check_release"
 # msde's nested workspaces: directory under the msde block -> its skill.
@@ -86,10 +89,23 @@ def input_path(ws: Path) -> Path:
     return ws / statelib.kind_path(kinds[0], imap, data.get("artifacts"))
 
 
+def with_tt_submission(att: dict, record: dict) -> dict:
+    """The attestation with the TT submission record (signoff versions and
+    what the workflow ships) inside it, its digest recomputed over the
+    whole body exactly as attest.build/verify compute it."""
+    body = {k: v for k, v in att.items() if k != "attestation_sha256"}
+    body["tt_submission"] = record
+    body["attestation_sha256"] = hashlib.sha256(
+        json.dumps(body, sort_keys=True).encode("utf-8")).hexdigest()
+    return body
+
+
 def run(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--workspace", required=True, help="block workspace")
     ap.add_argument("--max-report-age-h", type=float, default=24.0)
+    ap.add_argument("--tt-repo", help="the Tiny Tapeout repo to stage and "
+                    "check (default: <workspace>/release/tt)")
     ap.add_argument("--out", help="write result JSON here instead of stdout")
     args = ap.parse_args(argv)
 
@@ -100,10 +116,21 @@ def run(argv=None):
         nested = nested_problems(ws)
         if nested:
             att, problems = None, problems + nested
+    # A hardened vde tile ships through a TT workflow: the GDS it ships must
+    # be the one the gates signed off (ttship.py). Staged even when the
+    # gates refuse, so the tree that would ship is there to look at.
+    tt_record = None
+    if skill == "vde" and (ws / "harden" / "config.json").is_file():
+        ship, tt_record = ttship.release_check(ws, args.tt_repo)
+        if ship:
+            att, problems = None, problems + ship
+        elif att is not None:
+            att = with_tt_submission(att, tt_record)
     violations = [
         checklib.violation("release", "error", None, p.split(":", 1)[0]
                            if ":" in p else None,
                            "nested_not_released" if p.startswith("nested_")
+                           else "tt_ship_mismatch" if p.startswith("tt_")
                            else "gate_not_ready", [], p, "attest")
         for p in problems
     ]
@@ -118,6 +145,8 @@ def run(argv=None):
             "disposition": attest_mod.disposition(ws)["disposition"],
             "waived": waived,
         }
+    if tt_record is not None:
+        facts["tt_submission"] = tt_record
 
     # stamp() hashes exactly this path as input_digest; gate.py's own
     # record_gate cross-checks that against invalidation.yaml's gate_inputs
