@@ -1,0 +1,27 @@
+worst slack max 9.04
+worst slack min -0.07
+chipflow_violation_counts slew 0 cap 0 fanout 0
+chipflow_check_setup_begin
+Warning: There is 1 register/latch pin with multiple clocks.
+  f0/CLK
+Warning: There is 1 combinational loop in the design.
+  x1/ZN
+  x2/I
+  x2/ZN
+  x1/A2
+  | loop cut point
+  x1/ZN
+  --------------------------------
+chipflow_section min_pulse_width
+chipflow_section min_period
+chipflow_section clock_gating_setup
+Group                                  Slack
+--------------------------------------------
+No paths found.
+
+chipflow_section clock_gating_hold
+Group                                  Slack
+--------------------------------------------
+No paths found.
+
+chipflow_section end

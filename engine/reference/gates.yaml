@@ -126,7 +126,10 @@ gates:
       fault: "a chain that misses the spec's clock"
       description: >-
         Setup and hold slack at or above 0 at every corner; no fanout or
-        slew violations.
+        slew violations; check_setup clean (no unclocked register,
+        unconstrained endpoint, unreachable generated clock or
+        combinational loop); no min pulse width, min period or clock
+        gating violation.
     drc:
       phase: P6
       tool: drc
