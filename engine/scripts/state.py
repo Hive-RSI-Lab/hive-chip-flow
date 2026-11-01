@@ -653,7 +653,8 @@ class State:
         if names is None:
             names = sorted(set(registry) | {
                 k for k in imap["artifact_kinds"]
-                if (ws / statelib.kind_path(k, imap, registry)).exists()})
+                if statelib.resolve(
+                    ws, statelib.kind_path(k, imap, registry)).exists()})
         out = {}
         for name in names:
             entry = registry.get(name)
@@ -670,7 +671,9 @@ class State:
             norm = (imap["artifact_kinds"][kind]["norm"] if kind
                     else statelib.norm_for_path(ws / rel))
             old = entry.get("sha256")
-            sha = statelib.hash_artifact(ws / rel, norm)
+            sha = (statelib.hash_pdk(statelib.resolve(ws, rel), norm)
+                   if statelib.is_pdk_path(rel)
+                   else statelib.hash_artifact(ws / rel, norm))
             entry.update({"path": rel, "kind": kind, "sha256": sha,
                           "hashed": now()})
             if entry.get("stale") and (explicit or sha != old):

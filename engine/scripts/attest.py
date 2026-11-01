@@ -344,8 +344,11 @@ def build(ws: Path, max_report_age_h: float = 24.0) -> tuple[dict | None, list[s
         problems.append(str(exc))
     if problems:
         return None, problems
+    # the PDK it was signed off on (#138); `root` is the machine's path,
+    # not part of the record
+    pdk = {k: v for k, v in statelib.pdk_version().items() if k != "root"}
     body = {"skill": skill, "block": data.get("block"), "ts": _now(),
-           "checks": checks}
+           "pdk": pdk, "checks": checks}
     if scoped_out:
         body["scoped_out"] = scoped_out
     digest = hashlib.sha256(
@@ -375,6 +378,12 @@ def verify(ws: Path) -> dict:
     att, problems = build(ws)
     if att is None:
         return {"valid": False, "reason": "; ".join(problems),
+                "attestation_sha256": recorded["attestation_sha256"]}
+    if att.get("pdk") != recorded.get("pdk"):
+        return {"valid": False,
+                "reason": f"signed off on PDK {recorded.get('pdk')}, the "
+                          f"toolchain carries {att.get('pdk')} - re-run the "
+                          "PDK gates and `attest build`",
                 "attestation_sha256": recorded["attestation_sha256"]}
     if att.get("scoped_out") != recorded.get("scoped_out"):
         return {"valid": False,

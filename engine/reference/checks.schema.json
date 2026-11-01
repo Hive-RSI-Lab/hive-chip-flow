@@ -10,6 +10,18 @@
     "skill": {"type": "string", "enum": ["vde", "ade", "msde"]},
     "block": {"type": ["string", "null"]},
     "ts": {"type": "string"},
+    "pdk": {
+      "type": "object",
+      "description": "The PDK the release was signed off on (#138): the open_pdks commit from the PDK's SOURCES and ciel's `current`, null where the toolchain has none (statelib.pdk_version). verify() refuses a record whose PDK is not the toolchain's.",
+      "required": ["name", "open_pdks", "ciel"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {"type": "string"},
+        "open_pdks": {"type": ["string", "null"]},
+        "ciel": {"type": ["string", "null"]}
+      }
+    },
+    "scoped_out": {"description": "corners scoped out at H1 (corners.recorded_scope_outs)"},
     "attestation_sha256": {
       "type": "string",
       "pattern": "^[0-9a-f]{64}$",

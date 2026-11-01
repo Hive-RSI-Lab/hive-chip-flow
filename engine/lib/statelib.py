@@ -317,8 +317,25 @@ def _norm_dir_text(path: Path) -> bytes:
     return b"dir\0" + b"".join(h_parts)
 
 
+def _norm_dir_bytes(path: Path) -> bytes:
+    """dir_text without the EOL pass: name + raw bytes of every file, name-
+    sorted. For big trees nobody hand-edits (the PDK's liberty), where
+    decoding 330 MB of text buys nothing."""
+    if not path.is_dir():
+        raise ValueError(f"{path} is not a directory")
+    h = hashlib.sha256()
+    for f in sorted(p for p in path.rglob("*") if p.is_file()):
+        h.update(f.relative_to(path).as_posix().encode("utf-8") + b"\0")
+        with f.open("rb") as fh:
+            for chunk in iter(lambda: fh.read(1 << 20), b""):
+                h.update(chunk)
+        h.update(b"\0")
+    return b"dirbytes\0" + h.digest()
+
+
 NORMALIZERS = {
     "text_eol": _norm_text_eol,
+    "dir_bytes": _norm_dir_bytes,
     "json_canonical": _norm_json_canonical,
     "json_canonical_sans_formal": _norm_json_canonical_sans_formal,
     "json_canonical_sans_roots": _norm_json_canonical_sans_roots,
@@ -352,6 +369,120 @@ def norm_for_path(path: Path | str) -> str:
     if p.is_dir():
         return "dir_text"
     return _SUFFIX_NORM.get(p.suffix.lower(), "text_eol")
+
+
+# ---------------------------------------------------------------------------
+# the PDK (#138): kinds whose path starts ${PDK_ROOT}
+# ---------------------------------------------------------------------------
+PDK_PREFIX = "${PDK_ROOT}"
+_PDK_ROOT_CACHE: list = []
+
+
+def pdk_root() -> Path | None:
+    """The toolchain's gf180mcuD tree, as layoutlib.pdk_root() resolves it
+    (bin/eda --print-toolchain-root, so EDA_TOOLCHAIN moves it), or None
+    when there is no toolchain - then every PDK kind hashes to None. Asked
+    once per process."""
+    if not _PDK_ROOT_CACHE:
+        import subprocess
+        eda = Path(__file__).resolve().parents[2] / "bin" / "eda"
+        root = None
+        try:
+            proc = subprocess.run([str(eda), "--print-toolchain-root"],
+                                  capture_output=True, text=True, timeout=30)
+            if proc.returncode == 0 and proc.stdout.strip():
+                root = Path(proc.stdout.strip()) / "foss" / "pdks" / "gf180mcuD"
+        except (OSError, subprocess.SubprocessError):
+            pass
+        _PDK_ROOT_CACHE.append(root)
+    return _PDK_ROOT_CACHE[0]
+
+
+def is_pdk_path(rel: str) -> bool:
+    return str(rel).startswith(PDK_PREFIX)
+
+
+def resolve(ws: Path | str, rel: str) -> Path:
+    """Where a kind's path is on disk: under the PDK for ${PDK_ROOT}/...,
+    else under the workspace. With no toolchain a PDK path resolves to a
+    path that does not exist (hash None)."""
+    if is_pdk_path(rel):
+        root = pdk_root()
+        tail = str(rel)[len(PDK_PREFIX):].lstrip("/")
+        return (root / tail) if root else Path("/nonexistent-pdk-root") / tail
+    return Path(ws) / rel
+
+
+def _stat_sig(p: Path) -> str:
+    """Path, size and mtime of a file or of every file under a dir: what a
+    PDK hash is cached on. The image's files are read-only; a new image, a
+    ciel switch or an edited copy changes a path, size or mtime."""
+    files = [p] if p.is_file() else sorted(f for f in p.rglob("*")
+                                           if f.is_file())
+    h = hashlib.sha256()
+    for f in files:
+        st = f.stat()
+        h.update(f"{f}\0{st.st_size}\0{st.st_mtime_ns}\0".encode())
+    return h.hexdigest()
+
+
+def _pdk_cache_path() -> Path:
+    import os
+    base = os.environ.get("XDG_CACHE_HOME") or str(Path.home() / ".cache")
+    return Path(base) / "chip-flow" / "pdk_hashes.json"
+
+
+def hash_pdk(path: Path, norm: str) -> str | None:
+    """hash_artifact for a PDK path, cached on disk by (norm, path, stat
+    signature): a freshness report must not re-read 330 MB of liberty."""
+    if not path.exists():
+        return None
+    key = f"{norm}\0{path}\0{_stat_sig(path)}"
+    cache_file = _pdk_cache_path()
+    try:
+        cache = json.loads(cache_file.read_text(encoding="utf-8"))
+        if not isinstance(cache, dict):
+            cache = {}
+    except (OSError, ValueError):
+        cache = {}
+    if key in cache:
+        return cache[key]
+    digest = hash_artifact(path, norm)
+    cache = {k: v for k, v in cache.items()
+             if not k.startswith(f"{norm}\0{path}\0")}
+    cache[key] = digest
+    try:
+        cache_file.parent.mkdir(parents=True, exist_ok=True)
+        tmp = cache_file.with_suffix(f".{id(cache)}.tmp")
+        tmp.write_text(json.dumps(cache), encoding="utf-8")
+        tmp.replace(cache_file)
+    except OSError:
+        pass
+    return digest
+
+
+def pdk_version() -> dict:
+    """{name, open_pdks, ciel, root} of the PDK this toolchain carries:
+    open_pdks' commit from SOURCES, ciel's `current`. Values None where
+    absent. What release writes into the attestation."""
+    root = pdk_root()
+    out = {"name": "gf180mcuD", "open_pdks": None, "ciel": None,
+           "root": str(root) if root else None}
+    if root is None:
+        return out
+    try:
+        for line in (root / "SOURCES").read_text(encoding="utf-8").splitlines():
+            parts = line.split()
+            if len(parts) >= 2 and parts[0] == "open_pdks":
+                out["open_pdks"] = parts[1]
+    except OSError:
+        pass
+    try:
+        out["ciel"] = (root.parent / "ciel" / "gf180mcu" / "current").read_text(
+            encoding="utf-8").strip() or None
+    except OSError:
+        pass
+    return out
 
 
 def hash_artifact(path: Path | str, norm: str) -> str | None:
@@ -435,6 +566,8 @@ def kind_path(kind: str, imap: dict, registry: dict | None = None) -> str:
     entry registered under the kind's name overrides the default template -
     but ONLY when the entry's own `kind` field matches (an unqualified
     name-match would silently hash the wrong file and MISS real staleness)."""
+    if is_pdk_path(imap["artifact_kinds"][kind]["path"]):
+        return imap["artifact_kinds"][kind]["path"]  # the PDK's, not the block's
     reg = (registry or {}).get(kind)
     if isinstance(reg, dict) and reg.get("path") and reg.get("kind") == kind:
         return reg["path"]
@@ -446,6 +579,8 @@ def hash_kind(ws: Path, kind: str, imap: dict,
     """(workspace-relative path, hash-or-None) for a standard kind."""
     rel = kind_path(kind, imap, registry)
     norm = imap["artifact_kinds"][kind]["norm"]
+    if is_pdk_path(rel):
+        return rel, hash_pdk(resolve(ws, rel), norm)
     return rel, hash_artifact(ws / rel, norm)
 
 
@@ -471,7 +606,11 @@ def gate_freshness(gate_entry: dict, current: dict[str, str | None]) -> dict:
     if not isinstance(recorded, dict) or not recorded:
         return {"hash_valid": None, "changed_inputs": [],
                 "stale_marks": marks, "fresh": False}
-    changed = sorted(k for k, v in recorded.items() if current.get(k) != v)
+    # an input the map names now but the record never hashed (a kind added
+    # to the gate's row after it ran - the PDK, a side spec) is unvouched
+    # for: stale, not fresh (#113/#138)
+    changed = sorted({k for k, v in recorded.items() if current.get(k) != v}
+                     | (set(current) - set(recorded)))
     hash_valid = not changed
     return {"hash_valid": hash_valid, "changed_inputs": changed,
             "stale_marks": marks, "fresh": hash_valid and not marks}
@@ -513,11 +652,12 @@ def freshness_report(data: dict, ws: Path,
         norm = (imap["artifact_kinds"][kind]["norm"]
                 if kind in imap["artifact_kinds"]
                 else norm_for_path(ws / rel) if rel else "text_eol")
-        cur = hash_artifact(ws / rel, norm) if rel else None
+        cur = ((hash_pdk(resolve(ws, rel), norm) if is_pdk_path(rel)
+                else hash_artifact(ws / rel, norm)) if rel else None)
         reg_sha = entry.get("sha256")
         art_out[name] = {
             "path": rel, "kind": kind,
-            "exists": bool(rel) and (ws / rel).exists(),
+            "exists": bool(rel) and resolve(ws, rel).exists(),
             "registered": reg_sha, "current": cur,
             "changed": (reg_sha is not None or cur is not None)
                        and reg_sha != cur,
@@ -530,7 +670,8 @@ def freshness_report(data: dict, ws: Path,
                 continue
             rel, cur = hash_kind(ws, kind, imap, registry)
             art_out[kind] = {
-                "path": rel, "kind": kind, "exists": (ws / rel).exists(),
+                "path": rel, "kind": kind,
+                "exists": resolve(ws, rel).exists(),
                 "registered": None, "current": cur, "changed": False,
                 "stale_marks": [],
             }
