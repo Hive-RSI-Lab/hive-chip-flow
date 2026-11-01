@@ -271,6 +271,12 @@ On gate fail (exit 1, result JSON has `failing` with a `kind`/`file`/
   sha256 is not the run's. `--tt-repo DIR` checks the real repo instead.
   Both sides land in `reports/checks.json` under `tt_submission`. Fix the
   workflow (use the staged one), never the check.
+- **`release`'s `deliverable_untied`** (`engine/lib/manifestlib.py`, #132):
+  a hardened tile's release writes `release/manifest.json`, in the workspace
+  and the staged tree: each deliverable's sha256, the gate records holding it,
+  tool, PDK and precheck versions, waivers. A file in the tree no gate holds
+  refuses; see the remediation. `chip-flow release --verify DIR` re-hashes a
+  submission tree against the manifest and never passes a refused one.
 - **A `mutate` survivor the fixer proves is an EQUIVALENT mutant** (found
   proving this on the uart rung, M5: a coding style yosys's `proc` pass
   elaborates into extra flops - e.g. a Verilog `function`'s own locals -

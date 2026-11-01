@@ -143,6 +143,18 @@ hold a `state.json` of the right skill whose own `reports/checks.json`
 still verifies (`attest.py verify`). A nested edit after that side
 released fails here as `nested_not_released`.
 
+A hardened top's release also stages Tiny Tapeout's analog-project tree
+(`ttship.stage_analog`, at `release/tt/` or `--tt-repo DIR`): the signed-off
+`gds/` and `lef/`; `src/` from `digital/rtl` plus the generated wrapper and
+blackboxes, or the block's hand-kept `tt/src/*.v`; `tt/info.yaml` else
+`top/harden/info.yaml`; `tt/test/*`; `tt/workflows/*` else a `custom_gds`
+workflow, never over one already there. It refuses `tt_ship_mismatch` on a
+workflow shipping anything but the signed-off GDS, and `deliverable_untied` on
+a file no gate holds. A hand-kept file ties only if it says the same as what
+the gates read. `release/manifest.json` records each file's sha256, gate
+records and versions; `chip-flow release --verify DIR` re-hashes a tree against
+it and never passes a refused one.
+
 ## Edit classes and the nested cascade
 
 msde's own edit classes (`invalidation.yaml`) are `spec_edit` and

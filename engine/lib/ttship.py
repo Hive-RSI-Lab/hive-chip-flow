@@ -9,7 +9,8 @@ off one LibreLane run: harden/runs/run, on the toolchain image's own
 LibreLane and PDK. If the workflow re-hardens with other versions, timing,
 DRC, LVS, glsim and precheck all signed off a GDS nobody submits.
 
-Two parts, both used by check_release for a vde tile:
+Two parts, both used by check_release for a hardened tile (a vde tile's run
+is under harden/, an msde top's under top/harden/):
 
 - `stage(ws, dest)` writes what the shuttle reads, in the TT repo layout:
   info.yaml, src/config.json (harden/config.json with its `dir::` files
@@ -17,6 +18,9 @@ Two parts, both used by check_release for a vde tile:
   signed-off run's final views), and a .github/workflows/gds.yaml that
   ships that GDS with custom_gds. It never overwrites a workflow already
   there: that is the workflow the release checks.
+- `stage_analog(ws, dest, sign)` is the same for an msde tile, in the shape
+  of TT's analog template: no src/config.json, since TT takes the committed
+  GDS. It is what a block's hand-written assemble.py did, driven by top/.
 - `ship_problems(repo, signoff)` reads every workflow under repo/.github/
   workflows and refuses unless each step that ships the tile reproduces
   the signoff: a re-harden step must install the signoff LibreLane, get
@@ -32,6 +36,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 import shutil
 from pathlib import Path
@@ -43,6 +48,8 @@ import statelib
 ENGINE_DIR = Path(__file__).resolve().parents[1]
 VENDORED_MD = ENGINE_DIR / "reference" / "tt" / "VENDORED.md"
 RUN_TAG = "run"
+# Where each skill's tile is hardened.
+HARDEN_DIR = {"vde": "harden", "msde": "top/harden"}
 ACTION = "TinyTapeout/tt-gds-action"
 # The tt-gds-action ref chip-flow's TT tiles ship with (the ttgf26c shuttle).
 DEFAULT_REF = "ttgf26c"
@@ -117,10 +124,10 @@ def librelane_pdk_hash(version: str, pdk: str) -> str | None:
     return data.get(PDK_FAMILY.get(pdk, pdk))
 
 
-def signoff(ws: Path, pdk_hash=None) -> dict:
+def signoff(ws: Path, pdk_hash=None, harden: str = "harden") -> dict:
     """What chip-flow signed off, read from the signed-off run."""
     pdk_hash = pdk_hash or librelane_pdk_hash
-    run = Path(ws) / "harden" / "runs" / RUN_TAG
+    run = Path(ws) / harden / "runs" / RUN_TAG
     resolved = run / "resolved.json"
     if not resolved.is_file():
         raise ShipError(f"no signed-off harden run: {resolved} is missing - "
@@ -145,9 +152,9 @@ def signoff(ws: Path, pdk_hash=None) -> dict:
         # on another PDK
         "librelane_pdk": pdk_hash(librelane, pdk) if librelane and pdk else None,
         "tt_support_tools": vendored_tools_commit(),
-        "gds": f"harden/runs/{RUN_TAG}/final/gds/{top}.gds",
+        "gds": f"{harden}/runs/{RUN_TAG}/final/gds/{top}.gds",
         "gds_sha256": _sha256(gds),
-        "lef": f"harden/runs/{RUN_TAG}/final/lef/{top}.lef",
+        "lef": f"{harden}/runs/{RUN_TAG}/final/lef/{top}.lef",
         "lef_sha256": _sha256(lef),
     }
 
@@ -201,21 +208,25 @@ jobs:
 """
 
 
-def stage(ws: Path, dest: Path, sign: dict) -> list[str]:
+def stage(ws: Path, dest: Path, sign: dict,
+          sources: dict | None = None) -> list[str]:
     """Write the TT repo tree for this tile at `dest`; return the paths
-    written (relative to dest). An existing workflow is left alone."""
+    written (relative to dest). An existing workflow is left alone. `sources`,
+    if given, gets tree path -> the workspace file it came from."""
     ws, dest = Path(ws), Path(dest)
+    sources = {} if sources is None else sources
     harden = ws / "harden"
     src = dest / "src"
     src.mkdir(parents=True, exist_ok=True)
     written: list[str] = []
     copied: dict[str, Path] = {}
 
-    def put(rel: str, data: bytes) -> None:
+    def put(rel: str, data: bytes, source: str | None = None) -> None:
         p = dest / rel
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_bytes(data)
         written.append(rel)
+        sources[rel] = source
 
     def sub(v):
         # harden/config.json names its files `dir::<relative to harden/>`;
@@ -232,27 +243,98 @@ def stage(ws: Path, dest: Path, sign: dict) -> list[str]:
         if copied.setdefault(p.name, p) != p:
             raise ShipError(f"two files named {p.name} in harden/config.json: "
                             f"{copied[p.name]} and {p}")
-        put(f"src/{p.name}", p.read_bytes())
+        put(f"src/{p.name}", p.read_bytes(),
+            Path(os.path.relpath(p, ws.resolve())).as_posix())
         return f"dir::{p.name}"
 
     cfg = json.loads((harden / "config.json").read_text(encoding="utf-8"))
     put("src/config.json",
-        (json.dumps(sub(cfg), indent=2) + "\n").encode("utf-8"))
+        (json.dumps(sub(cfg), indent=2) + "\n").encode("utf-8"),
+        "harden/config.json")
     sdc = harden / "constraints.sdc"
     if sdc.is_file() and "constraints.sdc" not in copied:
-        put("src/constraints.sdc", sdc.read_bytes())
+        put("src/constraints.sdc", sdc.read_bytes(), "harden/constraints.sdc")
     if (harden / "info.yaml").is_file():
-        put("info.yaml", (harden / "info.yaml").read_bytes())
+        put("info.yaml", (harden / "info.yaml").read_bytes(), "harden/info.yaml")
     top = sign["top_module"]
     for kind in ("gds", "lef"):
         f = ws / sign[kind]
         if f.is_file():
-            put(f"{kind}/{top}.{kind}", f.read_bytes())
+            put(f"{kind}/{top}.{kind}", f.read_bytes(), sign[kind])
     wf = dest / ".github" / "workflows"
     if not any(wf.glob("*.y*ml")):
         put(".github/workflows/gds.yaml",
             default_workflow(tools_ref=sign.get("tt_support_tools"))
             .encode("utf-8"))
+    return written
+
+
+def stage_analog(ws: Path, dest: Path, sign: dict,
+                 sources: dict | None = None) -> list[str]:
+    """Write an msde tile's TT analog-project tree at `dest`.
+
+    gds/ and lef/ are the signed-off top's. src/ is the wrapper top_harden
+    generated (as project.v) and the macro blackboxes from top/macros, or the
+    block's hand-kept tt/src/*.v instead when it has them, plus digital/rtl.
+    info.yaml is tt/info.yaml, else top/harden/info.yaml; test/ is tt/test/*;
+    the workflow is tt/workflows/*, else the custom_gds default, and one
+    already in the tree is left alone. Also removes what only the digital
+    template uses: src/config.json and the fpga workflow, which can't build a
+    design with an analog macro."""
+    ws, dest = Path(ws), Path(dest)
+    sources = {} if sources is None else sources
+    top = sign["top_module"]
+    tt = ws / "tt"
+    plan: dict[str, Path] = {}
+
+    def want(rel: str, src: Path) -> None:
+        if rel in plan and plan[rel].read_bytes() != src.read_bytes():
+            raise ShipError(f"two different files for {rel}: {plan[rel]} and {src}")
+        plan[rel] = src
+
+    for kind in ("gds", "lef"):
+        want(f"{kind}/{top}.{kind}", ws / sign[kind])
+    kept = sorted((tt / "src").glob("*.v")) if (tt / "src").is_dir() else []
+    if kept:
+        for p in kept:
+            want(f"src/{p.name}", p)
+    else:
+        want("src/project.v", ws / "top" / "harden" / f"{top}.v")
+        for p in sorted((ws / "top" / "macros").glob("*.v")):
+            want(f"src/{p.name}", p)
+    for p in sorted((ws / "digital" / "rtl").glob("*.v")):
+        want(f"src/{p.name}", p)
+    info = tt / "info.yaml"
+    want("info.yaml", info if info.is_file() else ws / "top" / "harden" / "info.yaml")
+    if (tt / "test").is_dir():
+        for p in sorted((tt / "test").iterdir()):
+            if p.is_file():
+                want(f"test/{p.name}", p)
+    missing = sorted(rel for rel, p in plan.items() if not p.is_file())
+    if missing:
+        raise ShipError("nothing to stage for " + ", ".join(missing)
+                        + " - run top_harden first")
+    written: list[str] = []
+    for rel, p in plan.items():
+        out = dest / rel
+        out.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(p, out)
+        written.append(rel)
+        sources[rel] = p.relative_to(ws).as_posix()
+    wf = dest / ".github" / "workflows"
+    kept_wf = sorted((tt / "workflows").glob("*.y*ml")) if (tt / "workflows").is_dir() else []
+    if not any(wf.glob("*.y*ml")):
+        wf.mkdir(parents=True, exist_ok=True)
+        for p in kept_wf:
+            shutil.copyfile(p, wf / p.name)
+            written.append(f".github/workflows/{p.name}")
+        if not kept_wf:
+            (wf / "gds.yaml").write_text(
+                default_workflow(tools_ref=sign.get("tt_support_tools")),
+                encoding="utf-8")
+            written.append(".github/workflows/gds.yaml")
+    (dest / "src" / "config.json").unlink(missing_ok=True)
+    (wf / "fpga.yaml").unlink(missing_ok=True)
     return written
 
 
@@ -376,15 +458,16 @@ def ship_problems(repo: Path, sign: dict) -> tuple[list[str], dict]:
     return problems, {"steps": shipped}
 
 
-def release_check(ws: Path, repo: Path | None = None,
-                  pdk_hash=None) -> tuple[list[str], dict]:
-    """Stage the TT repo for a hardened vde tile and check what its
-    workflows ship against the signoff. (problems, record)."""
+def release_check(ws: Path, repo: Path | None = None, pdk_hash=None,
+                  skill: str = "vde") -> tuple[list[str], dict]:
+    """Stage the TT repo for a hardened tile and check what its workflows
+    ship against the signoff. (problems, record)."""
     ws = Path(ws)
     repo = Path(repo) if repo else ws / "release" / "tt"
+    sources: dict = {}
     try:
-        sign = signoff(ws, pdk_hash=pdk_hash)
-        staged = stage(ws, repo, sign)
+        sign = signoff(ws, pdk_hash=pdk_hash, harden=HARDEN_DIR[skill])
+        staged = (stage_analog if skill == "msde" else stage)(ws, repo, sign, sources)
     except ShipError as exc:
         return [f"tt_no_signoff: {exc}"], {}
     problems, shipped = ship_problems(repo, sign)
@@ -393,4 +476,5 @@ def release_check(ws: Path, repo: Path | None = None,
     except ValueError:
         repo_rel = str(repo)
     return problems, {"repo": repo_rel, "staged": sorted(staged),
-                      "signoff": sign, "shipped": shipped["steps"]}
+                      "sources": sources, "signoff": sign,
+                      "shipped": shipped["steps"]}
