@@ -331,24 +331,29 @@ def footprint_um(spec: dict) -> dict | None:
     return {"width": float(fp["width"]), "height": float(fp["height"])}
 
 
+HARDEN_WAIVERS = ("floating_nets_waived", "max_slew_waived", "max_cap_waived")
+
+
 def harden_signoff(spec: dict) -> dict | None:
     """spec.yaml's optional `harden_signoff` ({} when absent), or None when
-    malformed: ir_budget_pct a number in (0, 100], floating_nets_waived a
-    mapping of net name to a non-empty reason."""
+    malformed: ir_budget_pct a number in (0, 100]; floating_nets_waived,
+    max_slew_waived and max_cap_waived mappings of net or pin name to a
+    non-empty reason."""
     hs = spec.get("harden_signoff", {}) if isinstance(spec, dict) else {}
     if not isinstance(hs, dict) \
-            or set(hs) - {"ir_budget_pct", "floating_nets_waived"}:
+            or set(hs) - {"ir_budget_pct", *HARDEN_WAIVERS}:
         return None
     if "ir_budget_pct" in hs:
         v = hs["ir_budget_pct"]
         if isinstance(v, bool) or not isinstance(v, (int, float)) \
                 or not 0 < v <= 100:
             return None
-    if "floating_nets_waived" in hs:
-        w = hs["floating_nets_waived"]
-        if not isinstance(w, dict) or not all(
-                isinstance(r, str) and r.strip() for r in w.values()):
-            return None
+    for key in HARDEN_WAIVERS:
+        if key in hs:
+            w = hs[key]
+            if not isinstance(w, dict) or not all(
+                    isinstance(r, str) and r.strip() for r in w.values()):
+                return None
     return hs
 
 
@@ -663,8 +668,10 @@ def lint_spec(spec: dict, rel_path: str = "spec/spec.yaml") -> list[dict]:
 
     if harden_signoff(spec) is None:
         bad("bad_harden_signoff",
-            "'harden_signoff' takes ir_budget_pct (a number in (0, 100]) and "
-            "floating_nets_waived ({net: non-empty reason}), nothing else")
+            "'harden_signoff' takes ir_budget_pct (a number in (0, 100]), "
+            "floating_nets_waived ({net: non-empty reason}) and "
+            "max_slew_waived / max_cap_waived ({pin: non-empty reason}), "
+            "nothing else")
 
     clock = spec.get("clock")
     if clock is not None:

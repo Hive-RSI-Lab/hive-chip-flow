@@ -69,8 +69,16 @@ whatever they say. `signoff_metrics()` judges them against gates.yaml's
 `harden_metrics` limits; the report carries the whole table as
 `signoff_metrics`. A metric that is absent or not a finite number is a
 `signoff_metric_missing` finding, never read as zero. spec.yaml's optional
-`harden_signoff` sets `ir_budget_pct` (default gates.yaml's) and
-`floating_nets_waived: {net: reason}`.
+`harden_signoff` sets `ir_budget_pct` (default gates.yaml's),
+`floating_nets_waived: {net: reason}`, and `max_slew_waived` /
+`max_cap_waived: {pin: reason}`.
+
+Max slew and max cap are judged per corner, at every STA corner the run's
+resolved.json owes: a corner with no number is missing, and the pins come from
+that corner's checks.rpt in the last post-route STA. Only named pins can be
+excused, and only one at a time: a count the report does not name in full
+fails, so a whole block or corner can't be waived. A macro's own limits reach
+these counts only through its lib view (macro_lib).
 
 Floating nets carry their names in the log of the step that counted them.
 TT's repair step counts the power nets, so every TT harden records at least
@@ -116,6 +124,10 @@ GATES_YAML = ENGINE / "reference" / "gates.yaml"
 POWER_NETS = {"VPWR", "VGND"}  # ttlib.harden_config's VDD_PIN/GND_PIN
 _FLOATING_RE = re.compile(r"found (\d+) floating nets")
 _ANTENNA_NET_RE = re.compile(r"^\s*Net:?\s+(\S+)", re.MULTILINE)
+_DRV_MARK = "report_check_types -max_slew"
+_DRV_RULE_RE = re.compile(r"^=+$")
+_DRV_ROW_RE = re.compile(
+    r"^(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s+\(VIOLATED\)\s*$")
 
 
 def _step_number(path: Path) -> int:
@@ -160,6 +172,119 @@ def antenna_net_names(run_dir: Path) -> tuple[list[str], str | None]:
             return (sorted(set(_ANTENNA_NET_RE.findall(text))),
                     str(rpt.relative_to(run_dir)))
     return [], None
+
+
+def drv_rows(text: str) -> dict[str, list[dict]]:
+    """{section: [{pin, limit, actual}]} from a corner's checks.rpt, its
+    report_check_types block only: "max slew", "max capacitance" and "max
+    fanout" headers, each over one "(VIOLATED)" row per pin."""
+    rows: dict[str, list[dict]] = {}
+    section = None
+    lines = iter(text.splitlines())
+    for line in lines:
+        if _DRV_MARK in line:
+            break
+    next(lines, None)  # the marker's closing rule
+    for line in lines:
+        stripped = line.strip()
+        if _DRV_RULE_RE.match(stripped):
+            break
+        row = _DRV_ROW_RE.match(stripped)
+        if row and section:
+            rows.setdefault(section, []).append(
+                {"pin": row[1], "limit": row[2], "actual": row[3]})
+        elif stripped.startswith("max "):
+            section = stripped
+    return rows
+
+
+def sta_corners(run_dir: Path) -> list[str] | None:
+    """The corners the run owes STA at, or None when its resolved.json does
+    not say."""
+    try:
+        corners = json.loads((run_dir / "resolved.json")
+                             .read_text(encoding="utf-8"))["STA_CORNERS"]
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+    if not isinstance(corners, list) or not corners:
+        return None
+    return [str(c) for c in corners]
+
+
+def judge_drv(metrics: dict, name: str, rule: dict, signoff: dict,
+              run_dir: Path, row: dict, finding) -> bool:
+    """Judge one max slew/cap metric corner by corner, naming pins; True when
+    a real violation is left. `row` gets the per-corner table."""
+    kind = rule["kind"]
+    waived = signoff.get(rule["waiver"], {})
+    owed = sta_corners(run_dir)
+    if owed is None:
+        finding("signoff_metric_missing",
+                f"{run_dir.name}/resolved.json names no STA_CORNERS: {kind} "
+                "cannot be judged at every corner", refs=[name], metric=name)
+        row["status"] = "missing"
+        return False
+    # a corner the metrics report beyond the owed list still counts
+    prefix = f"{name}__corner:"
+    corners = owed + sorted(k[len(prefix):] for k in metrics
+                            if k.startswith(prefix)
+                            and k[len(prefix):] not in owed)
+    steps = _step_dirs(run_dir, "[0-9]*-openroad-stapostpnr*")
+    table, used, over, missing = {}, set(), False, False
+    for corner in corners:
+        count = _number(metrics, prefix + corner)
+        if count is None:
+            finding("signoff_metric_missing",
+                    f"metrics.json has no number for {prefix}{corner} "
+                    f"({metrics.get(prefix + corner)!r}): {kind} was not "
+                    f"judged at {corner}", refs=[prefix + corner],
+                    metric=prefix + corner, corner=corner)
+            table[corner] = {"count": None}
+            missing = True
+            continue
+        cell = {"count": count}
+        table[corner] = cell
+        if count <= 0:
+            continue
+        report = steps[-1] / corner / "checks.rpt" if steps else None
+        text = (report.read_text(encoding="utf-8", errors="replace")
+                if report and report.is_file() else "")
+        rows = drv_rows(text).get(rule["section"], [])
+        pins = [r["pin"] for r in rows]
+        where = (str(report.relative_to(run_dir))
+                 if text else "no post-route checks.rpt")
+        cell["pins"] = pins
+        if len(pins) != count:
+            # a count nothing names in full can't be excused
+            real = pins
+            detail = (f"; {where} names {len(pins)} of them, so none can "
+                      "be excused")
+        else:
+            real = [p for p in pins if p not in waived]
+            used |= set(pins) & set(waived)
+            cell["waived"] = sorted(set(pins) & set(waived))
+            detail = ""
+            if not real:
+                continue
+        over = True
+        shown = ", ".join(
+            f"{r['pin']} ({r['actual']} > {r['limit']})"
+            for r in rows if r["pin"] in real)
+        finding(kind,
+                f"corner {corner}: {rule['section']} violated on "
+                f"{count:g} pins{': ' + shown if shown else ''}{detail}",
+                refs=real or [prefix + corner], metric=prefix + corner,
+                value=count, limit=rule["max"], corner=corner, report=where)
+    if not over and not missing and row["value"] > rule["max"] and not used:
+        over = True  # the total says so and no corner does: never a pass
+        finding(kind, f"{name} is {row['value']:g} with no corner counting "
+                "them", refs=[name], metric=name, value=row["value"],
+                limit=rule["max"])
+    row["corners"] = table
+    row["waived"] = sorted(used)
+    row["unused_waivers"] = sorted(set(waived) - used)
+    row["status"] = "missing" if missing else "over" if over else "ok"
+    return over
 
 
 def _number(metrics: dict, name: str) -> float | None:
@@ -214,6 +339,9 @@ def signoff_metrics(metrics: dict, signoff: dict, run_dir: Path, top: str,
             limit = rule["max"]
             msg = f"{name} is {value:g}, limit {limit:g}"
         row["limit"] = limit
+        if "waiver" in rule:
+            judge_drv(metrics, name, rule, signoff, run_dir, row, finding)
+            continue
         refs: list[str] = []
         extras: dict = {}
         over = value > limit
@@ -285,8 +413,10 @@ def run(argv=None):
     signoff = speclib.harden_signoff(spec)
     if signoff is None:
         raise CheckError("spec.yaml 'harden_signoff' is malformed: it takes "
-                         "ir_budget_pct (0-100) and floating_nets_waived "
-                         "({net: reason}) - run spec_lint and fix it")
+                         "ir_budget_pct (0-100), floating_nets_waived "
+                         "({net: reason}) and max_slew_waived / "
+                         "max_cap_waived ({pin: reason}) - run spec_lint "
+                         "and fix it")
 
     rtl_dir = ws / "rtl"
     rtl_files = sorted(rtl_dir.glob("*.v")) + sorted(rtl_dir.glob("*.sv"))

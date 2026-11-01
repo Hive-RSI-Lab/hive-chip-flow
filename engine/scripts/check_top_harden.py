@@ -908,7 +908,28 @@ def macro_abstract(ws: Path, analog: Path, macro: dict, top: Path) -> dict | Non
     except macrolib.Refused as exc:
         raise CheckError(str(exc)) from exc
     macro["files"].update({f"lib_{k}": v for k, v in libs.items()})
-    return {"ceilings": ceilings}
+    return {"ceilings": ceilings, "limits": mt.limits}
+
+
+def macro_waiver_problems(dspec: dict, abstract: dict | None,
+                          macro: dict) -> list[dict]:
+    """A slew or cap waiver on a pin the analog side gave that limit. The
+    declared number and the waiver can't both be true: change macro_timing."""
+    signoff = dspec.get("harden_signoff") or {}
+    prefix = macro["instance"] + "/"
+    found = []
+    limit_of = {"max_slew_waived": "max_transition_ns",
+                "max_cap_waived": "max_capacitance_pf"}
+    for key, limit in limit_of.items():
+        for pin in signoff.get(key) or {}:
+            base = str(pin)[len(prefix):].split("[")[0].lower() \
+                if str(pin).startswith(prefix) else None
+            if base and limit in ((abstract or {}).get("limits") or {}).get(base, {}):
+                found.append({"kind": "macro_limit_waived", "pin": str(pin), "msg":
+                              f"harden_signoff.{key} waives {pin}, whose {limit} "
+                              "analog/spec/spec.yaml's macro_timing declares: "
+                              "meet the limit or change it there"})
+    return found
 
 
 def macro_clock_problems(ws: Path, abstract: dict | None, macro: dict,
@@ -1034,7 +1055,8 @@ def assemble(ws: Path) -> tuple[Path, dict]:
         sdc_path = top / "harden" / ttlib.HARDEN_SDC_NAME
         sdc_path.write_text(sdc, encoding="utf-8")
     tspec["macro_clock_problems"] = macro_clock_problems(
-        ws, abstract, macro, sdc, top, dspec)
+        ws, abstract, macro, sdc, top, dspec) + macro_waiver_problems(
+        dspec, abstract, macro)
     if tspec["macro_clock_problems"]:
         return top, tspec
     del tspec["macro_clock_problems"]
