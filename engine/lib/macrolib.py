@@ -20,6 +20,8 @@ periods of the clocks the macro sources against what the analog side recorded.
         vco_div2: {record: reports/recorded/pex_pvt.json,
                    measure: vco_f_vdd_mhz, divide: 2}
       extracted: log/pex_pvt/pll_analog.pex.ordered.spice    # optional
+      pad_caps_pf: {bias_ref: 5}         # optional: a pin left open on a pad, with
+                                         # the pad's capacitance and no static level
       includes: [spec/moscap.spice]      # optional, each deck reads these too:
                                          # a model the netlist uses and the PDK
                                          # sections below don't give it
@@ -129,6 +131,7 @@ class MacroTiming:
     loads: list
     extracted: str | None = None
     includes: tuple = ()
+    pad_caps: dict = field(default_factory=dict)
 
 
 def corner_of(name: str) -> dict:
@@ -242,7 +245,9 @@ def parse_spec(section: dict, cell: str, signal_pins: dict) -> MacroTiming:
         static={str(k).lower(): v for k, v in (section.get("static") or {}).items()},
         arcs=arcs, clocks=clocks, slews=slews, loads=loads,
         extracted=section.get("extracted"),
-        includes=tuple(str(x) for x in section.get("includes") or ()))
+        includes=tuple(str(x) for x in section.get("includes") or ()),
+        pad_caps={str(k).lower(): float(v)
+                  for k, v in (section.get("pad_caps_pf") or {}).items()})
 
 
 def level(value, vdd: float) -> float:
@@ -256,12 +261,13 @@ class Bench:
     `code[3]` never reaches a source name or a .meas."""
 
     def __init__(self, cell, netlist: Path, ports, power, ground, pdk, corner,
-                 vdd, work: Path, terms, includes=()):
+                 vdd, work: Path, terms, includes=(), pad_caps=None):
         self.cell, self.netlist, self.ports = cell, netlist, list(ports)
         self.power, self.ground = power.lower(), ground.lower()
         self.pdk, self.corner, self.vdd = pdk, corner, vdd
         self.work, self.terms = work, terms
         self.includes = list(includes)
+        self.pad_caps = dict(pad_caps or {})
         self.runs = 0
         self.node = {p.lower(): f"n{i}" for i, p in enumerate(self.ports)}
 
@@ -286,6 +292,8 @@ class Bench:
         out.append(f"Xdut {conns} {self.cell}")
         for pin, pf in loads.items():
             out.append(f"Cload_{self.node[pin]} {self.node[pin]} 0 {pf:g}p")
+        for pin, pf in self.pad_caps.items():
+            out.append(f"Cpad_{self.node[pin]} {self.node[pin]} 0 {pf:g}p")
         out.append(f".tran {step:g}n {t_stop:g}n 0 {step:g}n")
         out += measures
         out.append(".end")
@@ -309,7 +317,8 @@ class Bench:
         stim = {}
         for p in self.ports:
             low = p.lower()
-            if low in (self.power, self.ground) or low in driven:
+            if (low in (self.power, self.ground) or low in driven
+                    or low in mt.pad_caps):
                 continue
             if low in arc_static:
                 stim[low] = level(arc_static[low], self.vdd)
@@ -614,7 +623,8 @@ def characterize(mt: MacroTiming, *, netlist: Path, netlist_kind: str, ports,
         head = charlib.corner_header(header_text, lib_name, vdd,
                                      corner["temp_c"], False)
         bench = Bench(mt.cell, netlist, ports, power, ground, pdk, corner, vdd,
-                      work_dir / f"{mt.cell}__{name}.work", terms, includes=includes)
+                      work_dir / f"{mt.cell}__{name}.work", terms, includes=includes,
+                      pad_caps=mt.pad_caps)
         caps = {pin: measure_input_cap(bench, mt, pin) for pin in mt.inputs}
         arcs_out = {pin: [] for pin in mt.outputs}
         running = {}

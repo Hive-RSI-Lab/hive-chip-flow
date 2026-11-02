@@ -677,3 +677,30 @@ def test_no_includes_reads_clean_against_an_old_report(tmp_path):
     out.mkdir(parents=True)
     (out / "invm.report.json").write_text("{}")
     macrolib.check_includes(tmp_path, mt, tmp_path / "analog")
+
+
+def test_a_pad_cap_pin_stays_undriven_and_carries_the_cap(tmp_path, monkeypatch):
+    (tmp_path / "pdk").mkdir()
+    monkeypatch.setattr(macrolib.charlib, "model_files",
+                        lambda pdk: ("models", "design"))
+    monkeypatch.setattr(macrolib.simlib, "run_ngspice",
+                        lambda *a, **k: ("", "", 0))
+    mt = _timing(pad_caps_pf={"bias": 5}, static={})
+    bench = macrolib.Bench("invm", tmp_path / "x", ["a", "y", "bias", "vdd", "vss"],
+                           "vdd", "vss", tmp_path / "pdk",
+                           macrolib.corner_of("tt_025C_3v30"), 3.3, tmp_path,
+                           None, pad_caps=mt.pad_caps)
+    assert "bias" not in bench.statics(mt, {}, {"a"})
+    bench.simulate({}, {}, 1, 0.1, [])
+    deck = (tmp_path / "bench_1.cir").read_text()
+    assert "Cpad_n2 n2 0 5p" in deck
+    assert "Vn2 " not in deck
+
+
+def test_a_pin_with_neither_level_nor_pad_cap_is_still_refused(tmp_path):
+    mt = _timing()
+    bench = macrolib.Bench("invm", tmp_path / "x", ["a", "y", "bias", "vdd", "vss"],
+                           "vdd", "vss", tmp_path, macrolib.corner_of("tt_025C_3v30"),
+                           3.3, tmp_path, None)
+    with pytest.raises(macrolib.Refused, match="no level for pin bias"):
+        bench.statics(mt, {}, {"a"})
