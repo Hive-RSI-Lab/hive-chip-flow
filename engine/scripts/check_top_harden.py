@@ -903,6 +903,7 @@ def macro_abstract(ws: Path, analog: Path, macro: dict, top: Path) -> dict | Non
                                  check_macro_lib.crossing_pins(ws))
         if mt.extracted and (analog / mt.extracted).is_file():
             macrolib.check_extracted(ws, macro["cell"], analog / mt.extracted)
+        macrolib.check_includes(ws, mt, analog)
         libs = macrolib.deliver(ws, macro["cell"], top / "macros")
         ceilings = macrolib.clock_ceilings(mt, analog)
     except macrolib.Refused as exc:

@@ -130,11 +130,14 @@ def run(argv=None):
             f"{cell}'s ports {ports}: need exactly one supply and one ground")
     out_dir = ws / macrolib.OUT_DIR
     ceilings = macrolib.clock_ceilings(mt, analog)
+    includes = macrolib.resolve_includes(mt, analog)
+    extra = {"includes_sha256": macrolib.includes_digest(includes)}
+    if kind == "extracted":
+        extra["extracted_sha256"] = extracted_digest(named)
     report = macrolib.characterize(
         mt, netlist=netlist, netlist_kind=kind, ports=ports, power=vdd[0],
         ground=vss[0], pdk=layoutlib.pdk_root(), out_dir=out_dir, work_dir=work,
-        extra_report=({"extracted_sha256": extracted_digest(named)}
-                      if kind == "extracted" else None))
+        extra_report=extra, includes=includes)
     macrolib.write_clocks(ceilings, out_dir, cell)
     violations = [checklib.violation(
         SCRIPT, "warning", "analog/spec/spec.yaml", w["pin"],
