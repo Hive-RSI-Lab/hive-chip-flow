@@ -20,6 +20,9 @@ periods of the clocks the macro sources against what the analog side recorded.
         vco_div2: {record: reports/recorded/pex_pvt.json,
                    measure: vco_f_vdd_mhz, divide: 2}
       extracted: log/pex_pvt/pll_analog.pex.ordered.spice    # optional
+      includes: [spec/moscap.spice]      # optional, each deck reads these too:
+                                         # a model the netlist uses and the PDK
+                                         # sections below don't give it
       slews_ns: [0.1, 0.5]                                   # optional
       loads_pf: [0.005, 0.02, 0.1]                           # optional
 
@@ -125,6 +128,7 @@ class MacroTiming:
     slews: list
     loads: list
     extracted: str | None = None
+    includes: tuple = ()
 
 
 def corner_of(name: str) -> dict:
@@ -237,7 +241,8 @@ def parse_spec(section: dict, cell: str, signal_pins: dict) -> MacroTiming:
         cell=cell, inputs=inputs, outputs=outputs, limits=limits,
         static={str(k).lower(): v for k, v in (section.get("static") or {}).items()},
         arcs=arcs, clocks=clocks, slews=slews, loads=loads,
-        extracted=section.get("extracted"))
+        extracted=section.get("extracted"),
+        includes=tuple(str(x) for x in section.get("includes") or ()))
 
 
 def level(value, vdd: float) -> float:
@@ -251,11 +256,12 @@ class Bench:
     `code[3]` never reaches a source name or a .meas."""
 
     def __init__(self, cell, netlist: Path, ports, power, ground, pdk, corner,
-                 vdd, work: Path, terms):
+                 vdd, work: Path, terms, includes=()):
         self.cell, self.netlist, self.ports = cell, netlist, list(ports)
         self.power, self.ground = power.lower(), ground.lower()
         self.pdk, self.corner, self.vdd = pdk, corner, vdd
         self.work, self.terms = work, terms
+        self.includes = list(includes)
         self.runs = 0
         self.node = {p.lower(): f"n{i}" for i, p in enumerate(self.ports)}
 
@@ -264,8 +270,9 @@ class Bench:
         models, design = charlib.model_files(self.pdk)
         out = [f"* macrolib {self.cell} {self.corner['name']}"]
         out += [f".lib {models} {s}" for s in charlib.model_sections(self.corner)]
-        out += [f".include {design}", f".include {self.netlist}",
-                f".temp {self.corner['temp_c']}"]
+        out += [f".include {design}"]
+        out += [f".include {inc}" for inc in self.includes]
+        out += [f".include {self.netlist}", f".temp {self.corner['temp_c']}"]
         for p in self.ports:
             low = p.lower()
             node = self.node[low]
@@ -576,7 +583,7 @@ def characterize(mt: MacroTiming, *, netlist: Path, netlist_kind: str, ports,
                  power: str, ground: str, pdk: Path, out_dir: Path,
                  corners=STA_CORNERS, library: str = STA_LIBRARY,
                  work_dir: Path | None = None,
-                 extra_report: dict | None = None) -> dict:
+                 extra_report: dict | None = None, includes=()) -> dict:
     """Writes <cell>__<corner>.lib for each corner and a report beside them. A
     rerun that fails leaves no earlier .lib, so nothing globs a stale table."""
     out_dir = Path(out_dir)
@@ -607,7 +614,7 @@ def characterize(mt: MacroTiming, *, netlist: Path, netlist_kind: str, ports,
         head = charlib.corner_header(header_text, lib_name, vdd,
                                      corner["temp_c"], False)
         bench = Bench(mt.cell, netlist, ports, power, ground, pdk, corner, vdd,
-                      work_dir / f"{mt.cell}__{name}.work", terms)
+                      work_dir / f"{mt.cell}__{name}.work", terms, includes=includes)
         caps = {pin: measure_input_cap(bench, mt, pin) for pin in mt.inputs}
         arcs_out = {pin: [] for pin in mt.outputs}
         running = {}
@@ -891,6 +898,34 @@ def deliver(ws: Path, cell: str, macros_dir: Path,
         shutil.copyfile(path, dst)
         out[name] = str(dst.resolve())
     return out
+
+
+def includes_digest(paths) -> dict:
+    """{file name: sha256}. The files are named in the spec by path, so no
+    freshness hash covers what is in them."""
+    return {Path(p).name: hashlib.sha256(Path(p).read_bytes()).hexdigest()
+            for p in paths}
+
+
+def resolve_includes(mt: MacroTiming, analog: Path) -> list:
+    paths = [Path(analog) / x for x in mt.includes]
+    missing = [str(p) for p in paths if not p.is_file()]
+    if missing:
+        raise Refused("macro_timing_incomplete",
+                      f"macro_timing.includes: no file at {missing}")
+    return paths
+
+
+def check_includes(ws: Path, mt: MacroTiming, analog: Path) -> None:
+    """A lib characterised on other models is stale, as for check_extracted."""
+    report = Path(ws) / OUT_DIR / f"{mt.cell}.report.json"
+    if not report.is_file():
+        return  # deliver() refuses with what to run
+    want = json.loads(report.read_text(encoding="utf-8")).get("includes_sha256", {})
+    if want != includes_digest(resolve_includes(mt, analog)):
+        raise Refused("macro_lib_missing",
+                      f"{report.parent} was not characterised on the current "
+                      "macro_timing.includes; re-run the macro_lib gate")
 
 
 def check_extracted(ws: Path, cell: str, extracted: Path) -> None:

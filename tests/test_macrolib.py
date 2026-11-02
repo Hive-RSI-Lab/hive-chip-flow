@@ -625,3 +625,55 @@ def test_top_harden_says_what_to_run_when_the_gate_has_not(tmp_path):
     macro = {"cell": "invm", "instance": "u_analog", "files": {}}
     with pytest.raises(CheckError, match="run the macro_lib gate"):
         check_top_harden.macro_abstract(ws, ws / "analog", macro, tmp_path / "top")
+
+
+def _timing(**extra):
+    return macrolib.parse_spec(
+        {"pins": {"a": {"max_transition_ns": 1.0},
+                  "y": {"max_transition_ns": 1.0, "max_capacitance_pf": 0.1}},
+         "arcs": [{"from": "a", "to": "y", "sense": "negative_unate"}], **extra},
+        "invm", {"a": "d2a", "y": "a2d"})
+
+
+def test_a_named_include_is_read_by_each_deck(tmp_path, monkeypatch):
+    (tmp_path / "pdk").mkdir()
+    monkeypatch.setattr(macrolib.charlib, "model_files",
+                        lambda pdk: ("models", "design"))
+    monkeypatch.setattr(macrolib.simlib, "run_ngspice",
+                        lambda *a, **k: ("", "", 0))
+    bench = macrolib.Bench("invm", tmp_path / "x", ["a", "y", "vdd", "vss"],
+                           "vdd", "vss", tmp_path / "pdk",
+                           macrolib.corner_of("tt_025C_3v30"), 3.3, tmp_path,
+                           None, includes=[tmp_path / "moscap.spice"])
+    bench.simulate({}, {}, 1, 0.1, [])
+    deck = (tmp_path / "bench_1.cir").read_text()
+    assert f".include {tmp_path / 'moscap.spice'}" in deck
+    assert deck.index("moscap.spice") < deck.index(f".include {tmp_path / 'x'}")
+
+
+def test_includes_missing_refused_and_a_changed_one_is_stale(tmp_path):
+    mt = _timing(includes=["spec/moscap.spice"])
+    mt.cell = "invm"
+    analog = tmp_path / "analog"
+    with pytest.raises(macrolib.Refused, match="no file"):
+        macrolib.resolve_includes(mt, analog)
+    (analog / "spec").mkdir(parents=True)
+    inc = analog / "spec" / "moscap.spice"
+    inc.write_text("* one\n")
+    out = tmp_path / macrolib.OUT_DIR
+    out.mkdir(parents=True)
+    (out / "invm.report.json").write_text(json.dumps(
+        {"includes_sha256": macrolib.includes_digest([inc])}))
+    macrolib.check_includes(tmp_path, mt, analog)
+    inc.write_text("* two\n")
+    with pytest.raises(macrolib.Refused, match="includes"):
+        macrolib.check_includes(tmp_path, mt, analog)
+
+
+def test_no_includes_reads_clean_against_an_old_report(tmp_path):
+    mt = _timing()
+    mt.cell = "invm"
+    out = tmp_path / macrolib.OUT_DIR
+    out.mkdir(parents=True)
+    (out / "invm.report.json").write_text("{}")
+    macrolib.check_includes(tmp_path, mt, tmp_path / "analog")
