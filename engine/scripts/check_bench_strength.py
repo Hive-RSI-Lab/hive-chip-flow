@@ -33,6 +33,12 @@ before each mutant starts, with this pool's own sims that have run long
 enough to be in the load average taken back out of it, so a busy box
 gets 1. Each mutant's result depends on that mutant alone, and the facts
 come out in id order, so any --jobs gives the same report as --jobs 1.
+So each result is kept as it finishes, and a run on the same inputs (the
+netlist, sizing, benches, bounds and baseline measures, scored_digest())
+reads it back: a killed run resumes, and a rulings edit costs only the
+baselines. `reused_mutants` counts those; --fresh simulates them all. Survivors'
+deltas go to log/bench_strength.deltas.json before the rulings are read,
+since a ruling that no longer matches refuses and has to be rewritten from them.
 
 A declared behavioural `b...` source in netlist/*.cir gets its own two
 mutants (netlistlib.device_mutants): output_stuck (its expression replaced
@@ -133,10 +139,13 @@ workspace's own recorded netlist/bench state.
 from __future__ import annotations
 
 import argparse
+import hashlib
+import json
 import math
 import os
 import shutil
 import sys
+import threading
 import time
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from pathlib import Path
@@ -158,6 +167,9 @@ SCRIPT = "check_bench_strength"
 DEFAULT_TIMEOUT = 60.0
 
 OUT_SUBDIR = "log/bench_strength"
+# beside OUT_SUBDIR, which each run empties
+SCORED_REL = "log/bench_strength.scored.jsonl"
+DELTAS_REL = "log/bench_strength.deltas.json"
 # below_spread rulings (rulingslib): a recorded delta may differ from the
 # measured one by DELTA_ABS_TOL + DELTA_REL_TOL*|measured|, and the measured
 # |delta| must sit inside max(SIGMA_K*sigma, SPREAD_FLOOR).
@@ -728,14 +740,78 @@ def prepare(ws: Path, timeout: float, out_subdir: str = OUT_SUBDIR) -> dict:
             "bench_texts": bench_texts, "order": order, "plans": plans}
 
 
-def score_all(state: dict, ids: list[str], jobs: int | None) -> dict:
-    """{mutant id: score_mutant() entry} for `ids`, in `ids` order, run
-    through run_pool(): the same entries whatever `jobs` is."""
+def scored_digest(state: dict) -> str:
+    """What a mutant's simulated result depends on. Rulings are not in it: they
+    are read after the sims, so editing one re-simulates nothing. Each bench's
+    baseline measures are in it, so a change in the models or the simulator
+    that moves a baseline discards the results too."""
+    args = state["run_args"]
+    doc = {"netlist": state["netlist_text"], "sizing": args["sizing"],
+           "corner": args["corner"], "vdd": args["nominal_vdd"],
+           "timeout": args["timeout"],
+           "benches": {n: {"text": c["text"], "bounds": c["bounds"],
+                           "baseline": c["baseline"], "sens": c["sens"],
+                           "abs_sens": c["abs_sens"]}
+                       for n, c in sorted(state["ctx"].items())}}
+    return hashlib.sha256(json.dumps(doc, sort_keys=True, default=str)
+                          .encode("utf-8")).hexdigest()
+
+
+def load_scored(path: Path, digest: str) -> dict:
+    """{mutant id: entry} kept for this digest, or nothing. A last line cut off
+    by a killed run is dropped, so that mutant just runs again."""
+    if not path.is_file():
+        return {}
+    lines = path.read_text(encoding="utf-8").splitlines()
+    if not lines or lines[0] != digest:
+        return {}
+    kept = {}
+    for line in lines[1:]:
+        try:
+            entry = json.loads(line)
+        except ValueError:
+            continue
+        kept[entry["id"]] = entry
+    return kept
+
+
+def score_all(state: dict, ids: list[str], jobs: int | None,
+              scored_path: Path | None = None) -> tuple[dict, int]:
+    """({mutant id: score_mutant() entry} for `ids`, in `ids` order, how many
+    were reused), run through run_pool(): the same entries whatever `jobs` is.
+    With `scored_path`, each entry is kept there as it finishes and a later
+    run on the same digest reads it back instead of simulating it."""
     names = sorted(state["ctx"])
-    entries = run_pool(
-        ids, lambda mid: score_mutant(state["plans"][mid], state["ctx"],
-                                      state["run_args"], names), jobs)
-    return {e["id"]: e for e in entries}
+    kept, lock, out = {}, threading.Lock(), None
+    if scored_path is not None:
+        digest = scored_digest(state)
+        kept = load_scored(scored_path, digest)
+        scored_path.parent.mkdir(parents=True, exist_ok=True)
+        out = scored_path.open("w", encoding="utf-8")
+        out.write(digest + "\n")
+        for entry in kept.values():
+            out.write(json.dumps(entry) + "\n")
+        out.flush()
+
+    def one(mid: str) -> dict:
+        if mid in kept:
+            return kept[mid]
+        entry = score_mutant(state["plans"][mid], state["ctx"],
+                             state["run_args"], names)
+        if out is not None:
+            with lock:
+                out.write(json.dumps(entry) + "\n")
+                out.flush()
+        return entry
+
+    try:
+        entries = run_pool([m for m in ids if m not in kept], one, jobs)
+    finally:
+        if out is not None:
+            out.close()
+    by_id = {e["id"]: e for e in entries}
+    return {mid: kept.get(mid) or by_id[mid] for mid in ids}, sum(
+        mid in kept for mid in ids)
 
 
 def run(argv=None):
@@ -748,6 +824,9 @@ def run(argv=None):
                     help="mutants simulated at once: 'auto' (default; "
                     "max(1, cores - 1-minute load), re-read as it goes) or "
                     f"a number; ${JOBS_ENV} sets the default")
+    ap.add_argument("--fresh", action="store_true",
+                    help="simulate every mutant, ignoring results kept from an "
+                    "earlier run on the same inputs")
     ap.add_argument("--out", help="write result JSON here instead of stdout")
     args = ap.parse_args(argv)
     jobs = parse_jobs(args.jobs)
@@ -763,7 +842,10 @@ def run(argv=None):
     baselines, tt_names = state["baselines"], state["tt_names"]
     bounds_by_bench = state["bounds_by_bench"]
     bench_texts = state["bench_texts"]
-    by_id = score_all(state, list(state["plans"]), jobs)
+    scored_path = ws / SCORED_REL
+    if args.fresh:
+        scored_path.unlink(missing_ok=True)
+    by_id, reused = score_all(state, list(state["plans"]), jobs, scored_path)
 
     unmutated = coverage_gaps(netlist_text, devices, by_id.values())
     if not by_id:
@@ -780,6 +862,11 @@ def run(argv=None):
     survivors = [m for m in by_id.values() if not m["killed"]]
     for m in survivors:
         m["deltas"] = relative_deltas(baselines, m["measures"], tt_names)
+    # before the rulings are read: a stale ruling refuses, and this is what it
+    # gets rewritten from
+    (ws / DELTAS_REL).write_text(json.dumps(
+        {m["id"]: m["deltas"] for m in survivors}, indent=1, sort_keys=True),
+        encoding="utf-8")
 
     equivalent = rulings["equivalent"]
     below = rulings["below_spread"]
@@ -874,6 +961,7 @@ def run(argv=None):
         SCRIPT, ws / "netlist", violations, top=spec.get("top"),
         total_mutants=total, killed=total - len(survivors),
         survived=len(survivors),
+        reused_mutants=reused,
         devices_total=devices_total,
         devices_mutated=devices_total - len(unmutated),
         unmutated=[{k: u[k] for k in ("device", "kind", "reason")}
