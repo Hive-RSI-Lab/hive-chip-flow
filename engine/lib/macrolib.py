@@ -507,7 +507,11 @@ def _pins_and_buses(mt: MacroTiming, pin_text: dict) -> str:
 
 
 def liberty_text(mt: MacroTiming, head: str, library_note: str, caps: dict,
-                 arcs_out: dict, terms) -> str:
+                 arcs_out: dict, terms, other_pins=()) -> str:
+    """`other_pins`: the cell's ports outside the crossing pins and the supplies,
+    an analog pad's for one. They carry no timing, but a port liberty doesn't
+    name is dropped from the instance when OpenROAD links it (STA-0201), and the
+    net goes with it: nothing routes to the pad, and LVS still matches."""
     n_s, n_l = len(mt.slews), len(mt.loads)
     out = [f"/* {library_note} */\n", head.rstrip().rstrip("}").rstrip(), "\n"]
     out.append(
@@ -552,6 +556,9 @@ def liberty_text(mt: MacroTiming, head: str, library_note: str, caps: dict,
         text.append("    }\n")
         pin_text[pin] = "".join(text)
     out.append(_pins_and_buses(mt, pin_text))
+    for pin in other_pins:
+        out.append(f'    pin ("{pin}") {{\n      direction : inout;\n'
+                   f'      capacitance : 0;\n    }}\n')
     out.append("  }\n}\n")
     return "".join(out)
 
@@ -601,6 +608,8 @@ def characterize(mt: MacroTiming, *, netlist: Path, netlist_kind: str, ports,
         old.unlink()
     (out_dir / f"{mt.cell}.report.json").unlink(missing_ok=True)
     work_dir = Path(work_dir) if work_dir else out_dir
+    crossing = set(mt.inputs) | set(mt.outputs) | {power.lower(), ground.lower()}
+    others = [p.lower() for p in ports if p.lower() not in crossing]
     # a name, not a path: out_dir is committed with the block and hashed
     report = {"cell": mt.cell, "netlist": Path(netlist).name, **(extra_report or {}),
               "netlist_kind": netlist_kind, "slews_ns": mt.slews,
@@ -648,7 +657,9 @@ def characterize(mt: MacroTiming, *, netlist: Path, netlist_kind: str, ports,
                 f"{netlist_kind} netlist. Timing and input capacitance only.")
         path = out_dir / f"{lib_name}.lib"
         path.write_text(liberty_text(mt, charlib.write_liberty(head), note, caps,
-                                     arcs_out, terms), encoding="utf-8")
+                                     arcs_out, terms,
+                                     other_pins=others),
+                        encoding="utf-8")
         report["corners"][name] = {
             "lib": path.name, "vdd": vdd, "input_cap_pf": caps,
             **({"running_mhz_by_load": running} if running else {})}

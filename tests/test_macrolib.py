@@ -704,3 +704,36 @@ def test_a_pin_with_neither_level_nor_pad_cap_is_still_refused(tmp_path):
                            3.3, tmp_path, None)
     with pytest.raises(macrolib.Refused, match="no level for pin bias"):
         bench.statics(mt, {}, {"a"})
+
+
+def test_macro_pins_dropped_names_a_port_the_netlist_lost():
+    import check_top_harden as cth
+    nl = """ gf180mcu_x u1 (.I(a));
+ pll_analog u_analog (.vco_div2(\\u.vco_div2 ),
+    .pfd_up(net56),
+    .cp_trim0(),
+    .vctrl(ua[0]));
+ gf180mcu_y u2 (.bias_ref(z));
+"""
+    want = {"vco_div2", "pfd_up", "cp_trim0", "vctrl", "bias_ref"}
+    assert cth.macro_pins_dropped(nl, "pll_analog", "u_analog", want) == [
+        "bias_ref", "cp_trim0"]
+    assert cth.macro_pins_dropped(nl, "pll_analog", "other", {"a"}) == ["a"]
+
+
+def test_a_pad_pin_is_named_in_the_liberty_with_no_timing():
+    mt = macrolib.parse_spec(_spec(), "invm", PINS)
+    arc = mt.arcs[0]
+    grid = [[0.1, 0.2, 0.3], [0.2, 0.3, 0.4]]
+    tabs = {k: grid for k in ("cell_rise", "cell_fall", "rise_transition",
+                              "fall_transition")}
+    text = macrolib.liberty_text(
+        mt, "library (x) {\n  time_unit : 1ns;\n}\n", "note",
+        {"a": {"capacitance": 0.02, "rise_capacitance": 0.02,
+               "fall_capacitance": 0.019}},
+        {"y": [(arc, tabs)]}, None, other_pins=["vctrl"])
+    lib = charlib.parse_liberty(re.sub(r"/\*.*?\*/", "", text, flags=re.S))
+    pins = {g.args.strip('"'): g for g in lib.sub("cell")[0].sub("pin")}
+    assert pins["vctrl"].attr("direction") == "inout"
+    assert not pins["vctrl"].sub("timing")
+
