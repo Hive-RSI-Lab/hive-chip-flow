@@ -100,6 +100,7 @@ import layoutlib  # noqa: E402
 import macrolib  # noqa: E402
 import netlistlib  # noqa: E402
 import ttlib  # noqa: E402
+import yaml  # noqa: E402
 from checklib import CheckError  # noqa: E402
 
 SCRIPT = "check_top_harden"
@@ -1232,10 +1233,41 @@ def run(argv=None):
         moved = trim_power_pins(lef)
         if moved:
             facts["power_ports_to_obs"] = moved
+    violations = list(inner.get("violations", []))
+    final_nl = (top / "harden" / "runs" / check_harden.RUN_TAG / "final" / "nl"
+                / f"{ttlib.wrapper_name(spec)}.nl.v")
+    if final_nl.is_file():
+        iface = yaml.safe_load((ws / "interface.yaml").read_text(encoding="utf-8"))
+        want = {str(sig["name"]).lower() for sig in iface.get("signals") or []}
+        want |= {str(k).lower() for k in iface.get("ua_pins") or {}}
+        text = final_nl.read_text(encoding="utf-8", errors="replace")
+        for m in spec["macros"]:
+            violations += [checklib.violation(
+                "top_harden", "error", None, m["cell"], "macro_pin_dropped",
+                [pin], f"{m['instance']}.{pin} is not connected in the final "
+                "netlist: the flow dropped it (STA-0201 in its log means the "
+                "macro's liberty doesn't name the port), so it reaches no pad "
+                "or cell, and top_lvs won't see that", SCRIPT)
+                for pin in macro_pins_dropped(text, m["cell"], m["instance"], want)]
     payload = checklib.report(SCRIPT, ws / "digital" / "rtl",
-                              inner.get("violations", []), macros=macros,
+                              violations, macros=macros,
                               **facts)
     return payload, args.out
+
+
+def macro_pins_dropped(netlist: str, cell: str, instance: str, want) -> list[str]:
+    """Which of `want` the final netlist's macro instance doesn't connect. OpenROAD
+    drops a port it can't link and top_lvs then compares two netlists that both
+    lack it, so nothing else here says so."""
+    m = re.search(r"(?m)^\s*%s\s+%s\s*\((.*?)\);" % (re.escape(cell),
+                                                     re.escape(instance)),
+                  netlist, re.S)
+    if not m:
+        return sorted(want)
+    wired = {name.lower() for name, net in
+             re.findall(r"\.([\w\\\[\]]+)\s*\(\s*([^()]*?)\s*\)", m.group(1))
+             if net}
+    return sorted(p for p in want if p.lower() not in wired)
 
 
 def main(argv=None) -> int:
