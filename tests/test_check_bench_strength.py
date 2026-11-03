@@ -989,7 +989,7 @@ def test_serial_and_parallel_runs_give_identical_facts(tmp_path, monkeypatch, ca
     serial = _gate(ws, capsys, "--jobs", "1")
     assert live["max"] == 1
     n_serial = len(calls)
-    parallel = _gate(ws, capsys, "--jobs", "4")
+    parallel = _gate(ws, capsys, "--jobs", "4", "--fresh")
     assert live["max"] > 1, "the pool never ran two mutants at once"
     assert parallel == serial
     assert list(parallel[1]["mutants"]) == sorted(parallel[1]["mutants"])
@@ -1139,3 +1139,58 @@ def test_bench_strength_timeout_comes_from_spec_then_flag(
     out = json.loads(capsys.readouterr().out)
     assert code == 0, out
     assert ngspice_timeouts and set(ngspice_timeouts) == {want}
+
+
+def _scored_state():
+    return {"netlist_text": "n", "ctx": {"b.cir": {
+                "text": "t", "bounds": [], "baseline": {"m": 1.0}, "sens": {},
+                "abs_sens": {}}},
+            "plans": {"a": [("b.cir", {"id": "a"})], "c": [("b.cir", {"id": "c"})]},
+            "run_args": {"sizing": {}, "corner": {"name": "tt"}, "nominal_vdd": 3.3,
+                         "timeout": 60}}
+
+
+def test_kept_results_are_read_back_and_a_cut_off_line_runs_again(tmp_path, monkeypatch):
+    runs = []
+
+    def fake(plan, ctx, args, names):
+        runs.append(plan[0][1]["id"])
+        return {"id": plan[0][1]["id"], "killed": True}
+
+    monkeypatch.setattr(check_bench_strength, "score_mutant", fake)
+    path = tmp_path / "log" / "scored.jsonl"
+    state = _scored_state()
+    first, reused = check_bench_strength.score_all(state, ["a", "c"], 1, path)
+    assert sorted(runs) == ["a", "c"] and reused == 0
+    assert set(first) == {"a", "c"}
+    runs.clear()
+    again, reused = check_bench_strength.score_all(state, ["a", "c"], 1, path)
+    assert runs == [] and reused == 2 and again == first
+    lines = path.read_text().splitlines()
+    path.write_text("\n".join(lines[:2] + ['{"id": "c", "kil']) + "\n")
+    _, reused = check_bench_strength.score_all(state, ["a", "c"], 1, path)
+    assert reused == 1 and len(runs) == 1
+
+
+@pytest.mark.parametrize("change", [
+    lambda s: s.update(netlist_text="other"),
+    lambda s: s["ctx"]["b.cir"].update(text="other"),
+    lambda s: s["ctx"]["b.cir"].update(baseline={"m": 1.1}),
+    lambda s: s["run_args"].update(sizing={"w": 1}),
+])
+def test_a_changed_input_discards_kept_results(tmp_path, monkeypatch, change):
+    runs = []
+
+    def fake(plan, ctx, args, names):
+        runs.append(plan[0][1]["id"])
+        return {"id": plan[0][1]["id"], "killed": True}
+
+    monkeypatch.setattr(check_bench_strength, "score_mutant", fake)
+    path = tmp_path / "scored.jsonl"
+    state = _scored_state()
+    check_bench_strength.score_all(state, ["a", "c"], 1, path)
+    runs.clear()
+    change(state)
+    _, reused = check_bench_strength.score_all(state, ["a", "c"], 1, path)
+    assert reused == 0 and sorted(runs) == ["a", "c"]
+

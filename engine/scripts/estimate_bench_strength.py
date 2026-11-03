@@ -74,7 +74,7 @@ def run(argv=None):
     ids = sorted(state["plans"])
     drawn = sorted(random.Random(args.seed).sample(
         ids, min(args.sample, len(ids))))
-    scored = bs.score_all(state, drawn, jobs)
+    scored, _ = bs.score_all(state, drawn, jobs)
     killed = sum(1 for e in scored.values() if e["killed"])
     lo, hi = wilson(killed, len(drawn))
     note = (f"ADVISORY: {killed}/{len(drawn)} sampled mutants killed (seed "
