@@ -96,7 +96,7 @@ def run(argv=None):
     rtl = ws / "digital" / "rtl"
     section = declared(ws)
     if section is None:
-        return checklib.report(SCRIPT, rtl, [checklib.violation(
+        return checklib.report(SCRIPT, ws / "interface.yaml", [checklib.violation(
             SCRIPT, "warning", "analog/spec/spec.yaml", None,
             "macro_timing_undeclared", [],
             "no macro_timing: the analog macro's crossing pins stay ideal "
@@ -146,7 +146,8 @@ def run(argv=None):
         f"max_capacitance {w['max_capacitance_pf']} pF is over its "
         f"max_transition {w['max_transition_ns']} ns", SCRIPT)
         for w in report["warnings"]]
-    return checklib.report(SCRIPT, rtl, violations, declared=True, cell=cell,
+    # interface.yaml: the gate's first input, which state.py holds input_digest to
+    return checklib.report(SCRIPT, ws / "interface.yaml", violations, declared=True, cell=cell,
                            netlist_kind=kind, corners=report["corners"],
                            slews_ns=mt.slews, loads_pf=mt.loads,
                            clocks=ceilings), args.out

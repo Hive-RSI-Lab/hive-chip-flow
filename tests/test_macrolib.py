@@ -22,6 +22,7 @@ sys.path.insert(0, str(REPO / "engine" / "scripts"))
 sys.path.insert(0, str(REPO / "engine" / "lib"))
 
 import charlib  # noqa: E402
+import statelib  # noqa: E402
 import check_macro_lib  # noqa: E402
 import check_top_harden  # noqa: E402
 import macrolib  # noqa: E402
@@ -736,4 +737,13 @@ def test_a_pad_pin_is_named_in_the_liberty_with_no_timing():
     pins = {g.args.strip('"'): g for g in lib.sub("cell")[0].sub("pin")}
     assert pins["vctrl"].attr("direction") == "inout"
     assert not pins["vctrl"].sub("timing")
+
+
+def test_the_report_is_stamped_with_the_input_state_py_holds_it_to(tmp_path):
+    ws = _ws(tmp_path, None)
+    (ws / "interface.yaml").is_file() or (ws / "interface.yaml").write_text("version: 1\n")
+    payload, _ = check_macro_lib.run(["--workspace", str(ws)])
+    want = statelib.hash_artifact(ws / "interface.yaml",
+                                  statelib.norm_for_path(ws / "interface.yaml"))
+    assert payload["input_digest"] == want
 
