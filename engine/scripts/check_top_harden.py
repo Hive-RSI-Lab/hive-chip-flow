@@ -79,7 +79,15 @@ what its GDS draws, whichever is larger - is a `macro_too_large` finding
 (no harden runs); so is a `ua_pins` map off the analog template - an
 index used twice, a gap below the highest pad, more pads than the tile has
 (`ua_pin_off_template`, no harden runs). LibreLane failures are
-check_harden's findings, passed on.
+check_harden's findings, passed on. A finished harden also fails on a max
+slew or max cap violation at any corner of the signoff STA
+(`max_slew_violation`, `max_cap_violation`, naming the pins; gates.yaml's
+top_harden_metrics, check_harden.corner_drv_metrics), so a macro liberty's
+max_transition and max_capacitance hold; the report's `drv_metrics` is the
+per-corner table. Pins on the ua[k] pad nets are listed there as
+`analog_pad` and not counted: STA sees no digital driver or receiver on an
+analog pad, only LibreLane's default input drive and output load for every
+port, which no analog tile meets at ss.
 """
 from __future__ import annotations
 
@@ -99,6 +107,7 @@ import checklib  # noqa: E402
 import layoutlib  # noqa: E402
 import macrolib  # noqa: E402
 import netlistlib  # noqa: E402
+import speclib  # noqa: E402
 import ttlib  # noqa: E402
 import yaml  # noqa: E402
 from checklib import CheckError  # noqa: E402
@@ -1142,6 +1151,17 @@ def trim_power_pins(lef: Path) -> list[str]:
     return moved
 
 
+UA_PADS = 8  # every tt_um wrapper's `inout wire [7:0] ua`
+
+
+def analog_pad_pins(macros: list[dict]) -> frozenset:
+    """The pins on the top's analog pad nets, as the signoff STA's
+    checks.rpt names them: every ua[k] port and each macro pin routed to
+    one (<instance>/<pin>)."""
+    return frozenset([f"ua[{k}]" for k in range(UA_PADS)] + [
+        f"{m['instance']}/{pin}" for m in macros for pin in m.get("ua", {})])
+
+
 def run(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--workspace", required=True, help="msde block workspace")
@@ -1234,6 +1254,17 @@ def run(argv=None):
         if moved:
             facts["power_ports_to_obs"] = moved
     violations = list(inner.get("violations", []))
+    # max slew and max cap per corner, judged like the signoff metrics only
+    # when the flow finished (check_harden recorded its table)
+    metrics_path = Path(inner.get("run_dir", "")) / "final" / "metrics.json"
+    if inner.get("signoff_metrics") is not None and metrics_path.is_file():
+        drv_table, drv_violations = check_harden.corner_drv_metrics(
+            json.loads(metrics_path.read_text(encoding="utf-8")),
+            speclib.harden_signoff(spec) or {}, metrics_path.parent.parent,
+            inner.get("top", ttlib.wrapper_name(spec)),
+            analog_pads=analog_pad_pins(macros))
+        facts["drv_metrics"] = drv_table
+        violations += drv_violations
     final_nl = (top / "harden" / "runs" / check_harden.RUN_TAG / "final" / "nl"
                 / f"{ttlib.wrapper_name(spec)}.nl.v")
     if final_nl.is_file():

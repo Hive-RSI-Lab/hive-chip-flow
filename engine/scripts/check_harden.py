@@ -72,6 +72,12 @@ whatever they say. `signoff_metrics()` judges them against gates.yaml's
 `harden_signoff` sets `ir_budget_pct` (default gates.yaml's) and
 `floating_nets_waived: {net: reason}`.
 
+Max slew and max cap (top_harden only): `corner_drv_metrics()` judges
+gates.yaml's `top_harden_metrics` at every corner the signoff STA wrote, and
+names the pins from that corner's checks.rpt. A pin in spec.yaml's
+`harden_signoff.drv_pins_waived: {pin: reason}` does not count; a count the
+report does not name in full cannot be excused.
+
 Floating nets carry their names in the log of the step that counted them.
 TT's repair step counts the power nets, so every TT harden records at least
 VPWR and VGND there: a named power net does not count. A count the log does
@@ -247,6 +253,116 @@ def signoff_metrics(metrics: dict, signoff: dict, run_dir: Path, top: str,
     return table, violations
 
 
+# OpenSTA's `report_check_types -violators` in a corner's checks.rpt: a bare
+# section header ("max slew", "max capacitance", "max fanout"), a column
+# header and a rule, then a "(VIOLATED)" row per pin (max capacitance puts a
+# blank line between rows). A "=" banner ends the section.
+DRV_SECTIONS = ("max slew", "max capacitance", "max fanout")
+DRV_ROW_RE = re.compile(r"^(\S+)\s.*\(VIOLATED\)\s*$")
+STA_SIGNOFF_RE = re.compile(r"^(\d+)-openroad-stapostpnr$")
+
+
+def drv_pins(run_dir: Path, corner: str, check: str):
+    """(pins, report): the pins listed under `check` in the corner's
+    checks.rpt of the run's last post-PnR STA step, or (None, None) when
+    the run has no such report."""
+    steps = sorted((int(m.group(1)), d) for d in run_dir.glob("*-openroad-stapostpnr")
+                   if (m := STA_SIGNOFF_RE.match(d.name)) and d.is_dir())
+    if not steps:
+        return None, None
+    rpt = steps[-1][1] / corner / "checks.rpt"
+    if not rpt.is_file():
+        return None, None
+    pins, current = [], None
+    for line in rpt.read_text(encoding="utf-8", errors="replace").splitlines():
+        stripped = line.strip()
+        if stripped.lower() in DRV_SECTIONS:
+            current = stripped.lower()
+            continue
+        if stripped.startswith("="):
+            current = None
+            continue
+        row = DRV_ROW_RE.match(stripped)
+        if row and current == check and row.group(1) not in pins:
+            pins.append(row.group(1))
+    return pins, str(rpt.relative_to(run_dir))
+
+
+def corner_drv_metrics(metrics: dict, signoff: dict, run_dir: Path, top: str,
+                       limits: dict | None = None,
+                       analog_pads: frozenset = frozenset()):
+    """(table, violations): each of gates.yaml's top_harden_metrics at every
+    corner metrics.json carries it for, one finding per corner over its
+    limit naming the pins. table is {metric: {corner: row}}.
+
+    analog_pads names pins on an analog pad's net (the tile's ua[k] ports
+    and the macro pins routed to them). STA has no digital driver or
+    receiver there: their slew and load are LibreLane's defaults for every
+    port (SYNTH_DRIVING_CELL, OUTPUT_CAP_LOAD), so they are listed in the
+    row's analog_pad and not counted. Like a waiver, they excuse only pins
+    the report names."""
+    if limits is None:
+        limits = yaml.safe_load(
+            GATES_YAML.read_text(encoding="utf-8"))["top_harden_metrics"]
+    waived = signoff.get("drv_pins_waived", {})
+    table, violations = {}, []
+
+    def finding(kind, msg, refs, **extras):
+        violations.append(checklib.violation(
+            "top_harden", "error", None, top, kind, list(refs), msg,
+            "check_harden", **extras))
+
+    for name, rule in limits.items():
+        prefix = f"{name}__corner:"
+        corners = sorted(k[len(prefix):] for k in metrics if k.startswith(prefix))
+        table[name] = rows = {}
+        if not corners:
+            finding("signoff_metric_missing",
+                    f"metrics.json has no {prefix}<corner> number: "
+                    f"{rule['kind']} was not judged at any corner",
+                    [name], metric=name)
+            continue
+        for corner in corners:
+            key = prefix + corner
+            value = _number(metrics, key)
+            row = rows[corner] = {"value": value}
+            if value is None:
+                row["status"] = "missing"
+                finding("signoff_metric_missing",
+                        f"metrics.json has no number for {key} "
+                        f"({metrics.get(key)!r}): {rule['kind']} was not "
+                        f"judged at {corner}", [key], metric=key)
+                continue
+            limit = row["limit"] = rule["max"]
+            if value <= limit:
+                row["status"] = "ok"
+                continue
+            pins, report = drv_pins(run_dir, corner, rule["check"])
+            row["pins"] = pins
+            msg = f"{corner}: {name} is {value:g}, limit {limit:g}"
+            if pins is None:
+                real = []
+                msg += (f"; no {corner}/checks.rpt from the signoff STA "
+                        "names them, so none can be excused")
+            else:
+                row["waived"] = sorted(set(pins) & set(waived))
+                row["analog_pad"] = sorted(set(pins) & analog_pads)
+                real = [p for p in pins
+                        if p not in waived and p not in analog_pads]
+                if len(pins) < value:
+                    msg += (f"; {report} names only {len(pins)}, so none can "
+                            "be excused")
+                    real = real or pins
+                elif not real:
+                    row["status"] = "ok"
+                    continue
+                msg += f": {', '.join(real)}"
+            row["status"] = "over"
+            finding(rule["kind"], msg, real or [key], metric=key,
+                    corner=corner, value=value, limit=limit, report=report)
+    return table, violations
+
+
 def _pdk_root() -> Path:
     proc = subprocess.run([str(EDA_BIN), "--print-toolchain-root"],
                           capture_output=True, text=True, encoding="utf-8",
@@ -285,8 +401,9 @@ def run(argv=None):
     signoff = speclib.harden_signoff(spec)
     if signoff is None:
         raise CheckError("spec.yaml 'harden_signoff' is malformed: it takes "
-                         "ir_budget_pct (0-100) and floating_nets_waived "
-                         "({net: reason}) - run spec_lint and fix it")
+                         "ir_budget_pct (0-100), floating_nets_waived "
+                         "({net: reason}) and drv_pins_waived ({pin: reason})"
+                         " - run spec_lint and fix it")
 
     rtl_dir = ws / "rtl"
     rtl_files = sorted(rtl_dir.glob("*.v")) + sorted(rtl_dir.glob("*.sv"))
