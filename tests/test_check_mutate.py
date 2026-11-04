@@ -817,3 +817,16 @@ below_spread:
     out = json.loads(capsys.readouterr().out)
     assert code == 2, out
     assert "below_spread" in out["error"] and sent == []
+
+
+@pytest.mark.parametrize("value,want", [("", None), ("  ", None), ("4", 4)])
+def test_env_jobs_reads_the_cap(monkeypatch, value, want):
+    monkeypatch.setenv(check_mutate.JOBS_ENV, value)
+    assert check_mutate.env_jobs() == want
+
+
+@pytest.mark.parametrize("value", ["0", "-2", "four"])
+def test_env_jobs_refuses_a_bad_cap(monkeypatch, value):
+    monkeypatch.setenv(check_mutate.JOBS_ENV, value)
+    with pytest.raises(check_mutate.CheckError, match="CHIP_FLOW_MUTATE_JOBS"):
+        check_mutate.env_jobs()
