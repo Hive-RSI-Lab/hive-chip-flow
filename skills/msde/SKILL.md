@@ -159,7 +159,11 @@ blackboxes, or the block's hand-kept `tt/src/*.v`; `tt/info.yaml` else
 workflow, never over one already there. It refuses `tt_ship_mismatch` on a
 workflow shipping anything but the signed-off GDS, and `deliverable_untied` on
 a file no gate holds. A hand-kept file ties only if it says the same as what
-the gates read. `release/manifest.json` records each file's sha256, gate
+the gates read. The generated `src/project.v` is the hardened wrapper plus the
+TT analog template's `VGND`/`VDPWR` ports and each macro's spec `power` pins
+tied to them under `USE_POWER_PINS` (`ttlib.generate_tt_project`); a
+hand-kept one that says the same ties too, while `top/spec/spec.yaml` still
+regenerates the hardened wrapper byte for byte (#165). `release/manifest.json` records each file's sha256, gate
 records and versions; `chip-flow release --verify DIR` re-hashes a tree against
 it and never passes a refused one.
 

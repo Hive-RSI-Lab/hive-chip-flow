@@ -16,7 +16,10 @@ A file in the tree with no tie refuses the release (`deliverable_untied`),
 except test/ (not silicon, listed as such). A hand-kept copy under a block's
 tt/ ties only when it says the same as the file the gates read: same code once
 comments and whitespace go for Verilog, same top_module/tiles/analog_pins for
-info.yaml. Otherwise it needs a waiver bound to its bytes in
+info.yaml. A project.v may instead say the same as the hardened wrapper with
+the TT analog template's VGND/VDPWR ports and the macros' power ties
+(ttship.powered_project), which holds only while top/spec/spec.yaml still
+regenerates that wrapper byte for byte (#165). Otherwise it needs a waiver bound to its bytes in
 reports/waivers.json: {deliverable, sha256, reason, approved_by}.
 
 A refused release still writes its manifest, with `released: false` and the
@@ -54,7 +57,10 @@ def _digest(body: dict) -> str:
 
 
 def _code(path: Path) -> str:
-    text = path.read_text(encoding="utf-8", errors="replace")
+    return _code_of(path.read_text(encoding="utf-8", errors="replace"))
+
+
+def _code_of(text: str) -> str:
     return " ".join(_COMMENT.sub(" ", text).split())
 
 
@@ -88,6 +94,11 @@ def _gate_ties(ws: Path, skill: str, source: str, data: dict, imap: dict,
     return sorted(ties.values(), key=lambda t: t["gate"])
 
 
+def _sha_differs(ws: Path, src: str, path: Path) -> bool:
+    ref = ws / src
+    return ref.is_file() and path.is_file() and ttship._sha256(ref) != ttship._sha256(path)
+
+
 def _signed_counterpart(ws: Path, source: str, top: str) -> tuple[str, list[str]] | None:
     """For a hand-kept msde file under tt/: the file the gates read that it
     must agree with, and what differs (empty when it agrees)."""
@@ -106,7 +117,11 @@ def _signed_counterpart(ws: Path, source: str, top: str) -> tuple[str, list[str]
                else f"top/macros/{name}")
         if not (ws / ref).is_file():
             return None
-        return ref, [] if _code(p) == _code(ws / ref) else ["code"]
+        if _code(p) == _code(ws / ref):
+            return ref, []
+        if name == "project.v" and _code(p) == _code_of(ttship.powered_project(ws, top) or ""):
+            return ref, []
+        return ref, ["code"]
     return None
 
 
@@ -148,6 +163,15 @@ def deliverables(ws: Path, skill: str, repo: Path, record: dict,
         else:
             e["gates"] = _gate_ties(ws, skill, src, data, imap, fresh) if src else []
             why = "no gate reads it"
+            if (skill == "msde" and rel == ttship.ANALOG_NETLIST and e["gates"]
+                    and _sha_differs(ws, src, repo / rel)):
+                # the powered project.v is derived from the wrapper, not
+                # copied, and must still be what that derives
+                if _code(repo / rel) == _code_of(ttship.powered_project(ws, top) or ""):
+                    e["derived"] = "ttship.powered_project"
+                else:
+                    e["gates"] = []
+                    why = f"differs from {src}, which it was staged from"
             if not e["gates"] and src:
                 ref = _signed_counterpart(ws, src, top)
                 if ref:
