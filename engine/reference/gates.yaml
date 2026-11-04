@@ -53,6 +53,16 @@ harden_metrics:
   design__power_grid_violation__count: {max: 0, kind: pdn_violation}
   ir__drop__worst: {max_pct_vdd: 5, vdd_metric: ir__voltage__worst, kind: ir_drop_over_budget}
 
+# Limits check_top_harden.py adds for the top, judged at every corner the
+# signoff STA wrote (`<metric>__corner:<corner>` in metrics.json): an analog
+# macro's liberty sets its pins' max_transition and max_capacitance, and
+# LibreLane exits 0 over them. `check` is the section of the corner's
+# checks.rpt that names the pins; spec.yaml's
+# harden_signoff.drv_pins_waived excuses a pin by name with a reason.
+top_harden_metrics:
+  design__max_slew_violation__count: {max: 0, kind: max_slew_violation, check: max slew}
+  design__max_cap_violation__count: {max: 0, kind: max_cap_violation, check: max capacitance}
+
 gates:
   vde:
     spec_lint:
@@ -382,7 +392,8 @@ gates:
         The digital side hardens in the TT tile with the analog GDS as a
         macro: the flow finishes with no failing step and produces GDS,
         LEF, netlist, SDF, metrics; the signoff metrics are present and
-        inside harden_metrics' limits.
+        inside harden_metrics' limits, and no max_slew or max_cap
+        violation at any corner (top_harden_metrics).
     top_drc:
       phase: P3
       tool: top_drc

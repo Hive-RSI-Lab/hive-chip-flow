@@ -333,19 +333,21 @@ def footprint_um(spec: dict) -> dict | None:
 
 def harden_signoff(spec: dict) -> dict | None:
     """spec.yaml's optional `harden_signoff` ({} when absent), or None when
-    malformed: ir_budget_pct a number in (0, 100], floating_nets_waived a
-    mapping of net name to a non-empty reason."""
+    malformed: ir_budget_pct a number in (0, 100], floating_nets_waived and
+    drv_pins_waived each a mapping of net or pin name to a non-empty
+    reason."""
     hs = spec.get("harden_signoff", {}) if isinstance(spec, dict) else {}
     if not isinstance(hs, dict) \
-            or set(hs) - {"ir_budget_pct", "floating_nets_waived"}:
+            or set(hs) - {"ir_budget_pct", "floating_nets_waived",
+                          "drv_pins_waived"}:
         return None
     if "ir_budget_pct" in hs:
         v = hs["ir_budget_pct"]
         if isinstance(v, bool) or not isinstance(v, (int, float)) \
                 or not 0 < v <= 100:
             return None
-    if "floating_nets_waived" in hs:
-        w = hs["floating_nets_waived"]
+    for key in ("floating_nets_waived", "drv_pins_waived"):
+        w = hs.get(key, {})
         if not isinstance(w, dict) or not all(
                 isinstance(r, str) and r.strip() for r in w.values()):
             return None
@@ -663,8 +665,9 @@ def lint_spec(spec: dict, rel_path: str = "spec/spec.yaml") -> list[dict]:
 
     if harden_signoff(spec) is None:
         bad("bad_harden_signoff",
-            "'harden_signoff' takes ir_budget_pct (a number in (0, 100]) and "
-            "floating_nets_waived ({net: non-empty reason}), nothing else")
+            "'harden_signoff' takes ir_budget_pct (a number in (0, 100]), "
+            "floating_nets_waived ({net: non-empty reason}) and "
+            "drv_pins_waived ({pin: non-empty reason}), nothing else")
 
     clock = spec.get("clock")
     if clock is not None:
