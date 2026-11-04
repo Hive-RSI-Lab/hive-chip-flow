@@ -141,6 +141,11 @@ artifact_kinds:
   # the macro_lib gate's liberty and clock ceilings (engine/lib/macrolib.py)
   macro_lib:     {path: "macro_lib", norm: dir_text}
   digital_sdc:   {path: "digital/harden/constraints.sdc", norm: text_eol}
+  # the assembled top's harden config override (check_top_harden.
+  # top_override): the integrator's own top.override.json when there is
+  # one, else the digital side's; both optional
+  top_override:     {path: "top.override.json", norm: json_canonical}
+  digital_override: {path: "digital/harden/config.override.json", norm: json_canonical}
   # The PDK (#138). A path starting ${PDK_ROOT} is resolved against the
   # toolchain's gf180mcuD tree (bin/eda --print-toolchain-root), not the
   # workspace; it hashes to None where there is no toolchain. A new image,
@@ -258,11 +263,12 @@ gate_inputs:
                pdk_version, pdk_models]
     # check_top_harden.assemble: interface.yaml (signals, widths, ua_pins,
     # tiles), the digital spec.yaml (ports, tt_pins, everything copied into
-    # top/spec), digital/rtl, digital/harden/constraints.sdc or top.sdc, and
-    # the analog macro: layout generator + netlist + sizing (the sized
-    # .subckt it writes to top/macros) + analog spec.yaml's `top`. The
-    # digital side's harden config.json/override are NOT read: top/ is
-    # rebuilt from scratch and check_harden generates top/harden itself.
+    # top/spec), digital/rtl, digital/harden/constraints.sdc or top.sdc,
+    # digital/harden/config.override.json or top.override.json, and the
+    # analog macro: layout generator + netlist + sizing (the sized .subckt
+    # it writes to top/macros) + analog spec.yaml's `top`. The digital
+    # side's harden config.json is NOT read: top/ is rebuilt from scratch
+    # and check_harden generates top/harden/config.json itself.
     # macro_lib: the sized .subckt, the analog spec's macro_timing (limits,
     # arcs, clocks) and the models. The record a clock's ceiling comes from
     # and an extracted netlist are named in the spec, so no static artifact
@@ -272,8 +278,9 @@ gate_inputs:
                 pdk_version, pdk_models, pdk_liberty]
     top_harden: [digital_rtl, interface, digital_spec, analog_layout,
                  analog_netlist, analog_sizing, analog_spec, macro_lib, top_sdc,
-                 digital_sdc, pdk_version, pdk_liberty, pdk_librelane,
-                 pdk_magic, pdk_klayout, pdk_netgen]
+                 digital_sdc, top_override, digital_override, pdk_version,
+                 pdk_liberty, pdk_librelane, pdk_magic, pdk_klayout,
+                 pdk_netgen]
     top_drc:  [top_gds, top_spec, pdk_version, pdk_magic, pdk_klayout]
     # top_lvs: the GDS, the powered netlist and the macro .subckt in
     # top/macros; that .subckt derives from analog netlist + sizing, so
