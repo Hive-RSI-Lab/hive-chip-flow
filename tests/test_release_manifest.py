@@ -358,6 +358,95 @@ def test_msde_wrapper_with_no_power_pins_ships_the_powered_netlist(tmp_path, cap
         (v["kind"], v["file"]) for v in out["violations"]}
 
 
+# ------------------------------------------------- the template's power (#165)
+
+POWERED_BLACKBOX = ("// generated\nmodule macro(\n`ifdef USE_POWER_PINS\n"
+                    "    inout wire vdd, inout wire vss,\n`endif\n"
+                    "    input wire a, inout wire vout);\nendmodule\n")
+
+
+def make_spec_tile(tmp_path: Path, overlay: bool = False) -> Path:
+    """An msde top whose wrapper is what top/spec/spec.yaml generates, as
+    check_top_harden writes them; with overlay, a hand-kept tt/src that is
+    the powered project.v with its own header and the macro blackbox."""
+    import ttlib
+    ws = make_msde_tile(tmp_path)
+    spec = {"top": "pll",
+            "ports": {"n": {"dir": "input", "width": 2},
+                      "a": {"dir": "output", "width": 1},
+                      "lock": {"dir": "output", "width": 1}},
+            "tt_pins": {"n": "ui_in[1:0]", "lock": "uo_out[0]"},
+            "macros": [{"cell": "macro", "instance": "u_analog",
+                        "pins": {"a": "a"}, "ua": {"vout": 0},
+                        "power": {"vdd": "vdd", "vss": "vss"}}]}
+    (ws / "top" / "spec").mkdir(exist_ok=True)
+    (ws / "top" / "spec" / "spec.yaml").write_text(json.dumps(spec))
+    (ws / "top" / "harden" / f"{TOP}.v").write_text(ttlib.generate_tt_wrapper(spec))
+    (ws / "top" / "macros" / "macro.v").write_text(POWERED_BLACKBOX)
+    if overlay:
+        (ws / "tt" / "src").mkdir(parents=True)
+        (ws / "tt" / "src" / "project.v").write_text(
+            "/* the PLL's top, kept by hand */\n"
+            + ttlib.generate_tt_project(spec).split("\n", 1)[1])
+        (ws / "tt" / "src" / "macro.v").write_text(POWERED_BLACKBOX)
+    regate(ws)
+    return ws
+
+
+def test_generated_project_has_the_template_power_ports(tmp_path, capsys):
+    ws = make_spec_tile(tmp_path)
+    released(ws, capsys)
+    tree = ws / "release" / "tt"
+    proj = (tree / "src" / "project.v").read_text()
+    assert "input  wire       VGND," in proj and "input  wire       VDPWR," in proj
+    assert ".vdd(VDPWR)," in proj and ".vss(VGND)," in proj
+    assert ttship._has_power_pins(tree / "src" / "project.v")
+    assert "verilog_path: src/project.v" in (tree / ".github/workflows/gds.yaml").read_text()
+    entry = by_path(manifest(ws))["src/project.v"]
+    assert entry["source"] == f"top/harden/{TOP}.v" and entry["gates"]
+    assert entry["derived"] == "ttship.powered_project"
+    assert verify(capsys, ws)[0] == 0
+
+
+def test_hand_kept_powered_project_ties_with_no_waiver(tmp_path, capsys):
+    ws = make_spec_tile(tmp_path, overlay=True)
+    released(ws, capsys)
+    files = by_path(manifest(ws))
+    assert files["src/project.v"]["agrees_with"] == f"top/harden/{TOP}.v"
+    assert files["src/project.v"]["gates"] and "waiver" not in files["src/project.v"]
+    assert files["src/macro.v"]["agrees_with"] == "top/macros/macro.v"
+
+
+def _refused(ws: Path, capsys) -> list[dict]:
+    code = check_release.main(["--workspace", str(ws)])
+    out = json.loads(capsys.readouterr().out)
+    assert code == 1, out
+    return [v for v in out["violations"] if v["kind"] == "deliverable_untied"]
+
+
+def test_hand_kept_powered_project_with_a_fault_refuses(tmp_path, capsys):
+    ws = make_spec_tile(tmp_path, overlay=True)
+    proj = ws / "tt" / "src" / "project.v"
+    good = proj.read_text()
+    for fault in (("ui_in[1:0]", "{ui_in[0], ui_in[1]}"),   # swapped bits
+                  (".vdd(VDPWR)", ".vdd(VGND)")):           # supply on ground
+        assert fault[0] in good
+        proj.write_text(good.replace(*fault))
+        v = _refused(ws, capsys)
+        assert len(v) == 1 and "src/project.v" in v[0]["msg"], v
+
+
+def test_powered_project_ties_only_while_the_spec_makes_the_hardened_wrapper(tmp_path, capsys):
+    ws = make_spec_tile(tmp_path, overlay=True)
+    spec_path = ws / "top" / "spec" / "spec.yaml"
+    spec = json.loads(spec_path.read_text())
+    spec["tt_pins"]["n"] = "ui_in[3:2]"
+    spec_path.write_text(json.dumps(spec))
+    regate(ws)
+    v = _refused(ws, capsys)
+    assert len(v) == 1 and "src/project.v" in v[0]["msg"], v
+
+
 def test_msde_with_a_powered_top_ships_it_and_has_no_gl_job(tmp_path, capsys):
     ws = make_msde_tile(tmp_path)
     released(ws, capsys)

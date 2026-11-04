@@ -440,12 +440,34 @@ def _stage_gl_test(ws: Path, put) -> None:
     put("test/requirements.txt", TEST_REQUIREMENTS.encode("utf-8"))
 
 
+def powered_project(ws: Path, top: str) -> str | None:
+    """The analog template's src/project.v for an msde top: the hardened
+    wrapper with VGND/VDPWR ports and the macros' power tied to them
+    (ttlib.generate_tt_project). None unless top/spec/spec.yaml regenerates
+    top/harden/<top>.v byte for byte, so it holds the same logic the gates
+    signed and differs from it only in the power lines (#165)."""
+    spec_path = Path(ws) / "top" / "spec" / "spec.yaml"
+    wrapper = Path(ws) / "top" / "harden" / f"{top}.v"
+    if not (spec_path.is_file() and wrapper.is_file()):
+        return None
+    try:
+        spec = yaml.safe_load(spec_path.read_text(encoding="utf-8")) or {}
+        if (ttlib.wrapper_name(spec) != top
+                or ttlib.generate_tt_wrapper(spec) != wrapper.read_text(encoding="utf-8")):
+            return None
+        return ttlib.generate_tt_project(spec)
+    except (ttlib.TTError, yaml.YAMLError, KeyError, TypeError, ValueError):
+        return None
+
+
 def stage_analog(ws: Path, dest: Path, sign: dict,
                  sources: dict | None = None) -> list[str]:
     """Write an msde tile's TT analog-project tree at `dest`.
 
     gds/ and lef/ are the signed-off top's. src/ is the wrapper top_harden
-    generated (as project.v) and the macro blackboxes from top/macros, or the
+    generated (as project.v, with the template's power ports and the macros'
+    power ties when powered_project can derive them) and the macro
+    blackboxes from top/macros, or the
     block's hand-kept tt/src/*.v instead when it has them, plus digital/rtl.
     info.yaml is tt/info.yaml, else top/harden/info.yaml; test/ is tt/test/*;
     the workflow is tt/workflows/*, else the custom_gds default, and one
@@ -457,6 +479,7 @@ def stage_analog(ws: Path, dest: Path, sign: dict,
     top = sign["top_module"]
     tt = ws / "tt"
     plan: dict[str, Path] = {}
+    powered = None
 
     def want(rel: str, src: Path) -> None:
         if rel in plan and plan[rel].read_bytes() != src.read_bytes():
@@ -471,6 +494,7 @@ def stage_analog(ws: Path, dest: Path, sign: dict,
             want(f"src/{p.name}", p)
     else:
         want("src/project.v", ws / "top" / "harden" / f"{top}.v")
+        powered = powered_project(ws, top)
         for p in sorted((ws / "top" / "macros").glob("*.v")):
             want(f"src/{p.name}", p)
     for p in sorted((ws / "digital" / "rtl").glob("*.v")):
@@ -489,7 +513,10 @@ def stage_analog(ws: Path, dest: Path, sign: dict,
     for rel, p in plan.items():
         out = dest / rel
         out.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(p, out)
+        if rel == ANALOG_NETLIST and powered is not None:
+            out.write_text(powered, encoding="utf-8")
+        else:
+            shutil.copyfile(p, out)
         written.append(rel)
         sources[rel] = p.relative_to(ws).as_posix()
     if not _has_power_pins(dest / ANALOG_NETLIST) and (ws / sign["gl"]).is_file():

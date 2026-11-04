@@ -6,6 +6,8 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -629,3 +631,50 @@ def test_harden_config_repairs_to_the_limits_timing_signs_off(tmp_path):
     for key in ("MAX_CAPACITANCE_CONSTRAINT", "MAX_TRANSITION_CONSTRAINT",
                 "MAX_FANOUT_CONSTRAINT"):
         assert key not in config
+
+
+def _powered_spec():
+    spec = _analog_spec({"vout": 0})
+    spec["macros"][0]["power"] = {"vdd": "vdd", "vss": "vss"}
+    return spec
+
+
+def test_project_carries_the_template_power_and_the_hardened_wrapper_does_not():
+    # #165: TT's analog template declares VGND/VDPWR on src/project.v; the
+    # hardened wrapper leaves them to LibreLane (VPWR/VGND on the tile)
+    spec = _powered_spec()
+    hard = ttlib.generate_tt_wrapper(spec)
+    proj = ttlib.generate_tt_project(spec)
+    assert "VGND" not in hard and "VDPWR" not in hard
+    head = proj.split(");")[0]
+    assert "input  wire       VGND," in head and "input  wire       VDPWR," in head
+    assert ("`ifdef USE_POWER_PINS\n      .vdd(VDPWR),\n      .vss(VGND),\n"
+            "`endif\n      .b(w_b)") in proj
+    # the same logic: only the power lines differ
+    extra = [ln for ln in proj.splitlines() if ln not in hard.splitlines()]
+    assert extra == ["    input  wire       VGND,", "    input  wire       VDPWR,",
+                     "`ifdef USE_POWER_PINS", "      .vdd(VDPWR),",
+                     "      .vss(VGND),", "`endif"]
+
+
+def test_project_of_a_macro_with_no_power_has_no_ties():
+    proj = ttlib.generate_tt_project(_analog_spec({"vout": 0}))
+    assert "VDPWR," in proj and "USE_POWER_PINS" not in proj
+
+
+@pytest.mark.slow
+@pytest.mark.skipif(not shutil.which("yosys"), reason="needs the eda image's yosys")
+def test_project_reads_as_tt_precheck_and_a_powered_sim_read_it(tmp_path):
+    # precheck's verilog_syntax_check is one `read_verilog -sv` with no
+    # defines; a GL/powered read defines USE_POWER_PINS
+    (tmp_path / "project.v").write_text(ttlib.generate_tt_project(_powered_spec()))
+    (tmp_path / "c.v").write_text(
+        "module c(\n`ifdef USE_POWER_PINS\n inout vdd, inout vss,\n`endif\n"
+        " input b, inout vout);\nendmodule\n"
+        "module t(input a, output b);\nassign b = a;\nendmodule\n")
+    for defs in ([], ["-DUSE_POWER_PINS"]):
+        r = subprocess.run(["yosys", "-q", "-p",
+                            f"read_verilog -sv {' '.join(defs)} project.v c.v; "
+                            "hierarchy -check -top tt_um_t"],
+                           cwd=tmp_path, capture_output=True, text=True)
+        assert r.returncode == 0, r.stderr + r.stdout

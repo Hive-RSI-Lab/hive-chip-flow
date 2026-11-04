@@ -385,11 +385,18 @@ def wrapper_name(spec: dict) -> str:
     return top if top.startswith("tt_um_") else f"tt_um_{top}"
 
 
-def generate_tt_wrapper(spec: dict, tiles: str | None = None) -> str:
+def generate_tt_wrapper(spec: dict, tiles: str | None = None,
+                        power: bool = False) -> str:
     """The Verilog source of `tt_um_<top>.v`: the fixed TT interface,
     instantiating spec['top'] with every port wired per tt_pins. Raises
     TTError (never emits invalid Verilog) when validate_tt_pins() would
-    report a problem."""
+    report a problem.
+
+    power=True is the analog project's shipped `src/project.v`
+    (generate_tt_project): the TT analog template's `VGND`/`VDPWR` ports,
+    and each macro's spec `power` pins tied to them under USE_POWER_PINS,
+    where its blackbox declares them. The hardened wrapper is power=False:
+    LibreLane gives the tile its own VPWR/VGND."""
     problems = validate_tt_pins(spec, tiles)
     if problems:
         raise TTError("tt_pins does not fit the tile: " + "; ".join(problems))
@@ -471,6 +478,8 @@ def generate_tt_wrapper(spec: dict, tiles: str | None = None) -> str:
         "`default_nettype none",
         "",
         f"module {wname} (",
+        *(["    input  wire       VGND,",
+           "    input  wire       VDPWR,"] if power else []),
         "    input  wire [7:0] ui_in,",
         "    output wire [7:0] uo_out,",
         "    input  wire [7:0] uio_in,",
@@ -490,6 +499,7 @@ def generate_tt_wrapper(spec: dict, tiles: str | None = None) -> str:
         "",
         *[line for m in spec.get("macros") or [] for line in (
             f"  {m['cell']} {m['instance']} (",
+            *(_macro_power(m) if power else []),
             ",\n".join([*(f"      .{pin}(w_{port})"
                          for pin, port in sorted(m["pins"].items())),
                        *(f"      .{pin}(ua[{k}])"
@@ -509,6 +519,25 @@ def generate_tt_wrapper(spec: dict, tiles: str | None = None) -> str:
         "",
     ]
     return "\n".join(lines)
+
+
+def _macro_power(macro: dict) -> list[str]:
+    """A macro's power pins on the template's rails, under USE_POWER_PINS
+    as its blackbox declares them; a macro with no spec `power` gets none."""
+    pw = macro.get("power") or {}
+    if not (pw.get("vdd") and pw.get("vss")):
+        return []
+    return ["`ifdef USE_POWER_PINS",
+            f"      .{pw['vdd']}(VDPWR),",
+            f"      .{pw['vss']}(VGND),",
+            "`endif"]
+
+
+def generate_tt_project(spec: dict, tiles: str | None = None) -> str:
+    """The analog project's `src/project.v`: generate_tt_wrapper with the
+    template's power ports and the macros' power ties (power=True). Same
+    logic as the hardened wrapper, which differs only in those lines."""
+    return generate_tt_wrapper(spec, tiles, power=True)
 
 
 def generate_glsim_harness(spec: dict, dut_instance: str = "dut",
