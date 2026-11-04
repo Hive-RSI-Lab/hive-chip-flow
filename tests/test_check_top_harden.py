@@ -262,11 +262,9 @@ def test_top_sdc_refuses_several_clocks_with_no_sdc_and_is_none_for_one(
     assert check_top_harden.top_sdc(ws, one, PLL_MACRO) is None
 
 
-def test_assemble_writes_the_top_sdc_after_clearing_top(tmp_path,
-                                                        monkeypatch):
-    """assemble() rmtrees top/ each run, so a hand-written
-    top/harden/constraints.sdc never survives; the one it writes itself
-    is there afterwards, from the digital side's SDC."""
+def _assemble_ws(tmp_path: Path, monkeypatch) -> Path:
+    """A PLL-shaped msde workspace assemble() can run on, the analog macro
+    and its placement faked out."""
     import yaml
 
     ws = _sdc_ws(tmp_path, PLL_SDC, None)
@@ -283,9 +281,6 @@ def test_assemble_writes_the_top_sdc_after_clearing_top(tmp_path,
         {"name": "vco_out", "direction": "a2d"},
         {"name": "code", "direction": "d2a", "width": 2}]}),
         encoding="utf-8")
-    stale = ws / "top" / "harden" / "constraints.sdc"
-    stale.parent.mkdir(parents=True)
-    stale.write_text("# by hand\n")
 
     def fake_macro(analog, signals, macros_dir, ua, widths):
         return {"cell": "a", "instance": "u_analog", "orientation": "N",
@@ -300,12 +295,83 @@ def test_assemble_writes_the_top_sdc_after_clearing_top(tmp_path,
                         lambda macro: [])
     monkeypatch.setattr(check_top_harden, "power_location",
                         lambda macro, die, start, *_a: start)
+    return ws
+
+
+def test_assemble_writes_the_top_sdc_after_clearing_top(tmp_path,
+                                                        monkeypatch):
+    """assemble() rmtrees top/ each run, so a hand-written
+    top/harden/constraints.sdc never survives; the one it writes itself
+    is there afterwards, from the digital side's SDC."""
+    ws = _assemble_ws(tmp_path, monkeypatch)
+    stale = ws / "top" / "harden" / "constraints.sdc"
+    stale.parent.mkdir(parents=True)
+    stale.write_text("# by hand\n")
     top, spec = check_top_harden.assemble(ws)
     sdc = (top / "harden" / "constraints.sdc").read_text()
     assert "# by hand" not in sdc
     assert "create_clock -name vco_out -period 2.7 " \
         "[get_pins {u_analog/vco_out}]" in sdc
     assert "vco_out" not in spec["tt_pins"]
+
+
+# the PLL's digital override: a clock buffer for the clocks it drives out on
+# uo_out[0]/[1], and the resizer kept off those pads
+PLL_OVERRIDE = {
+    "RSZ_DONT_TOUCH_RX": "^(uo_out\\[[01]\\])$",
+    "SYNTH_BUFFER_CELL": "gf180mcu_fd_sc_mcu7t5v0__clkbuf_8/I/Z",
+}
+
+
+def test_top_override_carries_the_digital_one_and_the_integrators_wins(
+        tmp_path):
+    ws = _sdc_ws(tmp_path, None, None)
+    assert check_top_harden.top_override(ws) == {}
+    (ws / "digital" / "harden" / "config.override.json").write_text(
+        json.dumps({"//": "why", **PLL_OVERRIDE}))
+    assert check_top_harden.top_override(ws) == PLL_OVERRIDE
+    (ws / "top.override.json").write_text(
+        json.dumps({"SYNTH_BUFFER_CELL": "x/I/Z"}))
+    assert check_top_harden.top_override(ws) == {"SYNTH_BUFFER_CELL": "x/I/Z"}
+
+
+@pytest.mark.parametrize("rel", ["top.override.json",
+                                 "digital/harden/config.override.json"])
+def test_top_override_refuses_a_key_the_engine_owns(tmp_path, rel):
+    ws = _sdc_ws(tmp_path, None, None)
+    (ws / rel).write_text(json.dumps({"CLOCK_PERIOD": 10}))
+    with pytest.raises(CheckError, match=re.escape(rel)):
+        check_top_harden.top_override(ws)
+    (ws / rel).write_text("{not json")
+    with pytest.raises(CheckError, match="not valid JSON"):
+        check_top_harden.top_override(ws)
+
+
+def test_assemble_carries_the_digital_override_into_top_harden(
+        tmp_path, monkeypatch):
+    """top/ is rebuilt every run, so the digital side's override is what
+    reaches the top's check_harden (which reads top/harden/
+    config.override.json): without it the top synthesises the default
+    buffer onto the clocks the digital harden had fixed."""
+    ws = _assemble_ws(tmp_path, monkeypatch)
+    top, _spec = check_top_harden.assemble(ws)
+    assert not (top / "harden" / "config.override.json").exists()
+    (ws / "digital" / "harden" / "config.override.json").write_text(
+        json.dumps(PLL_OVERRIDE))
+    top, _spec = check_top_harden.assemble(ws)
+    got = json.loads((top / "harden" / "config.override.json").read_text())
+    assert got == PLL_OVERRIDE
+    # with no SDC to write, top/harden is still made for the override
+    (ws / "digital" / "harden" / "constraints.sdc").unlink()
+    monkeypatch.setitem(PLL_DSPEC, "clock",
+                        {"period_ns": 80, "domains": ["clk"]})
+    import yaml
+    ws.joinpath("digital", "spec", "spec.yaml").write_text(
+        yaml.safe_dump(PLL_DSPEC), encoding="utf-8")
+    top, _spec = check_top_harden.assemble(ws)
+    assert not (top / "harden" / "constraints.sdc").exists()
+    assert json.loads((top / "harden" / "config.override.json")
+                      .read_text()) == PLL_OVERRIDE
 
 
 # ---------------------------------------------------- the magic Tcl script
@@ -1051,13 +1117,21 @@ def test_top_harden_hashes_the_sdcs_the_top_is_built_from(tmp_path):
     imap = statelib.load_map()
     kinds = imap["gate_inputs"]["msde"]["top_harden"]
     assert kinds[0] == "digital_rtl"
-    for kind, rel in (("top_sdc", "top.sdc"),
-                      ("digital_sdc", "digital/harden/constraints.sdc")):
+    for kind, rel, a, b in (
+            ("top_sdc", "top.sdc",
+             "create_clock -name a\n", "create_clock -name b\n"),
+            ("digital_sdc", "digital/harden/constraints.sdc",
+             "create_clock -name a\n", "create_clock -name b\n"),
+            # and the override check_top_harden.top_override carries in
+            ("top_override", "top.override.json",
+             '{"SYNTH_BUFFER_CELL": "a"}', '{"SYNTH_BUFFER_CELL": "b"}'),
+            ("digital_override", "digital/harden/config.override.json",
+             '{"SYNTH_BUFFER_CELL": "a"}', '{"SYNTH_BUFFER_CELL": "b"}')):
         assert kind in kinds
         path = tmp_path / rel
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text("create_clock -name a\n", encoding="utf-8")
+        path.write_text(a, encoding="utf-8")
         before = statelib.hash_kind(tmp_path, kind, imap)[1]
-        path.write_text("create_clock -name b\n", encoding="utf-8")
+        path.write_text(b, encoding="utf-8")
         assert statelib.hash_kind(tmp_path, kind, imap)[1] != before, kind
     assert "top_sdc" in imap["edit_classes"]["msde"]["top_sdc_edit"]["mutates"]

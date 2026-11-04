@@ -70,6 +70,13 @@ bit named outside `get_ports`), or the top needs other clocks, write
 `<ws>/top.sdc` yourself against the top's ports and `u_analog/<pin>`; it
 is used as it is. Never write under `top/`: it is rebuilt every run.
 
+The top's harden takes the digital side's `harden/config.override.json`
+too (`top_harden` copies it to `top/harden/`), so a knob the digital
+harden needed, such as `SYNTH_BUFFER_CELL` or `RSZ_DONT_TOUCH_RX` on a
+clock pad, holds in the top. When the top needs different knobs, write
+`<ws>/top.override.json` beside `top.sdc`; it is used instead, with the
+same keys refused as in the digital override.
+
 The cosim bench builds its bridge as `CosimBridge` (`from cosimlib import
 CosimBridge`, `engine/lib/cosimlib.py`), not the bare
 `MixedSignalBridge`, and carries each a2d crossing net in its top as a

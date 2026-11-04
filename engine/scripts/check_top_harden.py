@@ -24,6 +24,11 @@ with M4's own harden (check_harden.run, the same LibreLane job):
                       ([get_ports {ui_in[3]}] -> [get_pins
                       {u_analog/vco_out}]; top_sdc). top/ is rebuilt every
                       run, so a file written there by hand never survives
+  top/harden/config.override.json
+                      the top's harden config override (top_override): the
+                      integrator's <ws>/top.override.json when there is one,
+                      else a copy of digital/harden/config.override.json,
+                      validated as check_harden validates the digital one
   top/macros/         the analog cell as LibreLane takes a macro: its GDS
                       (layout_gen, rebuilt from analog/layout/gen_<block>.py
                       like every ade layout gate does), a LEF abstract magic
@@ -116,6 +121,9 @@ SCRIPT = "check_top_harden"
 TOP_DIR = "top"
 # the integrator's SDC for the assembled top, beside interface.yaml
 TOP_SDC_NAME = "top.sdc"
+# the integrator's harden config override for the assembled top, beside
+# top.sdc (top_override)
+TOP_OVERRIDE_NAME = "top.override.json"
 INSTANCE = "u_analog"
 VDD_RE = re.compile(r"^(a?vdd|vpwr|vcc)", re.IGNORECASE)
 VSS_RE = re.compile(r"^(a?vss|gnd|vgnd)", re.IGNORECASE)
@@ -898,6 +906,26 @@ def top_sdc(ws: Path, dspec: dict, macro: dict) -> str | None:
     return None
 
 
+def top_override(ws: Path) -> dict:
+    """The top's harden config override: the integrator's
+    <ws>/top.override.json when there is one, else the digital side's
+    harden/config.override.json, so a knob the digital harden needed
+    (SYNTH_BUFFER_CELL, RSZ_DONT_TOUCH_RX on a clock pad) holds in the top
+    too; {} when neither exists. Both are validated as
+    ttlib.load_harden_override validates the digital one, so a key the
+    template or the engine owns is refused here, naming the file
+    (the TTError message, which already carries the path)."""
+    for rel in (TOP_OVERRIDE_NAME,
+                f"digital/harden/{ttlib.HARDEN_OVERRIDE_NAME}"):
+        path = ws / rel
+        if path.is_file():
+            try:
+                return ttlib.load_harden_override(path)
+            except ttlib.TTError as exc:
+                raise CheckError(str(exc)) from None
+    return {}
+
+
 def macro_abstract(ws: Path, analog: Path, macro: dict, top: Path) -> dict | None:
     """The macro_lib gate's output delivered into top/macros, with the clock
     ceilings read again from the record (a record re-run after the gate must
@@ -1041,9 +1069,15 @@ def assemble(ws: Path) -> tuple[Path, dict]:
     if sdc is not None:
         if abstract:
             sdc = macrolib.period_table_tcl(abstract["ceilings"]) + sdc
-        (top / "harden").mkdir()
+        (top / "harden").mkdir(exist_ok=True)
         sdc_path = top / "harden" / ttlib.HARDEN_SDC_NAME
         sdc_path.write_text(sdc, encoding="utf-8")
+    override = top_override(ws)
+    if override:
+        (top / "harden").mkdir(exist_ok=True)
+        (top / "harden" / ttlib.HARDEN_OVERRIDE_NAME).write_text(
+            json.dumps(override, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8")
     tspec["macro_clock_problems"] = macro_clock_problems(
         ws, abstract, macro, sdc, top, dspec)
     if tspec["macro_clock_problems"]:
