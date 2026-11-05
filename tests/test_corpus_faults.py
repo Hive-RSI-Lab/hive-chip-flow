@@ -3,7 +3,8 @@ through faults.py's own run_rung: the untouched reference passes every gate
 its faults/manifest.yaml names, and each planted fault is caught with the
 expected finding (docs/design.md section 3). tests/smoke-faults.sh does
 the same for vde by hand; these are marked slow, so tests/check-slow.sh
-(and its CI job) runs them, not tests/check.sh. Measured unmarked on
+(and its CI job) runs them, not tests/check.sh. Only the holdout check of
+references no manifest reaches is fast (seconds) and runs there. Measured unmarked on
 2026-10-15: the seven ade and msde rungs run here took about 45 s of CPU
 together (comparator 25 s, mirror 11 s, bandgap 7 s, the rest under 4 s
 each), and vde riscv 28 s, uart 25 s, spi_fifo 2 s.
@@ -72,6 +73,31 @@ def test_harden_faults_ci_matrix_runs_every_harden_rung():
     assert sorted(matrix) == want, (
         f"harden-faults.yml matrix {sorted(matrix)} != HARDEN_RUNGS "
         f"{want}: a rung missing there never runs on CI")
+
+
+def _holdouts_no_rung_runs() -> list[Path]:
+    """Reference designs whose held-out tests no fault run reaches: run_rung
+    runs only the gates a manifest names, and a side's own directory (an msde
+    rung's digital/) has no manifest at all."""
+    unreached = []
+    for holdout in sorted(CORPUS.glob("**/holdout")):
+        manifest = holdout.parent / "faults" / "manifest.yaml"
+        if not (manifest.exists() and "gate: holdout" in manifest.read_text()):
+            unreached.append(holdout.parent)
+    return unreached
+
+
+@pytest.mark.parametrize(
+    "design", _holdouts_no_rung_runs(),
+    ids=lambda d: str(d.relative_to(CORPUS)))
+def test_reference_passes_its_own_holdout(tmp_path, design):
+    """A reference failing its own held-out test went unseen on main (#207)."""
+    import check_holdout
+    import faults
+
+    ws = faults.make_scratch_workspace(tmp_path, design, "vde", design.name)
+    payload, _out = check_holdout.run(["--workspace", str(ws)])
+    assert payload["status"] == "pass", payload
 
 
 def _run(tmp_path, skill, rung):
