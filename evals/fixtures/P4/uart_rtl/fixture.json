@@ -5,6 +5,7 @@
  "stage": "P4",
  "source": "runs/uart-20260924/blocks/uart",
  "frozen_at": "2026-09-25T08:03:48+00:00",
+ "sim_frame": "block",
  "files": {
   "spec/spec.md": "5046753596645e6c52860aee8e0de2ccce172def7337f86df3d5bc43ff53a938",
   "spec/spec.yaml": "fc76d55294202113ee6a429e19be5f8659fbbb3e9e3599f5f5ace4ed74601232",

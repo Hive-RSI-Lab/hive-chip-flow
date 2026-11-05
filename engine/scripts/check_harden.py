@@ -420,6 +420,8 @@ def run(argv=None):
     wrapper_path = harden_dir / f"{ttlib.wrapper_name(spec)}.v"
     try:
         wrapper_path.write_text(ttlib.generate_tt_wrapper(spec), encoding="utf-8")
+        # the tile's rst_n path, opt-out included, in the gate record
+        pad_reset = ttlib.pad_reset_facts(spec)
     except ttlib.TTError as exc:
         raise CheckError(str(exc)) from exc
 
@@ -551,7 +553,8 @@ def run(argv=None):
                               run_tag=args.run_tag, resumed=resumed,
                               wall_s=wall_s,
                               run_dir=str(run_dir), metrics=metric_subset,
-                              qor=qor, signoff_metrics=signoff_table)
+                              qor=qor, signoff_metrics=signoff_table,
+                              pad_reset=pad_reset)
     return payload, args.out
 
 

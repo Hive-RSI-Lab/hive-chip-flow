@@ -7,6 +7,7 @@ import math
 import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import FallingEdge
+from padreset import pad_reset
 
 SINE = [int(math.floor(127.5 + 127.5 * math.sin(2 * math.pi * i / 256) + 0.5)) for i in range(256)]
 
@@ -19,17 +20,13 @@ async def test_one_clock_reset_clears_prescaler(dut):
     dut.ui_in.value = 0
     dut.mode.value = 2
     dut.slow.value = 1
-    dut.rst_n.value = 0
-    for _ in range(3):
-        await FallingEdge(dut.clk)
-    dut.rst_n.value = 1
+    # through the tile's pad when the gate runs it there (engine/lib/padreset)
+    await pad_reset(dut, dut.rst_n, 3, active=0)
     for _ in range(100):
         await FallingEdge(dut.clk)
     assert int(dut.dac_code.value) == SINE[0]
-    dut.rst_n.value = 0
+    await pad_reset(dut, dut.rst_n, 1, active=0)
     await FallingEdge(dut.clk)  # rst_n is registered: the reset acts on the next edge
-    dut.rst_n.value = 1
-    await FallingEdge(dut.clk)
     assert int(dut.dac_code.value) == 0
     seq = []
     for _ in range(260):
@@ -47,10 +44,7 @@ async def test_hold_after_excursion_from_ff(dut):
     dut.slow.value = 0
     dut.mode.value = 0
     dut.ui_in.value = 0
-    dut.rst_n.value = 0
-    for _ in range(2):
-        await FallingEdge(dut.clk)
-    dut.rst_n.value = 1
+    await pad_reset(dut, dut.rst_n, 2, active=0)
     await FallingEdge(dut.clk)  # rst_n is registered: release acts one clk late
     dut.ui_in.value = 0xFF
     await FallingEdge(dut.clk)

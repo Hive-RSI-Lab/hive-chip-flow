@@ -8,6 +8,7 @@ from pathlib import Path
 import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import FallingEdge, Timer
+from padreset import latency, pad_reset
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from dac_model import SINE, Model  # noqa: E402
@@ -21,15 +22,19 @@ async def setup(dut, mode=0, slow=0, ui=0, cycles=3):
     dut.ui_in.value = ui
     dut.mode.value = mode
     dut.slow.value = slow
-    dut.rst_n.value = 0
-    for _ in range(cycles):
-        await FallingEdge(dut.clk)
-    dut.rst_n.value = 1
+    # through the tile's pad when the gate runs it there (engine/lib/padreset)
+    await pad_reset(dut, dut.rst_n, cycles, active=0)
     await FallingEdge(dut.clk)  # rst_n is registered: release acts one clk late
 
 
 def val(sig):
     return int(sig.value)
+
+
+async def pad_edges(dut):
+    """the tile pad's synchroniser edges a reset change takes to reach the block"""
+    for _ in range(latency(dut)):
+        await FallingEdge(dut.clk)
 
 
 # req: REQ-RESET
@@ -39,6 +44,7 @@ async def test_reset_clears(dut):
     await FallingEdge(dut.clk)
     assert val(dut.dac_code) == 0xA5
     dut.rst_n.value = 0
+    await pad_edges(dut)
     await FallingEdge(dut.clk)  # registered reset: takes effect one clk later
     await FallingEdge(dut.clk)
     assert val(dut.dac_code) == 0
@@ -47,6 +53,7 @@ async def test_reset_clears(dut):
     assert val(dut.dac_code) == 0
     dut.rst_n.value = 1
     dut.mode.value = 1
+    await pad_edges(dut)
     await FallingEdge(dut.clk)  # release also acts one clk later
     await FallingEdge(dut.clk)
     assert val(dut.dac_code) == 0, "counter must restart from 0 after reset"
@@ -161,10 +168,11 @@ async def test_sine_table_all_entries(dut):
 async def test_random_mode_switching_against_model(dut):
     rng = random.Random(298)
     await setup(dut, mode=0)
-    m = Model()
+    m = Model(latency(dut))
     for _ in range(3):
         m.edge(0, 0, 0, 0)
-    m.edge(1, 0, 0, 0)  # setup's extra edge after release
+    for _ in range(latency(dut) + 1):  # pad_reset's edges, setup's extra one
+        m.edge(1, 0, 0, 0)
     prev_src = None
     for cyc in range(3000):
         mode = rng.randrange(4) if rng.random() < 0.3 else int(dut.mode.value)

@@ -14,19 +14,16 @@ running Timer loop, never tied to dut.clk."""
 import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import FallingEdge, RisingEdge, Timer
+from padreset import pad_reset
 
 CLK_PERIOD_NS = 20
 WINDOW_CYCLES = 1024
 
 
 async def _reset(dut, cycles=3):
-    dut.rst_n.value = 0
     dut.en.value = 0
     dut.osc_out.value = 0
-    await FallingEdge(dut.clk)
-    for _ in range(cycles):
-        await FallingEdge(dut.clk)
-    dut.rst_n.value = 1
+    await pad_reset(dut, dut.rst_n, cycles + 1, active=0)
     await FallingEdge(dut.clk)
 
 
@@ -43,11 +40,14 @@ async def _drive_osc(dut, period_ns):
 async def test_count_saturates_rather_than_wraps(dut):
     cocotb.start_soon(Clock(dut.clk, CLK_PERIOD_NS, unit="ns").start())
     await _reset(dut)
-    # far faster than any real ring oscillator this block models (~1-12MHz)
-    # but that realism is tb/'s job (REQ-COUNT's sim tests) - this test's
-    # only job is to push the edge count well past 255 in one window
-    # (1024 * 20ns / 4ns = 5120 possible edges) and confirm the clamp holds.
-    osc_period_ns = 4
+    # faster than any real ring oscillator this block models (~1-12MHz), but
+    # that realism is tb/'s job (REQ-COUNT's sim tests) - this test's only job
+    # is to push the edge count past 255 in one window. The edges are sampled
+    # on clk, so the period has to stay above two clk periods, and can't be a
+    # clean divisor of clk or every sample lands on the same level (4 ns here
+    # counted 1 edge, #207): 1024 * 20ns / 50ns = 409 edges, and a counter
+    # that wraps reads 153.
+    osc_period_ns = 50
     cocotb.start_soon(_drive_osc(dut, osc_period_ns))
     dut.en.value = 1
     await RisingEdge(dut.valid)

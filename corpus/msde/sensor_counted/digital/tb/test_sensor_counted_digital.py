@@ -10,6 +10,7 @@ catch alone)."""
 import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import ClockCycles, FallingEdge, RisingEdge, Timer
+from padreset import pad_reset
 
 CLK_PERIOD_NS = 20
 WINDOW_CYCLES = 1024
@@ -17,13 +18,9 @@ WINDOW_NS = WINDOW_CYCLES * CLK_PERIOD_NS
 
 
 async def _reset(dut, cycles=3):
-    dut.rst_n.value = 0
     dut.en.value = 0
     dut.osc_out.value = 0
-    await FallingEdge(dut.clk)
-    for _ in range(cycles):
-        await FallingEdge(dut.clk)
-    dut.rst_n.value = 1
+    await pad_reset(dut, dut.rst_n, cycles + 1, active=0)
     await FallingEdge(dut.clk)
 
 
