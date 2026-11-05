@@ -78,14 +78,14 @@
    "23": "signal induction"
   },
   "unproven_survivors": {},
-  "wall_s": 6.25
+  "wall_s": 8.96
  },
  "inputs_at_start": {
   "rtl": "dir_text:08d2e63a30253fb8dcb71be29ca5aa7209711132e317fcb0e4bc99f0e226a305",
-  "tb": "dir_text:3d7769f785322e639d37580c2e85e19fdd9b82876af0927410c75ad81d11554b",
+  "tb": "dir_text:36494c78915239a5337ef9fb4217811b3d62039a39316d33d42c1bc744bf4e6b",
   "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119",
   "mutant_rulings": null
  },
- "recorded_ts": "2026-10-13T04:21:08",
- "attempts": 5
+ "recorded_ts": "2026-11-05T07:08:08",
+ "attempts": 6
 }

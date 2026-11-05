@@ -5,18 +5,26 @@ SINE = [int(math.floor(127.5 + 127.5 * math.sin(2 * math.pi * i / 256) + 0.5)) f
 
 
 class Model:
-    def __init__(self):
+    def __init__(self, pad_latency=0):
         self.code = 0
         self.cnt = 0
         self.presc = 0
         self.dac = 0
-        self.rst_q = 0  # rst_n is registered once inside the block
+        # rst_n is registered once inside the block, after pad_latency flops
+        # of the tile's pad synchroniser (engine/lib/padreset.latency)
+        self.rst_chain = [0] * (1 + pad_latency)
+
+    @property
+    def rst_q(self):
+        """the reset the block acts on at the next edge"""
+        return self.rst_chain[-1]
 
     def sources(self, ui):
         return {0: ui, 1: self.cnt, 2: SINE[self.cnt], 3: self.code}
 
     def edge(self, rst_n, ui, mode, slow):
-        rst_eff, self.rst_q = self.rst_q, rst_n
+        rst_eff = self.rst_chain[-1]
+        self.rst_chain = [rst_n] + self.rst_chain[:-1]
         if not rst_eff:
             self.code = self.cnt = self.presc = self.dac = 0
             return self.dac
