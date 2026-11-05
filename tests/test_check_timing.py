@@ -504,8 +504,17 @@ def test_parse_signoff_reads_clock_gating():
     assert found["clock_gating_setup"] == []
 
 
+def test_parse_signoff_reads_recovery_and_removal():
+    found = check_timing.parse_signoff_checks(
+        _fixture("signoff_recovery_removal.txt"))
+    assert found["recovery"] == ["f0 (slack -0.70)"]
+    assert found["removal"] == ["f0 (slack -1.46)"]
+    assert found["min_period"] == [] and found["clock_gating_hold"] == []
+
+
 @pytest.mark.parametrize("drop", ["chipflow_section end",
-                                  "chipflow_section min_period"])
+                                  "chipflow_section min_period",
+                                  "chipflow_section recovery"])
 def test_parse_signoff_with_a_missing_marker_refuses(drop):
     text = "\n".join(ln for ln in CLEAN_SIGNOFF.splitlines() if ln != drop)
     with pytest.raises(check_timing.CheckError):
@@ -571,6 +580,9 @@ def test_multiple_clocks_are_a_fact_not_a_failure(tmp_path, monkeypatch, capsys)
     ("signoff_min_period.txt", {"min_period_violation",
                                 "min_pulse_width_violation"}),
     ("signoff_clock_gating.txt", {"clock_gating_violation"}),
+    # #195: a reset released too late and too early for the flop
+    ("signoff_recovery_removal.txt", {"recovery_violation",
+                                      "removal_violation"}),
 ])
 def test_signoff_checks_fail_with_positive_slack(tmp_path, monkeypatch, capsys,
                                                  fixture, kinds):
@@ -650,3 +662,53 @@ def test_real_opensta_catches_check_setup_and_signoff_faults(
     if not setup and not signoff:
         assert r["setup_ws"] > 0 and r["hold_ws"] > 0, r
         assert check_timing.signoff_violations(r, "tt_um_tiny2", []) == []
+
+
+# #195: one flop with an asynchronous active-low reset straight from a pad,
+# as counter8 is with its reset synchroniser removed.
+TINY3_NETLIST = """module tt_um_tiny3(input clk, input rst_n, input a, output y);
+ gf180mcu_fd_sc_mcu7t5v0__dffrnq_1 f0(.D(a), .RN(rst_n), .CLK(clk), .Q(y));
+endmodule
+"""
+TINY3_SPEF = (TINY_SPEF.split("*D_NET")[0].replace("tt_um_tiny", "tt_um_tiny3")
+              + "*D_NET y 0.001\n*CONN\n*I f0:Q O\n*P y O\n*END\n")
+TINY3_SDC = """create_clock -name clk -period 20 [get_ports clk]
+set_input_delay 1 -clock clk [get_ports a]
+set_output_delay 0 -clock clk [get_ports y]
+"""
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("rst_delay,section", [
+    # known-clean: the reset releases 1 ns into the cycle
+    ("set_input_delay 1 -clock clk [get_ports rst_n]\n", None),
+    # released 21 ns into a 20 ns cycle: past the next edge's recovery time
+    ("set_input_delay 21 -clock clk [get_ports rst_n]\n", "recovery"),
+    # released 1 ns before the edge that launched it: inside removal time
+    ("set_input_delay -max 1 -clock clk [get_ports rst_n]\n"
+     "set_input_delay -min -1 -clock clk [get_ports rst_n]\n", "removal"),
+])
+def test_real_opensta_names_recovery_and_removal(tmp_path, rst_delay, section):
+    """A recovery/removal miss is named as such, and the worst setup/hold
+    slack stays the data paths' own - before #195 OpenSTA's worst slack
+    folded the recovery path in and the gate called it a setup violation."""
+    corner = "nom_tt_025C_3v30"
+    final = tmp_path / "final"
+    for sub in ("nl", "sdc", "spef/nom"):
+        (final / sub).mkdir(parents=True)
+    (final / "nl" / "tt_um_tiny3.nl.v").write_text(TINY3_NETLIST, encoding="utf-8")
+    (final / "sdc" / "t.sdc").write_text(TINY3_SDC + rst_delay, encoding="utf-8")
+    (final / "spef" / "nom" / "tt_um_tiny3.nom.spef").write_text(
+        TINY3_SPEF, encoding="utf-8")
+    r = check_timing.run_corner(final, "tt_um_tiny3", corner,
+                                check_timing._pdk_root(), tmp_path,
+                                final / "sdc" / "t.sdc", "")
+    assert r["setup_ws"] > 0 and r["hold_ws"] > 0, r
+    for name in check_timing.SIGNOFF_SECTIONS:
+        if name == section:
+            assert [i.split()[0] for i in r["signoff"][name]] == ["f0"], r
+        else:
+            assert r["signoff"][name] == [], (name, r)
+    kinds = {v["kind"] for v in
+             check_timing.signoff_violations(r, "tt_um_tiny3", [])}
+    assert kinds == ({f"{section}_violation"} if section else set()), kinds

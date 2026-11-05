@@ -203,6 +203,11 @@ FIXER_HINTS: dict[str, str] = {
     "clock_gating_violation": "harden",
     "min_pulse_width_violation": "review",
     "min_period_violation": "review",
+    # recovery / removal (#195): an async reset's release too close to the
+    # clock edge. The fix is a reset synchroniser in the RTL (the same story
+    # as cdc's rdc_unsynced_release), not a harden setting - "rtl".
+    "recovery_violation": "rtl",
+    "removal_violation": "rtl",
 
     # drc (check_drc.py)
     "magic_drc_violation": "harden",
