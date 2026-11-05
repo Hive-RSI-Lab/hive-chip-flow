@@ -202,13 +202,14 @@ print(f"mutants={{tags()}} killed={{tags('KILLED')}} survived={{tags('SURVIVED')
     (mcy_dir / "config.mcy").write_text(config, encoding="utf-8")
 
 
-def run_mcy(mcy_dir: Path, mcy_real: Path, nproc: int) -> None:
+def run_mcy(mcy_dir: Path, mcy_real: Path, nproc: int,
+            run_timeout: float = RUN_TIMEOUT_S) -> None:
     def mcy(*args: str) -> subprocess.CompletedProcess:
         return checklib.run_group(
             [str(EDA_BIN), "python3", str(mcy_real), *args], cwd=str(mcy_dir),
             capture_output=True, text=True, encoding="utf-8", errors="replace",
             timeout=INIT_TIMEOUT_S if args and args[0] == "init"
-            else RUN_TIMEOUT_S)
+            else run_timeout)
 
     init = mcy("init")
     if init.returncode != 0:
@@ -742,6 +743,29 @@ def env_jobs() -> int | None:
     return n
 
 
+# RUN_TIMEOUT_S bounds the whole `mcy run`, every mutant's tb included. A
+# tb that runs at the block's real parameters (a debounce of 80k cycles, a
+# full UART message) takes minutes per mutant, so size/jobs batches of it
+# overrun 600 s on a healthy run. The env var raises the backstop there.
+RUN_TIMEOUT_ENV = "CHIP_FLOW_MUTATE_RUN_TIMEOUT"
+
+
+def env_run_timeout() -> float:
+    """${CHIP_FLOW_MUTATE_RUN_TIMEOUT} in seconds, RUN_TIMEOUT_S when unset
+    or empty; CheckError when it is set to anything but a number > 0."""
+    text = os.environ.get(RUN_TIMEOUT_ENV, "").strip()
+    if not text:
+        return RUN_TIMEOUT_S
+    try:
+        t = float(text)
+    except ValueError:
+        t = 0.0
+    if not t > 0:
+        raise CheckError(f"${RUN_TIMEOUT_ENV}={text!r} is not a number of "
+                         "seconds > 0")
+    return t
+
+
 def parse_args(argv=None) -> argparse.Namespace:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--workspace", required=True, help="block workspace")
@@ -793,7 +817,7 @@ def run(argv=None):
     write_config(mcy_dir, rtl_files, top, tb_dir, size, seed)
 
     t0 = time.monotonic()
-    run_mcy(mcy_dir, mcy_real, nproc)
+    run_mcy(mcy_dir, mcy_real, nproc, env_run_timeout())
 
     db_path = mcy_dir / "database" / "db.sqlite3"
     check_baseline(db_path)
