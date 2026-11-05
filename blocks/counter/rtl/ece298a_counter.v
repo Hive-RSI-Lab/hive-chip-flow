@@ -3,7 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  *
  * ECE 298A - 8-bit programmable binary counter with
- *   - asynchronous, active-low reset
+ *   - active-low reset: assert asynchronous, release through a two-flop
+ *     synchroniser, since rst_n comes off a pad asynchronous to clk
  *   - synchronous parallel load
  *   - count enable
  *   - tri-state output bus
@@ -52,18 +53,39 @@ module ece298a_counter (
   wire       do_load   = load & ~oe;
 
   // ---------------------------------------------------------------------
+  // Reset synchroniser
+  //
+  // rst_n falling clears both stages at once, with no clock edge. rst_n
+  // rising is only seen by the count after two rising clk edges, so its 8
+  // flops all leave reset on the same cycle and rst_n's own timing, which
+  // the pad doesn't relate to clk, can't break their recovery check.
+  // ---------------------------------------------------------------------
+  reg rst_meta;
+  reg rst_n_sync;
+
+  always @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      rst_meta   <= 1'b0;
+      rst_n_sync <= 1'b0;
+    end else begin
+      rst_meta   <= 1'b1;
+      rst_n_sync <= rst_meta;
+    end
+  end
+
+  // ---------------------------------------------------------------------
   // The counter itself
   //
-  // Asynchronous reset: rst_n appears in the sensitivity list, so the count
-  // clears the instant rst_n falls, without waiting for a clock edge.
-  // Everything else happens on the rising clock edge only.
+  // Asynchronous assert: rst_n_sync appears in the sensitivity list and falls
+  // with rst_n, so the count clears the instant rst_n falls, without waiting
+  // for a clock edge. Everything else happens on the rising clock edge only.
   //
   // Priority: reset > load (only when oe = 0) > count > hold.
   // ---------------------------------------------------------------------
   reg [7:0] count;
 
-  always @(posedge clk or negedge rst_n) begin
-    if (!rst_n) begin
+  always @(posedge clk or negedge rst_n_sync) begin
+    if (!rst_n_sync) begin
       count <= 8'h00;          // asynchronous clear
     end else if (do_load) begin
       count <= load_data;      // synchronous load, beats counting; only with oe = 0

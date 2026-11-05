@@ -1,8 +1,32 @@
 {
  "skill": "vde",
  "block": "counter",
- "ts": "2026-10-29T22:47:38",
+ "ts": "2026-11-05T00:19:16",
+ "pdk": {
+  "name": "gf180mcuD",
+  "open_pdks": "1689ac3f2dc763876eaf967227c7dfe831b031ae",
+  "ciel": "1689ac3f2dc763876eaf967227c7dfe831b031ae"
+ },
  "checks": [
+  {
+   "gate": "cdc",
+   "applies": true,
+   "ran": true,
+   "ok": true,
+   "tool": "cdc",
+   "version": 1,
+   "status": "pass",
+   "attempts": 4,
+   "ts": "2026-11-01T11:10:41",
+   "inputs": {
+    "rtl": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
+    "spec_yaml_sans_formal": "json_canonical_sans_formal:ec426c58dd9f2334b09759284010f4068e5638e331ac28be8742ab3fee1e7b69",
+    "cdc_waivers": null,
+    "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+    "pdk_liberty": "dir_bytes:f09377f057ab484ec9e5a45b205c99a5de399e2bdca886531bf9eefa57783f32"
+   },
+   "reason": null
+  },
   {
    "gate": "cover",
    "applies": true,
@@ -11,12 +35,12 @@
    "tool": "cover",
    "version": 1,
    "status": "pass",
-   "attempts": 2,
-   "ts": "2026-10-29T22:34:25",
+   "attempts": 3,
+   "ts": "2026-11-01T11:10:38",
    "inputs": {
-    "rtl": "dir_text:76d0d45a5f2e829e5f862f5a22721b24d3fd4936126ddf971e6f241e20027591",
-    "tb": "dir_text:046f330442f57502d8041e15f22ad512664b589612acb04472c739010036463d",
-    "spec_yaml": "json_canonical:035dc2a7da7c3eac5b620c4052f5a3b8506ac0592e6e9b9505162542dba6c2d4"
+    "rtl": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
+    "tb": "dir_text:44b914540eb555744ca22e68ecb3bfc12d4b674941a109098e2120116c7518de",
+    "spec_yaml": "json_canonical:969b0fe1155ae8e297f5db8ca34afc10e02ba481ea588d4287af70b8e371a5b7"
    },
    "reason": null
   },
@@ -28,11 +52,14 @@
    "tool": "drc",
    "version": 1,
    "status": "pass",
-   "attempts": 4,
-   "ts": "2026-10-29T22:45:45",
+   "attempts": 5,
+   "ts": "2026-11-05T00:12:05",
    "inputs": {
-    "harden": "harden_signoff:b4863ae9e97e298503dd6b60d5febc415ed25ef2fafa2e4edab39efd58aaab21",
-    "spec_yaml_sans_formal": "json_canonical_sans_formal:9cd947b44c33253dec630a4cdf770696ba55c1f631025236036335a3e34ed69f"
+    "harden": "harden_signoff:4d718538b2e7f271af41031d0bcb0116a7a42974690a3901ca86c719ebce5c7e",
+    "spec_yaml_sans_formal": "json_canonical_sans_formal:ec426c58dd9f2334b09759284010f4068e5638e331ac28be8742ab3fee1e7b69",
+    "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+    "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
+    "pdk_klayout": "dir_text:876da90e8aab65b830b36eca12bd720adfe8240a0952872419d9f2b4abda605d"
    },
    "reason": null
   },
@@ -44,12 +71,12 @@
    "tool": "formal",
    "version": 1,
    "status": "pass",
-   "attempts": 2,
-   "ts": "2026-10-29T22:33:58",
+   "attempts": 3,
+   "ts": "2026-11-01T11:10:28",
    "inputs": {
-    "rtl": "dir_text:76d0d45a5f2e829e5f862f5a22721b24d3fd4936126ddf971e6f241e20027591",
-    "formal": "dir_text:02279b0cf4db97f9c14d9395c95b046926101685d3decba1f9d6de945c381668",
-    "spec_yaml": "json_canonical:035dc2a7da7c3eac5b620c4052f5a3b8506ac0592e6e9b9505162542dba6c2d4"
+    "rtl": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
+    "formal": "dir_text:9d98f2365c459e0bd46ca5ed9391ba21316ad174e11a70a83552254f153b8cb3",
+    "spec_yaml": "json_canonical:969b0fe1155ae8e297f5db8ca34afc10e02ba481ea588d4287af70b8e371a5b7"
    },
    "reason": null
   },
@@ -61,12 +88,13 @@
    "tool": "glsim",
    "version": 1,
    "status": "pass",
-   "attempts": 4,
-   "ts": "2026-10-29T22:46:20",
+   "attempts": 5,
+   "ts": "2026-11-05T00:15:33",
    "inputs": {
-    "harden": "harden_signoff:b4863ae9e97e298503dd6b60d5febc415ed25ef2fafa2e4edab39efd58aaab21",
-    "tb": "dir_text:046f330442f57502d8041e15f22ad512664b589612acb04472c739010036463d",
-    "spec_yaml_sans_formal": "json_canonical_sans_formal:9cd947b44c33253dec630a4cdf770696ba55c1f631025236036335a3e34ed69f"
+    "harden": "harden_signoff:4d718538b2e7f271af41031d0bcb0116a7a42974690a3901ca86c719ebce5c7e",
+    "tb": "dir_text:44b914540eb555744ca22e68ecb3bfc12d4b674941a109098e2120116c7518de",
+    "spec_yaml_sans_formal": "json_canonical_sans_formal:ec426c58dd9f2334b09759284010f4068e5638e331ac28be8742ab3fee1e7b69",
+    "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2"
    },
    "reason": null
   },
@@ -78,15 +106,21 @@
    "tool": "harden",
    "version": 1,
    "status": "pass",
-   "attempts": 4,
-   "ts": "2026-10-29T22:44:43",
+   "attempts": 5,
+   "ts": "2026-11-05T00:08:50",
    "inputs": {
-    "rtl": "dir_text:76d0d45a5f2e829e5f862f5a22721b24d3fd4936126ddf971e6f241e20027591",
+    "rtl": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
     "harden_config": "json_canonical_sans_roots:f86ce9db491412ccc0ac48e5d05139a34f8fef6e05c529c9239f10a4c3cd2de4",
     "harden_override": null,
     "harden_sdc": null,
     "harden_info": "json_canonical:f695957862502907d834adb8801ec93f4f59eaf89bf74f8192f72bb3c514eba1",
-    "spec_yaml_sans_formal": "json_canonical_sans_formal:9cd947b44c33253dec630a4cdf770696ba55c1f631025236036335a3e34ed69f"
+    "spec_yaml_sans_formal": "json_canonical_sans_formal:ec426c58dd9f2334b09759284010f4068e5638e331ac28be8742ab3fee1e7b69",
+    "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+    "pdk_liberty": "dir_bytes:f09377f057ab484ec9e5a45b205c99a5de399e2bdca886531bf9eefa57783f32",
+    "pdk_librelane": "dir_text:34d9ac7321e45f53bb312360322931fa53cbee081929f4bd7047d6e84b5fdb37",
+    "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
+    "pdk_klayout": "dir_text:876da90e8aab65b830b36eca12bd720adfe8240a0952872419d9f2b4abda605d",
+    "pdk_netgen": "dir_text:8164f65bb7d1bef6e27af4c13b1c6ede50973cec7aec482556abb23881aceb04"
    },
    "reason": null
   },
@@ -98,12 +132,31 @@
    "tool": "holdout",
    "version": 1,
    "status": "pass",
-   "attempts": 2,
-   "ts": "2026-10-29T22:22:03",
+   "attempts": 3,
+   "ts": "2026-11-01T11:11:03",
    "inputs": {
-    "rtl": "dir_text:76d0d45a5f2e829e5f862f5a22721b24d3fd4936126ddf971e6f241e20027591",
-    "holdout": "dir_text:e69637cc36b8a173630e06d341bc4186ae2990986112fca224b3c2971d5405c1",
-    "spec_yaml_sans_formal": "json_canonical_sans_formal:9cd947b44c33253dec630a4cdf770696ba55c1f631025236036335a3e34ed69f"
+    "rtl": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
+    "holdout": "dir_text:746feb4c3733514a9cedd67f6eeb26604b0c0cfaa3e2c6b7eabaee1d34e01b2d",
+    "spec_yaml_sans_formal": "json_canonical_sans_formal:ec426c58dd9f2334b09759284010f4068e5638e331ac28be8742ab3fee1e7b69"
+   },
+   "reason": null
+  },
+  {
+   "gate": "lec",
+   "applies": true,
+   "ran": true,
+   "ok": true,
+   "tool": "lec",
+   "version": 1,
+   "status": "pass",
+   "attempts": 1,
+   "ts": "2026-11-05T00:16:12",
+   "inputs": {
+    "harden": "harden_signoff:4d718538b2e7f271af41031d0bcb0116a7a42974690a3901ca86c719ebce5c7e",
+    "rtl": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
+    "spec_yaml_sans_formal": "json_canonical_sans_formal:ec426c58dd9f2334b09759284010f4068e5638e331ac28be8742ab3fee1e7b69",
+    "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+    "pdk_liberty": "dir_bytes:f09377f057ab484ec9e5a45b205c99a5de399e2bdca886531bf9eefa57783f32"
    },
    "reason": null
   },
@@ -115,11 +168,11 @@
    "tool": "lint",
    "version": 1,
    "status": "pass",
-   "attempts": 2,
-   "ts": "2026-10-29T22:21:35",
+   "attempts": 3,
+   "ts": "2026-11-01T11:10:23",
    "inputs": {
-    "rtl": "dir_text:76d0d45a5f2e829e5f862f5a22721b24d3fd4936126ddf971e6f241e20027591",
-    "spec_yaml_sans_formal": "json_canonical_sans_formal:9cd947b44c33253dec630a4cdf770696ba55c1f631025236036335a3e34ed69f"
+    "rtl": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
+    "spec_yaml_sans_formal": "json_canonical_sans_formal:ec426c58dd9f2334b09759284010f4068e5638e331ac28be8742ab3fee1e7b69"
    },
    "reason": null
   },
@@ -131,11 +184,14 @@
    "tool": "lvs",
    "version": 1,
    "status": "pass",
-   "attempts": 4,
-   "ts": "2026-10-29T22:45:51",
+   "attempts": 5,
+   "ts": "2026-11-05T00:14:58",
    "inputs": {
-    "harden": "harden_signoff:b4863ae9e97e298503dd6b60d5febc415ed25ef2fafa2e4edab39efd58aaab21",
-    "spec_yaml_sans_formal": "json_canonical_sans_formal:9cd947b44c33253dec630a4cdf770696ba55c1f631025236036335a3e34ed69f"
+    "harden": "harden_signoff:4d718538b2e7f271af41031d0bcb0116a7a42974690a3901ca86c719ebce5c7e",
+    "spec_yaml_sans_formal": "json_canonical_sans_formal:ec426c58dd9f2334b09759284010f4068e5638e331ac28be8742ab3fee1e7b69",
+    "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+    "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
+    "pdk_netgen": "dir_text:8164f65bb7d1bef6e27af4c13b1c6ede50973cec7aec482556abb23881aceb04"
    },
    "reason": null
   },
@@ -147,12 +203,12 @@
    "tool": "mutate",
    "version": 1,
    "status": "pass",
-   "attempts": 2,
-   "ts": "2026-10-29T22:32:56",
+   "attempts": 3,
+   "ts": "2026-11-01T11:10:36",
    "inputs": {
-    "rtl": "dir_text:76d0d45a5f2e829e5f862f5a22721b24d3fd4936126ddf971e6f241e20027591",
-    "tb": "dir_text:046f330442f57502d8041e15f22ad512664b589612acb04472c739010036463d",
-    "spec_yaml_sans_formal": "json_canonical_sans_formal:9cd947b44c33253dec630a4cdf770696ba55c1f631025236036335a3e34ed69f",
+    "rtl": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
+    "tb": "dir_text:44b914540eb555744ca22e68ecb3bfc12d4b674941a109098e2120116c7518de",
+    "spec_yaml_sans_formal": "json_canonical_sans_formal:ec426c58dd9f2334b09759284010f4068e5638e331ac28be8742ab3fee1e7b69",
     "mutant_rulings": null
    },
    "reason": null
@@ -165,12 +221,15 @@
    "tool": "precheck",
    "version": 1,
    "status": "pass",
-   "attempts": 4,
-   "ts": "2026-10-29T22:47:08",
+   "attempts": 5,
+   "ts": "2026-11-05T00:18:44",
    "inputs": {
-    "harden": "harden_signoff:b4863ae9e97e298503dd6b60d5febc415ed25ef2fafa2e4edab39efd58aaab21",
+    "harden": "harden_signoff:4d718538b2e7f271af41031d0bcb0116a7a42974690a3901ca86c719ebce5c7e",
     "harden_info": "json_canonical:f695957862502907d834adb8801ec93f4f59eaf89bf74f8192f72bb3c514eba1",
-    "spec_yaml_sans_formal": "json_canonical_sans_formal:9cd947b44c33253dec630a4cdf770696ba55c1f631025236036335a3e34ed69f"
+    "spec_yaml_sans_formal": "json_canonical_sans_formal:ec426c58dd9f2334b09759284010f4068e5638e331ac28be8742ab3fee1e7b69",
+    "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+    "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
+    "pdk_klayout": "dir_text:876da90e8aab65b830b36eca12bd720adfe8240a0952872419d9f2b4abda605d"
    },
    "reason": null
   },
@@ -182,12 +241,12 @@
    "tool": "sim",
    "version": 1,
    "status": "pass",
-   "attempts": 2,
-   "ts": "2026-10-29T22:21:48",
+   "attempts": 3,
+   "ts": "2026-11-01T11:10:25",
    "inputs": {
-    "rtl": "dir_text:76d0d45a5f2e829e5f862f5a22721b24d3fd4936126ddf971e6f241e20027591",
-    "tb": "dir_text:046f330442f57502d8041e15f22ad512664b589612acb04472c739010036463d",
-    "spec_yaml_sans_formal": "json_canonical_sans_formal:9cd947b44c33253dec630a4cdf770696ba55c1f631025236036335a3e34ed69f"
+    "rtl": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
+    "tb": "dir_text:44b914540eb555744ca22e68ecb3bfc12d4b674941a109098e2120116c7518de",
+    "spec_yaml_sans_formal": "json_canonical_sans_formal:ec426c58dd9f2334b09759284010f4068e5638e331ac28be8742ab3fee1e7b69"
    },
    "reason": null
   },
@@ -199,10 +258,10 @@
    "tool": "spec_lint",
    "version": 1,
    "status": "pass",
-   "attempts": 2,
-   "ts": "2026-10-29T22:21:24",
+   "attempts": 3,
+   "ts": "2026-11-01T11:10:22",
    "inputs": {
-    "spec_yaml": "json_canonical:035dc2a7da7c3eac5b620c4052f5a3b8506ac0592e6e9b9505162542dba6c2d4"
+    "spec_yaml": "json_canonical:969b0fe1155ae8e297f5db8ca34afc10e02ba481ea588d4287af70b8e371a5b7"
    },
    "reason": null
   },
@@ -214,11 +273,13 @@
    "tool": "synth",
    "version": 1,
    "status": "pass",
-   "attempts": 2,
-   "ts": "2026-10-29T22:34:56",
+   "attempts": 3,
+   "ts": "2026-11-01T11:10:40",
    "inputs": {
-    "rtl": "dir_text:76d0d45a5f2e829e5f862f5a22721b24d3fd4936126ddf971e6f241e20027591",
-    "spec_yaml_sans_formal": "json_canonical_sans_formal:9cd947b44c33253dec630a4cdf770696ba55c1f631025236036335a3e34ed69f"
+    "rtl": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
+    "spec_yaml_sans_formal": "json_canonical_sans_formal:ec426c58dd9f2334b09759284010f4068e5638e331ac28be8742ab3fee1e7b69",
+    "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+    "pdk_liberty": "dir_bytes:f09377f057ab484ec9e5a45b205c99a5de399e2bdca886531bf9eefa57783f32"
    },
    "reason": null
   },
@@ -230,14 +291,68 @@
    "tool": "timing",
    "version": 1,
    "status": "pass",
-   "attempts": 4,
-   "ts": "2026-10-29T22:45:10",
+   "attempts": 5,
+   "ts": "2026-11-05T00:10:19",
    "inputs": {
-    "harden": "harden_signoff:b4863ae9e97e298503dd6b60d5febc415ed25ef2fafa2e4edab39efd58aaab21",
-    "spec_yaml_sans_formal": "json_canonical_sans_formal:9cd947b44c33253dec630a4cdf770696ba55c1f631025236036335a3e34ed69f"
+    "harden": "harden_signoff:4d718538b2e7f271af41031d0bcb0116a7a42974690a3901ca86c719ebce5c7e",
+    "spec_yaml_sans_formal": "json_canonical_sans_formal:ec426c58dd9f2334b09759284010f4068e5638e331ac28be8742ab3fee1e7b69",
+    "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+    "pdk_liberty": "dir_bytes:f09377f057ab484ec9e5a45b205c99a5de399e2bdca886531bf9eefa57783f32"
    },
    "reason": null
   }
  ],
- "attestation_sha256": "f4688968664cf5b1a09985c2bd07486606f1facbcd137f0dae4a7a45ce4c4d03"
+ "tt_submission": {
+  "repo": "release/tt",
+  "staged": [
+   ".github/workflows/gds.yaml",
+   "gds/tt_um_ece298a_counter.gds",
+   "gl/tt_um_ece298a_counter.v",
+   "info.yaml",
+   "lef/tt_um_ece298a_counter.lef",
+   "src/config.json",
+   "src/ece298a_counter.v",
+   "src/tt_block_1x1_pgvdd.def",
+   "src/tt_um_ece298a_counter.v",
+   "test/Makefile",
+   "test/glsim_harness.v",
+   "test/requirements.txt",
+   "test/test_ece298a_counter.py"
+  ],
+  "signoff": {
+   "top_module": "tt_um_ece298a_counter",
+   "librelane": "3.1.0.dev3",
+   "pdk": "gf180mcuD",
+   "open_pdks": "1689ac3f2dc763876eaf967227c7dfe831b031ae",
+   "librelane_pdk": "f6eeac7dad085ffcc829ccfd721f7b4ce39edcf7",
+   "tt_support_tools": "01d5d2814fa9dd61e9d211e0b235a4a592a9316a",
+   "gds": "harden/runs/run/final/gds/tt_um_ece298a_counter.gds",
+   "gds_sha256": "409a11eaaaf590c6428222ab91256e99fc27dbcac7f2a4bebd66de7390e35cc1",
+   "lef": "harden/runs/run/final/lef/tt_um_ece298a_counter.lef",
+   "lef_sha256": "d6ed88913c6d768e70256f50befbc9a6e9eb2b0f22632de93756dc9b4762af7f",
+   "gl": "harden/runs/run/final/pnl/tt_um_ece298a_counter.pnl.v",
+   "gl_sha256": "08eaacb8d560e114bf7dc624d5a48d2ae8653828bb9c54a2b1927b158bf8a0ad",
+   "gl_is_shipped": true,
+   "glsim_gl_sha256": "08eaacb8d560e114bf7dc624d5a48d2ae8653828bb9c54a2b1927b158bf8a0ad"
+  },
+  "shipped": [
+   {
+    "workflow": ".github/workflows/gds.yaml",
+    "mode": "custom_gds",
+    "ref": "ttgf26c",
+    "top_module": "tt_um_ece298a_counter",
+    "pdk": "gf180mcuD",
+    "gds_path": "gds/tt_um_ece298a_counter.gds",
+    "gds_sha256": "409a11eaaaf590c6428222ab91256e99fc27dbcac7f2a4bebd66de7390e35cc1",
+    "lef_path": "lef/tt_um_ece298a_counter.lef",
+    "lef_sha256": "d6ed88913c6d768e70256f50befbc9a6e9eb2b0f22632de93756dc9b4762af7f",
+    "verilog_path": "gl/tt_um_ece298a_counter.v",
+    "verilog_sha256": "08eaacb8d560e114bf7dc624d5a48d2ae8653828bb9c54a2b1927b158bf8a0ad",
+    "glsim_sha256": "08eaacb8d560e114bf7dc624d5a48d2ae8653828bb9c54a2b1927b158bf8a0ad"
+   }
+  ],
+  "manifest": "release/manifest.json",
+  "manifest_sha256": "60b7ef3671ebaab2c16d0e0ff2aa58d48cd07edcdc4858a09a894ac40523df4a"
+ },
+ "attestation_sha256": "2b47f39059fbe2aa0d0ba066a76f54de4696c1c9af7865a16f8b4cd96640737d"
 }

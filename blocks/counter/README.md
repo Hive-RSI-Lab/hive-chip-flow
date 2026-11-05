@@ -2,8 +2,8 @@
 
 chip-flow's second known block, from ihsan-sa/ece298a-counter at `b2fd880`
 (coursework for ECE 298A). It's an 8-bit up-counter like a 74-series bus
-counter: an asynchronous active-low reset, a synchronous parallel load, a
-count enable and a tri-state bus on `uio[7:0]` that is the count's output
+counter: an active-low reset (asynchronous assert, release synchronised to
+clk), a synchronous parallel load, a count enable and a tri-state bus on `uio[7:0]` that is the count's output
 while `OE` is high and the load data while it's low, with an always-driven
 copy of the count on `uo_out`. The brief is [brief/spec.md](brief/spec.md)
 (the design's own `docs/info.md`); [spec/spec.md](spec/spec.md) and
@@ -58,3 +58,9 @@ harden included, into the step cache the score reads; `--record` also
 writes `check-all.json`, a seed. One gate by hand: `bin/chip-flow gate --gate <g> --skill vde
 --workspace blocks/counter`. Gate logs (`log/`) and LibreLane's
 `harden/runs/` aren't committed; the gates write them again.
+
+One departure from the imported design: `rst_n` went straight into the 8
+count flops, and the `cdc` gate's reset check rightly failed that raw release
+off an asynchronous pad. It now goes through a two-flop reset synchroniser in
+`rtl/`. Assert stays asynchronous; the release lags by two `clk` edges
+(REQ-RELEASE), which the upstream repository's tests don't expect.
