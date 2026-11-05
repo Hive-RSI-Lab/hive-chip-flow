@@ -3,7 +3,7 @@
 Everything outside `module.json`, `README.md`, `bin/chip-flow`,
 `bin/check_all.py`, `bin/score.py`, `blocks/`, `tests/workarounds/`,
 `tests/test_workarounds.py`, `tests/test_score.py`,
-`.github/workflows/test.yml` and the files
+`.github/workflows/test.yml`, `.github/workflows/harden-faults.yml` and the files
 `docs/README.md`, `docs/upstream.md` and `docs/workarounds.md` is ihsan-sa/chip-flow at
 `b9bf8716d86fcd0ffdcb24e289cea8aaa5c7c055` (main, 2026-10-15), at the same
 paths, because the skills reach the engine as `$CHIP_FLOW_HOME/engine/...` and
@@ -13,7 +13,9 @@ upstream test of a file left out, skipped with its reason). Left out:
 
 - `.github/workflows/checks.yml` (upstream's CI jobs; here CI runs
   `bin/chip-flow test` from `.github/workflows/test.yml`, which uses
-  upstream's `.github/actions/toolchain` as it is) and `.dispatch/`
+  upstream's `.github/actions/toolchain` as it is, and its `harden-faults`
+  matrix from `.github/workflows/harden-faults.yml`, on dispatch and on
+  changes to `engine/` or `corpus/`, #196) and `.dispatch/`
   (upstream's run notes).
 - `GOALS.md` (upstream's goals; this project's are `.hive/goals.md`) and
   upstream's `README.md`, which is `README.upstream.md` here.

@@ -115,11 +115,7 @@ def ngspice_timeouts(monkeypatch):
 
 # The module's own (docs/upstream.md): upstream tests of files the module
 # leaves out, skipped here with the reason.
-NOT_CARRIED = {
-    "tests/test_corpus_faults.py::test_harden_faults_ci_matrix_runs_every_harden_rung":
-        "reads .github/workflows/checks.yml, upstream's CI, which the module "
-        "leaves out (docs/upstream.md)",
-}
+NOT_CARRIED: dict[str, str] = {}
 
 
 def pytest_collection_modifyitems(config, items):

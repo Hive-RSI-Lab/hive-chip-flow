@@ -93,7 +93,11 @@ fails while a row and its probe disagree.
   (`tests/test_corpus_faults.py`, real tools). Upstream's other real-tool
   sets still run by hand: `tests/check.sh` (a smoke per tool),
   `tests/check-slow.sh`, `tests/check-harden-faults.sh <rung>`, each with
-  `EDA_TOOLCHAIN` set (`eval "$(chip-flow env)"`).
+  `EDA_TOOLCHAIN` set (`eval "$(chip-flow env)"`). The harden-faults rungs
+  also run on Actions, one job per rung, from
+  `.github/workflows/harden-faults.yml` (on dispatch and on changes to
+  `engine/`, `corpus/` or the fault tests); when one times out or fails the
+  script names the fault it was on.
   It runs on GitHub Actions, not on the Hive's machine: the `test` job in
   `.github/workflows/test.yml`, on every pull request and every push to
   main, on an ubuntu-24.04 runner that unpacks the same pinned

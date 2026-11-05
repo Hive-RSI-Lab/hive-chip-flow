@@ -15,7 +15,7 @@ M4 plant, plus mutate twice). They are marked `harden_faults` as well as
 `slow`: check-engine.sh's `not slow` keeps them out of check.sh,
 check-slow.sh's `slow and not harden_faults` keeps them out of its 1800 s
 cap, and tests/check-harden-faults.sh runs them, one CI job per rung (the
-`harden-faults` matrix in .github/workflows/checks.yml, which a fast test
+`harden-faults` matrix in .github/workflows/harden-faults.yml, which a fast test
 below keeps equal to HARDEN_RUNGS).
 
 HELD_BACK lists the rungs not run in either lane yet, each with why. The
@@ -36,7 +36,7 @@ sys.path.insert(0, str(ENGINE / "scripts"))
 sys.path.insert(0, str(ENGINE / "lib"))
 CORPUS = REPO / "corpus"
 SKILLS = ("vde", "ade", "msde")
-WORKFLOW = REPO / ".github" / "workflows" / "checks.yml"
+WORKFLOW = REPO / ".github" / "workflows" / "harden-faults.yml"
 
 HARDEN_RUNGS: dict[tuple[str, str], str] = {
     ("vde", "counter8"): "harden, timing, drc, lvs, glsim, lec and precheck's "
@@ -70,7 +70,7 @@ def test_harden_faults_ci_matrix_runs_every_harden_rung():
     matrix = jobs["harden-faults"]["strategy"]["matrix"]["rung"]
     want = sorted(rung for _, rung in HARDEN_RUNGS)
     assert sorted(matrix) == want, (
-        f"checks.yml harden-faults matrix {sorted(matrix)} != HARDEN_RUNGS "
+        f"harden-faults.yml matrix {sorted(matrix)} != HARDEN_RUNGS "
         f"{want}: a rung missing there never runs on CI")
 
 
