@@ -105,6 +105,16 @@ it, the harden's own synthesis must put the same net on the pin
 (`macro_net_unresolved`) and each placement and repair step's log must
 report the net don't-touch (`macro_net_not_dont_touch`), even when the flow
 failed; the report's `dont_touch_nets` lists them by <instance>/<pin>.
+
+A macro's clock output stays repairable, since CTS has to buffer it, so it is
+proven instead (#191). The same probe reads the net on each clock pin
+(`macro_clock_net_unresolved` when it has no single net, and no harden runs).
+After the harden, the deepest netlist the run reached is walked from the pin
+by name: the pin must still be on that net, the CTS log must name the net as
+a clock's (`macro_clock_net_unresolved`), every buffer on the way must be one
+CTS named for that net or clock, and the leaf pins must be the ones synthesis
+put on the net (`macro_clock_buffer_unproven`). The report's `clock_proof`
+lists each by <instance>/<pin>.
 """
 from __future__ import annotations
 
@@ -977,9 +987,10 @@ def macro_abstract(ws: Path, analog: Path, macro: dict, top: Path) -> dict | Non
     macro["files"].update({f"lib_{k}": v for k, v in libs.items()})
     # a non-clock output's net is don't-touch for the resizer (#191, ttlib.
     # dont_touch_rx; run() reads the net on each from synthesis); a clock's
-    # stays repairable for CTS
+    # stays repairable for CTS and is proven by name after (macro_clock_proof)
     macro["dont_touch_pins"] = sorted(
         pin for pin in mt.outputs if pin not in mt.clocks)
+    macro["clock_pins"] = sorted(mt.clocks)
     return {"ceilings": ceilings}
 
 
@@ -1160,9 +1171,14 @@ def macro_pin_nets(netlist: str, cell: str, instance: str) -> dict | None:
                   netlist, re.S)
     if not m:
         return None
+    return _pin_nets(m.group(1))
+
+
+def _pin_nets(body: str) -> dict:
+    """{pin: net} of one instance's connection list, as macro_pin_nets says."""
     nets = {}
     for pin, net in re.findall(r"\.\\?([^\s(]+)\s*\((\\\S+\s|[^()]*?)\s*\)",
-                               m.group(1)):
+                               body):
         whole = _NET.match(net.strip())
         nets[pin] = (whole.group(1) or whole.group(2)) if whole else None
     return nets
@@ -1189,6 +1205,26 @@ def resolve_dont_touch(netlist: str, macros: list[dict]) -> tuple[dict, list]:
                 "a constant or concatenation), so the resizer can't be told "
                 "to leave it alone and repair_design would buffer the "
                 "macro's output until it runs out of memory (#191)", SCRIPT))
+    return resolved, violations
+
+
+def resolve_clock_nets(netlist: str, macros: list[dict]) -> tuple[dict, list]:
+    """{instance: {pin: net}} for every macro's clock_pins, and the violations
+    (macro_clock_net_unresolved) for a pin with no single net."""
+    resolved, violations = {}, []
+    for m in macros:
+        pins = m.get("clock_pins") or []
+        if not pins:
+            continue
+        nets = macro_pin_nets(netlist, m["cell"], m["instance"]) or {}
+        resolved[m["instance"]] = {p: nets[p] for p in pins if nets.get(p)}
+        violations += [checklib.violation(
+            "top_harden", "error", None, m["cell"],
+            "macro_clock_net_unresolved", [pin],
+            f"the synthesized netlist has no single net on {m['instance']}/"
+            f"{pin} (instance or pin missing, or tied to a constant or "
+            "concatenation), so the clock can't be followed to its sinks "
+            "(#191)", SCRIPT) for pin in pins if not nets.get(pin)]
     return resolved, violations
 
 
@@ -1226,6 +1262,156 @@ def dont_touch_unset(run_dir: Path, macros: list[dict]) -> list:
                     "repair_design may buffer it until the job runs out of "
                     "memory (#191)", SCRIPT))
     return violations
+
+
+# TritonCTS's names for what it inserts: clkbuf_0_<net>, clkbuf_2_1__f_<net>,
+# clkbuf_leaf_3_<net>, and for a tree split around macros clkbuf_regs_0_<clock>
+# and delaybuf_0_<clock>, whose inner tree is <net>_regs. clkload<n> is a dummy
+# load with no fanout. `<inverter>__<n>` is CTS's clone of a clock inverter,
+# one per sink.
+CTS_LOG = "*-openroad-cts/*.log"
+_CTS_CLOCK_NET = re.compile(r'Net "(.*?)" found for clock "(.*?)"')
+_CTS_BUFFER = re.compile(r"(?:clkbuf_(?:\d+_(?:\d+__f_)?|leaf_\d+_|regs_\d+_)"
+                         r"|delaybuf_\d+_)(.+)")
+_CTS_LOAD = re.compile(r"clkload\d+")
+_CTS_CLONE = re.compile(r"(.+)__\d+")
+_BUFFER_CELL = re.compile(r"__(?:clk)?(?:buf|dly)\w*_\d+$")
+_NO_FANOUT_CELL = re.compile(r"__(?:antenna|diode)")
+_NETLIST_CELL = re.compile(r"(?m)^\s*(\S+)\s+(\\\S+|[A-Za-z_]\S*)\s*\((.*?)\)\s*;",
+                           re.S)
+
+_NETLIST_ASSIGN = re.compile(r"(?m)^\s*assign\s+(.+?)\s*=\s*(.+?)\s*;")
+
+
+def netlist_cells(netlist: str) -> list[tuple[str, str, dict]]:
+    """(cell, instance, {pin: net}) of each instance in a yosys or OpenROAD
+    netlist, names as OpenROAD reads them; an `assign`, which joins two nets
+    by name, is a cell of its own for clock_walk to refuse."""
+    cells = [(cell, inst.lstrip("\\"), _pin_nets(body))
+             for cell, inst, body in _NETLIST_CELL.findall(netlist)
+             if cell != "module"]
+    for lhs, rhs in _NETLIST_ASSIGN.findall(netlist):
+        lhs, rhs = lhs.strip().lstrip("\\"), rhs.strip().lstrip("\\")
+        cells.append(("assign", f"assign {lhs}", {"lhs": lhs, "rhs": rhs}))
+    return cells
+
+
+def clock_walk(cells: list, source: tuple[str, str], net: str,
+               names: set[str]) -> tuple[set, list, list]:
+    """From `net` on the `source` (instance, pin), through each buffer CTS
+    named for one of `names`: the leaf (instance, pin)s, those buffers, and
+    each other buffer on the way, which proves nothing and ends the walk
+    there. An inverter or gate is a leaf: past it is another net."""
+    leaves, ours, stray = set(), [], []
+    todo, nets = [net], {net}
+    while todo:
+        here = todo.pop()
+        for cell, inst, pins in cells:
+            for pin, on in pins.items():
+                if on != here or (inst, pin) == source or inst in ours:
+                    continue
+                if cell == "assign":
+                    stray.append(inst)
+                    continue
+                if _NO_FANOUT_CELL.search(cell) or _CTS_LOAD.fullmatch(inst):
+                    continue
+                if not _BUFFER_CELL.search(cell):
+                    leaves.add((inst, pin))
+                    continue
+                named = _CTS_BUFFER.fullmatch(inst)
+                if not named or named.group(1) not in names or len(pins) != 2:
+                    stray.append(inst)
+                    continue
+                ours.append(inst)
+                for out in pins.values():
+                    if out and out not in nets:
+                        nets.add(out)
+                        todo.append(out)
+    return leaves, sorted(ours), sorted(set(stray))
+
+
+def macro_clock_proof(run_dir: Path, macros: list[dict]) -> tuple[dict, list]:
+    """{<instance>/<pin>: what was proven} for each macro clock output whose
+    net (`clock_nets`, from the synthesis probe) is walked by name through
+    the deepest netlist the run reached, and the violations: the net changed
+    or CTS never saw it (macro_clock_net_unresolved), or a buffer or leaf
+    the walk can't account for (macro_clock_buffer_unproven)."""
+    want = [(m["cell"], m["instance"], pin, net) for m in macros
+            for pin, net in (m.get("clock_nets") or {}).items()]
+    synth = sorted(run_dir.glob("*-yosys-synthesis/*.nl.v"))
+    if not want or not synth:  # no netlist: the flow's own failure says why
+        return {}, []
+    steps = sorted(run_dir.glob("[0-9]*/*.nl.v"),
+                   key=lambda p: int(p.parent.name.split("-")[0]))
+    finals = sorted(run_dir.glob("final/nl/*.nl.v"))
+    deepest = (finals or steps or synth)[-1]
+    read = lambda p: p.read_text(encoding="utf-8", errors="replace")
+    synth_cells = netlist_cells(read(synth[0]))
+    cells = netlist_cells(read(deepest))
+    where = str(deepest.relative_to(run_dir))
+    cts = sorted(run_dir.glob(CTS_LOG))
+    clock_of = dict(_CTS_CLOCK_NET.findall(read(cts[0]))) if cts else {}
+    proof, violations = {}, []
+    for cell, inst, pin, net in want:
+        name = f"{inst}/{pin}"
+        for label, got_cells in (("harden's synthesis", synth_cells),
+                                 (where, cells)):
+            got = next((pins.get(pin) for c, i, pins in got_cells
+                        if (c, i) == (cell, inst)), None)
+            if got != net:
+                violations.append(checklib.violation(
+                    "top_harden", "error", where, cell,
+                    "macro_clock_net_unresolved", [pin],
+                    f"{label} put {got!r} on {name}, the probe {net!r}: the "
+                    "clock's net was renamed, so nothing proves what drives "
+                    "its sinks (#191)", SCRIPT))
+                break
+        else:
+            source = (inst, pin)
+            want_leaves, _, synth_stray = clock_walk(synth_cells, source, net,
+                                                     set())
+            clock = clock_of.get(net)
+            if want_leaves and clock is None and (cts or finals):
+                violations.append(checklib.violation(
+                    "top_harden", "error",
+                    str(cts[0].relative_to(run_dir)) if cts else where, cell,
+                    "macro_clock_net_unresolved", [pin],
+                    f"CTS did not name {net!r} ({name}) as a clock's net, so "
+                    "the resizer treats it as data and repair_design may "
+                    "buffer it until the job runs out of memory (#191)",
+                    SCRIPT))
+                continue
+            names = {net, f"{net}_regs"}
+            if clock:
+                names |= {clock, f"{clock}_regs"}
+            leaves, buffers, stray = clock_walk(cells, source, net, names)
+            stray = sorted(set(stray) | set(synth_stray))
+            kept = {i for i, _ in want_leaves}
+            leaves = {(_clone_of(i, kept), p) for i, p in leaves}
+            if stray:
+                violations.append(checklib.violation(
+                    "top_harden", "error", where, cell,
+                    "macro_clock_buffer_unproven", [pin],
+                    f"{name} reaches buffer(s) {stray} that CTS did not name "
+                    f"for {net!r}: the clock's path to its sinks is not "
+                    "proven (#191)", SCRIPT))
+            elif leaves != want_leaves:
+                violations.append(checklib.violation(
+                    "top_harden", "error", where, cell,
+                    "macro_clock_buffer_unproven", [pin],
+                    f"{name}'s net reaches different pins than synthesis put "
+                    f"on it: lost {sorted(want_leaves - leaves)}, gained "
+                    f"{sorted(leaves - want_leaves)} (#191)", SCRIPT))
+            else:
+                proof[name] = {"net": net, "clock": clock, "buffers": buffers,
+                               "sinks": len(leaves), "netlist": where}
+    return proof, violations
+
+
+def _clone_of(inst: str, kept: set[str]) -> str:
+    """The synthesized instance CTS cloned `inst` from, else `inst`."""
+    clone = _CTS_CLONE.fullmatch(inst)
+    return clone.group(1) if clone and clone.group(1) in kept else inst
 
 
 # Tiny Tapeout's pin check (tt-support-tools precheck/pin_check.py): every
@@ -1341,7 +1527,8 @@ def run(argv=None):
     except layoutlib.LayoutError as exc:
         raise CheckError(str(exc)) from exc
     macros = [{k: m[k] for k in ("cell", "instance", "location", "size_um",
-                                 "pins", "ua", "dont_touch_pins") if k in m}
+                                 "pins", "ua", "dont_touch_pins",
+                                 "clock_pins") if k in m}
               for m in spec["macros"]]
     too_big = [m for m in macros if m["location"] is None]
     tiles = ttlib.spec_tiles(spec)
@@ -1417,7 +1604,8 @@ def run(argv=None):
                                   macros=macros)
         return payload, args.out
     import check_harden
-    if any(m.get("dont_touch_pins") for m in spec["macros"]):
+    if any(m.get("dont_touch_pins") or m.get("clock_pins")
+           for m in spec["macros"]):
         probe, _out = check_harden.run(["--workspace", str(top), "--to",
                                         PROBE_STEP, "--run-tag", PROBE_TAG])
         if probe.get("violations"):
@@ -1428,9 +1616,10 @@ def run(argv=None):
         if not synth:
             raise CheckError(f"the synthesis probe wrote no netlist under "
                              f"{probe['run_dir']}")
-        resolved, violations = resolve_dont_touch(
-            synth[0].read_text(encoding="utf-8", errors="replace"),
-            spec["macros"])
+        probed = synth[0].read_text(encoding="utf-8", errors="replace")
+        resolved, violations = resolve_dont_touch(probed, spec["macros"])
+        clock_nets, clock_violations = resolve_clock_nets(probed, spec["macros"])
+        violations += clock_violations
         if violations:
             payload = checklib.report(SCRIPT, ws / "digital" / "rtl",
                                       violations, macros=macros)
@@ -1438,6 +1627,8 @@ def run(argv=None):
         for m in spec["macros"]:
             if m["instance"] in resolved:
                 m["dont_touch_nets"] = resolved[m["instance"]]
+            if m["instance"] in clock_nets:
+                m["clock_nets"] = clock_nets[m["instance"]]
         write_top_spec(top, spec)
     inner, _out = check_harden.run(["--workspace", str(top)])
     facts = {k: inner[k] for k in ("top", "run_tag", "resumed", "wall_s",
@@ -1457,6 +1648,11 @@ def run(argv=None):
     # even on a failed flow: a net the resizer missed is why it failed
     violations += dont_touch_unset(Path(inner.get("run_dir", "")),
                                    spec["macros"])
+    clock_proof, clock_violations = macro_clock_proof(
+        Path(inner.get("run_dir", "")), spec["macros"])
+    violations += clock_violations
+    if clock_proof:
+        facts["clock_proof"] = clock_proof
     # max slew and max cap per corner, judged like the signoff metrics only
     # when the flow finished (check_harden recorded its table)
     metrics_path = Path(inner.get("run_dir", "")) / "final" / "metrics.json"

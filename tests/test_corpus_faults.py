@@ -9,7 +9,7 @@ together (comparator 25 s, mirror 11 s, bandgap 7 s, the rest under 4 s
 each), and vde riscv 28 s, uart 25 s, spi_fifo 2 s.
 
 HARDEN_RUNGS are the rungs whose run needs full LibreLane hardens (the
-msde rungs about three top hardens each: the clean reference, then each
+msde rungs three to five top hardens each: the clean reference, then each
 plant that hardens the untouched top first; vde counter8 one harden per
 M4 plant, plus mutate twice). They are marked `harden_faults` as well as
 `slow`: check-engine.sh's `not slow` keeps them out of check.sh,
