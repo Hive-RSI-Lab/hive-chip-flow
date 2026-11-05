@@ -3,7 +3,7 @@
  "gate": "glsim",
  "phase": "P6",
  "tool": "glsim",
- "input_digest": "harden_signoff:b4863ae9e97e298503dd6b60d5febc415ed25ef2fafa2e4edab39efd58aaab21",
+ "input_digest": "harden_signoff:4d718538b2e7f271af41031d0bcb0116a7a42974690a3901ca86c719ebce5c7e",
  "status": "pass",
  "criteria": {
   "fail_severities": [
@@ -24,6 +24,7 @@
   "results": {
    "functional": {
     "test_async_reset": true,
+    "test_release_lags_two_edges": true,
     "test_sync_load": true,
     "test_count_up_from_loaded_value": true,
     "test_count_enable_holds": true,
@@ -35,6 +36,7 @@
    },
    "sdf": {
     "test_async_reset": true,
+    "test_release_lags_two_edges": true,
     "test_sync_load": true,
     "test_count_up_from_loaded_value": true,
     "test_count_enable_holds": true,
@@ -46,16 +48,24 @@
    }
   },
   "sdf": {
-   "zero_interconnects_dropped": 90,
-   "sdf_unannotated": [],
+   "zero_interconnects_dropped": 95,
+   "sdf_unannotated": [
+    "_056_ (gf180mcu_fd_sc_mcu7t5v0__xor2_1)",
+    "_065_ (gf180mcu_fd_sc_mcu7t5v0__xor2_1)"
+   ],
    "instances_renamed": {}
+  },
+  "netlists": {
+   "nl_sha256": "97c130e0be7b2e9543721554319f8922c8b116a09dcf52162f1d42605bd7c93b",
+   "pnl_sha256": "08eaacb8d560e114bf7dc624d5a48d2ae8653828bb9c54a2b1927b158bf8a0ad"
   }
  },
  "inputs_at_start": {
-  "harden": "harden_signoff:b4863ae9e97e298503dd6b60d5febc415ed25ef2fafa2e4edab39efd58aaab21",
-  "tb": "dir_text:046f330442f57502d8041e15f22ad512664b589612acb04472c739010036463d",
-  "spec_yaml_sans_formal": "json_canonical_sans_formal:9cd947b44c33253dec630a4cdf770696ba55c1f631025236036335a3e34ed69f"
+  "harden": "harden_signoff:4d718538b2e7f271af41031d0bcb0116a7a42974690a3901ca86c719ebce5c7e",
+  "tb": "dir_text:44b914540eb555744ca22e68ecb3bfc12d4b674941a109098e2120116c7518de",
+  "spec_yaml_sans_formal": "json_canonical_sans_formal:ec426c58dd9f2334b09759284010f4068e5638e331ac28be8742ab3fee1e7b69",
+  "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2"
  },
- "recorded_ts": "2026-10-29T22:46:20",
- "attempts": 4
+ "recorded_ts": "2026-11-05T00:15:33",
+ "attempts": 5
 }

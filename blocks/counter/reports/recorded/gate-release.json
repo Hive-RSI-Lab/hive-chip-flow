@@ -3,7 +3,7 @@
  "gate": "release",
  "phase": "P8",
  "tool": "release",
- "input_digest": "dir_text:76d0d45a5f2e829e5f862f5a22721b24d3fd4936126ddf971e6f241e20027591",
+ "input_digest": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
  "status": "pass",
  "criteria": {
   "fail_severities": [
@@ -21,14 +21,67 @@
  "violations": [],
  "facts": {
   "attestation": "reports/checks.json",
-  "attestation_sha256": "f4688968664cf5b1a09985c2bd07486606f1facbcd137f0dae4a7a45ce4c4d03",
+  "attestation_sha256": "2b47f39059fbe2aa0d0ba066a76f54de4696c1c9af7865a16f8b4cd96640737d",
   "disposition": "gates-green",
-  "waived": []
+  "waived": [],
+  "tt_submission": {
+   "repo": "release/tt",
+   "staged": [
+    ".github/workflows/gds.yaml",
+    "gds/tt_um_ece298a_counter.gds",
+    "gl/tt_um_ece298a_counter.v",
+    "info.yaml",
+    "lef/tt_um_ece298a_counter.lef",
+    "src/config.json",
+    "src/ece298a_counter.v",
+    "src/tt_block_1x1_pgvdd.def",
+    "src/tt_um_ece298a_counter.v",
+    "test/Makefile",
+    "test/glsim_harness.v",
+    "test/requirements.txt",
+    "test/test_ece298a_counter.py"
+   ],
+   "signoff": {
+    "top_module": "tt_um_ece298a_counter",
+    "librelane": "3.1.0.dev3",
+    "pdk": "gf180mcuD",
+    "open_pdks": "1689ac3f2dc763876eaf967227c7dfe831b031ae",
+    "librelane_pdk": "f6eeac7dad085ffcc829ccfd721f7b4ce39edcf7",
+    "tt_support_tools": "01d5d2814fa9dd61e9d211e0b235a4a592a9316a",
+    "gds": "harden/runs/run/final/gds/tt_um_ece298a_counter.gds",
+    "gds_sha256": "409a11eaaaf590c6428222ab91256e99fc27dbcac7f2a4bebd66de7390e35cc1",
+    "lef": "harden/runs/run/final/lef/tt_um_ece298a_counter.lef",
+    "lef_sha256": "d6ed88913c6d768e70256f50befbc9a6e9eb2b0f22632de93756dc9b4762af7f",
+    "gl": "harden/runs/run/final/pnl/tt_um_ece298a_counter.pnl.v",
+    "gl_sha256": "08eaacb8d560e114bf7dc624d5a48d2ae8653828bb9c54a2b1927b158bf8a0ad",
+    "gl_is_shipped": true,
+    "glsim_gl_sha256": "08eaacb8d560e114bf7dc624d5a48d2ae8653828bb9c54a2b1927b158bf8a0ad"
+   },
+   "shipped": [
+    {
+     "workflow": ".github/workflows/gds.yaml",
+     "mode": "custom_gds",
+     "ref": "ttgf26c",
+     "top_module": "tt_um_ece298a_counter",
+     "pdk": "gf180mcuD",
+     "gds_path": "gds/tt_um_ece298a_counter.gds",
+     "gds_sha256": "409a11eaaaf590c6428222ab91256e99fc27dbcac7f2a4bebd66de7390e35cc1",
+     "lef_path": "lef/tt_um_ece298a_counter.lef",
+     "lef_sha256": "d6ed88913c6d768e70256f50befbc9a6e9eb2b0f22632de93756dc9b4762af7f",
+     "verilog_path": "gl/tt_um_ece298a_counter.v",
+     "verilog_sha256": "08eaacb8d560e114bf7dc624d5a48d2ae8653828bb9c54a2b1927b158bf8a0ad",
+     "glsim_sha256": "08eaacb8d560e114bf7dc624d5a48d2ae8653828bb9c54a2b1927b158bf8a0ad"
+    }
+   ]
+  },
+  "manifest": "release/manifest.json",
+  "manifest_released": true
  },
  "inputs_at_start": {
-  "rtl": "dir_text:76d0d45a5f2e829e5f862f5a22721b24d3fd4936126ddf971e6f241e20027591",
-  "harden": "harden_signoff:b4863ae9e97e298503dd6b60d5febc415ed25ef2fafa2e4edab39efd58aaab21"
+  "rtl": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
+  "harden": "harden_signoff:4d718538b2e7f271af41031d0bcb0116a7a42974690a3901ca86c719ebce5c7e",
+  "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2"
  },
- "recorded_ts": "2026-10-29T22:47:38",
- "attempts": 4
+ "recorded_ts": "2026-11-05T00:19:20",
+ "attempts": 5
 }
