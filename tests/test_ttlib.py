@@ -721,10 +721,15 @@ def test_pad_reset_latency_is_the_flow_constant_for_a_clocked_reset():
 def test_wrapper_feeds_the_block_reset_through_named_sync_flops():
     v = ttlib.generate_tt_wrapper(CLOCKED_COUNTER8)
     assert "reg rst_n_sync_q1;" in v and "reg rst_n_sync_q2;" in v
-    assert "rst_n_sync_q1 <= rst_n;" in v
+    # async assert, sync release: rst_n low clears both, the release runs
+    # through the chain
+    assert "always @(posedge clk or negedge rst_n) begin" in v
+    assert "rst_n_sync_q1 <= 1'b0;" in v and "rst_n_sync_q2 <= 1'b0;" in v
+    assert "rst_n_sync_q1 <= 1'b1;" in v
     assert "rst_n_sync_q2 <= rst_n_sync_q1;" in v
     assert "assign w_rst = ~rst_n_sync_q2;" in v
     assert "~rst_n;" not in v  # never straight from the pin
+    assert "| rst_n" not in v and "& rst_n" not in v  # nor ORed with it
 
 
 def test_harness_publishes_the_latency_and_can_be_renamed():

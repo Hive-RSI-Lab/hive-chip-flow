@@ -11,7 +11,8 @@ class Model:
         self.presc = 0
         self.dac = 0
         # rst_n is registered once inside the block, after pad_latency flops
-        # of the tile's pad synchroniser (engine/lib/padreset.latency)
+        # of the tile's pad synchroniser (engine/lib/padreset.latency); rst_n
+        # low clears those pad flops at once, so only the release is delayed
         self.rst_chain = [0] * (1 + pad_latency)
 
     @property
@@ -25,6 +26,8 @@ class Model:
     def edge(self, rst_n, ui, mode, slow):
         rst_eff = self.rst_chain[-1]
         self.rst_chain = [rst_n] + self.rst_chain[:-1]
+        if not rst_n:
+            self.rst_chain = [0] * len(self.rst_chain)
         if not rst_eff:
             self.code = self.cnt = self.presc = self.dac = 0
             return self.dac

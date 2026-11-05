@@ -387,10 +387,11 @@ def wrapper_name(spec: dict) -> str:
 
 
 # The tile's pad reset. TT's rst_n pin is driven from off chip, with no
-# timing relation to clk, so the generated wrapper samples it through a
-# plain synchroniser of PAD_RESET_LATENCY flops on clk before it reaches
-# the block: both its assertion and its release reach the block that many
-# clock edges after the pad moves. This is the one place the latency is
+# timing relation to clk, so the generated wrapper passes it through a
+# reset synchroniser of PAD_RESET_LATENCY flops on clk before it reaches
+# the block: rst_n low clears every flop at once, so the assertion reaches
+# the block with no clock edge, and the release reaches it that many clock
+# edges after the pad rises. This is the one place the latency is
 # stated. The wrapper's flops, the RTL sim frame (write_sim_frame) and the
 # glsim harness all take it from here, and the harness and the frame
 # publish it on PAD_RESET_LATENCY_NET, which tb/ and holdout/ read through
@@ -431,12 +432,16 @@ def _pad_reset_sync(n: int) -> list[str]:
     (cdc, synth) shows them as `rst_n_sync_q1`..`rst_n_sync_q<n>`."""
     flops = [f"{PAD_RESET_SYNC_FLOP}{i}" for i in range(1, n + 1)]
     lines = [f"  // pad reset synchroniser: {n} flops on clk "
-             "(ttlib.PAD_RESET_LATENCY)",
+             "(ttlib.PAD_RESET_LATENCY),",
+             "  // cleared at once by rst_n low, released through the chain",
              *(f"  reg {f};" for f in flops),
-             "  always @(posedge clk) begin",
-             f"    {flops[0]} <= rst_n;"]
-    lines += [f"    {b} <= {a};" for a, b in zip(flops, flops[1:])]
-    lines += ["  end"]
+             "  always @(posedge clk or negedge rst_n) begin",
+             "    if (!rst_n) begin",
+             *(f"      {f} <= 1'b0;" for f in flops),
+             "    end else begin",
+             f"      {flops[0]} <= 1'b1;"]
+    lines += [f"      {b} <= {a};" for a, b in zip(flops, flops[1:])]
+    lines += ["    end", "  end"]
     return lines
 
 

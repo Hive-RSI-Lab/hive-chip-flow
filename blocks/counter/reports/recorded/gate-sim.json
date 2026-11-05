@@ -1,45 +1,56 @@
 {
- "script": "gate",
- "gate": "sim",
- "phase": "P4",
- "tool": "sim",
- "input_digest": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
- "status": "pass",
- "criteria": {
-  "fail_severities": [
-   "error"
-  ],
-  "max_count": 0
- },
- "counts": {
-  "total": 0,
-  "by_severity": {},
-  "by_source": {}
- },
- "failing_count": 0,
- "failing": [],
- "violations": [],
- "facts": {
-  "top": "ece298a_counter",
-  "tests_run": [
-   "test_async_reset",
-   "test_count_enable_holds",
-   "test_count_up_from_loaded_value",
-   "test_load_beats_count",
-   "test_load_ignored_while_driving",
-   "test_release_lags_two_edges",
-   "test_sync_load",
-   "test_tristate_bus",
-   "test_unused_inputs",
-   "test_wraparound"
-  ],
-  "tests_passed": 10
- },
- "inputs_at_start": {
-  "rtl": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
-  "tb": "dir_text:44b914540eb555744ca22e68ecb3bfc12d4b674941a109098e2120116c7518de",
-  "spec_yaml_sans_formal": "json_canonical_sans_formal:ec426c58dd9f2334b09759284010f4068e5638e331ac28be8742ab3fee1e7b69"
- },
- "recorded_ts": "2026-11-01T11:10:25",
- "attempts": 3
+  "script": "gate",
+  "gate": "sim",
+  "phase": "P4",
+  "tool": "sim",
+  "input_digest": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
+  "status": "pass",
+  "criteria": {
+    "fail_severities": [
+      "error"
+    ],
+    "max_count": 0
+  },
+  "counts": {
+    "total": 0,
+    "by_severity": {},
+    "by_source": {}
+  },
+  "failing_count": 0,
+  "failing": [],
+  "violations": [],
+  "facts": {
+    "top": "ece298a_counter",
+    "tests_run": [
+      "test_async_reset",
+      "test_count_enable_holds",
+      "test_count_up_from_loaded_value",
+      "test_load_beats_count",
+      "test_load_ignored_while_driving",
+      "test_release_lags_two_edges",
+      "test_sync_load",
+      "test_tristate_bus",
+      "test_unused_inputs",
+      "test_wraparound"
+    ],
+    "tests_passed": 10
+  },
+  "inputs_at_start": {
+    "rtl": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
+    "tb": "dir_text:1a9e6faab6600130823e4ed8154e094fed3d16ebb98f4d6a474351cd134dddff",
+    "spec_yaml_sans_formal": "json_canonical_sans_formal:ec426c58dd9f2334b09759284010f4068e5638e331ac28be8742ab3fee1e7b69"
+  },
+  "record_result": {
+    "ok": true,
+    "recorded": true,
+    "workspace": "blocks/counter",
+    "gate": "sim",
+    "status": "pass",
+    "attempts": 4,
+    "inputs": {
+      "rtl": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
+      "tb": "dir_text:1a9e6faab6600130823e4ed8154e094fed3d16ebb98f4d6a474351cd134dddff",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:ec426c58dd9f2334b09759284010f4068e5638e331ac28be8742ab3fee1e7b69"
+    }
+  }
 }
