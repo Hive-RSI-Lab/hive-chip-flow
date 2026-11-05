@@ -6,6 +6,8 @@ passes are fabricated with record_gate; no harden runs."""
 from __future__ import annotations
 
 import json
+import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -423,6 +425,50 @@ def test_staged_gl_test_job_is_pinned_to_the_signoff_pdk(tmp_path):
     assert "TOPLEVEL = counter8" in mk and "COCOTB_TEST_MODULES = test_counter8" in mk
     assert (repo / "test" / "test_counter8.py").is_file()
     assert "`ifdef USE_POWER_PINS" in (repo / "test" / "glsim_harness.v").read_text()
+
+
+def run_gl_test_step(repo: Path, tmp_path: Path, sim_outcome: str) -> subprocess.CompletedProcess:
+    """The gl_test job's run step as Actions runs it, against a stub of
+    cocotb's Makefile.sim: no GATES in the environment, as on a runner."""
+    work = tmp_path / "job"
+    (work / "tt_submission").mkdir(parents=True)
+    (work / "tt_submission" / "counter8.v").write_text("module counter8; endmodule\n")
+    (work / "test").mkdir()
+    (work / "test" / "Makefile").write_text((repo / "test" / "Makefile").read_text())
+    stub = tmp_path / "cocotb"
+    stub.mkdir()
+    (stub / "Makefile.sim").write_text(
+        "all:\n"
+        f"\t@echo '<testsuite>{sim_outcome}</testsuite>' > results.xml\n"
+        "clean:\n"
+        "\t@rm -rf sim_build\n")
+    shim = tmp_path / "bin"
+    shim.mkdir()
+    cfg = shim / "cocotb-config"
+    cfg.write_text(f"#!/bin/sh\necho {stub}\n")
+    cfg.chmod(0o755)
+    env = {**os.environ, "PATH": f"{shim}:{os.environ['PATH']}"}
+    env.pop("GATES", None)
+    jobs = yaml.safe_load((repo / ".github/workflows/gds.yaml").read_text())["jobs"]
+    run = next(s["run"] for s in jobs["gl_test"]["steps"] if "GATES=yes" in str(s.get("run")))
+    return subprocess.run(["bash", "-e", "-c", run], cwd=work, env=env,
+                          capture_output=True, text=True, timeout=60)
+
+
+def test_staged_gl_test_step_runs_past_the_makefile_guard(tmp_path):
+    # the Makefile refuses any make without GATES=yes, the clean included: the
+    # first run on Actions died there (#181)
+    ws = make_ws(tmp_path)
+    repo = staged(ws)
+    proc = run_gl_test_step(repo, tmp_path, "<testcase/>")
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+
+
+def test_staged_gl_test_step_fails_on_a_failed_test(tmp_path):
+    ws = make_ws(tmp_path)
+    repo = staged(ws)
+    proc = run_gl_test_step(repo, tmp_path, "<testcase><failure/></testcase>")
+    assert proc.returncode != 0
 
 
 def test_tt_gl_test_action_on_custom_gds_is_refused(tmp_path):

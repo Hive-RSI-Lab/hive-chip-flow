@@ -246,7 +246,7 @@ GL_TEST_JOB = """
           cp tt_submission/*.v test/gate_level_netlist.v
           cd test
           rm -f results.xml
-          make clean
+          GATES=yes make clean
           GATES=yes make
           # make succeeds even when a test fails, so read results.xml
           test -f results.xml
