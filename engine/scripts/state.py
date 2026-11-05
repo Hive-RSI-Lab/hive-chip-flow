@@ -21,6 +21,7 @@ Schema (version 3):
       "gates": {gate_name: {phase, status: pass|fail, attempts: int,
                             last: {ts, status, failing_count, total,
                                    inputs: {kind: "<norm>:<sha>"|null},
+                                   strength: int,
                                    inputs_changed_during_run?: [kind],
                                    job: id|null, facts?: {name: number}},
                             history: [same shape as last, oldest first],
@@ -53,12 +54,14 @@ Schema (version 3):
     reference/invalidation.yaml, or on a gate by a run of it that ended in
     error (edit_class "gate_error", + error; gate.py), cleared by
     record-gate (gates) / re-register (artifacts). A gate is FRESH iff its recorded input hashes all match the
-    current normalized hashes AND it carries no mark (engine/lib/statelib.py).
+    current normalized hashes AND it carries no mark AND its recorded strength
+    is not below the gate's in gates.yaml (engine/lib/statelib.py).
     The recorded hashes are the ones the run READ: a result carrying
     `inputs_at_start` (gate.py hashes the inputs before its check runs) is
     recorded against those, so an input edited while a long gate ran leaves
     the result stale, never fresh against a file the gate did not read; the
-    kinds that moved go in last.inputs_changed_during_run.
+    kinds that moved go in last.inputs_changed_during_run. The same goes for
+    `strength_at_start`: a bump landing during a long run leaves it stale.
 
 CLI (docs/design.md 1.1 script contract: argparse, JSON to stdout, exit 0 ok
 / 2 error; state.py has no violation concept so exit 1 is unused):
@@ -467,10 +470,16 @@ class State:
             self._refuse_holdout_drift("record the holdout gate")
         inputs, moved = self._hash_gate_inputs(
             gate, result.get("inputs_at_start"))
+        strength = result.get("strength_at_start",
+                              statelib.gate_strength(self._skill(), gate))
+        if not isinstance(strength, int) or isinstance(strength, bool):
+            raise CheckError(f"gate result strength_at_start is {strength!r}, "
+                             "not an integer")
         entry = {"ts": now(), "status": status,
                  "failing_count": result.get("failing_count", 0),
                  "total": (result.get("counts") or {}).get("total", 0),
                  "inputs": inputs,
+                 "strength": strength,
                  "job": result.get("job")}
         if moved:
             entry["inputs_changed_during_run"] = moved

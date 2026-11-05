@@ -20,8 +20,10 @@
 #      gates/artifacts with an explicit stale mark. This catches DERIVED
 #      artifacts whose files have not changed yet (a GDS after an RTL edit)
 #      and gates whose inputs an edit will change only after regeneration.
-#   A gate is FRESH iff it has recorded input hashes, they all match, and it
-#   carries no stale mark. Marks clear when the gate re-runs (record-gate) or
+#   A gate is FRESH iff it has recorded input hashes, they all match, it
+#   carries no stale mark, and its recorded strength is not below the gate's
+#   `strength` in gates.yaml (a stricter gate stales the weaker gate's passes;
+#   the gate's own code is not an input). Marks clear when the gate re-runs (record-gate) or
 #   the artifact is re-registered (artifact/rehash).
 #   The `gates` list per edit class is the SEMANTICALLY REQUIRED re-run set;
 #   the hash layer may additionally invalidate other gates when a real edit

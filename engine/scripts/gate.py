@@ -16,7 +16,7 @@ commits on failure and never pushes.
 
 JSON to stdout (or --out): {script, gate, skill, status:pass|fail|
 not_applicable, counts, criteria, failing:[findings that triggered],
-inputs_at_start?, record_result, commit_result?}.
+inputs_at_start?, strength_at_start?, record_result, commit_result?}.
 An error goes to --out as well, as {script, gate, status:error, error,
 remediation}, so a caller reading --out never finds an earlier run there.
 Exit 0 = pass or not applicable, 1 = fail, 2 = error (bad gate name,
@@ -45,7 +45,8 @@ named outright with --workspace), the result goes through
 state.record_gate: input hashes, attempt count, stale-mark clearing all
 apply. The input hashes are taken when the gate STARTS, before its check
 reads anything (hash_inputs_at_start), and travel in the result as
-`inputs_at_start`; record_gate records those, not the files as they stand
+`inputs_at_start`, with the gate's strength as `strength_at_start`;
+record_gate records those, not the files as they stand
 when the run ends. An input edited while a long gate ran therefore leaves
 the result stale (its recorded hash no longer matches), never fresh against
 a file the check did not read, and the result's
@@ -488,6 +489,7 @@ def main(argv: list[str] | None = None) -> int:
 
     error_mark = None
     inputs_at_start = None
+    strength_at_start = None
     try:
         gates = load_gates(Path(args.gates))
         if args.list:
@@ -522,6 +524,7 @@ def main(argv: list[str] | None = None) -> int:
             if not args.no_record:
                 inputs_at_start = hash_inputs_at_start(
                     skill, args.gate, Path(args.workspace))
+                strength_at_start = statelib.gate_strength(skill, args.gate)
             try:
                 report = run_report_for_gate(
                     gate, Path(args.workspace).resolve(),
@@ -540,6 +543,8 @@ def main(argv: list[str] | None = None) -> int:
             result = checklib.workspace_relative(result, args.workspace)
         if inputs_at_start is not None:
             result["inputs_at_start"] = inputs_at_start
+        if strength_at_start is not None:
+            result["strength_at_start"] = strength_at_start
 
         if result["status"] == "not_applicable":
             # Never recorded: a result keyed on this gate's inputs would stay
