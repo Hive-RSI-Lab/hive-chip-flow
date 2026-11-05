@@ -9,6 +9,8 @@ import json
 import sys
 from pathlib import Path
 
+import yaml
+
 REPO = Path(__file__).resolve().parents[1]
 ENGINE = REPO / "engine"
 sys.path.insert(0, str(ENGINE / "scripts"))
@@ -240,6 +242,7 @@ def test_overlay_that_says_the_same_as_the_signed_file_is_tied(tmp_path, capsys)
     assert files["src/project.v"]["agrees_with"] == f"top/harden/{TOP}.v"
     assert files["src/project.v"]["gates"]
     assert files["info.yaml"]["agrees_with"] == "top/harden/info.yaml"
+    assert files["info.yaml"]["derived"] == "ttship.stamped_info"
     assert files["test/tb.v"]["gates"] == [] and files["test/tb.v"]["unsigned"]
 
 
@@ -322,6 +325,23 @@ def test_stage_analog_without_overlay_uses_top(tmp_path, capsys):
     assert (tree / "src" / "macro.v").read_text() == BLACKBOX
     assert "custom_gds" in (tree / ".github/workflows/gds.yaml").read_text()
     assert f"project:\n  top_module: {TOP}" in (tree / "info.yaml").read_text()
+
+
+def test_stamped_info_yaml_stays_tied_only_while_it_is_what_stage_writes(tmp_path, capsys):
+    ws = make_msde_tile(tmp_path)
+    released(ws, capsys)
+    tree = ws / "release" / "tt"
+    assert yaml.safe_load((tree / "info.yaml").read_text())["project"]["author"] == "Hive"
+    assert (ws / "top/harden/info.yaml").read_text() != (tree / "info.yaml").read_text()
+    entry = by_path(manifest(ws))["info.yaml"]
+    assert entry["derived"] == "ttship.stamped_info" and entry["gates"]
+    edited = tree / "info.yaml"
+    edited.write_text(edited.read_text().replace(f"top_module: {TOP}", "top_module: other"))
+    record = {"sources": {"info.yaml": "top/harden/info.yaml"},
+              "signoff": {"top_module": TOP}}
+    entries, problems = manifestlib.deliverables(ws, "msde", tree, record, [])
+    assert any(p.startswith("deliverable_untied: info.yaml") for p in problems)
+    assert "derived" not in {e["path"]: e for e in entries}["info.yaml"]
 
 
 def test_refused_ship_check_on_msde(tmp_path, capsys):

@@ -508,3 +508,148 @@ def test_block_with_no_tests_cant_ship(tmp_path):
     (ws / "tb" / "test_counter8.py").unlink()
     problems, _ = ttship.release_check(ws, pdk_hash=pdk_hash())
     assert rules(problems) == ["tt_gl_test_missing"]
+
+
+# --- info.yaml's author: written at stage, never from a hand edit
+
+def staged_author(ws: Path) -> str:
+    tree = ws / "release" / "tt"
+    return yaml.safe_load((tree / "info.yaml").read_text())["project"]["author"]
+
+
+def set_spec_author(ws: Path, line: str) -> None:
+    spec = ws / "spec" / "spec.yaml"
+    spec.write_text(spec.read_text() + line + "\n")
+
+
+def test_stage_writes_the_default_author_and_leaves_the_gate_input(tmp_path):
+    ws = make_ws(tmp_path)
+    before = (ws / "harden" / "info.yaml").read_bytes()
+    problems, _ = ttship.release_check(ws, pdk_hash=pdk_hash())
+    assert problems == []
+    assert staged_author(ws) == ttship.DEFAULT_AUTHOR == "Hive"
+    assert (ws / "harden" / "info.yaml").read_bytes() == before
+    text = (ws / "release" / "tt" / "info.yaml").read_text()
+    assert f"project:\n  top_module: {TOP}\n  author:" in text
+
+
+def test_stage_takes_the_author_from_the_spec(tmp_path):
+    ws = make_ws(tmp_path)
+    set_spec_author(ws, 'author: "Some Lab: tiles # one"')
+    problems, _ = ttship.release_check(ws, pdk_hash=pdk_hash())
+    assert problems == []
+    assert staged_author(ws) == "Some Lab: tiles # one"
+
+
+@pytest.mark.parametrize("line", ['author: ""', "author:", 'author: "  "', "author: 7"])
+def test_blank_spec_author_is_refused(tmp_path, line):
+    ws = make_ws(tmp_path)
+    set_spec_author(ws, line)
+    problems, _ = ttship.release_check(ws, pdk_hash=pdk_hash())
+    assert rules(problems) == ["tt_author_blank"]
+    assert "spec/spec.yaml" in problems[0]
+
+
+@pytest.mark.parametrize("kept, spec_line, want", [
+    ('  author: ""  # Your name\n', None, "Hive"),      # TT's template, unedited
+    ('  author:     "A Lab"  # Your name\n', None, "A Lab"),
+    ('  author: "A Lab"\n', 'author: "The Spec"', "The Spec"),
+])
+def test_author_in_a_kept_info_yaml(tmp_path, kept, spec_line, want):
+    ws = make_ws(tmp_path)
+    (ws / "harden" / "info.yaml").write_text(
+        f"# kept\nproject:\n  title: t  # stays\n{kept}  top_module: {TOP}\n  tiles: 1x1\n")
+    if spec_line:
+        set_spec_author(ws, spec_line)
+    problems, _ = ttship.release_check(ws, pdk_hash=pdk_hash())
+    assert problems == []
+    assert staged_author(ws) == want
+    text = (ws / "release" / "tt" / "info.yaml").read_text()
+    assert text.startswith("# kept\n") and "# stays" in text
+    assert text.count("author:") == 1
+
+
+@pytest.mark.parametrize("info", [
+    "project: {top_module: t}\n",          # not by line
+    "project:\n  author: >\n    two\n    lines\n  top_module: t\n",
+    "- not a mapping\n",
+])
+def test_info_yaml_that_cannot_take_the_author_is_refused(tmp_path, info):
+    with pytest.raises(ttship.ShipError):
+        ttship.stamped_info(tmp_path, info)
+
+
+@pytest.mark.parametrize("edit", [
+    lambda p: p.write_text(p.read_text().replace('author: "Hive"', 'author: ""')),
+    lambda p: p.write_text(p.read_text().replace('  author: "Hive"\n', "")),
+    lambda p: p.write_text("project: [\n"),
+    lambda p: p.unlink(),
+])
+def test_tree_with_no_author_is_refused(tmp_path, edit):
+    ws = make_ws(tmp_path)
+    tree = staged(ws)
+    edit(tree / "info.yaml")
+    problems, _ = ttship.ship_problems(tree, ttship.signoff(ws, pdk_hash=pdk_hash()))
+    assert rules(problems) == ["tt_author_blank"]
+
+
+# --- custom_gds's PNG preview: optional, never quiet
+
+def run_png_step(repo: Path, tmp_path: Path, png: bytes | None):
+    """The staged report step as Actions runs it: (result, job summary)."""
+    work = tmp_path / "job"
+    work.mkdir()
+    if png is not None:
+        (work / ttship.PNG_ARTIFACT).write_bytes(png)
+    summary = tmp_path / "summary.md"
+    steps = yaml.safe_load((repo / ".github/workflows/gds.yaml").read_text())["jobs"]["gds"]["steps"]
+    uses = [i for i, s in enumerate(steps) if "custom_gds" in s.get("uses", "")]
+    assert len(uses) == 1 and "run" in steps[uses[0] + 1]
+    result = subprocess.run(
+        ["bash", "-e", "-c", steps[uses[0] + 1]["run"]], cwd=work, text=True,
+        capture_output=True, env={**os.environ, "GITHUB_STEP_SUMMARY": str(summary)})
+    return result, summary.read_text()
+
+
+@pytest.mark.parametrize("png", [None, b""])
+def test_png_missing_is_said_in_summary_and_annotation(tmp_path, png):
+    ws = make_ws(tmp_path)
+    staged(ws)
+    result, summary = run_png_step(ws / "release" / "tt", tmp_path, png)
+    assert result.returncode == 0, result.stderr
+    assert "NOT rendered" in summary and "optional" in summary
+    assert result.stdout.startswith("::warning title=PNG preview not rendered::")
+
+
+def test_png_rendered_is_said_in_summary(tmp_path):
+    ws = make_ws(tmp_path)
+    staged(ws)
+    result, summary = run_png_step(ws / "release" / "tt", tmp_path, b"\x89PNG")
+    assert result.returncode == 0, result.stderr
+    assert "rendered" in summary and "NOT" not in summary
+    assert "::warning" not in result.stdout
+
+
+def without_png_report(wf_text: str) -> str:
+    assert ttship.PNG_REPORT_STEP in wf_text
+    return wf_text.replace(ttship.PNG_REPORT_STEP, "\n")
+
+
+def test_workflow_staged_before_the_png_report_is_refused(tmp_path):
+    ws = make_ws(tmp_path)
+    staged(ws)
+    plant(ws, without_png_report(staged_wf(ws)))
+    problems, _ = ttship.release_check(ws, pdk_hash=pdk_hash())
+    assert rules(problems) == ["tt_png_unreported"]
+
+
+def test_png_report_rule_leaves_a_tile_without_a_shipped_netlist_gate(tmp_path):
+    # An msde tile may keep its own workflow: tt_gl_test_missing's scope.
+    ws = make_ws(tmp_path)
+    tree = staged(ws)
+    wf = tree / ".github/workflows/gds.yaml"
+    wf.write_text(without_png_report(wf.read_text()))
+    sign = ttship.signoff(ws, pdk_hash=pdk_hash())
+    assert "tt_png_unreported" in rules(ttship.ship_problems(tree, sign)[0])
+    problems, _ = ttship.ship_problems(tree, {**sign, "gl_is_shipped": False})
+    assert "tt_png_unreported" not in rules(problems)
