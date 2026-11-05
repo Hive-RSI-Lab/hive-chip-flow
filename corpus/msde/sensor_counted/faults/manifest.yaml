@@ -33,6 +33,17 @@ faults:
     gate: top_harden
     plant: plant_top_harden_renamed_net.py
     expect: {status: fail, kind: max_slew_violation}
+  # a macro clock output is proven by name through the netlist (#191): the
+  # plant proves a real CTS tree on it, then buffers it by hand
+  - name: top_harden_macro_clock_buffered
+    gate: top_harden
+    plant: plant_top_harden_macro_clock.py
+    expect: {status: fail, kind: macro_clock_buffer_unproven}
+  # the same clock with nothing on it: no net CTS can name
+  - name: top_harden_macro_clock_unloaded
+    gate: top_harden
+    plant: plant_top_harden_macro_clock_unloaded.py
+    expect: {status: fail, kind: macro_clock_net_unresolved}
   # the lib view is owed for every macro with a crossing pin (#177): a
   # netlist changed after macro_lib, or no macro_timing, runs no harden
   - name: top_harden_macro_lib_stale

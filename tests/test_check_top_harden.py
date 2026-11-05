@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 import sys
 from pathlib import Path
 
@@ -1207,3 +1208,209 @@ def test_every_repair_step_must_report_the_net_dont_touch():
     kinds = [v["kind"] for v in check_top_harden.dont_touch_unset(run, [wrong])]
     assert kinds == ["macro_net_unresolved"] + ["macro_net_not_dont_touch"] * 2
     assert check_top_harden.dont_touch_unset(run, [ANALOG]) == []
+
+
+# ------------------------------------------------------- macro clock proof (#191)
+
+CLOCK_SYNTH = r"""
+module top (input clk);
+  sensor_counted_analog u_analog (.osc_en(en), .osc_out(\d.osc ));
+  buf_cell_placeholder_not_a_buffer _9_ (.A(\d.osc ), .Y(n1));
+  dffq _1_ (.CLK(\d.osc ), .D(d1), .Q(q1));
+  dffq _2_ (.CLK(\d.osc ), .D(d2), .Q(q2));
+  dffq _3_ (.CLK(clk), .D(d3), .Q(q3));
+endmodule
+""".replace("buf_cell_placeholder_not_a_buffer", "pdk__clkinv_1")
+CLOCK_FINAL = r"""
+module top (input clk);
+  sensor_counted_analog u_analog (.osc_en(en), .osc_out(\d.osc ));
+  pdk__antenna ANTENNA_1 (.I(\d.osc ));
+  pdk__clkbuf_8 \clkbuf_0_d.osc  (.I(\d.osc ), .Z(clknet_0));
+  pdk__clkbuf_8 \clkbuf_1_0__f_d.osc  (.I(clknet_0), .Z(clknet_a));
+  pdk__clkbuf_8 \clkbuf_1_1__f_d.osc  (.I(clknet_0), .Z(clknet_b));
+  pdk__clkbuf_8 clkload0 (.I(clknet_b));
+  pdk__clkinv_1 _9_ (.A(clknet_a), .Y(n1));
+  dffq _1_ (.CLK(clknet_a), .D(d1), .Q(q1));
+  dffq _2_ (.CLK(clknet_b), .D(d2), .Q(q2));
+  dffq _3_ (.CLK(clk), .D(d3), .Q(q3));
+endmodule
+"""
+CLOCK_MACRO = {"cell": "sensor_counted_analog", "instance": "u_analog",
+               "clock_pins": ["osc_out"], "clock_nets": {"osc_out": "d.osc"}}
+CLOCK_LOG = '[INFO CTS-0007] Net "d.osc" found for clock "osc".\n'
+
+
+def _clock_run(tmp_path, synth=CLOCK_SYNTH, final=CLOCK_FINAL, log=CLOCK_LOG):
+    run = tmp_path / "run"
+    (run / "06-yosys-synthesis").mkdir(parents=True)
+    (run / "06-yosys-synthesis" / "top.nl.v").write_text(synth)
+    if final is not None:
+        (run / "final" / "nl").mkdir(parents=True)
+        (run / "final" / "nl" / "top.nl.v").write_text(final)
+    if log is not None:
+        (run / "35-openroad-cts").mkdir()
+        (run / "35-openroad-cts" / "openroad-cts.log").write_text(log)
+    return run
+
+
+def _clock_kinds(tmp_path, **kw):
+    proof, violations = check_top_harden.macro_clock_proof(
+        _clock_run(tmp_path, **kw), [CLOCK_MACRO])
+    return proof, [v["kind"] for v in violations]
+
+
+def test_a_cts_tree_on_a_macro_clock_is_proven_by_name(tmp_path):
+    proof, kinds = _clock_kinds(tmp_path)
+    assert kinds == []
+    assert proof["u_analog/osc_out"]["clock"] == "osc"
+    assert proof["u_analog/osc_out"]["sinks"] == 3
+    assert len(proof["u_analog/osc_out"]["buffers"]) == 3
+
+
+@pytest.mark.parametrize("name", [
+    r"\clkbuf_regs_0_osc ", r"\delaybuf_0_osc ", r"\clkbuf_0_d.osc_regs ",
+    r"\clkbuf_leaf_3_d.osc "])
+def test_each_name_cts_gives_a_tree_buffer_is_followed(tmp_path, name):
+    final = CLOCK_FINAL.replace(r"\clkbuf_0_d.osc ", name)
+    assert _clock_kinds(tmp_path, final=final)[1] == []
+
+
+def test_an_inverter_cts_cloned_per_sink_is_the_one_synthesis_placed(tmp_path):
+    final = CLOCK_FINAL.replace(
+        "pdk__clkinv_1 _9_ (.A(clknet_a), .Y(n1));",
+        "pdk__clkinv_1 _9_ (.A(clknet_a), .Y(n1));\n"
+        "  pdk__clkinv_1 _9___4 (.A(clknet_b), .Y(n2));\n")
+    assert _clock_kinds(tmp_path, final=final)[1] == []
+
+
+def test_a_final_pin_on_another_net_is_macro_clock_net_unresolved(tmp_path):
+    final = CLOCK_FINAL.replace(r".osc_out(\d.osc )", ".osc_out(net38)")
+    proof, kinds = _clock_kinds(tmp_path, final=final)
+    assert proof == {} and kinds == ["macro_clock_net_unresolved"]
+
+
+def test_the_harden_synthesis_disagreeing_with_the_probe_is_named(tmp_path):
+    synth = CLOCK_SYNTH.replace(r"\d.osc ", "other")
+    assert _clock_kinds(tmp_path, synth=synth)[1] == [
+        "macro_clock_net_unresolved"]
+
+
+def test_a_cts_log_not_naming_the_net_is_macro_clock_net_unresolved(tmp_path):
+    log = '[INFO CTS-0007] Net "clk" found for clock "clk".\n'
+    assert _clock_kinds(tmp_path, log=log)[1] == ["macro_clock_net_unresolved"]
+
+
+def test_a_run_past_cts_with_no_cts_log_proves_nothing(tmp_path):
+    assert _clock_kinds(tmp_path, log=None)[1] == ["macro_clock_net_unresolved"]
+
+
+@pytest.mark.parametrize("old, new", [
+    # a buffer no CTS name vouches for, on the way to a sink
+    (r"pdk__clkbuf_8 \clkbuf_1_0__f_d.osc  (.I(clknet_0)",
+     "pdk__buf_2 u_osc_buffer (.I(clknet_0)"),
+    # a repair buffer the resizer named, off the macro's own net
+    (r"pdk__clkbuf_8 \clkbuf_0_d.osc  (.I(\d.osc )",
+     r"pdk__clkbuf_8 rebuffer12 (.I(\d.osc )"),
+    # a CTS name for some other net
+    (r"\clkbuf_1_0__f_d.osc ", "clkbuf_1_0__f_clk"),
+    # an alias: the net goes on under a name the walk can't follow
+    ("  dffq _1_ (.CLK(clknet_a)", "  assign alias = clknet_a;\n  dffq _1_ (.CLK(alias)"),
+    # a sink lost off the net
+    ("dffq _2_ (.CLK(clknet_b)", "dffq _2_ (.CLK(clk)"),
+    # a sink synthesis never put on it
+    ("dffq _3_ (.CLK(clk)", "dffq _3_ (.CLK(clknet_b)"),
+    # a sink moved to another pin of the same cell
+    ("dffq _1_ (.CLK(clknet_a), .D(d1)", "dffq _1_ (.CLK(d1), .D(clknet_a)"),
+])
+def test_a_clock_path_not_accounted_for_is_macro_clock_buffer_unproven(
+        tmp_path, old, new):
+    assert old in CLOCK_FINAL
+    assert _clock_kinds(tmp_path, final=CLOCK_FINAL.replace(old, new))[1] == [
+        "macro_clock_buffer_unproven"]
+
+
+def test_a_buffer_already_in_synthesis_is_unproven_even_if_gone_after(tmp_path):
+    synth = CLOCK_SYNTH.replace(
+        r"dffq _2_ (.CLK(\d.osc )",
+        "pdk__buf_2 u_b (.I(\\d.osc ), .Z(b));\n  dffq _2_ (.CLK(b)")
+    assert _clock_kinds(tmp_path, synth=synth)[1] == [
+        "macro_clock_buffer_unproven"]
+
+
+def test_no_netlist_from_the_flow_leaves_the_flow_to_say_why(tmp_path):
+    assert check_top_harden.macro_clock_proof(tmp_path / "none",
+                                              [CLOCK_MACRO]) == ({}, [])
+
+
+def test_a_run_stopped_before_cts_is_walked_as_far_as_it_reached(tmp_path):
+    run = _clock_run(tmp_path, final=None, log=None)
+    proof, violations = check_top_harden.macro_clock_proof(run, [CLOCK_MACRO])
+    assert violations == []
+    assert proof["u_analog/osc_out"]["netlist"].startswith("06-yosys")
+
+
+def test_a_clock_pin_with_no_single_net_is_refused_at_the_probe():
+    nets, violations = check_top_harden.resolve_clock_nets(
+        CLOCK_SYNTH.replace(r".osc_out(\d.osc )", ".osc_out(1'h0)"),
+        [CLOCK_MACRO])
+    assert nets == {"u_analog": {}}
+    assert [v["kind"] for v in violations] == ["macro_clock_net_unresolved"]
+
+
+def test_a_clock_pin_resolves_to_the_net_synthesis_put_on_it():
+    assert check_top_harden.resolve_clock_nets(CLOCK_SYNTH, [CLOCK_MACRO]) == (
+        {"u_analog": {"osc_out": "d.osc"}}, [])
+
+
+def test_the_pll_shape_one_sink_and_cts_skipping_it_is_proven(tmp_path):
+    final = CLOCK_SYNTH.replace(r"dffq _2_ (.CLK(\d.osc )", "dffq _2_ (.CLK(d4)")
+    log = CLOCK_LOG + '[WARNING CTS-0041] Net "d.osc" has 1 sinks. Skipping...\n'
+    proof, kinds = _clock_kinds(tmp_path, synth=final, final=final, log=log)
+    assert kinds == [] and proof["u_analog/osc_out"]["buffers"] == []
+
+
+# A real run's netlists, trimmed to the clock's statements: sensor_counted with
+# osc_out clocking a divider and driving uio_out[1], which synthesis does
+# through buffer _214_. CTS split the tree around the macro's own sink.
+REAL_CLOCK = Path(__file__).resolve().parent / "fixtures" / "top_harden_macro_clock" / "exported"
+REAL_NET = "u_sensor_counted_digital.osc_out"
+REAL_MACRO = {"cell": "sensor_counted_analog", "instance": "u_analog",
+              "clock_pins": ["osc_out"], "clock_nets": {"osc_out": REAL_NET}}
+
+
+def _real_clock_run(tmp_path, edit=lambda text: text):
+    run = tmp_path / "run"
+    shutil.copytree(REAL_CLOCK, run)
+    for netlist in run.glob("**/*.nl.v"):
+        netlist.write_text(edit(netlist.read_text()))
+    return run
+
+
+def _without_export(text):
+    return "".join(line for line in text.splitlines(keepends=True)
+                   if " _214_ " not in line)
+
+
+def test_a_real_run_exporting_the_clock_names_the_synthesis_buffer(tmp_path):
+    _, violations = check_top_harden.macro_clock_proof(
+        _real_clock_run(tmp_path), [REAL_MACRO])
+    assert [v["kind"] for v in violations] == ["macro_clock_buffer_unproven"]
+    assert "_214_" in violations[0]["msg"]
+
+
+def test_the_same_real_tree_with_cts_alone_on_it_is_proven(tmp_path):
+    proof, violations = check_top_harden.macro_clock_proof(
+        _real_clock_run(tmp_path, _without_export), [REAL_MACRO])
+    assert violations == []
+    assert proof["u_analog/osc_out"]["clock"] == "osc"
+    assert proof["u_analog/osc_out"]["buffers"]
+
+
+def test_the_same_real_tree_with_the_net_renamed_after_synthesis_is_named(
+        tmp_path):
+    run = _real_clock_run(tmp_path, _without_export)
+    final = next(run.glob("final/nl/*.nl.v"))
+    final.write_text(final.read_text().replace(
+        f".osc_out(\\{REAL_NET} )", ".osc_out(net38)"))
+    _, violations = check_top_harden.macro_clock_proof(run, [REAL_MACRO])
+    assert [v["kind"] for v in violations] == ["macro_clock_net_unresolved"]

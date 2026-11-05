@@ -428,7 +428,7 @@ gates:
     top_harden:
       phase: P3
       tool: top_harden
-      strength: 0
+      strength: 1
       job: true
       fail_severities: [error]
       max_count: 0
@@ -446,7 +446,12 @@ gates:
         it so (`macro_net_not_dont_touch`). The macro's own driver therefore
         meets its liberty limits or the gate fails max_slew_violation; there
         is no spec opt-out, and none is planned until a design needs a
-        buffered macro output (a clock output stays repairable for CTS).
+        buffered macro output. A macro clock output stays repairable for
+        CTS and is proven by name instead: the deepest netlist the run
+        reached is walked from the pin, which must keep the probe's net
+        and be named a clock's net by CTS (`macro_clock_net_unresolved`),
+        through buffers CTS named for it only, to the leaf pins synthesis
+        put on it (`macro_clock_buffer_unproven`).
     top_drc:
       phase: P3
       tool: top_drc
