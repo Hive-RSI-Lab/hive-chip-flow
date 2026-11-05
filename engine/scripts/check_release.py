@@ -66,6 +66,7 @@ import manifestlib  # noqa: E402
 import measurelib  # noqa: E402
 import speclib  # noqa: E402
 import statelib  # noqa: E402
+import ttlib  # noqa: E402
 import ttship  # noqa: E402
 
 SCRIPT = "check_release"
@@ -117,6 +118,26 @@ def with_tt_submission(att: dict, record: dict) -> dict:
     body["attestation_sha256"] = hashlib.sha256(
         json.dumps(body, sort_keys=True).encode("utf-8")).hexdigest()
     return body
+
+
+def pad_reset_warnings(ws: Path, skill: str | None) -> list[dict]:
+    """A PAD_RESET_SYNC_OFF warning for the tile's spec (vde: its own,
+    msde: its digital side's) when it opts out of the rst_n synchroniser."""
+    spec_path = ws / ("digital/spec/spec.yaml" if skill == "msde"
+                      else "spec/spec.yaml")
+    if not spec_path.is_file():
+        return []
+    spec = speclib.load_spec(spec_path)
+    try:
+        reason = ttlib.pad_reset_opt_out(spec)
+    except ttlib.TTError as exc:
+        raise checklib.CheckError(str(exc)) from exc
+    if reason is None:
+        return []
+    return [{"kind": ttlib.PAD_RESET_SYNC_OFF,
+             "file": str(spec_path.relative_to(ws)),
+             "msg": "rst_n reaches the block without the pad reset "
+                    f"synchroniser (pad_reset_sync off): {reason}"}]
 
 
 def run(argv=None):
@@ -219,6 +240,13 @@ def run(argv=None):
         facts["manifest_released"] = manifest["released"]
     if measures:
         facts["measures"] = measures
+    # A tile that opts out of the pad reset synchroniser is never released
+    # quietly: the opt-out is a named warning in the record and on stderr.
+    warnings = pad_reset_warnings(ws, skill)
+    if warnings:
+        facts["warnings"] = warnings
+        for w in warnings:
+            print(f"WARNING {w['kind']}: {w['msg']}", file=sys.stderr)
 
     # stamp() hashes exactly this path as input_digest; gate.py's own
     # record_gate cross-checks that against invalidation.yaml's gate_inputs

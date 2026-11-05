@@ -4,7 +4,7 @@
  "block": "counter",
  "workspace": "blocks/counter",
  "created": "2026-10-29T09:54:57",
- "updated": "2026-11-05T07:22:59",
+ "updated": "2026-11-05T08:27:30",
  "phase": "P0",
  "toolchain": null,
  "gates": {
@@ -109,15 +109,15 @@
   "sim": {
    "phase": "P4",
    "status": "pass",
-   "attempts": 3,
+   "attempts": 4,
    "last": {
-    "ts": "2026-11-01T11:10:25",
+    "ts": "2026-11-05T08:02:22",
     "status": "pass",
     "failing_count": 0,
     "total": 0,
     "inputs": {
      "rtl": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
-     "tb": "dir_text:44b914540eb555744ca22e68ecb3bfc12d4b674941a109098e2120116c7518de",
+     "tb": "dir_text:1a9e6faab6600130823e4ed8154e094fed3d16ebb98f4d6a474351cd134dddff",
      "spec_yaml_sans_formal": "json_canonical_sans_formal:ec426c58dd9f2334b09759284010f4068e5638e331ac28be8742ab3fee1e7b69"
     },
     "job": null,
@@ -170,21 +170,36 @@
      "facts": {
       "tests_passed": 10
      }
+    },
+    {
+     "ts": "2026-11-05T08:02:22",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
+      "tb": "dir_text:1a9e6faab6600130823e4ed8154e094fed3d16ebb98f4d6a474351cd134dddff",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:ec426c58dd9f2334b09759284010f4068e5638e331ac28be8742ab3fee1e7b69"
+     },
+     "job": null,
+     "facts": {
+      "tests_passed": 10
+     }
     }
    ]
   },
   "holdout": {
    "phase": "P4",
    "status": "pass",
-   "attempts": 3,
+   "attempts": 4,
    "last": {
-    "ts": "2026-11-01T11:11:03",
+    "ts": "2026-11-05T08:27:30",
     "status": "pass",
     "failing_count": 0,
     "total": 0,
     "inputs": {
      "rtl": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
-     "holdout": "dir_text:746feb4c3733514a9cedd67f6eeb26604b0c0cfaa3e2c6b7eabaee1d34e01b2d",
+     "holdout": "dir_text:fb8d89cdea7e2d1106319346a2079912521ca1f89a8834fa0b96f638b704cc21",
      "spec_yaml_sans_formal": "json_canonical_sans_formal:ec426c58dd9f2334b09759284010f4068e5638e331ac28be8742ab3fee1e7b69"
     },
     "job": null,
@@ -231,6 +246,21 @@
      "inputs": {
       "rtl": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
       "holdout": "dir_text:746feb4c3733514a9cedd67f6eeb26604b0c0cfaa3e2c6b7eabaee1d34e01b2d",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:ec426c58dd9f2334b09759284010f4068e5638e331ac28be8742ab3fee1e7b69"
+     },
+     "job": null,
+     "facts": {
+      "tests_passed": 4
+     }
+    },
+    {
+     "ts": "2026-11-05T08:27:30",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
+      "holdout": "dir_text:fb8d89cdea7e2d1106319346a2079912521ca1f89a8834fa0b96f638b704cc21",
       "spec_yaml_sans_formal": "json_canonical_sans_formal:ec426c58dd9f2334b09759284010f4068e5638e331ac28be8742ab3fee1e7b69"
      },
      "job": null,
@@ -314,15 +344,15 @@
   "mutate": {
    "phase": "P4",
    "status": "pass",
-   "attempts": 3,
+   "attempts": 4,
    "last": {
-    "ts": "2026-11-01T11:10:36",
+    "ts": "2026-11-05T08:02:40",
     "status": "pass",
     "failing_count": 0,
     "total": 4,
     "inputs": {
      "rtl": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
-     "tb": "dir_text:44b914540eb555744ca22e68ecb3bfc12d4b674941a109098e2120116c7518de",
+     "tb": "dir_text:1a9e6faab6600130823e4ed8154e094fed3d16ebb98f4d6a474351cd134dddff",
      "spec_yaml_sans_formal": "json_canonical_sans_formal:ec426c58dd9f2334b09759284010f4068e5638e331ac28be8742ab3fee1e7b69",
      "mutant_rulings": null
     },
@@ -334,7 +364,7 @@
      "killed": 19,
      "survived": 0,
      "kill_rate": 1.0,
-     "wall_s": 7.62
+     "wall_s": 12.0
     }
    },
    "history": [
@@ -403,21 +433,43 @@
       "kill_rate": 1.0,
       "wall_s": 7.62
      }
+    },
+    {
+     "ts": "2026-11-05T08:02:40",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 4,
+     "inputs": {
+      "rtl": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
+      "tb": "dir_text:1a9e6faab6600130823e4ed8154e094fed3d16ebb98f4d6a474351cd134dddff",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:ec426c58dd9f2334b09759284010f4068e5638e331ac28be8742ab3fee1e7b69",
+      "mutant_rulings": null
+     },
+     "job": null,
+     "facts": {
+      "total_mutants": 23,
+      "equivalent": 4,
+      "scored_mutants": 19,
+      "killed": 19,
+      "survived": 0,
+      "kill_rate": 1.0,
+      "wall_s": 12.0
+     }
     }
    ]
   },
   "cover": {
    "phase": "P4",
    "status": "pass",
-   "attempts": 3,
+   "attempts": 4,
    "last": {
-    "ts": "2026-11-01T11:10:38",
+    "ts": "2026-11-05T08:02:28",
     "status": "pass",
     "failing_count": 0,
     "total": 3,
     "inputs": {
      "rtl": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
-     "tb": "dir_text:44b914540eb555744ca22e68ecb3bfc12d4b674941a109098e2120116c7518de",
+     "tb": "dir_text:1a9e6faab6600130823e4ed8154e094fed3d16ebb98f4d6a474351cd134dddff",
      "spec_yaml": "json_canonical:969b0fe1155ae8e297f5db8ca34afc10e02ba481ea588d4287af70b8e371a5b7"
     },
     "job": null,
@@ -479,6 +531,26 @@
      "inputs": {
       "rtl": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
       "tb": "dir_text:44b914540eb555744ca22e68ecb3bfc12d4b674941a109098e2120116c7518de",
+      "spec_yaml": "json_canonical:969b0fe1155ae8e297f5db8ca34afc10e02ba481ea588d4287af70b8e371a5b7"
+     },
+     "job": null,
+     "facts": {
+      "line_pct": 100.0,
+      "toggle_pct": 97.6923,
+      "line_covered": 31,
+      "line_total": 31,
+      "toggle_covered": 127,
+      "toggle_total": 130
+     }
+    },
+    {
+     "ts": "2026-11-05T08:02:28",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 3,
+     "inputs": {
+      "rtl": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
+      "tb": "dir_text:1a9e6faab6600130823e4ed8154e094fed3d16ebb98f4d6a474351cd134dddff",
       "spec_yaml": "json_canonical:969b0fe1155ae8e297f5db8ca34afc10e02ba481ea588d4287af70b8e371a5b7"
      },
      "job": null,
@@ -1667,11 +1739,11 @@
  },
  "jobs": {},
  "holdout": {
-  "sha": "dir_text:746feb4c3733514a9cedd67f6eeb26604b0c0cfaa3e2c6b7eabaee1d34e01b2d",
+  "sha": "dir_text:fb8d89cdea7e2d1106319346a2079912521ca1f89a8834fa0b96f638b704cc21",
   "written_by": "a70a4",
-  "ts": "2026-11-01T11:11:01",
-  "edits_at_pin": 1,
-  "replaced_sha": "dir_text:e69637cc36b8a173630e06d341bc4186ae2990986112fca224b3c2971d5405c1"
+  "ts": "2026-11-05T08:27:28",
+  "edits_at_pin": 2,
+  "replaced_sha": "dir_text:746feb4c3733514a9cedd67f6eeb26604b0c0cfaa3e2c6b7eabaee1d34e01b2d"
  },
  "optimise": null,
  "human": {},
@@ -1680,31 +1752,31 @@
    "path": "spec/spec.yaml",
    "kind": "spec_yaml",
    "sha256": "json_canonical:969b0fe1155ae8e297f5db8ca34afc10e02ba481ea588d4287af70b8e371a5b7",
-   "hashed": "2026-11-01T11:10:38"
+   "hashed": "2026-11-05T08:02:28"
   },
   "rtl": {
    "path": "rtl",
    "kind": "rtl",
    "sha256": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
-   "hashed": "2026-11-05T07:22:59"
+   "hashed": "2026-11-05T08:27:30"
   },
   "spec_yaml_sans_formal": {
    "path": "spec/spec.yaml",
    "kind": "spec_yaml_sans_formal",
    "sha256": "json_canonical_sans_formal:ec426c58dd9f2334b09759284010f4068e5638e331ac28be8742ab3fee1e7b69",
-   "hashed": "2026-11-05T07:22:33"
+   "hashed": "2026-11-05T08:27:30"
   },
   "tb": {
    "path": "tb",
    "kind": "tb",
-   "sha256": "dir_text:44b914540eb555744ca22e68ecb3bfc12d4b674941a109098e2120116c7518de",
-   "hashed": "2026-11-05T00:15:33"
+   "sha256": "dir_text:1a9e6faab6600130823e4ed8154e094fed3d16ebb98f4d6a474351cd134dddff",
+   "hashed": "2026-11-05T08:02:40"
   },
   "holdout": {
    "path": "holdout",
    "kind": "holdout",
-   "sha256": "dir_text:746feb4c3733514a9cedd67f6eeb26604b0c0cfaa3e2c6b7eabaee1d34e01b2d",
-   "hashed": "2026-11-01T11:11:03"
+   "sha256": "dir_text:fb8d89cdea7e2d1106319346a2079912521ca1f89a8834fa0b96f638b704cc21",
+   "hashed": "2026-11-05T08:27:30"
   },
   "formal": {
    "path": "formal",
@@ -1716,7 +1788,7 @@
    "path": "spec/mutant_rulings.yaml",
    "kind": "mutant_rulings",
    "sha256": null,
-   "hashed": "2026-11-01T11:10:36"
+   "hashed": "2026-11-05T08:02:40"
   },
   "harden_config": {
    "path": "harden/config.json",
@@ -1804,6 +1876,22 @@
    "class": "holdout_edit",
    "refs": [],
    "note": "reset synchroniser added (decision in board thread chipflow-build-e2e): release lags two clk edges, so holdout's reset and bring-up wait those edges and REQ-RELEASE is tagged. Edited by the same agent that wrote the RTL change, not an independent holdout author.",
+   "human_hold": 2,
+   "gates": [
+    "holdout"
+   ],
+   "gates_marked": [
+    "holdout"
+   ],
+   "stale_artifacts": []
+  },
+  {
+   "ts": "2026-11-05T08:27:28",
+   "class": "holdout_edit",
+   "refs": [
+    "test_ece298a_counter_holdout.py"
+   ],
+   "note": "pad reset synchroniser in the TT wrapper made async-assert (#179): the release reaches the block padreset.latency(dut) edges after its own RELEASE_EDGES, so each release wait (and the no-count check during it) runs RELEASE_EDGES + latency(dut) edges. Edited by the same agent that changed the wrapper, not an independent holdout author.",
    "human_hold": 2,
    "gates": [
     "holdout"
@@ -2376,6 +2464,60 @@
    "gate": "release",
    "status": "pass",
    "attempt": 6,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-11-05T08:02:22",
+   "event": "gate",
+   "gate": "sim",
+   "status": "pass",
+   "attempt": 4,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-11-05T08:02:28",
+   "event": "gate",
+   "gate": "cover",
+   "status": "pass",
+   "attempt": 4,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-11-05T08:02:40",
+   "event": "gate",
+   "gate": "mutate",
+   "status": "pass",
+   "attempt": 4,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-11-05T08:27:03",
+   "event": "snapshot",
+   "label": "pre-async-assert",
+   "files": 1
+  },
+  {
+   "ts": "2026-11-05T08:27:28",
+   "event": "edit",
+   "edit_class": "holdout_edit",
+   "refs": [
+    "test_ece298a_counter_holdout.py"
+   ],
+   "human_hold": 2
+  },
+  {
+   "ts": "2026-11-05T08:27:28",
+   "event": "holdout",
+   "written_by": "a70a4",
+   "sha": "dir_text:fb8d89cdea7e2d1106319346a2079912521ca1f89a8834fa0b96f638b704cc21",
+   "replaced_sha": "dir_text:746feb4c3733514a9cedd67f6eeb26604b0c0cfaa3e2c6b7eabaee1d34e01b2d"
+  },
+  {
+   "ts": "2026-11-05T08:27:30",
+   "event": "gate",
+   "gate": "holdout",
+   "status": "pass",
+   "attempt": 4,
    "failing_count": 0
   }
  ]

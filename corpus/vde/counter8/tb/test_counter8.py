@@ -11,16 +11,15 @@ gate's own corpus fault targets."""
 import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import FallingEdge
+from padreset import pad_reset
 
 CLK_PERIOD_NS = 10
 
 
 async def _reset(dut, cycles=3):
+    # through the tile's pad when the gate runs it there (engine/lib/padreset)
     await FallingEdge(dut.clk)
-    dut.rst.value = 1
-    for _ in range(cycles):
-        await FallingEdge(dut.clk)
-    dut.rst.value = 0
+    await pad_reset(dut, dut.rst, cycles)
 
 
 # req: REQ-WRAP

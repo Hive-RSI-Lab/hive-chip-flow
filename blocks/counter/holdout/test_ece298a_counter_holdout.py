@@ -9,11 +9,18 @@ import random
 import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import FallingEdge, RisingEdge, Timer
+from padreset import latency
 
 CLK_PERIOD_NS = 100
 SETTLE_NS = 10
 LOAD, ENABLE, OE = 0b001, 0b010, 0b100
-RELEASE_EDGES = 2  # rising edges the reset synchroniser takes
+RELEASE_EDGES = 2  # rising edges the block's reset synchroniser takes
+
+
+def release_edges(dut):
+    """the block's RELEASE_EDGES, plus the tile pad's latency when the gate
+    runs the test through the generated wrapper (engine/lib/padreset.py)"""
+    return RELEASE_EDGES + latency(dut)
 
 
 async def _up(dut):
@@ -25,7 +32,7 @@ async def _up(dut):
     for _ in range(2):
         await FallingEdge(dut.clk)
     dut.rst_n.value = 1
-    for _ in range(RELEASE_EDGES):
+    for _ in range(release_edges(dut)):
         await FallingEdge(dut.clk)
 
 
@@ -38,8 +45,8 @@ async def _edge(dut):
 @cocotb.test()
 async def test_reset_with_no_clock(dut):
     """Count up, stop the clock entirely, then pull rst_n: the count clears
-    with no edge at all, and counting resumes from 0 on the third edge after
-    the release."""
+    with no edge at all, and counting resumes from 0 on the first edge after
+    the release wait."""
     dut.ena.value = 1
     dut.uio_in.value = 0
     dut.clk.value = 0
@@ -47,7 +54,7 @@ async def test_reset_with_no_clock(dut):
     await Timer(50, unit="ns")
     dut.rst_n.value = 1
     dut.ui_in.value = ENABLE
-    for _ in range(RELEASE_EDGES + 9):
+    for _ in range(release_edges(dut) + 9):
         await Timer(50, unit="ns")
         dut.clk.value = 1
         await Timer(50, unit="ns")
@@ -61,7 +68,7 @@ async def test_reset_with_no_clock(dut):
     assert int(dut.uio_out.value) == 0
     await Timer(500, unit="ns")
     dut.rst_n.value = 1
-    for _ in range(RELEASE_EDGES):
+    for _ in range(release_edges(dut)):
         await Timer(50, unit="ns")
         dut.clk.value = 1
         await Timer(50, unit="ns")

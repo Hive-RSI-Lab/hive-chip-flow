@@ -17,6 +17,7 @@
 import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import ClockCycles, FallingEdge, RisingEdge, Timer
+from padreset import latency
 
 CLK_PERIOD_NS = 100  # 10 MHz, keeps the arithmetic in the test easy to read
 
@@ -28,8 +29,16 @@ OE = 0b100
 # been committed before the test samples an output.
 SETTLE_NS = 10
 
-# Rising clk edges the reset synchroniser takes to pass rst_n's release on.
+# Rising clk edges the block's reset synchroniser takes to pass rst_n's
+# release on.
 RELEASE_EDGES = 2
+
+
+def release_edges(dut):
+    """Rising edges from rst_n's release to the block leaving reset: the
+    block's own RELEASE_EDGES, plus the tile pad's latency when the gate runs
+    the test through the generated wrapper (engine/lib/padreset.py)."""
+    return RELEASE_EDGES + latency(dut)
 
 
 def ctrl(load=False, enable=False, oe=False):
@@ -51,7 +60,7 @@ async def reset(dut, ui=0, uio=0):
     await FallingEdge(dut.clk)
     dut.rst_n.value = 1
     await Timer(SETTLE_NS, unit="ns")
-    for _ in range(RELEASE_EDGES):
+    for _ in range(release_edges(dut)):
         await RisingEdge(dut.clk)
     await Timer(SETTLE_NS, unit="ns")
 
@@ -106,11 +115,11 @@ async def test_async_reset(dut):
     # Release and confirm counting resumes from 0, after the synchroniser.
     await FallingEdge(dut.clk)
     dut.rst_n.value = 1
-    for edge in range(RELEASE_EDGES):
+    for edge in range(release_edges(dut)):
         await step(dut)
         assert q(dut) == 0, f"count moved on release edge {edge + 1}: {q(dut)}"
     await step(dut)
-    assert q(dut) == 1, f"expected 1 on the third edge after reset, got {q(dut)}"
+    assert q(dut) == 1, f"expected 1 on the first edge after the release wait, got {q(dut)}"
 
 
 # req: REQ-RELEASE
@@ -132,13 +141,13 @@ async def test_release_lags_two_edges(dut):
         # Off any clock edge: the release can't be timed by the pad.
         await Timer(CLK_PERIOD_NS // 4, unit="ns")
         dut.rst_n.value = 1
-        for edge in range(RELEASE_EDGES):
+        for edge in range(release_edges(dut)):
             await step(dut)
             assert q(dut) == 0, (
                 f"count moved on release edge {edge + 1}: 0x{q(dut):02X}")
         await step(dut)
         assert q(dut) == after, (
-            f"third edge should act: expected 0x{after:02X}, got 0x{q(dut):02X}")
+            f"the edge after the release wait should act: expected 0x{after:02X}, got 0x{q(dut):02X}")
 
     # A reset pulse between edges, shorter than a cycle, restarts the wait.
     dut.ui_in.value = ctrl(enable=True)
@@ -148,7 +157,7 @@ async def test_release_lags_two_edges(dut):
     dut.rst_n.value = 1
     await Timer(SETTLE_NS, unit="ns")
     assert q(dut) == 0, f"a short pulse must clear the count: 0x{q(dut):02X}"
-    for edge in range(RELEASE_EDGES):
+    for edge in range(release_edges(dut)):
         await step(dut)
         assert q(dut) == 0, f"count moved after a short pulse: 0x{q(dut):02X}"
     await step(dut)

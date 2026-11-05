@@ -1,97 +1,108 @@
 {
- "script": "gate",
- "gate": "cover",
- "phase": "P4",
- "tool": "cover",
- "input_digest": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
- "status": "pass",
- "criteria": {
-  "fail_severities": [
-   "error"
+  "script": "gate",
+  "gate": "cover",
+  "phase": "P4",
+  "tool": "cover",
+  "input_digest": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
+  "status": "pass",
+  "criteria": {
+    "fail_severities": [
+      "error"
+    ],
+    "max_count": 0
+  },
+  "counts": {
+    "total": 3,
+    "by_severity": {
+      "info": 3
+    },
+    "by_source": {
+      "verilator": 3
+    }
+  },
+  "failing_count": 0,
+  "failing": [],
+  "violations": [
+    {
+      "check": "cover",
+      "severity": "info",
+      "file": "ece298a_counter.v",
+      "module": null,
+      "line": 29,
+      "kind": "toggle_not_covered",
+      "refs": [],
+      "msg": "ece298a_counter.v:29 ui_in[3]:1->0 never toggled",
+      "source": "verilator",
+      "items": [
+        {
+          "msg": "ece298a_counter.v:29 ui_in[3]:1->0 never toggled",
+          "file": "ece298a_counter.v",
+          "line": 29
+        }
+      ]
+    },
+    {
+      "check": "cover",
+      "severity": "info",
+      "file": "ece298a_counter.v",
+      "module": null,
+      "line": 29,
+      "kind": "toggle_not_covered",
+      "refs": [],
+      "msg": "ece298a_counter.v:29 ui_in[5]:1->0 never toggled",
+      "source": "verilator",
+      "items": [
+        {
+          "msg": "ece298a_counter.v:29 ui_in[5]:1->0 never toggled",
+          "file": "ece298a_counter.v",
+          "line": 29
+        }
+      ]
+    },
+    {
+      "check": "cover",
+      "severity": "info",
+      "file": "ece298a_counter.v",
+      "module": null,
+      "line": 29,
+      "kind": "toggle_not_covered",
+      "refs": [],
+      "msg": "ece298a_counter.v:29 ui_in[7]:1->0 never toggled",
+      "source": "verilator",
+      "items": [
+        {
+          "msg": "ece298a_counter.v:29 ui_in[7]:1->0 never toggled",
+          "file": "ece298a_counter.v",
+          "line": 29
+        }
+      ]
+    }
   ],
-  "max_count": 0
- },
- "counts": {
-  "total": 3,
-  "by_severity": {
-   "info": 3
+  "facts": {
+    "top": "ece298a_counter",
+    "line_pct": 100.0,
+    "toggle_pct": 97.6923,
+    "line_covered": 31,
+    "line_total": 31,
+    "toggle_covered": 127,
+    "toggle_total": 130
   },
-  "by_source": {
-   "verilator": 3
+  "inputs_at_start": {
+    "rtl": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
+    "tb": "dir_text:1a9e6faab6600130823e4ed8154e094fed3d16ebb98f4d6a474351cd134dddff",
+    "spec_yaml": "json_canonical:969b0fe1155ae8e297f5db8ca34afc10e02ba481ea588d4287af70b8e371a5b7"
+  },
+  "record_result": {
+    "ok": true,
+    "recorded": true,
+    "workspace": "blocks/counter",
+    "gate": "cover",
+    "status": "pass",
+    "attempts": 4,
+    "inputs": {
+      "rtl": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
+      "tb": "dir_text:1a9e6faab6600130823e4ed8154e094fed3d16ebb98f4d6a474351cd134dddff",
+      "spec_yaml": "json_canonical:969b0fe1155ae8e297f5db8ca34afc10e02ba481ea588d4287af70b8e371a5b7"
+    }
   }
- },
- "failing_count": 0,
- "failing": [],
- "violations": [
-  {
-   "check": "cover",
-   "severity": "info",
-   "file": "ece298a_counter.v",
-   "module": null,
-   "line": 29,
-   "kind": "toggle_not_covered",
-   "refs": [],
-   "msg": "ece298a_counter.v:29 ui_in[3]:1->0 never toggled",
-   "source": "verilator",
-   "items": [
-    {
-     "msg": "ece298a_counter.v:29 ui_in[3]:1->0 never toggled",
-     "file": "ece298a_counter.v",
-     "line": 29
-    }
-   ]
-  },
-  {
-   "check": "cover",
-   "severity": "info",
-   "file": "ece298a_counter.v",
-   "module": null,
-   "line": 29,
-   "kind": "toggle_not_covered",
-   "refs": [],
-   "msg": "ece298a_counter.v:29 ui_in[5]:1->0 never toggled",
-   "source": "verilator",
-   "items": [
-    {
-     "msg": "ece298a_counter.v:29 ui_in[5]:1->0 never toggled",
-     "file": "ece298a_counter.v",
-     "line": 29
-    }
-   ]
-  },
-  {
-   "check": "cover",
-   "severity": "info",
-   "file": "ece298a_counter.v",
-   "module": null,
-   "line": 29,
-   "kind": "toggle_not_covered",
-   "refs": [],
-   "msg": "ece298a_counter.v:29 ui_in[7]:1->0 never toggled",
-   "source": "verilator",
-   "items": [
-    {
-     "msg": "ece298a_counter.v:29 ui_in[7]:1->0 never toggled",
-     "file": "ece298a_counter.v",
-     "line": 29
-    }
-   ]
-  }
- ],
- "facts": {
-  "top": "ece298a_counter",
-  "line_pct": 100.0,
-  "toggle_pct": 97.6923,
-  "line_covered": 31,
-  "line_total": 31,
-  "toggle_covered": 127,
-  "toggle_total": 130
- },
- "inputs_at_start": {
-  "rtl": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
-  "tb": "dir_text:44b914540eb555744ca22e68ecb3bfc12d4b674941a109098e2120116c7518de",
-  "spec_yaml": "json_canonical:969b0fe1155ae8e297f5db8ca34afc10e02ba481ea588d4287af70b8e371a5b7"
- },
- "recorded_ts": "2026-11-01T11:10:38",
- "attempts": 3
 }

@@ -14,6 +14,7 @@ file's own note on why."""
 import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import FallingEdge
+from padreset import pad_reset
 
 CLK_PERIOD_NS = 10
 
@@ -26,17 +27,13 @@ async def test_one_clock_reset_mid_run_clears_immediately(dut):
     # settle into a known, stable counting state first - an ample reset
     # hold, well clear of the one-clock transient this test targets.
     await FallingEdge(dut.clk)
-    dut.rst.value = 1
-    for _ in range(4):
-        await FallingEdge(dut.clk)
-    dut.rst.value = 0
+    await pad_reset(dut, dut.rst, 4)
     for _ in range(4):
         await FallingEdge(dut.clk)
     assert int(dut.count.value) == 4
 
-    # the case under test: exactly one clock of reset, mid-run.
-    dut.rst.value = 1
-    await FallingEdge(dut.clk)
+    # the case under test: exactly one clock of reset, mid-run. pad_reset
+    # returns as the block leaves that one clock of reset (engine/lib/padreset)
+    await pad_reset(dut, dut.rst, 1)
     assert int(dut.count.value) == 0, (
         "a one-clock mid-run reset must clear count on that very clock")
-    dut.rst.value = 0

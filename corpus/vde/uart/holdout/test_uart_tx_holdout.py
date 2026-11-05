@@ -13,6 +13,7 @@ rather than pinning the reference RTL's own."""
 import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import FallingEdge
+from padreset import pad_reset
 
 CLK_PERIOD_NS = 10
 CLKS_PER_BIT = 4
@@ -22,12 +23,9 @@ START_TIMEOUT = 3 * CLKS_PER_BIT  # clocks from the start pulse to tx falling
 
 async def reset(dut):
     await FallingEdge(dut.clk)
-    dut.rst.value = 1
     dut.start.value = 0
     dut.data.value = 0
-    for _ in range(3):
-        await FallingEdge(dut.clk)
-    dut.rst.value = 0
+    await pad_reset(dut, dut.rst, 3)
     await FallingEdge(dut.clk)
 
 

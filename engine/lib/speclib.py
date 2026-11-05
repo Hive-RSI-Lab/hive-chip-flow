@@ -663,6 +663,14 @@ def lint_spec(spec: dict, rel_path: str = "spec/spec.yaml") -> list[dict]:
     if tt_pins is not None and (not isinstance(tt_pins, dict) or not tt_pins):
         bad("tt_pins_empty", "'tt_pins' is present but not a non-empty mapping")
 
+    if spec.get("pad_reset_sync") is not None:
+        import ttlib  # engine/lib, beside this module
+        try:
+            ttlib.pad_reset_opt_out(spec)
+        except ttlib.PadResetOptOutError as exc:
+            kind, _, msg = str(exc).partition(": ")
+            bad(kind, msg)
+
     if harden_signoff(spec) is None:
         bad("bad_harden_signoff",
             "'harden_signoff' takes ir_budget_pct (a number in (0, 100]), "

@@ -5,6 +5,7 @@
  "stage": "P4",
  "source": "runs/counter8-20260924/blocks/counter8",
  "frozen_at": "2026-09-25T08:03:48+00:00",
+ "sim_frame": "block",
  "files": {
   "spec/spec.md": "a324bb4d91a34199a28ed585dbad64bbb940cb176599992c8374a704459aae98",
   "spec/spec.yaml": "3a3789a28f91e61054407d6d8b23402f9e0a91411690980ac04668010a543eec",

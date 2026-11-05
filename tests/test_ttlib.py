@@ -703,3 +703,101 @@ def test_project_reads_as_tt_precheck_and_a_powered_sim_read_it(tmp_path):
                             "hierarchy -check -top tt_um_t"],
                            cwd=tmp_path, capture_output=True, text=True)
         assert r.returncode == 0, r.stderr + r.stdout
+
+
+# the pad reset synchroniser (docs/design.md, TT tile section)
+CLOCKED_COUNTER8 = {**COUNTER8_SPEC, "clock": {"domains": ["clk"]}}
+
+
+def test_pad_reset_latency_is_the_flow_constant_for_a_clocked_reset():
+    assert ttlib.pad_reset_latency(CLOCKED_COUNTER8) == ttlib.PAD_RESET_LATENCY == 2
+    # no clock domain to sample on, or nothing reads the pad: no synchroniser
+    assert ttlib.pad_reset_latency(COUNTER8_SPEC) == 0
+    no_rst = {**CLOCKED_COUNTER8, "tt_pins": {"clk": "clk", "rst": "ui_in[0]",
+                                              "count": "uo_out[7:0]"}}
+    assert ttlib.pad_reset_latency(no_rst) == 0
+
+
+def test_wrapper_feeds_the_block_reset_through_named_sync_flops():
+    v = ttlib.generate_tt_wrapper(CLOCKED_COUNTER8)
+    assert "reg rst_n_sync_q1;" in v and "reg rst_n_sync_q2;" in v
+    # async assert, sync release: rst_n low clears both, the release runs
+    # through the chain
+    assert "always @(posedge clk or negedge rst_n) begin" in v
+    assert "rst_n_sync_q1 <= 1'b0;" in v and "rst_n_sync_q2 <= 1'b0;" in v
+    assert "rst_n_sync_q1 <= 1'b1;" in v
+    assert "rst_n_sync_q2 <= rst_n_sync_q1;" in v
+    assert "assign w_rst = ~rst_n_sync_q2;" in v
+    assert "~rst_n;" not in v  # never straight from the pin
+    assert "| rst_n" not in v and "& rst_n" not in v  # nor ORed with it
+
+
+def test_harness_publishes_the_latency_and_can_be_renamed():
+    v = ttlib.generate_glsim_harness(CLOCKED_COUNTER8, module_name="tt_frame_counter8")
+    assert "module tt_frame_counter8" in v
+    assert f"wire [7:0] {ttlib.PAD_RESET_LATENCY_NET} = 8'd2;" in v
+    v0 = ttlib.generate_glsim_harness(COUNTER8_SPEC)
+    assert "module counter8" in v0
+    assert f"wire [7:0] {ttlib.PAD_RESET_LATENCY_NET} = 8'd0;" in v0
+
+
+def test_write_sim_frame_writes_wrapper_and_harness(tmp_path):
+    sources, top = ttlib.write_sim_frame(CLOCKED_COUNTER8, tmp_path / "frame")
+    assert top == "tt_frame_counter8"
+    assert sorted(p.name for p in sources) == ["tt_frame_counter8.v",
+                                               "tt_um_counter8.v"]
+    assert all(p.is_file() for p in sources)
+
+
+def test_write_sim_frame_none_without_a_synchroniser_or_when_block_level(tmp_path):
+    assert ttlib.write_sim_frame(COUNTER8_SPEC, tmp_path / "a") is None
+    macro = {**CLOCKED_COUNTER8, "macros": [{"cell": "m", "instance": "u_m",
+                                             "pins": {}}]}
+    assert ttlib.write_sim_frame(macro, tmp_path / "b") is None
+    with ttlib.block_level_sim("test"):
+        assert ttlib.write_sim_frame(CLOCKED_COUNTER8, tmp_path / "c") is None
+    assert ttlib.write_sim_frame(CLOCKED_COUNTER8, tmp_path / "d") is not None
+
+
+# the declared opt-out (spec.yaml pad_reset_sync, docs/design.md)
+OPTED_OUT = {**CLOCKED_COUNTER8,
+             "pad_reset_sync": {"mode": False, "reason": "tb holds clk; see #1"}}
+
+
+def test_opt_out_without_a_reason_refuses_by_name(tmp_path):
+    for cfg in ({"mode": False}, {"mode": "off", "reason": "  "},
+                {"mode": False, "reason": None}):
+        spec = {**CLOCKED_COUNTER8, "pad_reset_sync": cfg}
+        for call in (lambda: ttlib.pad_reset_latency(spec),
+                     lambda: ttlib.generate_tt_wrapper(spec),
+                     lambda: ttlib.write_sim_frame(spec, tmp_path / "f"),
+                     lambda: ttlib.pad_reset_facts(spec)):
+            with pytest.raises(ttlib.PadResetOptOutError,
+                               match="^pad_reset_sync_no_reason: "):
+                call()
+
+
+def test_opt_out_malformed_refuses():
+    for cfg in ("off", {"mode": True, "reason": "x"},
+                {"mode": "on", "reason": "x"},
+                {"mode": False, "reason": "x", "latency": 1}):
+        spec = {**CLOCKED_COUNTER8, "pad_reset_sync": cfg}
+        with pytest.raises(ttlib.PadResetOptOutError,
+                           match="^pad_reset_sync_malformed: "):
+            ttlib.pad_reset_latency(spec)
+
+
+def test_opt_out_passes_rst_n_straight_through_and_says_so(tmp_path):
+    assert ttlib.pad_reset_opt_out(OPTED_OUT) == "tb holds clk; see #1"
+    assert ttlib.pad_reset_opt_out(CLOCKED_COUNTER8) is None
+    assert ttlib.pad_reset_latency(OPTED_OUT) == 0
+    v = ttlib.generate_tt_wrapper(OPTED_OUT)
+    assert "rst_n_sync_q1" not in v and "rst_n_sync_q2" not in v
+    assert "assign w_rst = ~rst_n;" in v
+    assert "pad reset synchroniser off (spec.yaml pad_reset_sync): " \
+           "tb holds clk; see #1" in v
+    assert ttlib.write_sim_frame(OPTED_OUT, tmp_path / "f") is None
+    assert ttlib.pad_reset_facts(OPTED_OUT) == {
+        "latency": 0, "sync": False, "opt_out_reason": "tb holds clk; see #1"}
+    assert ttlib.pad_reset_facts(CLOCKED_COUNTER8) == {
+        "latency": 2, "sync": True, "opt_out_reason": None}
