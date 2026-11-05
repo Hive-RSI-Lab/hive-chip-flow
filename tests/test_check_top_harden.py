@@ -926,6 +926,14 @@ def test_lef_covers_a_macro_whose_boundary_is_one_flattened_cell(tmp_path):
             gds, "mac", ["property FIXED_BBOX {0 0 100 100}"], {})
 
 
+def _macro_lib(ws: Path) -> None:
+    """dac_tile declares macro_timing (#191), so top_harden reads the
+    macro_lib gate's .lib files; run it as faults.macro_lib_first does."""
+    import check_macro_lib
+    payload, _ = check_macro_lib.run(["--workspace", str(ws)])
+    assert payload["status"] == "pass", payload.get("violations")
+
+
 @pytest.mark.slow
 def test_dac_tile_goes_green_on_the_analog_tile_and_its_faults_go_red(
         tmp_path):
@@ -953,6 +961,7 @@ def test_dac_tile_goes_green_on_the_analog_tile_and_its_faults_go_red(
 
     ws = faults.make_scratch_workspace(tmp_path / "ok", rung, "msde",
                                        "dac_tile")
+    _macro_lib(ws)
     payload, _ = check_top_harden.run(["--workspace", str(ws)])
     assert payload["status"] == "pass", payload.get("violations")
     assert payload["macros"][0].get("ua") == {"vout": 0}
@@ -997,6 +1006,7 @@ def test_a_macro_bounded_like_the_r2r_dac_goes_through_pdn(tmp_path):
         "    layoutlib.rect(shifted, bb.width() / 2, 0.0, bb.width(), "
         "bb.height() / 2, PR_BNDRY)\n")), encoding="utf-8")
 
+    _macro_lib(ws)
     payload, _ = check_top_harden.run(["--workspace", str(ws)])
     assert payload["status"] == "pass", payload.get("violations")
     macros = ws / "top" / "macros"
@@ -1038,6 +1048,7 @@ def test_a_macro_drawn_off_its_origin_hardens_with_pins_on_their_routes(
         "    layoutlib.rect(shifted, -2.04, -3.2, bb.width() - 2.04, "
         "bb.height() - 3.2, PR_BNDRY)\n")), encoding="utf-8")
 
+    _macro_lib(ws)
     payload, _ = check_top_harden.run(["--workspace", str(ws)])
     assert payload["status"] == "pass", payload.get("violations")
     macros = ws / "top" / "macros"
@@ -1096,6 +1107,7 @@ def test_a_macro_with_an_unfilled_comp_gap_passes_the_dummy_decks_at_top(
         return _dcf1a(region_of, top.bbox())
     assert not gap(raw).is_empty()  # the gap the top's fill never reaches
 
+    _macro_lib(ws)
     payload, _ = check_top_harden.run(["--workspace", str(ws)])
     assert payload["status"] == "pass", payload.get("violations")
     macros = ws / "top" / "macros"
@@ -1135,3 +1147,59 @@ def test_top_harden_hashes_the_sdcs_the_top_is_built_from(tmp_path):
         path.write_text(b, encoding="utf-8")
         assert statelib.hash_kind(tmp_path, kind, imap)[1] != before, kind
     assert "top_sdc" in imap["edit_classes"]["msde"]["top_sdc_edit"]["mutates"]
+
+
+# Real LibreLane output for sensor_counted's top (#191): each run dir holds
+# the yosys netlist and the don't-touch lines of the repair steps' logs.
+# `renamed` is plant_top_harden_renamed_net.py's: the digital side reads
+# osc_out through its own wire, and synthesis kept that wire's name.
+DONT_TOUCH = Path(__file__).resolve().parent / "fixtures" / "top_harden_dont_touch"
+ANALOG = {"cell": "sensor_counted_analog", "instance": "u_analog",
+          "dont_touch_pins": ["osc_out"]}
+
+
+def _netlist(run: str) -> str:
+    return next((DONT_TOUCH / run).glob("*-yosys-synthesis/*.nl.v")).read_text()
+
+
+@pytest.mark.parametrize("run, net", [
+    ("stock", "u_sensor_counted_digital.osc_out"),
+    ("renamed", "u_sensor_counted_digital.osc_async")])
+def test_the_dont_touch_net_is_the_one_synthesis_put_on_the_pin(run, net):
+    resolved, violations = check_top_harden.resolve_dont_touch(
+        _netlist(run), [ANALOG])
+    assert violations == [] and resolved == {"u_analog": {"osc_out": net}}
+    assert check_top_harden.macro_pin_nets(
+        _netlist(run), ANALOG["cell"], "u_analog")["osc_en"] == "ui_in[0]"
+
+
+def test_a_pin_name_guess_misses_the_renamed_net():
+    # the rule #191 shipped first: the pin's name behind any prefix
+    guess = re.compile(r"^(?:.*[./])?(?:osc_out)$")
+    renamed = check_top_harden.resolve_dont_touch(
+        _netlist("renamed"), [ANALOG])[0]["u_analog"]["osc_out"]
+    assert not guess.search(renamed)
+
+
+def test_a_pin_with_no_single_net_is_macro_net_unresolved():
+    text = _netlist("stock")
+    tied = re.sub(r"\.osc_out\([^)]*\)", ".osc_out(1'h0)", text)
+    for netlist, macros in ((tied, [ANALOG]),
+                            (text, [{**ANALOG, "instance": "u_other"}]),
+                            (text, [{**ANALOG, "dont_touch_pins": ["nope"]}])):
+        resolved, violations = check_top_harden.resolve_dont_touch(
+            netlist, macros)
+        assert [v["kind"] for v in violations] == ["macro_net_unresolved"]
+
+
+def test_every_repair_step_must_report_the_net_dont_touch():
+    run = DONT_TOUCH / "stock"
+    ok = {**ANALOG, "dont_touch_nets": {
+        "osc_out": "u_sensor_counted_digital.osc_out"}}
+    assert check_top_harden.dont_touch_unset(run, [ok]) == []
+    # a rule naming another net: the run's synthesis disagrees, and neither
+    # repair step's log set it
+    wrong = {**ANALOG, "dont_touch_nets": {"osc_out": "w_osc_out"}}
+    kinds = [v["kind"] for v in check_top_harden.dont_touch_unset(run, [wrong])]
+    assert kinds == ["macro_net_unresolved"] + ["macro_net_not_dont_touch"] * 2
+    assert check_top_harden.dont_touch_unset(run, [ANALOG]) == []

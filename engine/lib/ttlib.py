@@ -1147,22 +1147,29 @@ def macro_config(macros: list[dict]) -> dict:
 
 def dont_touch_rx(macros: list[dict]) -> str | None:
     """RSZ_DONT_TOUCH_RX for the macros' nets, or None: the ua pad nets
-    (ANALOG_NET_RX) and each macro's `dont_touch_nets` (check_top_harden:
-    its non-clock output pin names). repair_design has no
+    (ANALOG_NET_RX) and each macro's `dont_touch_nets` ({pin: net},
+    check_top_harden: the net on each non-clock output pin, read from the
+    synthesized netlist). repair_design has no
     convergence guard: a net whose driver's own edge is above the repair
     target (the load's max_transition less DESIGN_REPAIR_MAX_SLEW_PCT) gets
     the same wire buffer again until the job runs out of memory (#191).
     Don't-touch, signoff STA reports the real slew and the top harden fails
     on it (max_slew_violation). A clock output stays repairable for CTS.
-    The net is matched by its pin's name, optionally behind a hierarchy
-    prefix: synthesis names it after the submodule that wired it
-    (`u_sensor_counted_digital.osc_out`), not after the instance pin."""
+    Each net is matched by its whole name, never guessed from the pin's:
+    synthesis keeps whichever alias it likes (`u_sensor_counted_digital.
+    osc_out`, the top's `w_osc_out`, a renamed submodule wire)."""
     parts = [ANALOG_NET_RX] if any(m.get("ua") for m in macros) else []
-    nets = sorted({n for m in macros for n in m.get("dont_touch_nets") or ()})
+    nets = sorted({n for m in macros
+                   for n in (m.get("dont_touch_nets") or {}).values()})
     if nets:
-        parts.append("^(?:.*[./])?(?:" + "|".join(re.escape(n) for n in nets)
-                     + ")$")
+        parts.append("^(?:" + "|".join(odb_name_rx(n) for n in nets) + ")$")
     return merge_rx(*parts)
+
+
+def odb_name_rx(net: str) -> str:
+    """A regex for one netlist net name as OpenROAD may print it: a bracket
+    in an escaped identifier comes back escaped (`a\\[0\\]`)."""
+    return re.escape(net).replace(r"\[", r"\\?\[").replace(r"\]", r"\\?\]")
 
 
 def merge_rx(*rxs: str | None) -> str | None:

@@ -47,6 +47,7 @@ sys.path.insert(0, str(ENGINE / "lib"))
 import checklib  # noqa: E402
 import gate  # noqa: E402
 import state as state_mod  # noqa: E402
+from charlib import Refused  # noqa: E402
 from checklib import CheckError  # noqa: E402
 
 SCRIPT = "faults"
@@ -168,8 +169,8 @@ REFUSED = "refused"
 
 def check_refusal(fault_name: str, run, expect: dict) -> list[str]:
     """`expect` {status: refused, error: TEXT}: the gate `run()` runs must
-    raise (its check refused: CheckError, or gate.py's RuntimeError over
-    an error report) with TEXT in its message. A verdict instead, pass or
+    raise (its check refused: CheckError, charlib's Refused, or gate.py's
+    RuntimeError over an error report) with TEXT in its message. A verdict instead, pass or
     fail, is a mismatch: the fault went through a gate that should not
     have run on it."""
     want = str(expect.get("error") or "")
@@ -178,7 +179,7 @@ def check_refusal(fault_name: str, run, expect: dict) -> list[str]:
                 "text the refusal must carry"]
     try:
         _report, result = run()
-    except (RuntimeError, ValueError) as exc:  # ValueError: charlib.Refused
+    except (RuntimeError, Refused) as exc:
         if want in str(exc):
             return []
         return [f"{fault_name}: expected a refusal naming {want!r}, got: "
