@@ -864,6 +864,15 @@ def generate_glsim_harness(spec: dict, dut_instance: str = "dut",
 ANALOG_MACRO_INSTANCE = "u_analog"
 
 
+def interface_pad_signals(iface: dict) -> set[str]:
+    """Lowercase names of interface.yaml's signals marked `pad: true`: a d2a
+    signal that goes to the analog macro and ALSO stays on its tt_pins pad
+    (debug visibility). Leave them out of macro_top_spec's `crossing`, so
+    the top keeps their tt_pins entry."""
+    return {str(s["name"]).lower() for s in iface.get("signals") or []
+            if s.get("pad") and s.get("direction") == "d2a"}
+
+
 def macro_top_spec(dspec: dict, macro: dict, crossing,
                    tiles: str | None = None) -> dict:
     """An analog tile's top spec: the digital block's spec.yaml with `macro`

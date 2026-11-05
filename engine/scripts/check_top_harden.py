@@ -782,7 +782,16 @@ def centre(die_area: str, w: float, h: float) -> list[float] | None:
             round(round((dy - h) / 2 / 3.92) * 3.92, 2)]
 
 
-def crossing_pins(dspec: dict, macro: dict) -> dict[str, str]:
+def pad_signals(iface: dict) -> set[str]:
+    """Lowercase names of the interface signals marked `pad: true`: a d2a
+    signal that goes to the analog macro and ALSO stays on its tt_pins
+    pad (debug visibility), so the top keeps its tt_pins entry and the
+    SDC keeps naming the pad."""
+    return ttlib.interface_pad_signals(iface)
+
+
+def crossing_pins(dspec: dict, macro: dict,
+                  pads: frozenset | set = frozenset()) -> dict[str, str]:
     """{standalone TT pin bit: macro instance pin} for every crossing signal
     the digital spec's tt_pins put on a pad: in the standalone harden that
     signal enters (or leaves) on, say, ui_in[3]; in the top it is the
@@ -793,7 +802,7 @@ def crossing_pins(dspec: dict, macro: dict) -> dict[str, str]:
     out: dict[str, str] = {}
     for pin, port in macro["pins"].items():
         expr = tt_pins.get(port.lower())
-        if expr is None:
+        if expr is None or port.lower() in pads:
             continue
         p = ttlib.parse_pin_expr(expr)
         at = f"{macro['instance']}/{pin}"
@@ -899,7 +908,8 @@ def rewrite_crossing_ports(text: str, cross: dict[str, str]) -> str:
     return new
 
 
-def top_sdc(ws: Path, dspec: dict, macro: dict) -> str | None:
+def top_sdc(ws: Path, dspec: dict, macro: dict,
+            pads: frozenset | set = frozenset()) -> str | None:
     """The text of top/harden/constraints.sdc, or None when there is none
     to write: the integrator's <ws>/top.sdc as it is, else the digital
     side's harden/constraints.sdc with its crossing ports on the macro's
@@ -916,7 +926,8 @@ def top_sdc(ws: Path, dspec: dict, macro: dict) -> str | None:
                 f"the macro's pin; write {TOP_SDC_NAME} in the msde "
                 "workspace to give the top its own.\n")
         return head + rewrite_crossing_ports(
-            dsdc.read_text(encoding="utf-8"), crossing_pins(dspec, macro))
+            dsdc.read_text(encoding="utf-8"),
+            crossing_pins(dspec, macro, pads))
     domains = (dspec.get("clock") or {}).get("domains") or []
     if isinstance(domains, list) and len(domains) > 1:
         raise CheckError(
@@ -1071,7 +1082,9 @@ def assemble(ws: Path) -> tuple[Path, dict]:
     macro["pins"] = {pin: ports[pin] for pin in macro["pins"]}
     size = macro_size(Path(macro["files"]["lef"]),
                       Path(macro["files"]["gds"]), macro["cell"])
-    tspec = ttlib.macro_top_spec(dspec, macro, signals, iface.get("tiles"))
+    pads = pad_signals(iface)
+    tspec = ttlib.macro_top_spec(dspec, macro, set(signals) - pads,
+                                 iface.get("tiles"))
     tiles = ttlib.spec_tiles(tspec)
     macro["location"] = centre(ttlib.tile_die_area(tiles), *size)
     macro["size_um"] = list(size)
@@ -1108,7 +1121,7 @@ def assemble(ws: Path) -> tuple[Path, dict]:
     except macrolib.Refused as exc:
         tspec["macro_lib_problems"] = [{"kind": exc.kind, "msg": str(exc)}]
         return top, tspec
-    sdc = top_sdc(ws, dspec, macro)
+    sdc = top_sdc(ws, dspec, macro, pads)
     if sdc is not None:
         if abstract:
             sdc = macrolib.period_table_tcl(abstract["ceilings"]) + sdc
