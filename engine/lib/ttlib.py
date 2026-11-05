@@ -385,12 +385,67 @@ def wrapper_name(spec: dict) -> str:
     return top if top.startswith("tt_um_") else f"tt_um_{top}"
 
 
+# The tile's pad reset. TT's rst_n pin is driven from off chip, with no
+# timing relation to clk, so the generated wrapper samples it through a
+# plain synchroniser of PAD_RESET_LATENCY flops on clk before it reaches
+# the block: both its assertion and its release reach the block that many
+# clock edges after the pad moves. This is the one place the latency is
+# stated. The wrapper's flops, the RTL sim frame (write_sim_frame) and the
+# glsim harness all take it from here, and the harness and the frame
+# publish it on PAD_RESET_LATENCY_NET, which tb/ and holdout/ read through
+# engine/lib/padreset.py, so one bench sees the same latency in RTL sim and
+# in glsim.
+PAD_RESET_LATENCY = 2
+PAD_RESET_SYNC_FLOP = "rst_n_sync_q"
+PAD_RESET_LATENCY_NET = "tt_pad_reset_latency"
+
+
+def pad_reset_latency(spec: dict) -> int:
+    """Clock edges the generated wrapper puts between the rst_n pad and the
+    block: PAD_RESET_LATENCY when a block input maps to rst_n and the
+    block's primary clock enters on the tile's clk pin (the synchroniser's
+    clock), else 0 (no synchroniser: nothing reads the pad, or no clk to
+    sample it on)."""
+    tt_pins = spec.get("tt_pins") or {}
+    bound = macro_bound_ports(spec)
+    reads_pad = False
+    for name, port in (spec.get("ports") or {}).items():
+        if port.get("dir") != "input" or name in bound or name not in tt_pins:
+            continue
+        try:
+            if parse_pin_expr(tt_pins[name])["base"] == "rst_n":
+                reads_pad = True
+        except TTError:
+            return 0
+    if not reads_pad:
+        return 0
+    try:
+        return PAD_RESET_LATENCY if clock_port(spec) == "clk" else 0
+    except TTError:
+        return 0
+
+
+def _pad_reset_sync(n: int) -> list[str]:
+    """The wrapper's rst_n synchroniser: n named flops on clk, so a report
+    (cdc, synth) shows them as `rst_n_sync_q1`..`rst_n_sync_q<n>`."""
+    flops = [f"{PAD_RESET_SYNC_FLOP}{i}" for i in range(1, n + 1)]
+    lines = [f"  // pad reset synchroniser: {n} flops on clk "
+             "(ttlib.PAD_RESET_LATENCY)",
+             *(f"  reg {f};" for f in flops),
+             "  always @(posedge clk) begin",
+             f"    {flops[0]} <= rst_n;"]
+    lines += [f"    {b} <= {a};" for a, b in zip(flops, flops[1:])]
+    lines += ["  end"]
+    return lines
+
+
 def generate_tt_wrapper(spec: dict, tiles: str | None = None,
                         power: bool = False) -> str:
     """The Verilog source of `tt_um_<top>.v`: the fixed TT interface,
     instantiating spec['top'] with every port wired per tt_pins. Raises
     TTError (never emits invalid Verilog) when validate_tt_pins() would
-    report a problem.
+    report a problem. A block input mapped to rst_n is fed through the pad
+    reset synchroniser (pad_reset_latency()), not straight from the pin.
 
     power=True is the analog project's shipped `src/project.v`
     (generate_tt_project): the TT analog template's `VGND`/`VDPWR` ports,
@@ -412,6 +467,7 @@ def generate_tt_wrapper(spec: dict, tiles: str | None = None,
     used_ui_bits: set[int] = set()
     used_uio_in_bits: set[int] = set()
     bound = macro_bound_ports(spec)
+    sync_n = pad_reset_latency(spec)
 
     for name, port in sorted(ports.items()):
         width = int(port.get("width", 1))
@@ -425,7 +481,9 @@ def generate_tt_wrapper(spec: dict, tiles: str | None = None,
         parsed = parse_pin_expr(tt_pins[name])
         if port.get("dir") == "input":
             src = parsed["base"]
-            if src in _SCALAR_IN:
+            if src == "rst_n" and sync_n:
+                expr = f"{PAD_RESET_SYNC_FLOP}{sync_n}"
+            elif src in _SCALAR_IN:
                 expr = src
             else:
                 idx = (f"[{parsed['hi']}:{parsed['lo']}]"
@@ -491,6 +549,7 @@ def generate_tt_wrapper(spec: dict, tiles: str | None = None,
         "    input  wire       clk,",
         "    input  wire       rst_n",
         ");",
+        *(_pad_reset_sync(sync_n) if sync_n else []),
         *in_assigns,
         "",
         f"  {top} u_{top} (",
@@ -542,7 +601,8 @@ def generate_tt_project(spec: dict, tiles: str | None = None) -> str:
 
 def generate_glsim_harness(spec: dict, dut_instance: str = "dut",
                            sdf_path: Path | str | None = None,
-                           tiles: str | None = None) -> str:
+                           tiles: str | None = None,
+                           module_name: str | None = None) -> str:
     """The `glsim` gate's own harness (docs/design.md 1.5's `glsim` row): the
     INVERSE of generate_tt_wrapper - a module named exactly `spec['top']`,
     with `spec['ports']`'s own port list (so tb/*.py, written against the
@@ -554,11 +614,16 @@ def generate_glsim_harness(spec: dict, dut_instance: str = "dut",
     always "powered"). `sdf_path`, when given, adds the `$sdf_annotate`
     initial block the SDF-backannotated pass of `glsim` needs, referencing
     `dut_instance` by its LOCAL name - the netlist's own internal instance
-    paths inside the SDF are unaffected by whatever this harness is called."""
+    paths inside the SDF are unaffected by whatever this harness is called.
+
+    The harness also carries PAD_RESET_LATENCY_NET, the tile's pad reset
+    latency (pad_reset_latency()), for tb/'s padreset helper to read.
+    module_name renames the harness: write_sim_frame() uses it, where the
+    block's own RTL already holds the name spec['top']."""
     problems = validate_tt_pins(spec, tiles)
     if problems:
         raise TTError("tt_pins does not fit the tile: " + "; ".join(problems))
-    top = spec["top"]
+    top = module_name or spec["top"]
     dut_module = wrapper_name(spec)
     ports = spec.get("ports") or {}
     tt_pins = spec["tt_pins"]
@@ -611,6 +676,8 @@ def generate_glsim_harness(spec: dict, dut_instance: str = "dut",
     body.append(f"  wire [{budget['uio_out'] - 1}:0] tt_uio_out;")
     body.append(f"  wire [{budget['uio_oe'] - 1}:0] tt_uio_oe;")
     body.append("  wire tt_ena = 1'b1;")
+    body.append(f"  wire [7:0] {PAD_RESET_LATENCY_NET} = "
+                f"8'd{pad_reset_latency(spec)};")
     clk_expr = scalar_assigns.get("clk", "1'b0")
     rst_n_expr = scalar_assigns.get("rst_n", "1'b1")
     body.append(f"  wire tt_clk = {clk_expr};")
@@ -657,6 +724,34 @@ def generate_glsim_harness(spec: dict, dut_instance: str = "dut",
         "",
     ]
     return "\n".join(lines)
+
+
+SIM_FRAME_PREFIX = "tt_frame_"
+
+
+def write_sim_frame(spec: dict, out_dir: Path) -> tuple[list[Path], str] | None:
+    """RTL sim through the pad, as the tile ships: the generated wrapper and
+    a glsim harness renamed SIM_FRAME_PREFIX + top (the block's RTL already
+    holds spec['top']), written under out_dir. Returns (extra sources,
+    toplevel) for a cocotb run of tb/ or holdout/ over the block's RTL, so
+    a bench sees the same pad reset latency there as glsim shows it on the
+    netlist. None when the tile has no pad reset synchroniser
+    (pad_reset_latency() is 0) or carries hard macros (no RTL model of a
+    macro to simulate the wrapper with): the bench then drives the block
+    directly, as before, and the padreset helper reads a latency of 0."""
+    if not pad_reset_latency(spec) or spec.get("macros"):
+        return None
+    if wrapper_name(spec) == spec["top"]:
+        return None
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    frame = SIM_FRAME_PREFIX + spec["top"]
+    wrapper = out_dir / f"{wrapper_name(spec)}.v"
+    harness = out_dir / f"{frame}.v"
+    wrapper.write_text(generate_tt_wrapper(spec), encoding="utf-8")
+    harness.write_text(generate_glsim_harness(spec, module_name=frame),
+                       encoding="utf-8")
+    return [wrapper, harness], frame
 
 
 # The per-design override layer: a JSON object of LibreLane keys a fixer

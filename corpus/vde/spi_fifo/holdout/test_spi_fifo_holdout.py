@@ -7,20 +7,18 @@ the visible suite and still get wrong."""
 import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge
+from padreset import pad_reset
 
 CLK_PERIOD_NS = 10
 SETTLE = 2
 
 
 async def reset(dut):
-    dut.rst.value = 1
     dut.sclk.value = 0
     dut.mosi.value = 0
     dut.cs_n.value = 1
     dut.rd_en.value = 0
-    for _ in range(3):
-        await RisingEdge(dut.clk)
-    dut.rst.value = 0
+    await pad_reset(dut, dut.rst, 3, edge=RisingEdge)
     await RisingEdge(dut.clk)
 
 

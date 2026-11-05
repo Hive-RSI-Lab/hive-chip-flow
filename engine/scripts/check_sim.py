@@ -31,6 +31,7 @@ sys.path.insert(0, str(ENGINE / "lib"))
 import checklib  # noqa: E402
 import cocotblib  # noqa: E402
 import speclib  # noqa: E402
+import ttlib  # noqa: E402
 from checklib import CheckError  # noqa: E402
 
 SCRIPT = "check_sim"
@@ -78,8 +79,14 @@ def run(argv=None):
 
     build_dir = ws / BUILD_SUBDIR
     shutil.rmtree(build_dir, ignore_errors=True)
+    # through the tile's pad, as glsim runs it (ttlib.write_sim_frame):
+    # a bench sees the same pad reset latency in both
+    hdl_top = top
+    frame = ttlib.write_sim_frame(spec, build_dir / "frame")
+    if frame:
+        sources, hdl_top = sources + frame[0], frame[1]
     results_xml = ws / "log" / RESULTS_NAME
-    xml_path = cocotblib.run_cocotb(build_dir, tb_dir, sources, top, modules,
+    xml_path = cocotblib.run_cocotb(build_dir, tb_dir, sources, hdl_top, modules,
                                     results_xml)
     results = cocotblib.parse_results_xml(xml_path)
     if not results:

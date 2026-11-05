@@ -4,16 +4,14 @@ clears it whatever code_in holds."""
 import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import FallingEdge
+from padreset import pad_reset
 
 CLK_PERIOD_NS = 20
 
 
 async def _reset(dut, cycles=3):
-    dut.rst_n.value = 0
     dut.code_in.value = 0
-    for _ in range(cycles):
-        await FallingEdge(dut.clk)
-    dut.rst_n.value = 1
+    await pad_reset(dut, dut.rst_n, cycles, active=0)
 
 
 def _outputs(dut):
@@ -52,6 +50,5 @@ async def test_reset_clears_code(dut):
     dut.code_in.value = 3
     await FallingEdge(dut.clk)
     assert _outputs(dut) == 3
-    dut.rst_n.value = 0
-    await FallingEdge(dut.clk)
+    await pad_reset(dut, dut.rst_n, 1, active=0)
     assert _outputs(dut) == 0, "rst_n low must clear the code with code_in at 11"

@@ -8,6 +8,7 @@ cannot weaken it."""
 import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import FallingEdge, Timer
+from padreset import pad_reset
 
 CLK_PERIOD_NS = 10
 EBREAK = 0x00100073
@@ -45,13 +46,10 @@ def arith_shift(value, n):
 
 async def reset(dut):
     await FallingEdge(dut.clk)
-    dut.rst.value = 1
     dut.we.value = 0
     dut.run.value = 0
     dut.din.value = 0
-    for _ in range(2):
-        await FallingEdge(dut.clk)
-    dut.rst.value = 0
+    await pad_reset(dut, dut.rst, 2)
 
 
 async def run_program(dut, words):

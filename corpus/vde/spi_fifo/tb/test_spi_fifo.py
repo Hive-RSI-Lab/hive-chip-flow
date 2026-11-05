@@ -5,20 +5,18 @@ real testbench never needs to race an independent SPI clock against it."""
 import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge
+from padreset import pad_reset
 
 CLK_PERIOD_NS = 10
 SETTLE = 2  # clk edges held between every sclk/cs_n transition
 
 
 async def reset(dut):
-    dut.rst.value = 1
     dut.sclk.value = 0
     dut.mosi.value = 0
     dut.cs_n.value = 1
     dut.rd_en.value = 0
-    for _ in range(3):
-        await RisingEdge(dut.clk)
-    dut.rst.value = 0
+    await pad_reset(dut, dut.rst, 3, edge=RisingEdge)
     await RisingEdge(dut.clk)
 
 
@@ -108,9 +106,7 @@ async def test_reset_clears_partial_frame_and_queue(dut):
         dut.sclk.value = 0
         await settle(dut)
 
-    dut.rst.value = 1
-    await RisingEdge(dut.clk)
-    dut.rst.value = 0
+    await pad_reset(dut, dut.rst, 1, edge=RisingEdge)
     dut.cs_n.value = 1
     await RisingEdge(dut.clk)
 
