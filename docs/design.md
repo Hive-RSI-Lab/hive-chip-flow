@@ -53,7 +53,7 @@ A block is `blocks/<name>/` in the project's repo, so gate commits work. `state.
 ```
 { "version": 3, "skill": "vde|ade|msde", "block": str, "phase": "P0".."P8"|"done",
   "toolchain": {"image": path, "versions_sha": ..., "pdk": "gf180mcuD", "pdk_sha": ...},
-  "gates": {name: {status, attempts, last: {ts, status, counts, inputs: {kind: "<norm>:<sha>"}, job?}, history[], stale?}},
+  "gates": {name: {status, attempts, last: {ts, status, counts, inputs: {kind: "<norm>:<sha>"}, strength, job?}, history[], stale?}},
   "jobs": {id: {gate, pid, started, finished?, status: running|done|dead, log, result?}},
   "holdout": {"sha", "written_by", "ts"},
   "optimise": {"trials": path, "evaluator_sha", "best": {trial, score}},
@@ -141,6 +141,8 @@ Mixed-signal (`/msde`):
 ### 1.6 The stale map
 
 `invalidation.yaml` keeps `/hwde`'s two layers. Every gate records a normalized hash of each input it read, and any change to an input invalidates the result whether or not anyone declared it. On top, `state.py edit --class <c>` marks the gates an edit class must re-establish, which catches derived artifacts whose files have not changed yet (a GDS after an RTL edit). Normalizers: `text_eol` for HDL, SPICE, SDC and generator code (a comment edit re-runs gates, and that is accepted), `json_canonical` for specs and configs, `dir_text` for test directories, `gds_geometry` (the layout read through klayout's python module and hashed without timestamps).
+
+A gate's own code is not an input, because hashing the engine would stale every block on any refactor. Instead each row in `gates.yaml` declares an integer `strength`, bumped by hand only when a change can turn a pass into a fail. Gate records store the strength in force when the run started, a record with none reads as 0, and a lower one reads stale with a reason naming the gate and both values. Release refuses it and a waiver can't cover it. A bump stales every block's record of that gate, so its owners hear about it when it lands.
 
 Edit classes: `spec_edit` marks everything including holdout, which the testbench writer must rewrite, hold 2. `rtl_edit` marks lint, sim, holdout, mutate, formal, cover, synth, cdc, harden, timing, drc, lvs, glsim, precheck, release, hold 1. `cdc_waiver_edit` (`spec/cdc.yaml`) marks cdc, release, hold 2. `tb_edit` marks sim, mutate, cover; `formal_edit` marks formal, mutate; `spec_formal_edit` (only spec.yaml's `formal:` key) marks formal, cover, and the vde gates that never read that key hash spec.yaml without it; hold 1. `holdout_edit` (a change to the held-out tests, which `state.py` otherwise refuses to re-hash over the `state.holdout` pin) marks holdout, hold 2. `harden_config_edit` (`harden/config.override.json`, the design's LibreLane keys merged last into the regenerated config.json, or `harden/constraints.sdc`, the design SDC) marks harden onward, hold 2. `netlist_edit` marks every analog gate; `sizing_edit` marks sim_tt, sim_pvt, bench_strength, mc, lvs, pex_sim, release; `layout_code_edit` marks drc, lvs, pex_sim, release; `interface_edit` marks the top gates and both nested runs' spec_edit, hold 2.
 
