@@ -1,0 +1,73 @@
+worst slack max 18.55
+worst slack min 0.85
+chipflow_violation_counts slew 0 cap 0 fanout 0
+chipflow_check_setup_begin
+chipflow_section min_pulse_width
+chipflow_section min_period
+chipflow_section clock_gating_setup
+Group                                  Slack
+--------------------------------------------
+No paths found.
+
+chipflow_section clock_gating_hold
+Group                                  Slack
+--------------------------------------------
+No paths found.
+
+chipflow_section recovery
+Startpoint: rst_n (input port clocked by clk)
+Endpoint: f0 (recovery check against rising-edge clock clk)
+Path Group: asynchronous
+Path Type: max
+
+  Delay    Time   Description
+---------------------------------------------------------
+   0.00    0.00   clock clk (rise edge)
+   0.00    0.00   clock network delay (ideal)
+  21.00   21.00 ^ input external delay
+   0.00   21.00 ^ rst_n (in)
+   0.00   21.00 ^ f0/RN (gf180mcu_fd_sc_mcu7t5v0__dffrnq_1)
+          21.00   data arrival time
+
+  20.00   20.00   clock clk (rise edge)
+   0.00   20.00   clock network delay (ideal)
+   0.00   20.00   clock reconvergence pessimism
+          20.00 ^ f0/CLK (gf180mcu_fd_sc_mcu7t5v0__dffrnq_1)
+   0.30   20.30   library recovery time
+          20.30   data required time
+---------------------------------------------------------
+          20.30   data required time
+         -21.00   data arrival time
+---------------------------------------------------------
+          -0.70   slack (VIOLATED)
+
+
+chipflow_section removal
+Startpoint: rst_n (input port clocked by clk)
+Endpoint: f0 (removal check against rising-edge clock clk)
+Path Group: asynchronous
+Path Type: min
+
+  Delay    Time   Description
+---------------------------------------------------------
+   0.00    0.00   clock clk (rise edge)
+   0.00    0.00   clock network delay (ideal)
+  -1.00   -1.00 ^ input external delay
+   0.00   -1.00 ^ rst_n (in)
+   0.00   -1.00 ^ f0/RN (gf180mcu_fd_sc_mcu7t5v0__dffrnq_1)
+          -1.00   data arrival time
+
+   0.00    0.00   clock clk (rise edge)
+   0.00    0.00   clock network delay (ideal)
+   0.00    0.00   clock reconvergence pessimism
+           0.00 ^ f0/CLK (gf180mcu_fd_sc_mcu7t5v0__dffrnq_1)
+   0.46    0.46   library removal time
+           0.46   data required time
+---------------------------------------------------------
+           0.46   data required time
+           1.00   data arrival time
+---------------------------------------------------------
+          -1.46   slack (VIOLATED)
+
+
+chipflow_section end

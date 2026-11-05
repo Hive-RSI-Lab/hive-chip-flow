@@ -61,6 +61,12 @@ faults:
     gate: timing
     plant: plant_timing_corner_sdc.py
     expect: {status: fail, kind: setup_violation}
+  # #195: a reset that releases off the pad with no synchroniser
+  # (recovery: a removal miss would stop harden at its own hold checker)
+  - name: timing_reset_release_unsynchronised
+    gate: timing
+    plant: plant_timing_recovery.py
+    expect: {status: fail, kind: recovery_violation}
   - name: drc_metal_spacing_violation
     gate: drc
     plant: plant_drc.py

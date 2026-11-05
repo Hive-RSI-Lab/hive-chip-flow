@@ -59,6 +59,15 @@ because a design can meet setup and hold everywhere and still fail them:
     gate whose enable misses its gating check (`clock_gating_violation`).
     OpenSTA 3.1.0 has no counters for these, so each runs in its own
     marked section and the gate insists on seeing the closing marker.
+  - `report_check_types -recovery` / `-removal` (issue #195): an
+    asynchronous reset/set release too late (`recovery_violation`) or too
+    early (`removal_violation`) for a flop's liberty recovery/removal
+    check - a reset synchroniser removed, or delay added on its output.
+    OpenSTA would otherwise fold these into the worst setup/hold slack and
+    name a late reset release a setup violation, so the worst slack is
+    read with sta_recovery_removal_checks_enabled off (setup and hold
+    only) and these get their own marked sections, one item per violating
+    endpoint pin.
 
 Failure classification (the same three-way split check_harden.py uses):
   - no `harden/runs/run/final/` at all -> CheckError (harden has not run;
@@ -126,16 +135,29 @@ COUNTS_TCL = (f'puts "{COUNTS_MARK} slew [sta::max_slew_violation_count] '
 SETUP_BEGIN = "chipflow_check_setup_begin"
 SECTION_MARK = "chipflow_section"
 SIGNOFF_SECTIONS = ("min_pulse_width", "min_period", "clock_gating_setup",
-                    "clock_gating_hold")
+                    "clock_gating_hold", "recovery", "removal")
+# recovery/removal (#195) are path checks: -verbose prints each violating
+# path's "Endpoint: <pin> (recovery check ...)" line, the plain form only a
+# per-group slack.
+ASYNC_SECTIONS = ("recovery", "removal")
 SIGNOFF_END = f"{SECTION_MARK} end"
 SIGNOFF_TCL = (
     f'puts "{SETUP_BEGIN}"\n'
     "check_setup -verbose -unconstrained_endpoints -multiple_clock "
     "-no_clock -loops -generated_clocks\n"
     + "".join(f'puts "{SECTION_MARK} {name}"\n'
-              f"report_check_types -{name} -violators\n"
+              f"report_check_types -{name} -violators"
+              f"{' -verbose' if name in ASYNC_SECTIONS else ''}\n"
               for name in SIGNOFF_SECTIONS)
     + f'puts "{SIGNOFF_END}"\n')
+# OpenSTA folds recovery checks into `report_worst_slack -max` and removal
+# into `-min`, so with them on a late reset release reads as a setup
+# violation. The worst-slack lines are taken with them off (setup/hold
+# only) and they are named in their own sections instead.
+WORST_SLACK_TCL = ("set sta_recovery_removal_checks_enabled 0\n"
+                   "report_worst_slack -max\n"
+                   "report_worst_slack -min\n"
+                   "set sta_recovery_removal_checks_enabled 1\n")
 # OpenSTA's CheckTiming.cc: "Warning: There %is %d <what>%s." then one
 # indented line per item (a loop's listing also carries "| loop cut point"
 # and a dashed rule, which are not items).
@@ -149,6 +171,10 @@ SETUP_KINDS = (("unclocked", "unclocked_register"),
 CHECK_ROW_RE = re.compile(r"^(\S+(?: \((?:high|low)\))?)\s.*\(VIOLATED\)\s*$")
 # clock gating rows are per path group: "gated clock   -0.50"
 GROUP_ROW_RE = re.compile(r"^(.*\S)\s+(-?[0-9.]+(?:e-?[0-9]+)?)\s*$")
+# recovery/removal -verbose paths: "Endpoint: _093_ (recovery check against
+# rising-edge clock clk)" ... "-2.24   slack (VIOLATED)"
+ENDPOINT_RE = re.compile(r"^Endpoint: (\S+) \((?:recovery|removal) check\b")
+PATH_SLACK_RE = re.compile(r"^(-?[0-9.]+(?:e-?[0-9]+)?)\s+slack \(VIOLATED\)")
 
 
 def parse_check_setup(output: str) -> dict:
@@ -190,12 +216,14 @@ def parse_signoff_checks(output: str) -> dict:
     lines = output.splitlines()
     if SIGNOFF_END not in lines:
         raise CheckError(f"eda sta printed no {SIGNOFF_END!r} line - the "
-                         "min pulse width/min period/clock gating checks "
-                         "never finished")
+                         "min pulse width/min period/clock gating/"
+                         "recovery/removal checks never finished")
     result: dict[str, list[str]] = {}
     current = None
+    pending = None
     for line in lines:
         if line.startswith(SECTION_MARK + " "):
+            pending = None
             current = line[len(SECTION_MARK) + 1:].strip()
             if current in SIGNOFF_SECTIONS:
                 result[current] = []
@@ -205,7 +233,15 @@ def parse_signoff_checks(output: str) -> dict:
         if current is None:
             continue
         stripped = line.strip()
-        if current.startswith("clock_gating"):
+        if current in ASYNC_SECTIONS:
+            endpoint = ENDPOINT_RE.match(stripped)
+            if endpoint:
+                pending = endpoint.group(1)
+            slack = PATH_SLACK_RE.match(stripped)
+            if slack and pending:
+                result[current].append(f"{pending} (slack {slack.group(1)})")
+                pending = None
+        elif current.startswith("clock_gating"):
             row = GROUP_ROW_RE.match(stripped)
             if row and not stripped.startswith(("Group", "-")):
                 if float(row.group(2)) < 0:
@@ -381,9 +417,8 @@ def run_corner(final_dir: Path, top: str, corner: str, pdk_root: Path,
         + f"set ::env(_CURRENT_CORNER_NAME) {tcl_escape(corner)}\n"
         f"read_sdc {tcl_escape(str(sdc))}\n"
         f"read_spef {spef}\n"
-        "report_worst_slack -max\n"
-        "report_worst_slack -min\n"
-        "report_check_types -max_slew -max_capacitance -max_fanout -violators\n"
+        + WORST_SLACK_TCL
+        + "report_check_types -max_slew -max_capacitance -max_fanout -violators\n"
         + COUNTS_TCL + SIGNOFF_TCL + "exit\n", encoding="utf-8")
     try:
         proc = checklib.run_tool([str(EDA_BIN), "sta", str(tcl)],
@@ -425,7 +460,9 @@ def run_corner(final_dir: Path, top: str, corner: str, pdk_root: Path,
 SIGNOFF_KINDS = {"min_pulse_width": "min_pulse_width_violation",
                  "min_period": "min_period_violation",
                  "clock_gating_setup": "clock_gating_violation",
-                 "clock_gating_hold": "clock_gating_violation"}
+                 "clock_gating_hold": "clock_gating_violation",
+                 "recovery": "recovery_violation",
+                 "removal": "removal_violation"}
 SETUP_WHY = {
     "unclocked_register": "register/latch clock pin(s) no clock reaches - "
         "a divided or gated clock with no create_generated_clock",
@@ -458,8 +495,8 @@ def unconstrained_waivers(spec: dict) -> list[str]:
 
 
 def signoff_violations(r: dict, top: str, waived: list[str]) -> list[dict]:
-    """The check_setup and min pulse width/min period/clock gating findings
-    for one corner's run_corner() result."""
+    """The check_setup and min pulse width/min period/clock gating/
+    recovery/removal findings for one corner's run_corner() result."""
     out = []
     for kind, items in r["check_setup"].items():
         if kind == "multiple_clock":
