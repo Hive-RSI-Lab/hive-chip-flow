@@ -3,8 +3,9 @@
 on disk (it is ece298a-pll-digital's, read-only).
 
 custom_gds is replayed from the staged workflow's own inputs, so a path the
-workflow gets wrong fails here, then the vendored precheck and the staged
-Makefile run on the result. The Actions jobs themselves don't run."""
+workflow gets wrong fails here, then the vendored precheck runs on the result
+and the gl_test job's run step runs on the staged Makefile. The Actions jobs
+themselves don't run."""
 from __future__ import annotations
 
 import json
@@ -92,21 +93,27 @@ def test_without_the_netlist_precheck_fails_on_power_pins(tree, tmp_path):
 
 
 def run_staged_makefile(repo: Path, tmp_path: Path, netlist: bytes) -> ET.ElementTree:
-    """The gl_test job's run step on a copy of test/, cocotb-config on PATH."""
-    test = tmp_path / "test"
-    shutil.copytree(repo / "test", test)
-    (test / "gate_level_netlist.v").write_bytes(netlist)
+    """The gl_test job's own run step, read from the staged workflow, on a copy
+    of test/ and a submission holding this netlist; cocotb-config on PATH."""
+    shutil.copytree(repo / "test", tmp_path / "test")
+    (tmp_path / "tt_submission").mkdir()
+    (tmp_path / "tt_submission" / "top.v").write_bytes(netlist)
     shim = tmp_path / "bin"
     shim.mkdir()
     cfg = shim / "cocotb-config"
     cfg.write_text(f'#!/bin/sh\nexec "{REPO}/bin/eda" cocotb-config "$@"\n')
     cfg.chmod(0o755)
-    env = {**os.environ, "GATES": "yes", "PATH": f"{shim}:{os.environ['PATH']}",
+    env = {**os.environ, "PATH": f"{shim}:{os.environ['PATH']}",
            "PDK_ROOT": str(check_precheck._pdk_root())}
-    proc = subprocess.run(["make"], cwd=test, env=env, capture_output=True, text=True,
-                          timeout=600)
-    assert (test / "results.xml").is_file(), (proc.stdout + proc.stderr)[-3000:]
-    return ET.parse(test / "results.xml")
+    env.pop("GATES", None)
+    doc = yaml.safe_load((repo / ".github/workflows/gds.yaml").read_text())
+    run = next(s["run"] for s in doc["jobs"]["gl_test"]["steps"]
+               if "GATES=yes" in str(s.get("run")))
+    proc = subprocess.run(["bash", "-e", "-c", run], cwd=tmp_path, env=env,
+                          capture_output=True, text=True, timeout=600)
+    results = tmp_path / "test" / "results.xml"
+    assert results.is_file(), (proc.stdout + proc.stderr)[-3000:]
+    return ET.parse(results)
 
 
 def test_staged_makefile_passes_on_the_shipped_netlist(tree, tmp_path):
