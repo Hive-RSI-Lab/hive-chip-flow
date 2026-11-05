@@ -393,7 +393,15 @@ gates:
         macro: the flow finishes with no failing step and produces GDS,
         LEF, netlist, SDF, metrics; the signoff metrics are present and
         inside harden_metrics' limits, and no max_slew or max_cap
-        violation at any corner (top_harden_metrics).
+        violation at any corner (top_harden_metrics). A non-clock analog
+        macro output is never buffered: its net (read from a synthesis
+        probe, `macro_net_unresolved` when the pin has no single net) is
+        don't-touch for the resizer, else repair_design buffers it until
+        the job runs out of memory (#191), and each repair step must report
+        it so (`macro_net_not_dont_touch`). The macro's own driver therefore
+        meets its liberty limits or the gate fails max_slew_violation; there
+        is no spec opt-out, and none is planned until a design needs a
+        buffered macro output (a clock output stays repairable for CTS).
     top_drc:
       phase: P3
       tool: top_drc

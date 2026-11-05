@@ -380,6 +380,11 @@ def run(argv=None):
     ap.add_argument("--timeout-s", type=float,
                     default=float(os.environ.get("CHIP_FLOW_HARDEN_TIMEOUT_S",
                                                   DEFAULT_TIMEOUT_S)))
+    # a partial run (check_top_harden's synthesis probe, #191): the flow
+    # stops after this step under its own run tag, and no final artifact,
+    # metric or signoff is judged
+    ap.add_argument("--to", help="stop after this LibreLane step id")
+    ap.add_argument("--run-tag", default=RUN_TAG, help=argparse.SUPPRESS)
     args = ap.parse_args(argv)
 
     ws = Path(args.workspace).resolve()
@@ -441,7 +446,7 @@ def run(argv=None):
     config_path.write_text(json.dumps(config, indent=2), encoding="utf-8")
     ttlib.write_info_yaml(spec, harden_dir / "info.yaml")
 
-    run_dir = harden_dir / "runs" / RUN_TAG
+    run_dir = harden_dir / "runs" / args.run_tag
     resumed = run_dir.is_dir()
     # `--overwrite` always: LibreLane's OWN implicit resume (omit
     # --overwrite, let it pick up runs/<tag>'s latest state_out.json) was
@@ -458,8 +463,9 @@ def run(argv=None):
     # caller can tell a restart from a first run.
     tech = ttlib.gf180_tech()
     cmd = [str(EDA_BIN), "librelane", "--pdk-root", str(pdk_root),
-          *tech.librelane_pdk_args.split(), "--run-tag", RUN_TAG,
-          "--overwrite", str(config_path)]
+          *tech.librelane_pdk_args.split(), "--run-tag", args.run_tag,
+          "--overwrite", *(["--to", args.to] if args.to else []),
+          str(config_path)]
 
     t0 = time.monotonic()
     try:
@@ -491,6 +497,11 @@ def run(argv=None):
             "harden", "error", None, top, "flow_step_failed", [],
             f"librelane exited {proc.returncode}: {detail[-2000:]}",
             "librelane", resumed=resumed, wall_s=wall_s))
+    elif args.to:
+        payload = checklib.report(SCRIPT, ws / "rtl", violations, top=top,
+                                  run_tag=args.run_tag, resumed=resumed,
+                                  wall_s=wall_s, run_dir=str(run_dir))
+        return payload, args.out
     else:
         final_dir = run_dir / "final"
         missing = [fmt for fmt in EXPECTED_FORMATS
@@ -537,7 +548,8 @@ def run(argv=None):
         violations += signoff_violations
 
     payload = checklib.report(SCRIPT, ws / "rtl", violations, top=top,
-                              run_tag=RUN_TAG, resumed=resumed, wall_s=wall_s,
+                              run_tag=args.run_tag, resumed=resumed,
+                              wall_s=wall_s,
                               run_dir=str(run_dir), metrics=metric_subset,
                               qor=qor, signoff_metrics=signoff_table)
     return payload, args.out

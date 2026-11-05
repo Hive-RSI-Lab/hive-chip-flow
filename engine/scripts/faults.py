@@ -47,6 +47,7 @@ sys.path.insert(0, str(ENGINE / "lib"))
 import checklib  # noqa: E402
 import gate  # noqa: E402
 import state as state_mod  # noqa: E402
+from charlib import Refused  # noqa: E402
 from checklib import CheckError  # noqa: E402
 
 SCRIPT = "faults"
@@ -168,8 +169,8 @@ REFUSED = "refused"
 
 def check_refusal(fault_name: str, run, expect: dict) -> list[str]:
     """`expect` {status: refused, error: TEXT}: the gate `run()` runs must
-    raise (its check refused: CheckError, or gate.py's RuntimeError over
-    an error report) with TEXT in its message. A verdict instead, pass or
+    raise (its check refused: CheckError, charlib's Refused, or gate.py's
+    RuntimeError over an error report) with TEXT in its message. A verdict instead, pass or
     fail, is a mismatch: the fault went through a gate that should not
     have run on it."""
     want = str(expect.get("error") or "")
@@ -178,7 +179,7 @@ def check_refusal(fault_name: str, run, expect: dict) -> list[str]:
                 "text the refusal must carry"]
     try:
         _report, result = run()
-    except RuntimeError as exc:
+    except (RuntimeError, Refused) as exc:
         if want in str(exc):
             return []
         return [f"{fault_name}: expected a refusal naming {want!r}, got: "
@@ -212,6 +213,27 @@ def _ordered_gate_names(names: set[str], skill: str, gates: dict) -> list[str]:
     return sorted(names, key=lambda g: index.get(g, len(order)))
 
 
+TOP_GATES = frozenset({"top_harden", "top_drc", "top_lvs", "precheck"})
+
+
+def macro_lib_first(ws: Path, gate_names, gates: dict, skill: str) -> None:
+    """An msde rung whose analog spec declares macro_timing needs the
+    macro_lib gate's output before a top gate can assemble the top
+    (check_top_harden delivers its libs); run it on `ws` unless the
+    manifest exercises macro_lib itself or no top gate is in play."""
+    if (skill != "msde" or "macro_lib" in gate_names
+            or not TOP_GATES & set(gate_names)
+            or "macro_lib" not in (gates.get(skill) or {})):
+        return
+    import check_macro_lib
+    if check_macro_lib.declared(ws) is None:
+        return
+    _report, result = run_gate(ws, "macro_lib", gates, skill)
+    if result["status"] != "pass":
+        raise CheckError(f"macro_lib failed on the untouched rung: "
+                         f"{result.get('failing')}")
+
+
 def run_rung(tmp_root: Path, rung_dir: Path, skill: str, gates: dict) -> dict:
     rung = rung_dir.name
     manifest = load_manifest(rung_dir)
@@ -230,6 +252,7 @@ def run_rung(tmp_root: Path, rung_dir: Path, skill: str, gates: dict) -> dict:
     clean_ws = make_scratch_workspace(tmp_root, rung_dir, skill, rung)
     gate_names = _ordered_gate_names(
         {f["gate"] for f in manifest["faults"]} - {"release"}, skill, gates)
+    macro_lib_first(clean_ws, gate_names, gates, skill)
     for gname in gate_names:
         t0 = time.monotonic()
         _report, result = run_gate(clean_ws, gname, gates, skill)
@@ -248,6 +271,8 @@ def run_rung(tmp_root: Path, rung_dir: Path, skill: str, gates: dict) -> dict:
         saved_env = dict(os.environ)
         expect = entry.get("expect", {})
         try:
+            if gname != "macro_lib":
+                macro_lib_first(ws, {gname}, gates, skill)
             plant(ws)
             if expect.get("status") == REFUSED:
                 problems.extend(check_refusal(

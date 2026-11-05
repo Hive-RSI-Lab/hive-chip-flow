@@ -1033,6 +1033,10 @@ def harden_config(spec: dict, rtl_files: list[Path], wrapper_path: Path,
     macros = spec.get("macros") or []
     if macros:
         config.update(macro_config(macros))
+    # an override's RSZ_DONT_TOUCH_RX (a clock pad) adds to the engine's
+    if "RSZ_DONT_TOUCH_RX" in override and "RSZ_DONT_TOUCH_RX" in config:
+        override = {**override, "RSZ_DONT_TOUCH_RX": merge_rx(
+            config["RSZ_DONT_TOUCH_RX"], override["RSZ_DONT_TOUCH_RX"])}
     config.update(override)
     return config
 
@@ -1136,9 +1140,43 @@ def macro_config(macros: list[dict]) -> dict:
         "PDN_VERTICAL_HALO": MACRO_PDN_HALO_UM,
         "MAGIC_EXT_USE_GDS": True,
         "EXTRA_SPICE_MODELS": [m["files"]["spice"] for m in macros],
-        **({"RSZ_DONT_TOUCH_RX": ANALOG_NET_RX}
-           if any(m.get("ua") for m in macros) else {}),
+        **({"RSZ_DONT_TOUCH_RX": dont_touch_rx(macros)}
+           if dont_touch_rx(macros) else {}),
     }
+
+
+def dont_touch_rx(macros: list[dict]) -> str | None:
+    """RSZ_DONT_TOUCH_RX for the macros' nets, or None: the ua pad nets
+    (ANALOG_NET_RX) and each macro's `dont_touch_nets` ({pin: net},
+    check_top_harden: the net on each non-clock output pin, read from the
+    synthesized netlist). repair_design has no
+    convergence guard: a net whose driver's own edge is above the repair
+    target (the load's max_transition less DESIGN_REPAIR_MAX_SLEW_PCT) gets
+    the same wire buffer again until the job runs out of memory (#191).
+    Don't-touch, signoff STA reports the real slew and the top harden fails
+    on it (max_slew_violation). A clock output stays repairable for CTS.
+    Each net is matched by its whole name, never guessed from the pin's:
+    synthesis keeps whichever alias it likes (`u_sensor_counted_digital.
+    osc_out`, the top's `w_osc_out`, a renamed submodule wire)."""
+    parts = [ANALOG_NET_RX] if any(m.get("ua") for m in macros) else []
+    nets = sorted({n for m in macros
+                   for n in (m.get("dont_touch_nets") or {}).values()})
+    if nets:
+        parts.append("^(?:" + "|".join(odb_name_rx(n) for n in nets) + ")$")
+    return merge_rx(*parts)
+
+
+def odb_name_rx(net: str) -> str:
+    """A regex for one netlist net name as OpenROAD may print it: a bracket
+    in an escaped identifier comes back escaped (`a\\[0\\]`)."""
+    return re.escape(net).replace(r"\[", r"\\?\[").replace(r"\]", r"\\?\]")
+
+
+def merge_rx(*rxs: str | None) -> str | None:
+    """One regex matching what any of rxs does (None and the empty "^$" aside)."""
+    rxs = [r for r in rxs if r and r != "^$"]
+    return "|".join(f"(?:{r})" for r in rxs) if len(rxs) > 1 else (
+        rxs[0] if rxs else None)
 
 
 ENGINE_DIR = Path(__file__).resolve().parents[1]

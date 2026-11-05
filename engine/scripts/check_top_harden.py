@@ -93,6 +93,18 @@ per-corner table. Pins on the ua[k] pad nets are listed there as
 `analog_pad` and not counted: STA sees no digital driver or receiver on an
 analog pad, only LibreLane's default input drive and output load for every
 port, which no analog tile meets at ss.
+
+A macro's non-clock outputs are never buffered (#191): repair_design would
+buffer such a net over and over until the job runs out of memory. Before
+the harden, a synthesis probe (check_harden.run --to Yosys.Synthesis, run
+tag `probe`) reads the net on each such pin from the synthesized netlist,
+whatever alias synthesis kept, and the spec's `dont_touch_nets` ({pin:
+net}) names them exactly for RSZ_DONT_TOUCH_RX (ttlib.dont_touch_rx). A pin
+with no single net there is `macro_net_unresolved` (no harden runs). After
+it, the harden's own synthesis must put the same net on the pin
+(`macro_net_unresolved`) and each placement and repair step's log must
+report the net don't-touch (`macro_net_not_dont_touch`), even when the flow
+failed; the report's `dont_touch_nets` lists them by <instance>/<pin>.
 """
 from __future__ import annotations
 
@@ -947,6 +959,11 @@ def macro_abstract(ws: Path, analog: Path, macro: dict, top: Path) -> dict | Non
     except macrolib.Refused as exc:
         raise CheckError(str(exc)) from exc
     macro["files"].update({f"lib_{k}": v for k, v in libs.items()})
+    # a non-clock output's net is don't-touch for the resizer (#191, ttlib.
+    # dont_touch_rx; run() reads the net on each from synthesis); a clock's
+    # stays repairable for CTS
+    macro["dont_touch_pins"] = sorted(
+        pin for pin in mt.outputs if pin not in mt.clocks)
     return {"ceilings": ceilings}
 
 
@@ -1083,16 +1100,112 @@ def assemble(ws: Path) -> tuple[Path, dict]:
     if tspec["macro_clock_problems"]:
         return top, tspec
     del tspec["macro_clock_problems"]
-    import yaml
-    # the macro's files relative to top/, as check_harden and top_lvs read
-    # them: the spec is committed with the block, the machine's path is not
+    write_top_spec(top, tspec)
+    return top, tspec
+
+
+def write_top_spec(top: Path, tspec: dict) -> None:
+    """top/spec/spec.yaml, with the macro's files relative to top/, as
+    check_harden and top_lvs read them: the spec is committed with the
+    block, the machine's path is not."""
     on_disk = {**tspec, "macros": [
         {**m, "files": {k: os.path.relpath(v, top)
                         for k, v in m["files"].items()}}
         for m in tspec["macros"]]}
     (top / "spec" / "spec.yaml").write_text(
         yaml.safe_dump(on_disk, sort_keys=False), encoding="utf-8")
-    return top, tspec
+
+
+# The synthesis probe (#191): LibreLane run to this step under its own tag,
+# so the net on each don't-touch macro pin is read, not guessed, before
+# repair_design ever sees the design.
+PROBE_STEP = "Yosys.Synthesis"
+PROBE_TAG = "probe"
+# a plain or escaped Verilog identifier, optionally one bit of a bus
+_NET = re.compile(r"(?:\\(\S+)|([A-Za-z_][\w$]*(?:\[\d+\])?))\Z")
+# the step logs that set don't-touch right before a repair (gpl.tcl's own
+# call comes first: a net missing there would loop in the next step)
+DONT_TOUCH_LOGS = ("*-openroad-globalplacement/*.log",
+                   "*-openroad-repairdesign*/*.log")
+_DONT_TOUCH_LINE = re.compile(r"Net '(.*?)' matched don't touch regular")
+
+
+def macro_pin_nets(netlist: str, cell: str, instance: str) -> dict | None:
+    """{pin: net} of the macro instance in a yosys netlist, the net named as
+    OpenROAD reads it (an escaped identifier without its backslash and
+    closing space); a pin tied to a constant or a concatenation maps to
+    None. None when the instance isn't in the netlist."""
+    m = re.search(r"(?m)^\s*%s\s+%s\s*\((.*?)\);" % (re.escape(cell),
+                                                     re.escape(instance)),
+                  netlist, re.S)
+    if not m:
+        return None
+    nets = {}
+    for pin, net in re.findall(r"\.\\?([^\s(]+)\s*\((\\\S+\s|[^()]*?)\s*\)",
+                               m.group(1)):
+        whole = _NET.match(net.strip())
+        nets[pin] = (whole.group(1) or whole.group(2)) if whole else None
+    return nets
+
+
+def resolve_dont_touch(netlist: str, macros: list[dict]) -> tuple[dict, list]:
+    """{instance: {pin: net}} for every macro's dont_touch_pins, and the
+    violations (macro_net_unresolved) for a pin with no single net."""
+    resolved, violations = {}, []
+    for m in macros:
+        pins = m.get("dont_touch_pins") or []
+        if not pins:
+            continue
+        nets = macro_pin_nets(netlist, m["cell"], m["instance"]) or {}
+        resolved[m["instance"]] = {}
+        for pin in pins:
+            if nets.get(pin):
+                resolved[m["instance"]][pin] = nets[pin]
+                continue
+            violations.append(checklib.violation(
+                "top_harden", "error", None, m["cell"], "macro_net_unresolved",
+                [pin], f"the synthesized netlist has no single net on "
+                f"{m['instance']}/{pin} (instance or pin missing, or tied to "
+                "a constant or concatenation), so the resizer can't be told "
+                "to leave it alone and repair_design would buffer the "
+                "macro's output until it runs out of memory (#191)", SCRIPT))
+    return resolved, violations
+
+
+def dont_touch_unset(run_dir: Path, macros: list[dict]) -> list:
+    """macro_net_not_dont_touch for each resolved net that a don't-touch
+    step of the run did not report as matched, and macro_net_unresolved
+    when the run's own synthesis put another net on the pin than the
+    probe's."""
+    violations = []
+    want = {(m["cell"], m["instance"], pin): net for m in macros
+            for pin, net in (m.get("dont_touch_nets") or {}).items()}
+    if not want:
+        return violations
+    synth = sorted(run_dir.glob("*-yosys-synthesis/*.nl.v"))
+    if synth:
+        text = synth[0].read_text(encoding="utf-8", errors="replace")
+        for (cell, inst, pin), net in sorted(want.items()):
+            got = (macro_pin_nets(text, cell, inst) or {}).get(pin)
+            if got != net:
+                violations.append(checklib.violation(
+                    "top_harden", "error", None, cell, "macro_net_unresolved",
+                    [pin], f"the harden's synthesis put {got!r} on "
+                    f"{inst}/{pin}, the probe {net!r}: the don't-touch "
+                    f"rule named the wrong net (#191)", SCRIPT))
+    for log in sorted(p for g in DONT_TOUCH_LOGS for p in run_dir.glob(g)):
+        matched = {n.replace("\\", "") for n in _DONT_TOUCH_LINE.findall(
+            log.read_text(encoding="utf-8", errors="replace"))}
+        for (cell, inst, pin), net in sorted(want.items()):
+            if net not in matched:
+                violations.append(checklib.violation(
+                    "top_harden", "error", str(log.relative_to(run_dir)),
+                    cell, "macro_net_not_dont_touch", [pin],
+                    f"{log.parent.name} did not set {inst}/{pin}'s net "
+                    f"{net!r} don't-touch: RSZ_DONT_TOUCH_RX missed it, and "
+                    "repair_design may buffer it until the job runs out of "
+                    "memory (#191)", SCRIPT))
+    return violations
 
 
 # Tiny Tapeout's pin check (tt-support-tools precheck/pin_check.py): every
@@ -1208,7 +1321,7 @@ def run(argv=None):
     except layoutlib.LayoutError as exc:
         raise CheckError(str(exc)) from exc
     macros = [{k: m[k] for k in ("cell", "instance", "location", "size_um",
-                                 "pins", "ua") if k in m}
+                                 "pins", "ua", "dont_touch_pins") if k in m}
               for m in spec["macros"]]
     too_big = [m for m in macros if m["location"] is None]
     tiles = ttlib.spec_tiles(spec)
@@ -1277,10 +1390,36 @@ def run(argv=None):
                                   macros=macros)
         return payload, args.out
     import check_harden
+    if any(m.get("dont_touch_pins") for m in spec["macros"]):
+        probe, _out = check_harden.run(["--workspace", str(top), "--to",
+                                        PROBE_STEP, "--run-tag", PROBE_TAG])
+        if probe.get("violations"):
+            payload = checklib.report(SCRIPT, ws / "digital" / "rtl",
+                                      probe["violations"], macros=macros)
+            return payload, args.out
+        synth = sorted(Path(probe["run_dir"]).glob("*-yosys-synthesis/*.nl.v"))
+        if not synth:
+            raise CheckError(f"the synthesis probe wrote no netlist under "
+                             f"{probe['run_dir']}")
+        resolved, violations = resolve_dont_touch(
+            synth[0].read_text(encoding="utf-8", errors="replace"),
+            spec["macros"])
+        if violations:
+            payload = checklib.report(SCRIPT, ws / "digital" / "rtl",
+                                      violations, macros=macros)
+            return payload, args.out
+        for m in spec["macros"]:
+            if m["instance"] in resolved:
+                m["dont_touch_nets"] = resolved[m["instance"]]
+        write_top_spec(top, spec)
     inner, _out = check_harden.run(["--workspace", str(top)])
     facts = {k: inner[k] for k in ("top", "run_tag", "resumed", "wall_s",
                                    "signoff_metrics",
                                    "run_dir", "metrics", "qor") if k in inner}
+    dont_touch = {f"{m['instance']}/{pin}": net for m in spec["macros"]
+                  for pin, net in (m.get("dont_touch_nets") or {}).items()}
+    if dont_touch:
+        facts["dont_touch_nets"] = dont_touch
     lef = (top / "harden" / "runs" / check_harden.RUN_TAG / "final" / "lef"
            / f"{ttlib.wrapper_name(spec)}.lef")
     if lef.is_file():
@@ -1288,6 +1427,9 @@ def run(argv=None):
         if moved:
             facts["power_ports_to_obs"] = moved
     violations = list(inner.get("violations", []))
+    # even on a failed flow: a net the resizer missed is why it failed
+    violations += dont_touch_unset(Path(inner.get("run_dir", "")),
+                                   spec["macros"])
     # max slew and max cap per corner, judged like the signoff metrics only
     # when the flow finished (check_harden recorded its table)
     metrics_path = Path(inner.get("run_dir", "")) / "final" / "metrics.json"

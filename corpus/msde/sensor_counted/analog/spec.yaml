@@ -24,3 +24,14 @@ measures:
     bounds: {min: 0.1881, max: 0.1911}
   - name: share4
     bounds: {min: 0.2159, max: 0.2266}
+# The crossing pins' timing limits, for the macro_lib gate's liberty (the top
+# harden times the macro against it). osc_out's limits are sized so the stock
+# output buffer meets them at every corner; the W/4 driver
+# (faults/plant_top_harden_weak_driver.py) does not.
+macro_timing:
+  pins:
+    osc_en: {max_transition_ns: 2.0}
+    osc_out: {max_transition_ns: 3.2, max_capacitance_pf: 0.012}
+  static: {osc_en: vdd}
+  arcs:
+    - {to: osc_out, source: true, enable: osc_en, settle_ns: 1500, window_ns: 2500, step_ns: 0.02}

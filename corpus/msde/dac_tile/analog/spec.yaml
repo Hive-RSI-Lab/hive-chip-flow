@@ -14,3 +14,12 @@ measures:
     bounds: {min: 0.48, max: 0.72}
   - name: vout_11
     bounds: {max: 0.05}
+# The crossing pins' timing limits for the macro_lib gate: both are inputs
+# to the DAC's inverters (vout leaves on ua[0], not a crossing pin).
+macro_timing:
+  pins:
+    bmsb: {max_transition_ns: 3.0}
+    blsb: {max_transition_ns: 3.0}
+  static: {bmsb: 0, blsb: 0}
+  pad_caps_pf: {vout: 1.0}
+  arcs: []
