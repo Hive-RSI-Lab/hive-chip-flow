@@ -256,7 +256,13 @@ def test_the_gate_is_registered_and_owed_only_when_declared(tmp_path):
     (tmp_path / "analog" / "spec").mkdir(parents=True)
     spec = tmp_path / "analog" / "spec" / "spec.yaml"
     spec.write_text("top: m\n")
+    iface = tmp_path / "interface.yaml"
+    iface.write_text(yaml.safe_dump({"version": 1, "signals": []}))
     assert "not applicable" in check_macro_lib.not_applicable_at_release(tmp_path)
+    # a macro with a crossing pin owes the gate, declared or not (#177)
+    iface.write_text(yaml.safe_dump({"version": 1, "signals": [
+        {"name": "y", "direction": "a2d", "level": "cmos_3v3", "width": 1}]}))
+    assert check_macro_lib.not_applicable_at_release(tmp_path) is None
     spec.write_text(yaml.safe_dump({"top": "m", "macro_timing": _spec()}))
     assert check_macro_lib.not_applicable_at_release(tmp_path) is None
     spec.write_text("top: [unclosed\n")
@@ -584,9 +590,15 @@ def _ws(tmp_path, section, netlist=None) -> Path:
     return ws
 
 
-def test_gate_without_a_declaration_warns_and_passes(tmp_path):
-    payload, _ = check_macro_lib.run(["--workspace", str(_ws(tmp_path, None))])
-    # warning only: the gate's fail_severities are [error], so gate.py passes it
+def test_gate_without_a_declaration_fails_with_crossing_pins(tmp_path):
+    ws = _ws(tmp_path, None)
+    payload, _ = check_macro_lib.run(["--workspace", str(ws)])
+    # owed for every macro with a crossing pin (#177)
+    assert payload["violations"][0]["kind"] == "macro_timing_undeclared"
+    assert payload["violations"][0]["severity"] == "error"
+    (ws / "interface.yaml").write_text(yaml.safe_dump({"version": 1, "signals": []}))
+    payload, _ = check_macro_lib.run(["--workspace", str(ws)])
+    # no crossing pin: warning only, which the gate's fail_severities pass
     assert payload["violations"][0]["kind"] == "macro_timing_undeclared"
     assert payload["violations"][0]["severity"] == "warning"
 
@@ -621,11 +633,60 @@ def test_gate_refuses_an_incomplete_declaration_before_any_sim(tmp_path):
     assert not (ws / macrolib.OUT_DIR).exists()
 
 
+def _abstract(ws, top):
+    macro = {"cell": "invm", "instance": "u_analog", "files": {}}
+    return check_top_harden.macro_abstract(ws, ws / "analog", macro, top)
+
+
+def _owed(ws, top) -> str:
+    with pytest.raises(macrolib.Refused) as exc:
+        _abstract(ws, top)
+    assert exc.value.kind in check_top_harden.MACRO_LIB_OWED
+    return exc.value.kind
+
+
 def test_top_harden_says_what_to_run_when_the_gate_has_not(tmp_path):
     ws = _ws(tmp_path, _spec())
-    macro = {"cell": "invm", "instance": "u_analog", "files": {}}
-    with pytest.raises(CheckError, match="run the macro_lib gate"):
-        check_top_harden.macro_abstract(ws, ws / "analog", macro, tmp_path / "top")
+    assert _owed(ws, tmp_path / "top") == "macro_lib_missing"
+    with pytest.raises(macrolib.Refused, match="run the macro_lib gate"):
+        _abstract(ws, tmp_path / "top")
+
+
+def test_top_harden_owes_a_lib_view_for_crossing_pins_with_no_declaration(
+        tmp_path):
+    ws = _ws(tmp_path, None)
+    assert _owed(ws, tmp_path / "top") == "macro_lib_missing"
+    (ws / "interface.yaml").write_text(yaml.safe_dump({"version": 1, "signals": []}))
+    assert _abstract(ws, tmp_path / "top") is None
+
+
+def _gate_output(ws, schematic: str, **report):
+    out = ws / macrolib.OUT_DIR
+    out.mkdir(parents=True, exist_ok=True)
+    for n in macrolib.STA_CORNERS:
+        (out / f"invm__{n}.lib").write_text("x")
+    (out / "invm.report.json").write_text(json.dumps(
+        {"netlist_kind": "schematic", "includes_sha256": {},
+         "schematic_sha256": macrolib.text_digest(schematic), **report}))
+
+
+def test_top_harden_finds_a_lib_characterised_on_another_netlist_stale(
+        tmp_path):
+    ws = _ws(tmp_path, _spec())
+    _cell, schematic = check_macro_lib.schematic_of(ws / "analog")
+    _gate_output(ws, schematic)
+    assert _abstract(ws, tmp_path / "top")["ceilings"] == {}
+    # the sized schematic changed after the gate ran
+    (ws / "analog" / "netlist" / "invm.cir").write_text(_inverter(2, 8))
+    assert _owed(ws, tmp_path / "top") == "macro_lib_stale"
+    # an extraction appeared after a schematic characterisation
+    _gate_output(ws, check_macro_lib.schematic_of(ws / "analog")[1])
+    assert _abstract(ws, tmp_path / "top") is not None
+    spec = yaml.safe_load((ws / "analog" / "spec" / "spec.yaml").read_text())
+    spec["macro_timing"]["extracted"] = "invm.pex.spice"
+    (ws / "analog" / "spec" / "spec.yaml").write_text(yaml.safe_dump(spec))
+    (ws / "analog" / "invm.pex.spice").write_text(_inverter(4, 8))
+    assert _owed(ws, tmp_path / "top") == "macro_lib_stale"
 
 
 def _timing(**extra):

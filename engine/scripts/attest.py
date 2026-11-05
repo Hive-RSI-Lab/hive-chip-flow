@@ -227,9 +227,10 @@ def _cdc_not_applicable(ws: Path) -> str | None:
 
 
 def _macro_lib_not_applicable(ws: Path) -> str | None:
-    """/msde's `macro_lib`, not applicable when the analog spec declares no
-    macro_timing. A top SDC with a clock on the macro's pin and no declaration
-    is refused by top_harden, so this cannot hide a macro-sourced clock."""
+    """/msde's `macro_lib`, not applicable only when the analog spec declares
+    no macro_timing and the macro has no crossing pin (#177): every macro with
+    a crossing pin owes the lib view, and top_harden fails macro_lib_missing
+    without it, so this cannot hide a macro's timing."""
     import check_macro_lib
     return check_macro_lib.not_applicable_at_release(ws)
 

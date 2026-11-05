@@ -295,6 +295,10 @@ def _assemble_ws(tmp_path: Path, monkeypatch) -> Path:
                         lambda macro: [])
     monkeypatch.setattr(check_top_harden, "power_location",
                         lambda macro, die, start, *_a: start)
+    # the lib view's own tests are tests/test_macrolib.py's; with crossing
+    # pins and no macro_timing it would be owed (macro_lib_missing)
+    monkeypatch.setattr(check_top_harden, "macro_abstract",
+                        lambda *_a: None)
     return ws
 
 

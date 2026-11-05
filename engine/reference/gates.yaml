@@ -379,8 +379,11 @@ gates:
         One liberty per STA corner for the analog macro's crossing pins,
         measured by ngspice from an arc list: input capacitance, output delay
         and transition against load, the spec's max_transition and
-        max_capacitance, and the macro-sourced clocks' ceilings. A block
-        declaring no macro_timing is not applicable.
+        max_capacitance, and the macro-sourced clocks' ceilings. Owed for
+        every macro with a crossing pin: no macro_timing there is an error
+        (macro_timing_undeclared), and top_harden runs no harden without the
+        current lib view (macro_lib_missing, macro_lib_stale). Not applicable
+        only to a macro with no crossing pin.
     top_harden:
       phase: P3
       tool: top_harden

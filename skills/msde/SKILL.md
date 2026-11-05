@@ -129,8 +129,11 @@ The macro's timing is the analog spec's to state: `macro_timing` in
 `analog/spec/spec.yaml` (schema in `engine/lib/macrolib.py`) lists the limits, the
 arcs and the macro-sourced clocks' records. `macro_lib` writes one liberty per STA
 corner, `top_harden` hands them to LibreLane as the macro's `lib` view, and an SDC
-period on a macro pin that disagrees with the record runs no harden. With no
-declaration the pins stay ideal to STA, and a clock on a macro pin is refused.
+period on a macro pin that disagrees with the record runs no harden. Every macro
+with a crossing pin owes the gate: with no declaration `macro_lib` fails
+(`macro_timing_undeclared`), and `top_harden` runs no harden without a current lib
+view (`macro_lib_missing`, or `macro_lib_stale` when the libs were characterised
+on another netlist or includes).
 
 Gates (`engine/reference/gates.yaml`, msde rows), in pipeline order:
 
@@ -138,7 +141,7 @@ Gates (`engine/reference/gates.yaml`, msde rows), in pipeline order:
 |---|---|---|---|
 | split | P1 | every crossing signal appears in both side specs with matching direction, level, domain, width and load | `check_split.py` |
 | cosim | P3 | every top-level measure inside its bound, the digital side toggled, the analog side ran | `check_cosim.py`, cocotbext-ams |
-| macro_lib | P3 | one liberty per STA corner for the macro's crossing pins, from the analog spec's `macro_timing` arc list; not applicable with no `macro_timing` | `check_macro_lib.py` |
+| macro_lib | P3 | one liberty per STA corner for the macro's crossing pins, from the analog spec's `macro_timing` arc list; owed for every macro with a crossing pin, not applicable only with none | `check_macro_lib.py` |
 | top_harden | P3 | the assembled top hardens with the analog GDS as a macro: no failing step, GDS, LEF, netlist, SDF, metrics (a job) | `check_top_harden.py` |
 | top_drc | P3 | 0 violations, magic and klayout, on the top's final GDS | `check_top_drc.py` |
 | top_lvs | P3 | the top's final GDS matches the powered netlist, the analog block compared device by device | `check_top_lvs.py` |

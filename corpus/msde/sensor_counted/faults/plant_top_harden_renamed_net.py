@@ -43,3 +43,4 @@ def plant(ws: Path) -> None:
     finally:
         (sorted((ws / "analog" / "netlist").glob("*.cir"))[0]
          ).write_text(stock, encoding="utf-8")
+    weak._keep_weak_libs(ws)

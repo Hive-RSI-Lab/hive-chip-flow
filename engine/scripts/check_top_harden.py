@@ -938,25 +938,41 @@ def top_override(ws: Path) -> dict:
     return {}
 
 
+# the macro_lib gate's output is not the current lib view: a design finding
+# (run the gate), not a refusal
+MACRO_LIB_OWED = ("macro_lib_missing", "macro_lib_stale")
+
+
 def macro_abstract(ws: Path, analog: Path, macro: dict, top: Path) -> dict | None:
     """The macro_lib gate's output delivered into top/macros, with the clock
     ceilings read again from the record (a record re-run after the gate must
-    count); None when the analog spec declares no macro_timing."""
+    count); None when the macro has no crossing pin and the analog spec
+    declares no macro_timing. Raises macrolib.Refused of a MACRO_LIB_OWED kind
+    when the gate's output is missing or was characterised on another netlist
+    or includes (#177): every macro with a crossing pin owes the lib view."""
     import check_macro_lib
     # analog_macro has already read this side; a missing file is that gate's
     section = (check_macro_lib.declared(ws)
                if (analog / "spec" / "spec.yaml").is_file() else None)
     if section is None:
-        return None
+        pins = sorted(check_macro_lib.crossing_pins(ws))
+        if not pins:
+            return None
+        raise macrolib.Refused(
+            "macro_lib_missing",
+            f"the analog macro has crossing pins {pins} and "
+            "analog/spec/spec.yaml declares no macro_timing, so there is no lib "
+            "view for STA; declare it and run the macro_lib gate")
     try:
         mt = macrolib.parse_spec(section, macro["cell"],
                                  check_macro_lib.crossing_pins(ws))
-        if mt.extracted and (analog / mt.extracted).is_file():
-            macrolib.check_extracted(ws, macro["cell"], analog / mt.extracted)
-        macrolib.check_includes(ws, mt, analog)
+        _cell, schematic = check_macro_lib.schematic_of(analog)
+        macrolib.check_current(ws, mt, analog, schematic)
         libs = macrolib.deliver(ws, macro["cell"], top / "macros")
         ceilings = macrolib.clock_ceilings(mt, analog)
     except macrolib.Refused as exc:
+        if exc.kind in MACRO_LIB_OWED:
+            raise
         raise CheckError(str(exc)) from exc
     macro["files"].update({f"lib_{k}": v for k, v in libs.items()})
     # a non-clock output's net is don't-touch for the resizer (#191, ttlib.
@@ -1081,7 +1097,11 @@ def assemble(ws: Path) -> tuple[Path, dict]:
     if problems:
         raise CheckError("the assembled top's pins do not fit: "
                          + "; ".join(problems))
-    abstract = macro_abstract(ws, analog, macro, top)
+    try:
+        abstract = macro_abstract(ws, analog, macro, top)
+    except macrolib.Refused as exc:
+        tspec["macro_lib_problems"] = [{"kind": exc.kind, "msg": str(exc)}]
+        return top, tspec
     sdc = top_sdc(ws, dspec, macro)
     if sdc is not None:
         if abstract:
@@ -1340,6 +1360,13 @@ def run(argv=None):
             "top_harden", "error", None, "ua_pins", "ua_pin_off_template", [],
             f"interface.yaml ua_pins do not fit the analog tile: {p}", SCRIPT)
             for p in spec["ua_problems"]]
+        payload = checklib.report(SCRIPT, ws / "digital" / "rtl", violations,
+                                  macros=macros)
+        return payload, args.out
+    if spec.get("macro_lib_problems"):
+        violations = [checklib.violation(
+            "top_harden", "error", "macro_lib", macros[0]["cell"], p["kind"],
+            [], p["msg"], SCRIPT) for p in spec["macro_lib_problems"]]
         payload = checklib.report(SCRIPT, ws / "digital" / "rtl", violations,
                                   macros=macros)
         return payload, args.out
