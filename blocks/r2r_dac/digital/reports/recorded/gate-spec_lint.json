@@ -22,6 +22,7 @@
  "inputs_at_start": {
   "spec_yaml": "json_canonical:316aabe3e699eb67a766fb42296b9a90d765394b6deefb2d5178cc8865c08bbf"
  },
- "recorded_ts": "2026-10-13T04:16:57",
- "attempts": 3
+ "strength_at_start": 0,
+ "recorded_ts": "2026-11-05T12:53:30",
+ "attempts": 6
 }

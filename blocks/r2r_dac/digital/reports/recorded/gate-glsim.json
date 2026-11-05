@@ -3,7 +3,7 @@
  "gate": "glsim",
  "phase": "P6",
  "tool": "glsim",
- "input_digest": "dir_text:5e0fc600709e3cc97c7324a97c0c78553ef21db49b5a2f1a7ca5465fd7d2b2f2",
+ "input_digest": "harden_signoff:99737837152047465e088facc0b56400d37a87462870196f939c59c36bcfaa69",
  "status": "pass",
  "criteria": {
   "fail_severities": [
@@ -44,24 +44,31 @@
    }
   },
   "sdf": {
-   "zero_interconnects_dropped": 538,
+   "zero_interconnects_dropped": 581,
    "sdf_unannotated": [
-    "_355_ (gf180mcu_fd_sc_mcu7t5v0__mux2_4)",
-    "_360_ (gf180mcu_fd_sc_mcu7t5v0__mux2_2)",
-    "_361_ (gf180mcu_fd_sc_mcu7t5v0__mux2_2)",
-    "_424_ (gf180mcu_fd_sc_mcu7t5v0__mux2_2)",
-    "_441_ (gf180mcu_fd_sc_mcu7t5v0__mux2_2)",
-    "_462_ (gf180mcu_fd_sc_mcu7t5v0__mux2_2)",
-    "_568_ (gf180mcu_fd_sc_mcu7t5v0__xor2_1)"
+    "_350_ (gf180mcu_fd_sc_mcu7t5v0__xor2_1)",
+    "_356_ (gf180mcu_fd_sc_mcu7t5v0__xor2_1)",
+    "_398_ (gf180mcu_fd_sc_mcu7t5v0__xor2_2)",
+    "_406_ (gf180mcu_fd_sc_mcu7t5v0__xnor2_2)",
+    "_407_ (gf180mcu_fd_sc_mcu7t5v0__xor2_2)",
+    "_454_ (gf180mcu_fd_sc_mcu7t5v0__mux2_2)",
+    "_467_ (gf180mcu_fd_sc_mcu7t5v0__mux2_2)",
+    "_511_ (gf180mcu_fd_sc_mcu7t5v0__mux2_2)"
    ],
    "instances_renamed": {}
+  },
+  "netlists": {
+   "nl_sha256": "00c68e281d9d627a07380c7978f724008053f6c4c51da56f4bd2138edc0b29bc",
+   "pnl_sha256": "95d7e5875696fe85c68f5a72db88f556eace41086cd416ad0bdf1cd79573d7ac"
   }
  },
  "inputs_at_start": {
-  "harden": "dir_text:5e0fc600709e3cc97c7324a97c0c78553ef21db49b5a2f1a7ca5465fd7d2b2f2",
+  "harden": "harden_signoff:99737837152047465e088facc0b56400d37a87462870196f939c59c36bcfaa69",
   "tb": "dir_text:3d7769f785322e639d37580c2e85e19fdd9b82876af0927410c75ad81d11554b",
-  "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119"
+  "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119",
+  "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2"
  },
- "recorded_ts": "2026-10-13T04:20:11",
- "attempts": 2
+ "strength_at_start": 0,
+ "recorded_ts": "2026-11-05T13:45:26",
+ "attempts": 5
 }

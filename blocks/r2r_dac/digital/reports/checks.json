@@ -1,8 +1,32 @@
 {
  "skill": "vde",
  "block": "r2r_dac",
- "ts": "2026-10-13T04:21:54",
+ "ts": "2026-11-05T14:05:34",
+ "pdk": {
+  "name": "gf180mcuD",
+  "open_pdks": "1689ac3f2dc763876eaf967227c7dfe831b031ae",
+  "ciel": "1689ac3f2dc763876eaf967227c7dfe831b031ae"
+ },
  "checks": [
+  {
+   "gate": "cdc",
+   "applies": true,
+   "ran": true,
+   "ok": true,
+   "tool": "cdc",
+   "version": 1,
+   "status": "pass",
+   "attempts": 4,
+   "ts": "2026-11-05T13:47:29",
+   "inputs": {
+    "rtl": "dir_text:5b5e3748612f45afdfaedc1d7e6daa228ca0e64c09072bc4ac8b8b6275a6d995",
+    "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119",
+    "cdc_waivers": null,
+    "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+    "pdk_liberty": "dir_bytes:f09377f057ab484ec9e5a45b205c99a5de399e2bdca886531bf9eefa57783f32"
+   },
+   "reason": null
+  },
   {
    "gate": "cover",
    "applies": true,
@@ -11,10 +35,10 @@
    "tool": "cover",
    "version": 1,
    "status": "pass",
-   "attempts": 3,
-   "ts": "2026-10-13T04:17:10",
+   "attempts": 6,
+   "ts": "2026-11-05T13:00:06",
    "inputs": {
-    "rtl": "dir_text:08d2e63a30253fb8dcb71be29ca5aa7209711132e317fcb0e4bc99f0e226a305",
+    "rtl": "dir_text:5b5e3748612f45afdfaedc1d7e6daa228ca0e64c09072bc4ac8b8b6275a6d995",
     "tb": "dir_text:3d7769f785322e639d37580c2e85e19fdd9b82876af0927410c75ad81d11554b",
     "spec_yaml": "json_canonical:316aabe3e699eb67a766fb42296b9a90d765394b6deefb2d5178cc8865c08bbf"
    },
@@ -28,11 +52,14 @@
    "tool": "drc",
    "version": 1,
    "status": "pass",
-   "attempts": 2,
-   "ts": "2026-10-13T04:20:03",
+   "attempts": 5,
+   "ts": "2026-11-05T13:34:04",
    "inputs": {
-    "harden": "dir_text:5e0fc600709e3cc97c7324a97c0c78553ef21db49b5a2f1a7ca5465fd7d2b2f2",
-    "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119"
+    "harden": "harden_signoff:99737837152047465e088facc0b56400d37a87462870196f939c59c36bcfaa69",
+    "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119",
+    "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+    "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
+    "pdk_klayout": "dir_text:876da90e8aab65b830b36eca12bd720adfe8240a0952872419d9f2b4abda605d"
    },
    "reason": null
   },
@@ -44,10 +71,10 @@
    "tool": "formal",
    "version": 1,
    "status": "pass",
-   "attempts": 3,
-   "ts": "2026-10-13T04:17:06",
+   "attempts": 6,
+   "ts": "2026-11-05T12:59:27",
    "inputs": {
-    "rtl": "dir_text:08d2e63a30253fb8dcb71be29ca5aa7209711132e317fcb0e4bc99f0e226a305",
+    "rtl": "dir_text:5b5e3748612f45afdfaedc1d7e6daa228ca0e64c09072bc4ac8b8b6275a6d995",
     "formal": "dir_text:08afbef661d005669823e3e3ad631918a42bfd611bd5042ac8b6ed3fe5e6ce46",
     "spec_yaml": "json_canonical:316aabe3e699eb67a766fb42296b9a90d765394b6deefb2d5178cc8865c08bbf"
    },
@@ -61,12 +88,13 @@
    "tool": "glsim",
    "version": 1,
    "status": "pass",
-   "attempts": 2,
-   "ts": "2026-10-13T04:20:11",
+   "attempts": 5,
+   "ts": "2026-11-05T13:45:26",
    "inputs": {
-    "harden": "dir_text:5e0fc600709e3cc97c7324a97c0c78553ef21db49b5a2f1a7ca5465fd7d2b2f2",
+    "harden": "harden_signoff:99737837152047465e088facc0b56400d37a87462870196f939c59c36bcfaa69",
     "tb": "dir_text:3d7769f785322e639d37580c2e85e19fdd9b82876af0927410c75ad81d11554b",
-    "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119"
+    "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119",
+    "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2"
    },
    "reason": null
   },
@@ -78,15 +106,21 @@
    "tool": "harden",
    "version": 1,
    "status": "pass",
-   "attempts": 6,
-   "ts": "2026-10-13T04:18:31",
+   "attempts": 13,
+   "ts": "2026-11-05T13:29:50",
    "inputs": {
-    "rtl": "dir_text:08d2e63a30253fb8dcb71be29ca5aa7209711132e317fcb0e4bc99f0e226a305",
-    "harden_config": "json_canonical:e899bc155ae015131bda920bd8ea413c1fa425763b6c26cce0fa06270324086a",
-    "harden_override": null,
+    "rtl": "dir_text:5b5e3748612f45afdfaedc1d7e6daa228ca0e64c09072bc4ac8b8b6275a6d995",
+    "harden_config": "json_canonical_sans_roots:310620091daa692a4a731a1626820ed658ca1f68d57879ed94792325f12f823a",
+    "harden_override": "json_canonical:5b8877353f2d842dc6dfeef026a1f29a0951e069de204e9590ddb8c0a8211980",
     "harden_sdc": null,
     "harden_info": "json_canonical:e722bc7d8de703255711480061816e03c2199ce2ea6dff004d19c5a958436590",
-    "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119"
+    "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119",
+    "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+    "pdk_liberty": "dir_bytes:f09377f057ab484ec9e5a45b205c99a5de399e2bdca886531bf9eefa57783f32",
+    "pdk_librelane": "dir_text:34d9ac7321e45f53bb312360322931fa53cbee081929f4bd7047d6e84b5fdb37",
+    "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
+    "pdk_klayout": "dir_text:876da90e8aab65b830b36eca12bd720adfe8240a0952872419d9f2b4abda605d",
+    "pdk_netgen": "dir_text:8164f65bb7d1bef6e27af4c13b1c6ede50973cec7aec482556abb23881aceb04"
    },
    "reason": null
   },
@@ -98,12 +132,31 @@
    "tool": "holdout",
    "version": 1,
    "status": "pass",
-   "attempts": 6,
-   "ts": "2026-10-13T04:17:02",
+   "attempts": 9,
+   "ts": "2026-11-05T12:58:25",
    "inputs": {
-    "rtl": "dir_text:08d2e63a30253fb8dcb71be29ca5aa7209711132e317fcb0e4bc99f0e226a305",
+    "rtl": "dir_text:5b5e3748612f45afdfaedc1d7e6daa228ca0e64c09072bc4ac8b8b6275a6d995",
     "holdout": "dir_text:aa9c762fe9e91ca2880a2f53fcaaf103fc90182a6b270b17cd0105e26a55067c",
     "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119"
+   },
+   "reason": null
+  },
+  {
+   "gate": "lec",
+   "applies": true,
+   "ran": true,
+   "ok": true,
+   "tool": "lec",
+   "version": 1,
+   "status": "pass",
+   "attempts": 6,
+   "ts": "2026-11-05T13:47:17",
+   "inputs": {
+    "harden": "harden_signoff:99737837152047465e088facc0b56400d37a87462870196f939c59c36bcfaa69",
+    "rtl": "dir_text:5b5e3748612f45afdfaedc1d7e6daa228ca0e64c09072bc4ac8b8b6275a6d995",
+    "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119",
+    "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+    "pdk_liberty": "dir_bytes:f09377f057ab484ec9e5a45b205c99a5de399e2bdca886531bf9eefa57783f32"
    },
    "reason": null
   },
@@ -115,10 +168,10 @@
    "tool": "lint",
    "version": 1,
    "status": "pass",
-   "attempts": 4,
-   "ts": "2026-10-13T04:16:58",
+   "attempts": 7,
+   "ts": "2026-11-05T12:54:36",
    "inputs": {
-    "rtl": "dir_text:08d2e63a30253fb8dcb71be29ca5aa7209711132e317fcb0e4bc99f0e226a305",
+    "rtl": "dir_text:5b5e3748612f45afdfaedc1d7e6daa228ca0e64c09072bc4ac8b8b6275a6d995",
     "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119"
    },
    "reason": null
@@ -131,11 +184,14 @@
    "tool": "lvs",
    "version": 1,
    "status": "pass",
-   "attempts": 2,
-   "ts": "2026-10-13T04:20:06",
+   "attempts": 5,
+   "ts": "2026-11-05T13:41:43",
    "inputs": {
-    "harden": "dir_text:5e0fc600709e3cc97c7324a97c0c78553ef21db49b5a2f1a7ca5465fd7d2b2f2",
-    "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119"
+    "harden": "harden_signoff:99737837152047465e088facc0b56400d37a87462870196f939c59c36bcfaa69",
+    "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119",
+    "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+    "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
+    "pdk_netgen": "dir_text:8164f65bb7d1bef6e27af4c13b1c6ede50973cec7aec482556abb23881aceb04"
    },
    "reason": null
   },
@@ -147,10 +203,10 @@
    "tool": "mutate",
    "version": 1,
    "status": "pass",
-   "attempts": 5,
-   "ts": "2026-10-13T04:21:08",
+   "attempts": 8,
+   "ts": "2026-11-05T12:59:04",
    "inputs": {
-    "rtl": "dir_text:08d2e63a30253fb8dcb71be29ca5aa7209711132e317fcb0e4bc99f0e226a305",
+    "rtl": "dir_text:5b5e3748612f45afdfaedc1d7e6daa228ca0e64c09072bc4ac8b8b6275a6d995",
     "tb": "dir_text:3d7769f785322e639d37580c2e85e19fdd9b82876af0927410c75ad81d11554b",
     "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119",
     "mutant_rulings": null
@@ -165,12 +221,15 @@
    "tool": "precheck",
    "version": 1,
    "status": "pass",
-   "attempts": 2,
-   "ts": "2026-10-13T04:21:01",
+   "attempts": 5,
+   "ts": "2026-11-05T13:49:32",
    "inputs": {
-    "harden": "dir_text:5e0fc600709e3cc97c7324a97c0c78553ef21db49b5a2f1a7ca5465fd7d2b2f2",
+    "harden": "harden_signoff:99737837152047465e088facc0b56400d37a87462870196f939c59c36bcfaa69",
     "harden_info": "json_canonical:e722bc7d8de703255711480061816e03c2199ce2ea6dff004d19c5a958436590",
-    "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119"
+    "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119",
+    "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+    "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
+    "pdk_klayout": "dir_text:876da90e8aab65b830b36eca12bd720adfe8240a0952872419d9f2b4abda605d"
    },
    "reason": null
   },
@@ -182,10 +241,10 @@
    "tool": "sim",
    "version": 1,
    "status": "pass",
-   "attempts": 6,
-   "ts": "2026-10-13T04:17:00",
+   "attempts": 9,
+   "ts": "2026-11-05T12:55:44",
    "inputs": {
-    "rtl": "dir_text:08d2e63a30253fb8dcb71be29ca5aa7209711132e317fcb0e4bc99f0e226a305",
+    "rtl": "dir_text:5b5e3748612f45afdfaedc1d7e6daa228ca0e64c09072bc4ac8b8b6275a6d995",
     "tb": "dir_text:3d7769f785322e639d37580c2e85e19fdd9b82876af0927410c75ad81d11554b",
     "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119"
    },
@@ -199,8 +258,8 @@
    "tool": "spec_lint",
    "version": 1,
    "status": "pass",
-   "attempts": 3,
-   "ts": "2026-10-13T04:16:57",
+   "attempts": 6,
+   "ts": "2026-11-05T12:53:30",
    "inputs": {
     "spec_yaml": "json_canonical:316aabe3e699eb67a766fb42296b9a90d765394b6deefb2d5178cc8865c08bbf"
    },
@@ -214,11 +273,13 @@
    "tool": "synth",
    "version": 1,
    "status": "pass",
-   "attempts": 3,
-   "ts": "2026-10-13T04:17:11",
+   "attempts": 8,
+   "ts": "2026-11-05T13:01:03",
    "inputs": {
-    "rtl": "dir_text:08d2e63a30253fb8dcb71be29ca5aa7209711132e317fcb0e4bc99f0e226a305",
-    "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119"
+    "rtl": "dir_text:5b5e3748612f45afdfaedc1d7e6daa228ca0e64c09072bc4ac8b8b6275a6d995",
+    "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119",
+    "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+    "pdk_liberty": "dir_bytes:f09377f057ab484ec9e5a45b205c99a5de399e2bdca886531bf9eefa57783f32"
    },
    "reason": null
   },
@@ -229,20 +290,69 @@
    "ok": true,
    "tool": "timing",
    "version": 1,
-   "status": "fail",
-   "attempts": 5,
-   "ts": "2026-10-13T04:19:08",
+   "status": "pass",
+   "attempts": 12,
+   "ts": "2026-11-05T13:30:22",
    "inputs": {
-    "harden": "dir_text:5e0fc600709e3cc97c7324a97c0c78553ef21db49b5a2f1a7ca5465fd7d2b2f2",
-    "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119"
+    "harden": "harden_signoff:99737837152047465e088facc0b56400d37a87462870196f939c59c36bcfaa69",
+    "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119",
+    "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+    "pdk_liberty": "dir_bytes:f09377f057ab484ec9e5a45b205c99a5de399e2bdca886531bf9eefa57783f32"
    },
-   "reason": "last recorded result is FAIL",
-   "waived": true,
-   "waiver": {
-    "reason": "Setup misses at ss/125C/3.0V only: worst -0.87 ns (max parasitics), -0.55 nom, -0.29 min at 50 MHz; about 47 MHz met there (TT 20% input delay; estimate from the reported path). tt +7.4 ns, ff +11.0 ns, hold met at every corner. Four fix attempts made (last: rst_n registered). Owner: 'If it still misses at ss/125C after that, accept it and stop.'",
-    "approved_by": "owner, #ece298a 1791879206.573569 (2026-10-13)"
-   }
+   "reason": null
   }
  ],
- "attestation_sha256": "1ddef500575b5c0a40ae34767ddfd990b4c02367317851f7e9433260ac4ae500"
+ "tt_submission": {
+  "repo": "release/tt",
+  "staged": [
+   "gds/tt_um_r2r_dac_digital.gds",
+   "gl/tt_um_r2r_dac_digital.v",
+   "info.yaml",
+   "lef/tt_um_r2r_dac_digital.lef",
+   "src/config.json",
+   "src/r2r_dac_digital.v",
+   "src/tt_block_1x1_pgvdd.def",
+   "src/tt_um_r2r_dac_digital.v",
+   "test/Makefile",
+   "test/dac_model.py",
+   "test/glsim_harness.v",
+   "test/requirements.txt",
+   "test/test_r2r_dac_digital.py"
+  ],
+  "signoff": {
+   "top_module": "tt_um_r2r_dac_digital",
+   "librelane": "3.1.0.dev3",
+   "pdk": "gf180mcuD",
+   "open_pdks": "1689ac3f2dc763876eaf967227c7dfe831b031ae",
+   "librelane_pdk": "f6eeac7dad085ffcc829ccfd721f7b4ce39edcf7",
+   "tt_support_tools": "01d5d2814fa9dd61e9d211e0b235a4a592a9316a",
+   "gds": "harden/runs/run/final/gds/tt_um_r2r_dac_digital.gds",
+   "gds_sha256": "42272f88847369a3000babf79273633be7ace46ca738d1742bc1d1400bb3db5b",
+   "lef": "harden/runs/run/final/lef/tt_um_r2r_dac_digital.lef",
+   "lef_sha256": "7f192e68559ab6c5f91ba8a360ae6af07b3f67a2daa358af36bf2a26cd5e19ab",
+   "gl": "harden/runs/run/final/pnl/tt_um_r2r_dac_digital.pnl.v",
+   "gl_sha256": "95d7e5875696fe85c68f5a72db88f556eace41086cd416ad0bdf1cd79573d7ac",
+   "gl_is_shipped": true,
+   "glsim_gl_sha256": "95d7e5875696fe85c68f5a72db88f556eace41086cd416ad0bdf1cd79573d7ac"
+  },
+  "shipped": [
+   {
+    "workflow": ".github/workflows/gds.yaml",
+    "mode": "custom_gds",
+    "ref": "ttgf26c",
+    "top_module": "tt_um_r2r_dac_digital",
+    "pdk": "gf180mcuD",
+    "gds_path": "gds/tt_um_r2r_dac_digital.gds",
+    "gds_sha256": "42272f88847369a3000babf79273633be7ace46ca738d1742bc1d1400bb3db5b",
+    "lef_path": "lef/tt_um_r2r_dac_digital.lef",
+    "lef_sha256": "7f192e68559ab6c5f91ba8a360ae6af07b3f67a2daa358af36bf2a26cd5e19ab",
+    "verilog_path": "gl/tt_um_r2r_dac_digital.v",
+    "verilog_sha256": "95d7e5875696fe85c68f5a72db88f556eace41086cd416ad0bdf1cd79573d7ac",
+    "glsim_sha256": "95d7e5875696fe85c68f5a72db88f556eace41086cd416ad0bdf1cd79573d7ac"
+   }
+  ],
+  "manifest": "release/manifest.json",
+  "manifest_sha256": "53dc7203c218f958368ede1a851b89e26095f37de949498ef5a10098d60908ec"
+ },
+ "attestation_sha256": "4d6297e3379da665e6b91963c1ecbcc2ba3b0c41d382b11e65fc26eb480b68ab"
 }

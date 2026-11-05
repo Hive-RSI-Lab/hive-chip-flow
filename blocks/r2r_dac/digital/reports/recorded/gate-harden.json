@@ -3,7 +3,7 @@
  "gate": "harden",
  "phase": "P6",
  "tool": "harden",
- "input_digest": "dir_text:08d2e63a30253fb8dcb71be29ca5aa7209711132e317fcb0e4bc99f0e226a305",
+ "input_digest": "dir_text:5b5e3748612f45afdfaedc1d7e6daa228ca0e64c09072bc4ac8b8b6275a6d995",
  "status": "pass",
  "criteria": {
   "fail_severities": [
@@ -23,53 +23,264 @@
   "top": "r2r_dac_digital",
   "run_tag": "run",
   "resumed": true,
-  "wall_s": 74.76,
+  "wall_s": 121.06,
   "run_dir": "harden/runs/run",
   "metrics": {
-   "design__instance__count": 1913,
+   "design__instance__count": 2066,
    "design__instance__area": 51967,
    "design__instance_unmapped__count": 0,
-   "timing__hold__ws": 0.43967203344791206,
-   "timing__setup__ws": -0.8660947759675344,
+   "timing__hold__ws": 0.4423209146372807,
+   "timing__setup__ws": 1.585668530250081,
    "timing__hold__tns": 0,
-   "timing__setup__tns": -1.479460151818562,
+   "timing__setup__tns": 0,
    "timing__hold__wns": 0,
-   "timing__setup__wns": -0.8660947759675344,
+   "timing__setup__wns": 0,
    "timing__hold_vio__count": 0,
-   "timing__hold_r2r__ws": 0.439672,
+   "timing__hold_r2r__ws": 0.442321,
    "timing__hold_r2r_vio__count": 0,
-   "timing__setup_vio__count": 6,
-   "timing__setup_r2r__ws": 6.426591,
+   "timing__setup_vio__count": 0,
+   "timing__setup_r2r__ws": 1.585669,
    "timing__setup_r2r_vio__count": 0,
    "design__die__bbox": "0.0 0.0 346.64 160.72",
    "design__core__bbox": "3.36 3.92 343.28 156.8",
    "design__die__area": 55712,
    "design__core__area": 51967,
-   "design__instance__count__stdcell": 869,
-   "design__instance__area__stdcell": 15219.3,
+   "design__instance__count__stdcell": 898,
+   "design__instance__area__stdcell": 14018.5,
    "design__instance__count__macros": 0,
    "design__instance__area__macros": 0,
    "design__instance__count__padcells": 0,
    "design__instance__area__padcells": 0,
    "design__instance__count__cover": 0,
    "design__instance__area__cover": 0,
-   "design__instance__utilization": 0.292865,
-   "design__instance__utilization__stdcell": 0.292865,
-   "design__instance__displacement__total": 123.2,
-   "design__instance__displacement__mean": 0.1415,
-   "design__instance__displacement__max": 20.72,
+   "design__instance__utilization": 0.269759,
+   "design__instance__utilization__stdcell": 0.269759,
+   "design__instance__displacement__total": 211.68,
+   "design__instance__displacement__mean": 0.2355,
+   "design__instance__displacement__max": 11.76,
    "design__instance__count__setup_buffer": 0,
    "design__instance__count__hold_buffer": 0
+  },
+  "qor": {
+   "metrics": {
+    "die_area": 55712,
+    "core_area": 51967,
+    "stdcell_area": 14018.5,
+    "utilization": 0.269759,
+    "instance_count": 2066,
+    "stdcell_count": 898,
+    "setup_buffer_count": 0,
+    "hold_buffer_count": 0,
+    "setup_ws": 1.585668530250081,
+    "setup_tns": 0,
+    "setup_vio_count": 0,
+    "hold_ws": 0.4423209146372807,
+    "hold_tns": 0,
+    "hold_vio_count": 0,
+    "skew_setup": 0.27927103087208355,
+    "skew_hold": -0.3691418664115226,
+    "power_total": 0.001865797908976674,
+    "power_leakage": 8.148901997628855e-08,
+    "power_switching": 0.0005777027108706534,
+    "power_internal": 0.0012880137655884027,
+    "route_drc_errors": 0,
+    "magic_drc_errors": 0,
+    "lvs_errors": 0,
+    "antenna_nets": 0,
+    "antenna_pins": 0,
+    "route_antenna_violations": 0,
+    "max_slew_violations": 0,
+    "max_cap_violations": 0,
+    "max_fanout_violations": 0,
+    "floating_nets": 2,
+    "wirelength": 16548,
+    "grt_wirelength": 27014,
+    "vias": 2974,
+    "ir_drop_worst": 0.000208
+   },
+   "corners": {
+    "max_ff_n40C_3v60": {
+     "setup_ws": 13.273327701541845,
+     "setup_tns": 0,
+     "setup_vio_count": 0,
+     "hold_ws": 0.44853272365804286,
+     "hold_tns": 0,
+     "hold_vio_count": 0,
+     "skew_setup": 0.28200523270330763,
+     "skew_hold": -0.37318368895813225,
+     "max_slew_violations": 0,
+     "max_cap_violations": 0
+    },
+    "max_ss_125C_3v00": {
+     "setup_ws": 1.585668530250081,
+     "setup_tns": 0,
+     "setup_vio_count": 0,
+     "hold_ws": 2.2354061456841356,
+     "hold_tns": 0,
+     "hold_vio_count": 0,
+     "skew_setup": 0.35547141236693003,
+     "skew_hold": -0.641664073370645,
+     "max_slew_violations": 0,
+     "max_cap_violations": 0
+    },
+    "max_tt_025C_3v30": {
+     "setup_ws": 10.641493321064628,
+     "setup_tns": 0,
+     "setup_vio_count": 0,
+     "hold_ws": 0.9854487504939105,
+     "hold_tns": 0,
+     "hold_vio_count": 0,
+     "skew_setup": 0.30426576008812506,
+     "skew_hold": -0.45463531448566863,
+     "max_slew_violations": 0,
+     "max_cap_violations": 0
+    },
+    "min_ff_n40C_3v60": {
+     "setup_ws": 13.316527812919421,
+     "setup_tns": 0,
+     "setup_vio_count": 0,
+     "hold_ws": 0.4423209146372807,
+     "hold_tns": 0,
+     "hold_vio_count": 0,
+     "skew_setup": 0.27927103087208355,
+     "skew_hold": -0.3691418664115226,
+     "max_slew_violations": 0,
+     "max_cap_violations": 0
+    },
+    "min_ss_125C_3v00": {
+     "setup_ws": 2.1815261325968263,
+     "setup_tns": 0,
+     "setup_vio_count": 0,
+     "hold_ws": 2.2194660071349595,
+     "hold_tns": 0,
+     "hold_vio_count": 0,
+     "skew_setup": 0.34641987481346864,
+     "skew_hold": -0.6292766486007471,
+     "max_slew_violations": 0,
+     "max_cap_violations": 0
+    },
+    "min_tt_025C_3v30": {
+     "setup_ws": 10.9540726256853,
+     "setup_tns": 0,
+     "setup_vio_count": 0,
+     "hold_ws": 0.9746965732632309,
+     "hold_tns": 0,
+     "hold_vio_count": 0,
+     "skew_setup": 0.29959666151486164,
+     "skew_hold": -0.44803570455143715,
+     "max_slew_violations": 0,
+     "max_cap_violations": 0
+    },
+    "nom_ff_n40C_3v60": {
+     "setup_ws": 13.296862653972672,
+     "setup_tns": 0,
+     "setup_vio_count": 0,
+     "hold_ws": 0.44538030080161434,
+     "hold_tns": 0,
+     "hold_vio_count": 0,
+     "skew_setup": 0.2805178946307282,
+     "skew_hold": -0.37098122845959103,
+     "max_slew_violations": 0,
+     "max_cap_violations": 0
+    },
+    "nom_ss_125C_3v00": {
+     "setup_ws": 1.9088304810407764,
+     "setup_tns": 0,
+     "setup_vio_count": 0,
+     "hold_ws": 2.2285121045954464,
+     "hold_tns": 0,
+     "hold_vio_count": 0,
+     "skew_setup": 0.35055034867110185,
+     "skew_hold": -0.6349071448293748,
+     "max_slew_violations": 0,
+     "max_cap_violations": 0
+    },
+    "nom_tt_025C_3v30": {
+     "setup_ws": 10.811979173547737,
+     "setup_tns": 0,
+     "setup_vio_count": 0,
+     "hold_ws": 0.9799384914222501,
+     "hold_tns": 0,
+     "hold_vio_count": 0,
+     "skew_setup": 0.30172673547015005,
+     "skew_hold": -0.4510370815610935,
+     "max_slew_violations": 0,
+     "max_cap_violations": 0
+    }
+   },
+   "missing": [],
+   "versions": {
+    "librelane": "3.1.0.dev3",
+    "yosys": "0.69",
+    "openroad": "26Q3-2443-g50432012f",
+    "pdk": {
+     "name": "gf180mcuD",
+     "open_pdks": "1689ac3f2dc763876eaf967227c7dfe831b031ae",
+     "ciel": "1689ac3f2dc763876eaf967227c7dfe831b031ae"
+    }
+   },
+   "config_sha256": "310620091daa692a4a731a1626820ed658ca1f68d57879ed94792325f12f823a",
+   "resolved_sha256": "cd9ede6b255c089691fec053a17b9f23c6fa97c5ed79ec95fb4687104fb375fc",
+   "wall_s": 121.06
+  },
+  "signoff_metrics": {
+   "antenna__violating__nets": {
+    "value": 0,
+    "limit": 0,
+    "status": "ok"
+   },
+   "route__antenna_violation__count": {
+    "value": 0,
+    "limit": 0,
+    "status": "ok"
+   },
+   "timing__drv__floating__nets": {
+    "value": 2,
+    "limit": 0,
+    "nets": [
+     "VGND",
+     "VPWR"
+    ],
+    "power_nets": [
+     "VGND",
+     "VPWR"
+    ],
+    "waived": [],
+    "unused_waivers": [],
+    "status": "ok"
+   },
+   "timing__unannotated_net_filtered__count": {
+    "value": 0,
+    "limit": 0,
+    "status": "ok"
+   },
+   "design__power_grid_violation__count": {
+    "value": 0,
+    "limit": 0,
+    "status": "ok"
+   },
+   "ir__drop__worst": {
+    "value": 0.000208,
+    "limit": 0.1650104,
+    "status": "ok"
+   }
   }
  },
  "inputs_at_start": {
-  "rtl": "dir_text:08d2e63a30253fb8dcb71be29ca5aa7209711132e317fcb0e4bc99f0e226a305",
-  "harden_config": "json_canonical:e899bc155ae015131bda920bd8ea413c1fa425763b6c26cce0fa06270324086a",
-  "harden_override": null,
+  "rtl": "dir_text:5b5e3748612f45afdfaedc1d7e6daa228ca0e64c09072bc4ac8b8b6275a6d995",
+  "harden_config": "json_canonical_sans_roots:310620091daa692a4a731a1626820ed658ca1f68d57879ed94792325f12f823a",
+  "harden_override": "json_canonical:5b8877353f2d842dc6dfeef026a1f29a0951e069de204e9590ddb8c0a8211980",
   "harden_sdc": null,
   "harden_info": "json_canonical:e722bc7d8de703255711480061816e03c2199ce2ea6dff004d19c5a958436590",
-  "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119"
+  "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119",
+  "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+  "pdk_liberty": "dir_bytes:f09377f057ab484ec9e5a45b205c99a5de399e2bdca886531bf9eefa57783f32",
+  "pdk_librelane": "dir_text:34d9ac7321e45f53bb312360322931fa53cbee081929f4bd7047d6e84b5fdb37",
+  "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
+  "pdk_klayout": "dir_text:876da90e8aab65b830b36eca12bd720adfe8240a0952872419d9f2b4abda605d",
+  "pdk_netgen": "dir_text:8164f65bb7d1bef6e27af4c13b1c6ede50973cec7aec482556abb23881aceb04"
  },
- "recorded_ts": "2026-10-13T04:18:31",
- "attempts": 6
+ "strength_at_start": 0,
+ "recorded_ts": "2026-11-05T13:29:50",
+ "attempts": 13
 }

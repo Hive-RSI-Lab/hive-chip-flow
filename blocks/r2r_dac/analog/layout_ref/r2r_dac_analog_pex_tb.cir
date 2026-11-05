@@ -1,6 +1,7 @@
 * r2r_dac_analog_pex_tb.cir - post-layout bench for the 8-bit R-2R ladder,
-* typical corner, tt/27 C, VDD 3.3 V. check_pex_sim.py fills in {pdk} and
-* {extracted}; no other brace may appear in this file (.format()).
+* run at each corner check_pex_sim.py picks from the spec's sweep. It fills in
+* the pdk path, the extracted netlist and the corner's process, resistor
+* section, temperature and supply; no other brace may appear (.format()).
 *
 * The ladder's output pole is R_out x C_load = 27k x 7 pF = 189 ns, and the
 * glitch is set by the driver/ladder RC in the first nanoseconds, so what
@@ -13,7 +14,7 @@
 *   t_rise_10_90 / t_fall_10_90
 *   glitch_energy_up/down, glitch_peak_up/down   mid-code 127<->128
 *
-* Timeline (ideal 0/3.3 V PWL sources, 100 ps edges, all bits aligned):
+* Timeline (ideal 0/VDD PWL sources, 100 ps edges, all bits aligned):
 *   0..20n     code 127 (operating point first, no uic)
 *   20n        127 -> 128   (glitch up window 20n..80n)
 *   80n        128 -> 127   (glitch down window 80n..140n)
@@ -24,24 +25,24 @@
 * Instance in netlist/ pin order: dac_code[7..0] vout vdd vss.
 
 .include '{pdk}/libs.tech/ngspice/design.ngspice'
-.lib '{pdk}/libs.tech/ngspice/sm141064.spice' typical
-.lib '{pdk}/libs.tech/ngspice/sm141064.spice' res_typical
+.lib '{pdk}/libs.tech/ngspice/sm141064.spice' {corner}
+.lib '{pdk}/libs.tech/ngspice/sm141064.spice' {res_corner}
 .include '{pdk}/libs.ref/gf180mcu_fd_sc_mcu7t5v0/spice/gf180mcu_fd_sc_mcu7t5v0.spice'
 .include '{extracted}'
 
-.temp 27
+.temp {temp_c}
 
-vdd vdd 0 3.3
+vdd vdd 0 {vdd}
 vss vss 0 0
 
-vb7 b7 0 pwl(0 0 19.95n 0 20.05n 3.3 79.95n 3.3 80.05n 0 3.1999u 0 3.2001u 3.3 7.1999u 3.3 7.2001u 0)
-vb6 b6 0 pwl(0 3.3 19.95n 3.3 20.05n 0 79.95n 0 80.05n 3.3 199.95n 3.3 200.05n 0 3.1999u 0 3.2001u 3.3 7.1999u 3.3 7.2001u 0)
-vb5 b5 0 pwl(0 3.3 19.95n 3.3 20.05n 0 79.95n 0 80.05n 3.3 199.95n 3.3 200.05n 0 3.1999u 0 3.2001u 3.3 7.1999u 3.3 7.2001u 0)
-vb4 b4 0 pwl(0 3.3 19.95n 3.3 20.05n 0 79.95n 0 80.05n 3.3 199.95n 3.3 200.05n 0 3.1999u 0 3.2001u 3.3 7.1999u 3.3 7.2001u 0)
-vb3 b3 0 pwl(0 3.3 19.95n 3.3 20.05n 0 79.95n 0 80.05n 3.3 199.95n 3.3 200.05n 0 3.1999u 0 3.2001u 3.3 7.1999u 3.3 7.2001u 0)
-vb2 b2 0 pwl(0 3.3 19.95n 3.3 20.05n 0 79.95n 0 80.05n 3.3 199.95n 3.3 200.05n 0 3.1999u 0 3.2001u 3.3 7.1999u 3.3 7.2001u 0)
-vb1 b1 0 pwl(0 3.3 19.95n 3.3 20.05n 0 79.95n 0 80.05n 3.3 199.95n 3.3 200.05n 0 3.1999u 0 3.2001u 3.3 7.1999u 3.3 7.2001u 0)
-vb0 b0 0 pwl(0 3.3 19.95n 3.3 20.05n 0 79.95n 0 80.05n 3.3 199.95n 3.3 200.05n 0 3.1999u 0 3.2001u 3.3 7.1999u 3.3 7.2001u 0)
+vb7 b7 0 pwl(0 0 19.95n 0 20.05n {vdd} 79.95n {vdd} 80.05n 0 3.1999u 0 3.2001u {vdd} 7.1999u {vdd} 7.2001u 0)
+vb6 b6 0 pwl(0 {vdd} 19.95n {vdd} 20.05n 0 79.95n 0 80.05n {vdd} 199.95n {vdd} 200.05n 0 3.1999u 0 3.2001u {vdd} 7.1999u {vdd} 7.2001u 0)
+vb5 b5 0 pwl(0 {vdd} 19.95n {vdd} 20.05n 0 79.95n 0 80.05n {vdd} 199.95n {vdd} 200.05n 0 3.1999u 0 3.2001u {vdd} 7.1999u {vdd} 7.2001u 0)
+vb4 b4 0 pwl(0 {vdd} 19.95n {vdd} 20.05n 0 79.95n 0 80.05n {vdd} 199.95n {vdd} 200.05n 0 3.1999u 0 3.2001u {vdd} 7.1999u {vdd} 7.2001u 0)
+vb3 b3 0 pwl(0 {vdd} 19.95n {vdd} 20.05n 0 79.95n 0 80.05n {vdd} 199.95n {vdd} 200.05n 0 3.1999u 0 3.2001u {vdd} 7.1999u {vdd} 7.2001u 0)
+vb2 b2 0 pwl(0 {vdd} 19.95n {vdd} 20.05n 0 79.95n 0 80.05n {vdd} 199.95n {vdd} 200.05n 0 3.1999u 0 3.2001u {vdd} 7.1999u {vdd} 7.2001u 0)
+vb1 b1 0 pwl(0 {vdd} 19.95n {vdd} 20.05n 0 79.95n 0 80.05n {vdd} 199.95n {vdd} 200.05n 0 3.1999u 0 3.2001u {vdd} 7.1999u {vdd} 7.2001u 0)
+vb0 b0 0 pwl(0 {vdd} 19.95n {vdd} 20.05n 0 79.95n 0 80.05n {vdd} 199.95n {vdd} 200.05n 0 3.1999u 0 3.2001u {vdd} 7.1999u {vdd} 7.2001u 0)
 
 xdut b7 b6 b5 b4 b3 b2 b1 b0 vout vdd vss r2r_dac_analog
 rpad vout vpad 100
@@ -53,8 +54,8 @@ save v(vout)
 tran 10p 11.2u 0 500p
 let vo = v(vout)
 let tt = time
-let band = 3.3/512
-let dv_ideal = 255/256*3.3
+let band = {vdd}/512
+let dv_ideal = 255/256*{vdd}
 
 * glitch up: 127 -> 128, window 20n..80n
 meas tran gvi1 find v(vout) at=19.9n

@@ -25,8 +25,9 @@
  },
  "inputs_at_start": {
   "netlist": "dir_text:13970a2f19f36bd8aa49baa3a94132821e16917455715ba77b23b074b4551548",
-  "spec_yaml": "json_canonical:99047ed51c88b1767b136d48e2c3832967daa1e22eec34905494620acacea45d"
+  "spec_yaml": "json_canonical:e501d6a76274910fb82ae99aa3d7190e0a89bf501faa94d88f2163f26372dc1b"
  },
- "recorded_ts": "2026-10-13T06:11:20",
- "attempts": 7
+ "strength_at_start": 0,
+ "recorded_ts": "2026-11-05T16:20:04",
+ "attempts": 10
 }

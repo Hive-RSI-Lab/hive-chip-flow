@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import re
 import shutil
 import sys
 from pathlib import Path
@@ -85,6 +86,13 @@ def schematic_of(analog: Path) -> tuple[str, str]:
     return cell, text
 
 
+def bench_schematic(schematic: str, cell: str) -> str:
+    """The subckts prepare_netlist keeps, plus the global .params they may read
+    their sizes from."""
+    params = re.findall(r"(?im)^[ \t]*\.param\b.*\n", schematic)
+    return "".join(params) + charlib.prepare_netlist(schematic, cell)
+
+
 def extracted_digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
@@ -117,7 +125,7 @@ def run(argv=None):
         shutil.rmtree(work)
     work.mkdir(parents=True)
     sch = work / f"{cell}.schematic.sp"
-    sch.write_text(charlib.prepare_netlist(schematic, cell), encoding="utf-8")
+    sch.write_text(bench_schematic(schematic, cell), encoding="utf-8")
     named = analog / mt.extracted if mt.extracted else None
     path, kind = charlib.choose_netlist(named, sch)
     text = path.read_text(encoding="utf-8", errors="replace")

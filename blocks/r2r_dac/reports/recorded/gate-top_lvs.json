@@ -3,7 +3,7 @@
  "gate": "top_lvs",
  "phase": "P3",
  "tool": "top_lvs",
- "input_digest": "dir_text:0905acb9d74b569267319ec4a715fa4e5d5ec532738e6ebae11026f5a3528035",
+ "input_digest": "dir_text:5365b6fa379b91e6c5ef0894085ebd579f0c9b886282d32fa4aed7645cb666de",
  "status": "pass",
  "criteria": {
   "fail_severities": [
@@ -34,9 +34,18 @@
   "report": "log/top_lvs/top_lvs.rpt"
  },
  "inputs_at_start": {
-  "top_gds": "dir_text:0905acb9d74b569267319ec4a715fa4e5d5ec532738e6ebae11026f5a3528035",
-  "analog_layout": "dir_text:7a954c277f279e0a8b3d75e97ed6833bf445cf7e04f4ec0eefae35be290d869d"
+  "top_gds": "dir_text:5365b6fa379b91e6c5ef0894085ebd579f0c9b886282d32fa4aed7645cb666de",
+  "analog_layout": "dir_text:7a954c277f279e0a8b3d75e97ed6833bf445cf7e04f4ec0eefae35be290d869d",
+  "top_spec": "json_canonical:e3d10683d18fef15bc12f56940cc3ecba0378a7cbe1133f616f999f1ab263f91",
+  "top_macros": "dir_text:77ccd780ffb0fc3162f78581dcc1657f618aaad1b6574a1b752ce2eb6ae58301",
+  "top_pnl": "dir_text:09214ef4cbb07d50a3e4161a027d479af912d18041ae12668dd986256a807d87",
+  "analog_netlist": "dir_text:13970a2f19f36bd8aa49baa3a94132821e16917455715ba77b23b074b4551548",
+  "analog_sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
+  "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+  "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
+  "pdk_netgen": "dir_text:8164f65bb7d1bef6e27af4c13b1c6ede50973cec7aec482556abb23881aceb04"
  },
- "recorded_ts": "2026-10-13T08:53:10",
- "attempts": 2
+ "strength_at_start": 0,
+ "recorded_ts": "2026-11-05T18:09:19",
+ "attempts": 6
 }

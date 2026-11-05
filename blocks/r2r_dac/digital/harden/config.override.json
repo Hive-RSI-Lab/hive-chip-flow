@@ -1,0 +1,4 @@
+{
+  "//": "The post-route repair's default 10% margin was too thin here: it aimed for 2.7 ns on routed-estimate parasitics, and detailed routing left aoi21_1 _562_ at 3.09 ns against the 3 ns limit at ss/125C, 15% over its aim. 20% is the margin the placement repair already uses (DESIGN_REPAIR_MAX_SLEW_PCT).",
+  "GRT_DESIGN_REPAIR_MAX_SLEW_PCT": 20
+}
