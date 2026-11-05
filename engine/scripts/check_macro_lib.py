@@ -9,9 +9,11 @@ with the macro-sourced clocks' ceilings from the analog side's record, and
 <cell>.report.json. top_harden copies the libs into top/macros and gives them to
 LibreLane as the macro's `lib` view.
 
-Exit 0: written, no finding. 1: warnings only, which the gate's fail_severities pass:
-no macro_timing (release does not owe the gate, and the macro stays a blackbox to
-STA), or limits that disagree at max_capacitance. 2: refused, with a remediation: a limit, arc or static level the spec does not state, an arc
+Exit 0: written, no finding. 1: an error, no macro_timing on a macro with
+crossing pins (the gate is owed for every such macro, #177), which fails it; or
+warnings only, which the gate's fail_severities pass: no macro_timing on a macro
+with no crossing pin (release does not owe the gate), or limits that disagree at
+max_capacitance. 2: refused, with a remediation: a limit, arc or static level the spec does not state, an arc
 whose output never moved, no passing record for a clock.
 
 The netlist is macro_timing.extracted when that file exists, else the sized
@@ -47,10 +49,11 @@ def declared(ws: Path) -> dict | None:
 
 
 def not_applicable_at_release(ws: Path) -> str | None:
+    """Owed for every macro with a crossing pin, declared or not (#177)."""
     try:
-        if declared(ws) is None:
-            return ("not applicable: analog/spec/spec.yaml declares no "
-                    "macro_timing, so the macro is a blackbox to STA")
+        if declared(ws) is None and not crossing_pins(ws):
+            return ("not applicable: the analog macro has no crossing pin, so "
+                    "there is no lib view to characterise")
     except Exception:  # noqa: BLE001  unreadable: the gate is owed
         return None
     return None
@@ -96,11 +99,14 @@ def run(argv=None):
     rtl = ws / "digital" / "rtl"
     section = declared(ws)
     if section is None:
+        pins = sorted(crossing_pins(ws))
+        msg = (f"no macro_timing, and the analog macro has crossing pins "
+               f"{pins}: top_harden needs their lib view" if pins else
+               "no macro_timing, and the analog macro has no crossing pin")
         return checklib.report(SCRIPT, ws / "interface.yaml", [checklib.violation(
-            SCRIPT, "warning", "analog/spec/spec.yaml", None,
-            "macro_timing_undeclared", [],
-            "no macro_timing: the analog macro's crossing pins stay ideal "
-            "ports to STA", SCRIPT)], declared=False), args.out
+            SCRIPT, "error" if pins else "warning", "analog/spec/spec.yaml",
+            None, "macro_timing_undeclared", [], msg, SCRIPT)],
+            declared=False), args.out
 
     # the declaration first: incomplete is refused before anything is read or run
     mt = macrolib.parse_spec(section, "", crossing_pins(ws))
@@ -134,6 +140,8 @@ def run(argv=None):
     extra = {"includes_sha256": macrolib.includes_digest(includes)}
     if kind == "extracted":
         extra["extracted_sha256"] = extracted_digest(named)
+    else:  # top_harden's macrolib.check_current compares it
+        extra["schematic_sha256"] = macrolib.text_digest(schematic)
     report = macrolib.characterize(
         mt, netlist=netlist, netlist_kind=kind, ports=ports, power=vdd[0],
         ground=vss[0], pdk=layoutlib.pdk_root(), out_dir=out_dir, work_dir=work,

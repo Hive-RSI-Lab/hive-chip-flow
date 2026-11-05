@@ -70,6 +70,25 @@ def _weaken(ws: Path) -> str:
     return stock
 
 
+def _keep_weak_libs(ws: Path) -> None:
+    """Mark the weak libs as characterised on the stock netlist put back
+    after them. top_harden finds a lib from another netlist stale
+    (macro_lib_stale, plant_top_harden_stale_lib.py's row), and this row's
+    point is the weak libs on the stock layout, so it says so here."""
+    import json
+    import check_macro_lib
+    import macrolib
+    report = ws / macrolib.OUT_DIR / f"{MACRO}.report.json"
+    data = json.loads(report.read_text(encoding="utf-8"))
+    if data.get("netlist_kind") != "schematic":
+        raise RuntimeError("plant_top_harden_weak_driver.py: macro_lib did not "
+                           "characterise the schematic")
+    _cell, schematic = check_macro_lib.schematic_of(ws / "analog")
+    data["schematic_sha256"] = macrolib.text_digest(schematic)
+    report.write_text(json.dumps(data, indent=1, sort_keys=True),
+                      encoding="utf-8")
+
+
 def plant(ws: Path) -> None:
     import check_top_harden
     # faults.macro_lib_first has run macro_lib on the untouched design
@@ -88,3 +107,4 @@ def plant(ws: Path) -> None:
         # on a property mismatch before the slew check ever ran
         (sorted((ws / "analog" / "netlist").glob("*.cir"))[0]
          ).write_text(stock, encoding="utf-8")
+    _keep_weak_libs(ws)

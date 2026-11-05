@@ -944,7 +944,7 @@ def check_includes(ws: Path, mt: MacroTiming, analog: Path) -> None:
         return  # deliver() refuses with what to run
     want = json.loads(report.read_text(encoding="utf-8")).get("includes_sha256", {})
     if want != includes_digest(resolve_includes(mt, analog)):
-        raise Refused("macro_lib_missing",
+        raise Refused("macro_lib_stale",
                       f"{report.parent} was not characterised on the current "
                       "macro_timing.includes; re-run the macro_lib gate")
 
@@ -958,6 +958,39 @@ def check_extracted(ws: Path, cell: str, extracted: Path) -> None:
     want = json.loads(report.read_text(encoding="utf-8")).get("extracted_sha256")
     have = hashlib.sha256(Path(extracted).read_bytes()).hexdigest()
     if want != have:
-        raise Refused("macro_lib_missing",
+        raise Refused("macro_lib_stale",
                       f"{report.parent} was not characterised on the current "
                       f"{extracted.name}; re-run the macro_lib gate")
+
+
+def text_digest(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def check_current(ws: Path, mt: MacroTiming, analog: Path, schematic: str) -> None:
+    """The gate's output is the lib view of the macro top_harden delivers now:
+    `macro_lib_missing` with no report, `macro_lib_stale` when it was
+    characterised on another netlist (the extraction, else the sized schematic
+    `schematic`) or other includes. Nothing else hashes these: the extraction
+    lives in the analog side's log/, and the gate's state is its own."""
+    report = Path(ws) / OUT_DIR / f"{mt.cell}.report.json"
+    if not report.is_file():
+        raise Refused("macro_lib_missing",
+                      f"analog/spec/spec.yaml declares macro_timing, and {report} "
+                      "does not exist; run the macro_lib gate before top_harden")
+    have = json.loads(report.read_text(encoding="utf-8"))
+    named = Path(analog) / mt.extracted if mt.extracted else None
+    kind = ("extracted" if named and named.is_file() and named.stat().st_size
+            else "schematic")
+    if have.get("netlist_kind") != kind:
+        raise Refused("macro_lib_stale",
+                      f"{report.parent} was characterised on the "
+                      f"{have.get('netlist_kind')} netlist, and the macro's "
+                      f"netlist is now the {kind} one; re-run the macro_lib gate")
+    if kind == "extracted":
+        check_extracted(ws, mt.cell, named)
+    elif have.get("schematic_sha256") != text_digest(schematic):
+        raise Refused("macro_lib_stale",
+                      f"{report.parent} was not characterised on the current "
+                      "sized schematic; re-run the macro_lib gate")
+    check_includes(ws, mt, analog)
