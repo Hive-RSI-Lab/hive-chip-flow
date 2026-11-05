@@ -703,3 +703,52 @@ def test_project_reads_as_tt_precheck_and_a_powered_sim_read_it(tmp_path):
                             "hierarchy -check -top tt_um_t"],
                            cwd=tmp_path, capture_output=True, text=True)
         assert r.returncode == 0, r.stderr + r.stdout
+
+
+# the pad reset synchroniser (docs/design.md, TT tile section)
+CLOCKED_COUNTER8 = {**COUNTER8_SPEC, "clock": {"domains": ["clk"]}}
+
+
+def test_pad_reset_latency_is_the_flow_constant_for_a_clocked_reset():
+    assert ttlib.pad_reset_latency(CLOCKED_COUNTER8) == ttlib.PAD_RESET_LATENCY == 2
+    # no clock domain to sample on, or nothing reads the pad: no synchroniser
+    assert ttlib.pad_reset_latency(COUNTER8_SPEC) == 0
+    no_rst = {**CLOCKED_COUNTER8, "tt_pins": {"clk": "clk", "rst": "ui_in[0]",
+                                              "count": "uo_out[7:0]"}}
+    assert ttlib.pad_reset_latency(no_rst) == 0
+
+
+def test_wrapper_feeds_the_block_reset_through_named_sync_flops():
+    v = ttlib.generate_tt_wrapper(CLOCKED_COUNTER8)
+    assert "reg rst_n_sync_q1;" in v and "reg rst_n_sync_q2;" in v
+    assert "rst_n_sync_q1 <= rst_n;" in v
+    assert "rst_n_sync_q2 <= rst_n_sync_q1;" in v
+    assert "assign w_rst = ~rst_n_sync_q2;" in v
+    assert "~rst_n;" not in v  # never straight from the pin
+
+
+def test_harness_publishes_the_latency_and_can_be_renamed():
+    v = ttlib.generate_glsim_harness(CLOCKED_COUNTER8, module_name="tt_frame_counter8")
+    assert "module tt_frame_counter8" in v
+    assert f"wire [7:0] {ttlib.PAD_RESET_LATENCY_NET} = 8'd2;" in v
+    v0 = ttlib.generate_glsim_harness(COUNTER8_SPEC)
+    assert "module counter8" in v0
+    assert f"wire [7:0] {ttlib.PAD_RESET_LATENCY_NET} = 8'd0;" in v0
+
+
+def test_write_sim_frame_writes_wrapper_and_harness(tmp_path):
+    sources, top = ttlib.write_sim_frame(CLOCKED_COUNTER8, tmp_path / "frame")
+    assert top == "tt_frame_counter8"
+    assert sorted(p.name for p in sources) == ["tt_frame_counter8.v",
+                                               "tt_um_counter8.v"]
+    assert all(p.is_file() for p in sources)
+
+
+def test_write_sim_frame_none_without_a_synchroniser_or_when_block_level(tmp_path):
+    assert ttlib.write_sim_frame(COUNTER8_SPEC, tmp_path / "a") is None
+    macro = {**CLOCKED_COUNTER8, "macros": [{"cell": "m", "instance": "u_m",
+                                             "pins": {}}]}
+    assert ttlib.write_sim_frame(macro, tmp_path / "b") is None
+    with ttlib.block_level_sim("test"):
+        assert ttlib.write_sim_frame(CLOCKED_COUNTER8, tmp_path / "c") is None
+    assert ttlib.write_sim_frame(CLOCKED_COUNTER8, tmp_path / "d") is not None

@@ -175,6 +175,53 @@ def test_committed_fixtures_match_their_pins():
         assert (meta_p.parent / "baseline.json").is_file(), meta_p.parent.name
 
 
+def test_only_the_pre_pad_frame_fixtures_bench_block_level():
+    """Every committed fixture is benched through the tile's pad frame except
+    the three recorded before it, which say so in fixture.json."""
+    block = set()
+    for meta_p in (REPO / "evals" / "fixtures").glob("*/*/fixture.json"):
+        meta = json.loads(meta_p.read_text(encoding="utf-8"))
+        fx = meta_p.parent
+        if bench.sim_frame(fx, meta) == bench.SIM_FRAME_BLOCK:
+            block.add(f"{fx.parent.name}/{fx.name}")
+    assert block == bench.PRE_PAD_FRAME_FIXTURES
+    assert bench.PRE_PAD_FRAME_FIXTURES == {
+        "P3/counter8_tb", "P4/counter8_rtl", "P4/uart_rtl"}
+
+
+def test_sim_frame_pin_is_refused_on_any_other_fixture(tmp_path):
+    fx = tmp_path / "fixtures" / "P4" / "widget_rtl"
+    meta = bench.freeze(make_ws(tmp_path), fx, None, "P4")
+    assert bench.sim_frame(fx, meta) == "pad"
+    with pytest.raises(CheckError, match="not one of the pre-pad-frame"):
+        bench.sim_frame(fx, {**meta, "sim_frame": "block"})
+    with pytest.raises(CheckError, match="is not 'block'"):
+        bench.sim_frame(fx, {**meta, "sim_frame": "none"})
+
+
+def test_block_level_bench_switches_the_frame_off_and_reports_it(
+        tmp_path, monkeypatch):
+    fx = tmp_path / "fixtures" / "P4" / "counter8_rtl"
+    meta = {**bench.freeze(make_ws(tmp_path), fx, None, "P4"),
+            "sim_frame": "block"}
+    seen = []
+
+    def fake_run(row, ws):
+        seen.append(bool(bench.ttlib._BLOCK_LEVEL_SIM))
+        return {"status": "pass"}
+    monkeypatch.setattr(bench.gate, "run_report_for_gate", fake_run)
+    monkeypatch.setattr(bench.gate, "evaluate",
+                        lambda n, row, rep: {"status": "pass", "failing": []})
+    gates = {"vde": {"sim": {"phase": "P4", "tool": "sim", "name": "sim"}}}
+    score = bench.bench(fx, meta, gates)
+    assert seen == [True] and score["sim_frame"] == "block"
+    assert not bench.ttlib._BLOCK_LEVEL_SIM
+    meta.pop("sim_frame")
+    seen.clear()
+    assert bench.bench(fx, meta, gates)["sim_frame"] == "pad"
+    assert seen == [False]
+
+
 @pytest.mark.slow
 def test_uart_rtl_compare_passes_against_its_baseline(tmp_path):
     payload, _ = bench.run(["--stage", "P4", "--fixture", "uart_rtl", "--compare",
