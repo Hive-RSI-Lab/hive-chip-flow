@@ -22,6 +22,14 @@
 #   tool             check_<tool>.py under engine/scripts/ to run. `stub`
 #                    (check_stub.py) for every M1 row.
 #   future_tool      the real tool this gate will run once built (doc only)
+#   strength         integer, bumped by hand only when a change to the gate
+#                    can turn a pass into a fail. Every record stores the
+#                    strength it ran at, and a lower one reads stale, so a
+#                    pass the weaker gate gave can't reach release
+#                    (statelib.gate_freshness, docs/design.md 1.6). A refactor
+#                    gets no bump: the engine source is not hashed, so it
+#                    stales nothing. A bump stales every block's record of
+#                    that gate, so tell their owners when it lands.
 #   fail_severities  finding severities that count toward failure
 #   max_count        max counted findings still allowed to pass (default 0)
 #   strict           release-context coverage mode: every applicable check
@@ -68,6 +76,7 @@ gates:
     spec_lint:
       phase: P1
       tool: spec_lint
+      strength: 0
       fail_severities: [error]
       max_count: 0
       fault: "a requirement with no way to check it"
@@ -77,6 +86,7 @@ gates:
     lint:
       phase: P4
       tool: lint
+      strength: 0
       fail_severities: [error]
       max_count: 0
       fault: "an always @* missing an else (latch)"
@@ -84,6 +94,7 @@ gates:
     sim:
       phase: P4
       tool: sim
+      strength: 0
       fail_severities: [error]
       max_count: 0
       fault: "counter wraps one early"
@@ -92,6 +103,7 @@ gates:
     holdout:
       phase: P4
       tool: holdout
+      strength: 0
       fail_severities: [error]
       max_count: 0
       fault: "UART parity inverted where the visible tests do not look"
@@ -100,6 +112,7 @@ gates:
     mutate:
       phase: P4
       tool: mutate
+      strength: 0
       fail_severities: [error]
       max_count: 0
       fault: "a testbench that asserts nothing"
@@ -108,6 +121,7 @@ gates:
     formal:
       phase: P4
       tool: formal
+      strength: 0
       fail_severities: [error]
       max_count: 0
       fault: "a register with no reset: sim passes, formal fails"
@@ -117,6 +131,7 @@ gates:
     cover:
       phase: P4
       tool: cover
+      strength: 0
       fail_severities: [error]
       max_count: 0
       fault: "an unreachable state"
@@ -126,6 +141,7 @@ gates:
     synth:
       phase: P5
       tool: synth
+      strength: 0
       fail_severities: [error]
       max_count: 0
       fault: "a combinational loop"
@@ -133,6 +149,7 @@ gates:
     cdc:
       phase: P5
       tool: cdc
+      strength: 0
       fail_severities: [error]
       max_count: 0
       fault: "a flop sampling another clock domain with no synchroniser"
@@ -145,6 +162,7 @@ gates:
     harden:
       phase: P6
       tool: harden
+      strength: 0
       job: true
       fail_severities: [error]
       max_count: 0
@@ -156,6 +174,7 @@ gates:
     timing:
       phase: P6
       tool: timing
+      strength: 1
       fail_severities: [error]
       max_count: 0
       fault: "a chain that misses the spec's clock"
@@ -168,6 +187,7 @@ gates:
     drc:
       phase: P6
       tool: drc
+      strength: 0
       fail_severities: [error]
       max_count: 0
       fault: "a metal spacing violation planted in the GDS"
@@ -175,6 +195,7 @@ gates:
     lvs:
       phase: P6
       tool: lvs
+      strength: 0
       fail_severities: [error]
       max_count: 0
       fault: >-
@@ -184,6 +205,7 @@ gates:
     glsim:
       phase: P6
       tool: glsim
+      strength: 0
       fail_severities: [error]
       max_count: 0
       fault: >-
@@ -193,6 +215,7 @@ gates:
     lec:
       phase: P6
       tool: lec
+      strength: 0
       fail_severities: [error]
       max_count: 0
       fault: >-
@@ -206,6 +229,7 @@ gates:
     precheck:
       phase: P6
       tool: precheck
+      strength: 0
       fail_severities: [error]
       max_count: 0
       fault: "a wrong top module name in info.yaml"
@@ -213,6 +237,7 @@ gates:
     release:
       phase: P8
       tool: release
+      strength: 0
       strict: true
       fail_severities: [error]
       max_count: 0
@@ -235,6 +260,7 @@ gates:
     spec_lint:
       phase: P1
       tool: spec_lint_ade
+      strength: 0
       fail_severities: [error]
       max_count: 0
       fault: "a measure without bounds"
@@ -244,6 +270,7 @@ gates:
     netlist_lint:
       phase: P4
       tool: netlist_lint
+      strength: 0
       fail_severities: [error]
       max_count: 0
       fault: "a model not in the PDK"
@@ -253,6 +280,7 @@ gates:
     sim_tt:
       phase: P4
       tool: sim_tt
+      strength: 0
       fail_severities: [error]
       max_count: 0
       fault: "W and L swapped on a mirror's output device"
@@ -260,6 +288,7 @@ gates:
     sim_pvt:
       phase: P4
       tool: sim_pvt
+      strength: 0
       fail_severities: [error]
       max_count: 0
       fault: "meets at typical, loses headroom at slow and hot"
@@ -267,6 +296,7 @@ gates:
     bench_strength:
       phase: P4
       tool: bench_strength
+      strength: 0
       fail_severities: [error]
       max_count: 0
       fault: "bounds wide enough to pass anything"
@@ -274,6 +304,7 @@ gates:
     mc:
       phase: P4
       tool: mc
+      strength: 0
       fail_severities: [error]
       max_count: 0
       # Not applicable when spec.yaml asks for no MC (check_mc.py); the
@@ -292,6 +323,7 @@ gates:
       # digital GDS (M4, "### M4.") - a different check entirely.
       phase: P5
       tool: analog_drc
+      strength: 0
       fail_severities: [error]
       max_count: 0
       fault: "a planted spacing violation (also: an off-grid shape, a missing guard ring)"
@@ -305,6 +337,7 @@ gates:
       # `analog_lvs`, not `lvs` - see drc's own note above.
       phase: P5
       tool: analog_lvs
+      strength: 0
       fail_severities: [error]
       max_count: 0
       fault: "a device sized differently in the generator than in the netlist (also: a swapped net)"
@@ -321,6 +354,7 @@ gates:
       # extractor and RC extraction corners are not wired up yet.
       phase: P5
       tool: pex_sim
+      strength: 0
       fail_severities: [error]
       max_count: 0
       fault: "an output routed on a long minimum-width metal1 line"
@@ -335,6 +369,7 @@ gates:
       # old recorded "not applicable" pass that could outlive the spec.
       phase: P6
       tool: release
+      strength: 0
       strict: true
       fail_severities: [error]
       max_count: 0
@@ -359,6 +394,7 @@ gates:
     split:
       phase: P1
       tool: split
+      strength: 0
       fail_severities: [error]
       max_count: 0
       fault: "a control word width that differs between the two"
@@ -368,6 +404,7 @@ gates:
     cosim:
       phase: P3
       tool: cosim
+      strength: 0
       fail_severities: [error]
       max_count: 0
       fault: "control word polarity inverted"
@@ -375,6 +412,7 @@ gates:
     macro_lib:
       phase: P3
       tool: macro_lib
+      strength: 1
       fail_severities: [error]
       max_count: 0
       fault: "a limit the analog spec does not state"
@@ -390,6 +428,7 @@ gates:
     top_harden:
       phase: P3
       tool: top_harden
+      strength: 1
       job: true
       fail_severities: [error]
       max_count: 0
@@ -407,10 +446,16 @@ gates:
         it so (`macro_net_not_dont_touch`). The macro's own driver therefore
         meets its liberty limits or the gate fails max_slew_violation; there
         is no spec opt-out, and none is planned until a design needs a
-        buffered macro output (a clock output stays repairable for CTS).
+        buffered macro output. A macro clock output stays repairable for
+        CTS and is proven by name instead: the deepest netlist the run
+        reached is walked from the pin, which must keep the probe's net
+        and be named a clock's net by CTS (`macro_clock_net_unresolved`),
+        through buffers CTS named for it only, to the leaf pins synthesis
+        put on it (`macro_clock_buffer_unproven`).
     top_drc:
       phase: P3
       tool: top_drc
+      strength: 0
       fail_severities: [error]
       max_count: 0
       fault: "a planted spacing violation"
@@ -418,6 +463,7 @@ gates:
     top_lvs:
       phase: P3
       tool: top_lvs
+      strength: 0
       fail_severities: [error]
       max_count: 0
       fault: "a macro pin left unconnected"
@@ -428,6 +474,7 @@ gates:
       # for metal on exactly the ua pads its info.yaml claims.
       phase: P3
       tool: precheck
+      strength: 0
       fail_severities: [error]
       max_count: 0
       fault: "an analog pad info.yaml claims with nothing wired to it"
@@ -435,6 +482,7 @@ gates:
     release:
       phase: P4
       tool: release
+      strength: 0
       strict: true
       fail_severities: [error]
       max_count: 0

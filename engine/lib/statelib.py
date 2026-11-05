@@ -23,6 +23,11 @@ change the design, and nothing else. Stored hashes are prefixed "<norm>:" so
 a normalizer change can never false-match a hash computed under the old
 rules.
 
+A gate's own code is not an input: hashing the engine would stale every block
+on any refactor. A change that can turn a pass into a fail bumps the gate's
+`strength` in reference/gates.yaml instead, and a record at a lower strength
+reads stale (gate_freshness).
+
 The artifact kinds live in reference/invalidation.yaml (single source,
 shared across skills - the same block layout, docs/design.md 1.4). The
 per-gate input sets and the edit-class invalidation map are SKILL-scoped
@@ -45,8 +50,10 @@ import yaml
 
 # engine/lib/statelib.py -> parents[0]=engine/lib, parents[1]=engine
 DEFAULT_MAP = Path(__file__).resolve().parents[1] / "reference" / "invalidation.yaml"
+DEFAULT_GATES = Path(__file__).resolve().parents[1] / "reference" / "gates.yaml"
 
 _MAP_CACHE: dict[tuple[str, float], dict] = {}
+_STRENGTH_CACHE: dict[tuple[str, float], dict] = {}
 
 SKILLS = ("vde", "ade", "msde")
 
@@ -611,12 +618,51 @@ def gate_input_hashes(ws: Path, skill: str, gate: str, imap: dict,
     return {k: hash_kind(ws, k, imap, registry)[1] for k in kinds}
 
 
-def gate_freshness(gate_entry: dict, current: dict[str, str | None]) -> dict:
-    """Two-layer verdict for one recorded gate entry against current hashes.
+def load_strengths(path: Path | str | None = None) -> dict:
+    """{skill: {gate: strength}} from gates.yaml. Cached on (path, mtime). A
+    row with no `strength` is 0; one that isn't a non-negative integer raises,
+    since a typo there would silently keep weaker passes fresh."""
+    p = Path(path) if path else DEFAULT_GATES
+    key = (str(p), p.stat().st_mtime)
+    if key in _STRENGTH_CACHE:
+        return _STRENGTH_CACHE[key]
+    data = yaml.safe_load(p.read_text(encoding="utf-8"))
+    out: dict[str, dict[str, int]] = {}
+    for skill, rows in (data.get("gates") or {}).items():
+        out[skill] = {}
+        for gate, row in (rows or {}).items():
+            value = (row or {}).get("strength", 0)
+            if not _is_strength(value):
+                raise ValueError(f"{p}: gates.{skill}.{gate}.strength is "
+                                 f"{value!r}, not a non-negative integer")
+            out[skill][gate] = value
+    _STRENGTH_CACHE[key] = out
+    return out
+
+
+def _is_strength(value) -> bool:
+    return (isinstance(value, int) and not isinstance(value, bool)
+            and value >= 0)
+
+
+def gate_strength(skill: str, gate: str,
+                  path: Path | str | None = None) -> int:
+    """This gate's current strength; 0 for a gate gates.yaml doesn't list."""
+    return (load_strengths(path).get(skill) or {}).get(gate, 0)
+
+
+def gate_freshness(gate_entry: dict, current: dict[str, str | None],
+                   gate: str = "", strength: int = 0) -> dict:
+    """Verdict for one recorded gate entry against current hashes and the
+    gate's current `strength` (gates.yaml).
 
     hash_valid: True (all recorded inputs match), False (>=1 differs),
                 None (no recorded inputs - unknown gate or never recorded).
-    fresh:      hash_valid is True AND no stale marks.
+    fresh:      hash_valid is True AND no stale marks AND the record's
+                strength is not below the gate's. A record with no strength
+                (or an unreadable one) reads as 0.
+    strength_stale: present only when the record's strength is below the
+                gate's: the reason, naming the gate and both values.
     """
     recorded = (gate_entry.get("last") or {}).get("inputs")
     marks = gate_entry.get("stale") or []
@@ -629,8 +675,16 @@ def gate_freshness(gate_entry: dict, current: dict[str, str | None]) -> dict:
     changed = sorted({k for k, v in recorded.items() if current.get(k) != v}
                      | (set(current) - set(recorded)))
     hash_valid = not changed
-    return {"hash_valid": hash_valid, "changed_inputs": changed,
-            "stale_marks": marks, "fresh": hash_valid and not marks}
+    verdict = {"hash_valid": hash_valid, "changed_inputs": changed,
+               "stale_marks": marks, "fresh": hash_valid and not marks}
+    ran_at = (gate_entry.get("last") or {}).get("strength")
+    ran_at = ran_at if _is_strength(ran_at) else 0
+    if ran_at < strength:
+        verdict["fresh"] = False
+        verdict["strength_stale"] = (
+            f"gate {gate} is now strength {strength}, but this result was "
+            f"recorded at strength {ran_at}; re-run it")
+    return verdict
 
 
 def freshness_report(data: dict, ws: Path,
@@ -650,7 +704,8 @@ def freshness_report(data: dict, ws: Path,
     gates_out: dict[str, dict] = {}
     for gname, gentry in (data.get("gates") or {}).items():
         current = gate_input_hashes(ws, skill, gname, imap, registry)
-        verdict = gate_freshness(gentry, current)
+        verdict = gate_freshness(gentry, current, gname,
+                                 gate_strength(skill, gname))
         gates_out[gname] = {
             "status": gentry.get("status"),
             "recorded_inputs": (gentry.get("last") or {}).get("inputs"),
