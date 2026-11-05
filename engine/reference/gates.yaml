@@ -174,7 +174,7 @@ gates:
     timing:
       phase: P6
       tool: timing
-      strength: 0
+      strength: 1
       fail_severities: [error]
       max_count: 0
       fault: "a chain that misses the spec's clock"
@@ -412,7 +412,7 @@ gates:
     macro_lib:
       phase: P3
       tool: macro_lib
-      strength: 0
+      strength: 1
       fail_severities: [error]
       max_count: 0
       fault: "a limit the analog spec does not state"
