@@ -234,6 +234,21 @@ def macro_lib_first(ws: Path, gate_names, gates: dict, skill: str) -> None:
                          f"{result.get('failing')}")
 
 
+PROGRESS_ENV = "CHIP_FLOW_FAULTS_PROGRESS"
+
+
+def _progress(step: str) -> None:
+    """One line naming the step run_rung starts, appended to the file
+    $CHIP_FLOW_FAULTS_PROGRESS names (unset: nothing). A rung that runs for
+    an hour under a timeout (tests/check-harden-faults.sh) is killed with
+    pytest's captured output unprinted; this file still says which fault
+    it was on (#196)."""
+    path = os.environ.get(PROGRESS_ENV)
+    if path:
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(f"{time.strftime('%H:%M:%S')} {step}\n")
+
+
 def run_rung(tmp_root: Path, rung_dir: Path, skill: str, gates: dict) -> dict:
     rung = rung_dir.name
     manifest = load_manifest(rung_dir)
@@ -252,8 +267,10 @@ def run_rung(tmp_root: Path, rung_dir: Path, skill: str, gates: dict) -> dict:
     clean_ws = make_scratch_workspace(tmp_root, rung_dir, skill, rung)
     gate_names = _ordered_gate_names(
         {f["gate"] for f in manifest["faults"]} - {"release"}, skill, gates)
+    _progress(f"{rung}: untouched reference, macro_lib first")
     macro_lib_first(clean_ws, gate_names, gates, skill)
     for gname in gate_names:
+        _progress(f"{rung}: untouched reference, gate {gname}")
         t0 = time.monotonic()
         _report, result = run_gate(clean_ws, gname, gates, skill)
         gate_timings[gname] = round(time.monotonic() - t0, 2)
@@ -263,6 +280,7 @@ def run_rung(tmp_root: Path, rung_dir: Path, skill: str, gates: dict) -> dict:
 
     for entry in manifest["faults"]:
         name, gname = entry["name"], entry["gate"]
+        _progress(f"{rung}/{name}: plant {entry['plant']}, gate {gname}")
         plant = import_plant(rung_dir, entry["plant"])
         ws = make_scratch_workspace(tmp_root, rung_dir, skill, rung)
         # a plant may steer its gate through an env var (plant_precheck.py's
