@@ -20,7 +20,8 @@ is under harden/, an msde top's under top/harden/):
   block's cocotb suite, a Makefile for it and the glsim harness), and a
   .github/workflows/gds.yaml that ships that GDS with custom_gds and runs the
   suite on the shipped netlist. It never overwrites a workflow already there:
-  that is the workflow the release checks.
+  that is the workflow the release checks. info.yaml's author is written here
+  (`stamped_info`), so no staged tree depends on a hand edit.
 - `stage_analog(ws, dest, sign)` is the same for an msde tile, in the shape
   of TT's analog template: no src/config.json, since TT takes the committed
   GDS, and src/project.v as the netlist when it has power pins, else the
@@ -35,7 +36,10 @@ is under harden/, an msde top's under top/harden/):
   .v, which TT's precheck fails: "Verilog doesn't contain VGND"). A vde
   tile's must be the run's final/pnl, by sha256, the one glsim recorded, and
   a job must run the test suite on it on the signoff PDK: custom_gds writes
-  no PDK_VERSION, so TT's own gl_test action can't.
+  no PDK_VERSION, so TT's own gl_test action can't. The custom_gds step's PNG
+  preview is optional but never quiet: the action swallows its failure, so a
+  vde tile's workflow must report the outcome after it (PNG_REPORT_STEP). A
+  blank author refuses too.
 
 `signoff(ws)` reads the signoff side from the run itself (resolved.json's
 meta.librelane_version, its PDK and PDK_ROOT, the PDK's SOURCES), so it is
@@ -88,8 +92,34 @@ _SHA = re.compile(r"^[0-9a-f]{7,40}$")
 _COMMENT = re.compile(r"/\*.*?\*/|//[^\n]*", re.S)
 
 
+# info.yaml's author when neither the spec nor the block's own file names one.
+DEFAULT_AUTHOR = "Hive"
+
+# custom_gds renders a preview with `tt_tool.py --create-png ... || echo WARNING`
+# inside the action: a failure there, usage errors included, leaves the job
+# green, and tt_tool at our tools-ref refuses the --pdk it passes. The preview
+# is not shipped and no gate reads it, so failing the job would fail every
+# run: it stays optional, and this step says what happened.
+PNG_ARTIFACT = "gds_render.png"
+PNG_REPORT_STEP = f"""
+      - name: Report the optional PNG preview
+        run: |
+          if [ -s {PNG_ARTIFACT} ]; then
+            echo "PNG preview: rendered (the gds_render artifact)." >> "$GITHUB_STEP_SUMMARY"
+          else
+            msg="PNG preview: NOT rendered. It is optional and nothing shipped depends on it; custom_gds's 'Render PNG from GDS' step has the error."
+            echo "::warning title=PNG preview not rendered::$msg"
+            echo "$msg" >> "$GITHUB_STEP_SUMMARY"
+          fi
+"""
+
+
 class ShipError(RuntimeError):
     """The signoff side cannot be read (no run, no resolved.json)."""
+
+
+class AuthorError(ShipError):
+    """The spec asks for a blank author."""
 
 
 def _sha256(path: Path) -> str | None:
@@ -268,7 +298,8 @@ def default_workflow(ref: str = DEFAULT_REF, tools_ref: str | None = None,
     netlist at `verilog_path`, then run the shuttle's precheck on it (tools-ref
     pinned to the vendored tt-support-tools, so it is the precheck we ran).
     `gl_test_pdk`, an open_pdks commit, adds the job that runs test/ on that
-    netlist on that PDK."""
+    netlist on that PDK. PNG_REPORT_STEP says whether the optional preview
+    rendered."""
     tools = f"\n          tools-ref: {tools_ref}" if tools_ref else ""
     gl_test = (GL_TEST_JOB.format(ciel=CIEL_ACTION, pdk=pdk, open_pdks=gl_test_pdk)
                if gl_test_pdk else "")
@@ -304,7 +335,7 @@ jobs:
           lef_path: lef/${{{{ steps.top_module.outputs.TOP_MODULE }}}}.lef
           verilog_path: {verilog_path}
           pdk: {pdk}{tools}
-
+{PNG_REPORT_STEP}
   precheck:
     needs: gds
     runs-on: ubuntu-24.04
@@ -344,6 +375,67 @@ COCOTB_TEST_MODULES = {",".join(modules)}
 
 include $(shell cocotb-config --makefiles)/Makefile.sim
 """
+
+
+def _project_author(doc) -> str:
+    """info.yaml's project.author, '' when it has none."""
+    project = doc.get("project") if isinstance(doc, dict) else None
+    author = project.get("author") if isinstance(project, dict) else None
+    return author.strip() if isinstance(author, str) else ""
+
+
+def stamped_info(ws: Path, text: str) -> str:
+    """info.yaml `text` with its author set, by line so its comments stay: the
+    author in spec/spec.yaml when that has the key (blank is refused), else
+    the file's own, else DEFAULT_AUTHOR. harden/info.yaml itself is a gate's
+    input and stays as it is; only the staged copy carries this."""
+    spec_path = Path(ws) / "spec" / "spec.yaml"
+    try:
+        spec = yaml.safe_load(spec_path.read_text(encoding="utf-8")) if spec_path.is_file() else None
+        doc = yaml.safe_load(text)
+    except yaml.YAMLError as exc:
+        raise ShipError(f"cannot read the author's sources: {exc}") from exc
+    if not isinstance(doc, dict) or not isinstance(doc.get("project"), dict):
+        raise ShipError("info.yaml has no project block to write the author in")
+    if isinstance(spec, dict) and "author" in spec:
+        author = spec["author"].strip() if isinstance(spec["author"], str) else ""
+        if not author:
+            raise AuthorError(f"spec/spec.yaml's author is {spec['author']!r}: "
+                              "name one, or remove the key to use the default")
+    else:
+        author = _project_author(doc) or DEFAULT_AUTHOR
+    if doc["project"].get("author") == author:
+        return text
+    lines = text.splitlines(keepends=True)
+    head = next((i for i, l in enumerate(lines) if re.match(r"project:\s*(#.*)?$", l)), None)
+    if head is None:
+        raise ShipError("info.yaml's project block is not in block style, "
+                        "so the author can't be written by line")
+    end = next((i for i in range(head + 1, len(lines))
+                if re.match(r"[^\s#]", lines[i])), len(lines))
+    children = [i for i in range(head + 1, end)
+                if re.match(r"\s+[^\s#]", lines[i])]
+    indent = re.match(r"\s*", lines[children[0]]).group() if children else "  "
+    new = f"{indent}author: {json.dumps(author, ensure_ascii=False)}\n"
+    found = [i for i in children if lines[i].startswith(indent + "author:")]
+    tops = [i for i in children if lines[i].startswith(indent + "top_module:")]
+    if found:
+        lines[found[0]] = new
+    else:
+        at = tops[0] if tops else head
+        if not lines[at].endswith("\n"):
+            lines[at] += "\n"
+        lines.insert(at + 1, new)
+    out = "".join(lines)
+    want = {**doc, "project": {**doc["project"], "author": author}}
+    try:
+        same = yaml.safe_load(out) == want
+    except yaml.YAMLError:
+        same = False
+    if not same:
+        raise ShipError("writing the author into info.yaml changed more than "
+                        "the author; make its author a single line")
+    return out
 
 
 def stage(ws: Path, dest: Path, sign: dict,
@@ -393,7 +485,8 @@ def stage(ws: Path, dest: Path, sign: dict,
     if sdc.is_file() and "constraints.sdc" not in copied:
         put("src/constraints.sdc", sdc.read_bytes(), "harden/constraints.sdc")
     if (harden / "info.yaml").is_file():
-        put("info.yaml", (harden / "info.yaml").read_bytes(), "harden/info.yaml")
+        put("info.yaml", stamped_info(ws, (harden / "info.yaml").read_text(encoding="utf-8")).encode("utf-8"),
+            "harden/info.yaml")
     top = sign["top_module"]
     for kind in ("gds", "lef"):
         f = ws / sign[kind]
@@ -469,7 +562,8 @@ def stage_analog(ws: Path, dest: Path, sign: dict,
     power ties when powered_project can derive them) and the macro
     blackboxes from top/macros, or the
     block's hand-kept tt/src/*.v instead when it has them, plus digital/rtl.
-    info.yaml is tt/info.yaml, else top/harden/info.yaml; test/ is tt/test/*;
+    info.yaml is tt/info.yaml, else top/harden/info.yaml, with its author
+    written (`stamped_info`); test/ is tt/test/*;
     the workflow is tt/workflows/*, else the custom_gds default, and one
     already in the tree is left alone. Also removes what only the digital
     template uses: src/config.json and the fpga workflow, which can't build a
@@ -515,6 +609,8 @@ def stage_analog(ws: Path, dest: Path, sign: dict,
         out.parent.mkdir(parents=True, exist_ok=True)
         if rel == ANALOG_NETLIST and powered is not None:
             out.write_text(powered, encoding="utf-8")
+        elif rel == "info.yaml":
+            out.write_text(stamped_info(ws, p.read_text(encoding="utf-8")), encoding="utf-8")
         else:
             shutil.copyfile(p, out)
         written.append(rel)
@@ -670,6 +766,41 @@ def _gl_test_problems(repo: Path, sign: dict, ships_custom_gds: bool) -> list[st
     return problems
 
 
+def _png_report_problems(repo: Path) -> list[str]:
+    """Each custom_gds step needs a later step that reports the optional PNG:
+    the action itself lets the render fail with the job still green."""
+    problems = []
+    pending: dict[str, str] = {}
+    for wf, step in _steps(repo):
+        parsed = _parse_uses(str(step.get("uses", "")))
+        if parsed and parsed[0] == "custom_gds":
+            pending[wf] = f"{wf} ({step.get('name') or step['uses']})"
+        run = str(step.get("run", ""))
+        if PNG_ARTIFACT in run and "GITHUB_STEP_SUMMARY" in run:
+            pending.pop(wf, None)
+    for where in pending.values():
+        problems.append(
+            f"tt_png_unreported: {where} lets its PNG render fail quietly, and "
+            f"no later step reports whether {PNG_ARTIFACT} exists - stage the "
+            "workflow again, or add ttship.PNG_REPORT_STEP")
+    return problems
+
+
+def _author_problems(repo: Path) -> list[str]:
+    """A tree is not ready for a public repo without an author in info.yaml."""
+    info = repo / "info.yaml"
+    if not info.is_file():
+        return [f"tt_author_blank: no info.yaml in {repo}"]
+    try:
+        doc = yaml.safe_load(info.read_text(encoding="utf-8"))
+    except yaml.YAMLError as exc:
+        return [f"tt_author_blank: info.yaml is not valid YAML: {exc}"]
+    if not _project_author(doc):
+        return ["tt_author_blank: info.yaml's project.author is blank - "
+                "staging writes it from spec.yaml or the flow default"]
+    return []
+
+
 def ship_problems(repo: Path, sign: dict) -> tuple[list[str], dict]:
     """(problems, shipped) for the workflows in `repo` against `sign`. A
     problem is "<rule>: <message>"; `shipped` records what each shipping
@@ -753,6 +884,9 @@ def ship_problems(repo: Path, sign: dict) -> tuple[list[str], dict]:
             f"ships the tile ({ACTION}@<ref> or {ACTION}/custom_gds@<ref>)")
     problems.extend(_gl_test_problems(
         repo, sign, any(s["mode"] == "custom_gds" for s in shipped)))
+    if sign.get("gl_is_shipped"):
+        problems.extend(_png_report_problems(repo))
+    problems.extend(_author_problems(repo))
     return problems, {"steps": shipped}
 
 
@@ -766,6 +900,8 @@ def release_check(ws: Path, repo: Path | None = None, pdk_hash=None,
     try:
         sign = signoff(ws, pdk_hash=pdk_hash, harden=HARDEN_DIR[skill])
         staged = (stage_analog if skill == "msde" else stage)(ws, repo, sign, sources)
+    except AuthorError as exc:
+        return [f"tt_author_blank: {exc}"], {}
     except ShipError as exc:
         return [f"tt_no_signoff: {exc}"], {}
     problems, shipped = ship_problems(repo, sign)

@@ -99,6 +99,14 @@ def _sha_differs(ws: Path, src: str, path: Path) -> bool:
     return ref.is_file() and path.is_file() and ttship._sha256(ref) != ttship._sha256(path)
 
 
+def _stamp_matches(ws: Path, source: str, path: Path) -> bool:
+    try:
+        want = ttship.stamped_info(ws, (ws / source).read_text(encoding="utf-8"))
+    except ttship.ShipError:
+        return False
+    return path.read_text(encoding="utf-8") == want
+
+
 def _signed_counterpart(ws: Path, source: str, top: str) -> tuple[str, list[str]] | None:
     """For a hand-kept msde file under tt/: the file the gates read that it
     must agree with, and what differs (empty when it agrees)."""
@@ -172,7 +180,17 @@ def deliverables(ws: Path, skill: str, repo: Path, record: dict,
                 else:
                     e["gates"] = []
                     why = f"differs from {src}, which it was staged from"
-            if not e["gates"] and src:
+            stamp_broken = False
+            if rel == "info.yaml" and src and _sha_differs(ws, src, repo / rel):
+                # stage writes the author into this copy: it must still be
+                # exactly what that writes, whatever else ties the source
+                if _stamp_matches(ws, src, repo / rel):
+                    e["derived"] = "ttship.stamped_info"
+                else:
+                    stamp_broken = True
+                    e["gates"] = []
+                    why = f"differs from {src} by more than the author stage writes"
+            if not e["gates"] and src and not stamp_broken:
                 ref = _signed_counterpart(ws, src, top)
                 if ref:
                     if ref[1]:

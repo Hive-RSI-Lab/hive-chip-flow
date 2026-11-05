@@ -220,6 +220,9 @@ gates:
       description: >-
         Every applicable gate has a fresh recorded pass on the current
         inputs; waivers carry reason, approval and durability.
+        The staged tree's info.yaml must name an author. custom_gds's PNG
+        preview is optional, since nothing shipped depends on it, but the
+        staged workflow reports in the job summary whether it rendered.
 
   ade:
     # M8 (docs/design.md, "### M8."): spec_lint, netlist_lint, sim_tt,
@@ -436,4 +439,7 @@ gates:
       fail_severities: [error]
       max_count: 0
       fault: "a stale nested release"
-      description: "Both nested runs released, top gates fresh."
+      description: >-
+        Both nested runs released, top gates fresh. The staged tree's
+        info.yaml must name an author; the default workflow reports the
+        optional PNG preview in the job summary.
