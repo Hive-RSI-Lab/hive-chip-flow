@@ -678,3 +678,15 @@ def test_project_reads_as_tt_precheck_and_a_powered_sim_read_it(tmp_path):
                             "hierarchy -check -top tt_um_t"],
                            cwd=tmp_path, capture_output=True, text=True)
         assert r.returncode == 0, r.stderr + r.stdout
+
+
+def test_macro_bound_output_may_also_go_to_a_uo_pad_but_an_input_may_not():
+    spec = _analog_spec({"vout": 0})
+    spec["tt_pins"]["b"] = "uo_out[3]"
+    assert ttlib.validate_tt_pins(spec) == []
+    text = ttlib.generate_tt_wrapper(spec)
+    assert ".b(w_b)" in text and "w_b," in text.split("assign uo_out")[1]
+    spec["tt_pins"]["a"] = "ui_in[0]"
+    spec["macros"][0]["pins"]["a"] = "a"
+    assert any("may not also have a tt_pins" in p
+               for p in ttlib.validate_tt_pins(spec))
