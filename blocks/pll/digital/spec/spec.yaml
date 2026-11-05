@@ -179,6 +179,12 @@ tt_pins:
   cp_trim0:   uo_out[6]
   cp_trim1:   uo_out[7]
 
+# Declared opt-out of the generated wrapper's rst_n synchroniser
+# (engine/lib/ttlib.py pad_reset_opt_out): rst_n reaches the block raw.
+pad_reset_sync:
+  mode: off
+  reason: "tb releases rst_n with clk stopped; vco domain needs release without clk edges, see #212"
+
 # Primary clock is the reference (12.5 MHz worst case). vco_out is the second
 # port clock (prescaler flops only). clk_pre and clk_fb are internal
 # generated clocks - see timing_notes for the architect / SDC.

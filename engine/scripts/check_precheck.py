@@ -180,8 +180,13 @@ def run(argv=None):
     # state.py record_gate re-hashes: vde's `harden` (the harden dir), msde's
     # `top_gds` (the top's final GDS dir)
     stamped = final_dir / "gds" if msde else ws / "harden"
+    try:
+        pad_reset = ttlib.pad_reset_facts(spec)
+    except ttlib.TTError as exc:
+        raise CheckError(str(exc)) from exc
     payload = checklib.report(SCRIPT, stamped, violations, top=top,
-                              checks_run=sum(1 for _ in tree.iter("testcase")))
+                              checks_run=sum(1 for _ in tree.iter("testcase")),
+                              pad_reset=pad_reset)
     return payload, args.out
 
 

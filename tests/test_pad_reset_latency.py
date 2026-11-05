@@ -47,7 +47,7 @@ SWEEP = {
     "blocks/counter": "plants",
     "blocks/r2r_dac/digital": "plants",
     "corpus/vde/counter8": "plants",
-    "blocks/pll/digital": "sweep",
+    "blocks/pll/digital": "sweep (opt-out: pad_reset_sync off, #212)",
     "corpus/msde/dac_tile/digital": "sweep",
     "corpus/msde/sensor_counted/digital": "sweep",
     "corpus/vde/riscv": "sweep",

@@ -757,3 +757,47 @@ def test_write_sim_frame_none_without_a_synchroniser_or_when_block_level(tmp_pat
     with ttlib.block_level_sim("test"):
         assert ttlib.write_sim_frame(CLOCKED_COUNTER8, tmp_path / "c") is None
     assert ttlib.write_sim_frame(CLOCKED_COUNTER8, tmp_path / "d") is not None
+
+
+# the declared opt-out (spec.yaml pad_reset_sync, docs/design.md)
+OPTED_OUT = {**CLOCKED_COUNTER8,
+             "pad_reset_sync": {"mode": False, "reason": "tb holds clk; see #1"}}
+
+
+def test_opt_out_without_a_reason_refuses_by_name(tmp_path):
+    for cfg in ({"mode": False}, {"mode": "off", "reason": "  "},
+                {"mode": False, "reason": None}):
+        spec = {**CLOCKED_COUNTER8, "pad_reset_sync": cfg}
+        for call in (lambda: ttlib.pad_reset_latency(spec),
+                     lambda: ttlib.generate_tt_wrapper(spec),
+                     lambda: ttlib.write_sim_frame(spec, tmp_path / "f"),
+                     lambda: ttlib.pad_reset_facts(spec)):
+            with pytest.raises(ttlib.PadResetOptOutError,
+                               match="^pad_reset_sync_no_reason: "):
+                call()
+
+
+def test_opt_out_malformed_refuses():
+    for cfg in ("off", {"mode": True, "reason": "x"},
+                {"mode": "on", "reason": "x"},
+                {"mode": False, "reason": "x", "latency": 1}):
+        spec = {**CLOCKED_COUNTER8, "pad_reset_sync": cfg}
+        with pytest.raises(ttlib.PadResetOptOutError,
+                           match="^pad_reset_sync_malformed: "):
+            ttlib.pad_reset_latency(spec)
+
+
+def test_opt_out_passes_rst_n_straight_through_and_says_so(tmp_path):
+    assert ttlib.pad_reset_opt_out(OPTED_OUT) == "tb holds clk; see #1"
+    assert ttlib.pad_reset_opt_out(CLOCKED_COUNTER8) is None
+    assert ttlib.pad_reset_latency(OPTED_OUT) == 0
+    v = ttlib.generate_tt_wrapper(OPTED_OUT)
+    assert "rst_n_sync_q1" not in v and "rst_n_sync_q2" not in v
+    assert "assign w_rst = ~rst_n;" in v
+    assert "pad reset synchroniser off (spec.yaml pad_reset_sync): " \
+           "tb holds clk; see #1" in v
+    assert ttlib.write_sim_frame(OPTED_OUT, tmp_path / "f") is None
+    assert ttlib.pad_reset_facts(OPTED_OUT) == {
+        "latency": 0, "sync": False, "opt_out_reason": "tb holds clk; see #1"}
+    assert ttlib.pad_reset_facts(CLOCKED_COUNTER8) == {
+        "latency": 2, "sync": True, "opt_out_reason": None}

@@ -402,12 +402,62 @@ PAD_RESET_SYNC_FLOP = "rst_n_sync_q"
 PAD_RESET_LATENCY_NET = "tt_pad_reset_latency"
 
 
+# A tile can opt out of the synchroniser, but only in the open: spec.yaml
+#   pad_reset_sync: {mode: off, reason: "<why, and the issue that drops it>"}
+# The wrapper then passes rst_n straight to the block (latency 0). harden
+# and precheck record it in their facts and release prints it as the
+# named warning PAD_RESET_SYNC_OFF; the cdc gate still checks that tile's
+# rst_n as an async input. A mode other than off, or no reason, refuses.
+PAD_RESET_SYNC_KEY = "pad_reset_sync"
+PAD_RESET_SYNC_OFF = "pad_reset_sync_off"
+
+
+class PadResetOptOutError(TTError):
+    """spec.yaml's pad_reset_sync is malformed or has no reason."""
+
+
+def pad_reset_opt_out(spec: dict) -> str | None:
+    """The reason the tile opts out of the pad reset synchroniser, or None
+    when it keeps it (no pad_reset_sync key). Raises PadResetOptOutError
+    on a malformed key or a missing or empty reason."""
+    cfg = spec.get(PAD_RESET_SYNC_KEY)
+    if cfg is None:
+        return None
+    if not isinstance(cfg, dict) or set(cfg) - {"mode", "reason"}:
+        raise PadResetOptOutError(
+            "pad_reset_sync_malformed: spec.yaml 'pad_reset_sync' takes "
+            "{mode: off, reason: <string>} and nothing else")
+    # YAML 1.1 reads a bare `off` as False
+    if cfg.get("mode") not in (False, "off"):
+        raise PadResetOptOutError(
+            "pad_reset_sync_malformed: 'pad_reset_sync.mode' must be off "
+            "(leave the key out to keep the synchroniser)")
+    reason = cfg.get("reason")
+    if not isinstance(reason, str) or not reason.strip():
+        raise PadResetOptOutError(
+            "pad_reset_sync_no_reason: 'pad_reset_sync: {mode: off}' needs "
+            "a non-empty 'reason' saying why the tile skips the rst_n "
+            "synchroniser and what would let it drop the opt-out")
+    return reason.strip()
+
+
+def pad_reset_facts(spec: dict) -> dict:
+    """What harden and precheck record about the tile's pad reset: the
+    latency the wrapper puts on rst_n and, when opted out, the reason."""
+    reason = pad_reset_opt_out(spec)
+    return {"latency": pad_reset_latency(spec), "sync": reason is None,
+            "opt_out_reason": reason}
+
+
 def pad_reset_latency(spec: dict) -> int:
     """Clock edges the generated wrapper puts between the rst_n pad and the
     block: PAD_RESET_LATENCY when a block input maps to rst_n and the
     block's primary clock enters on the tile's clk pin (the synchroniser's
-    clock), else 0 (no synchroniser: nothing reads the pad, or no clk to
-    sample it on)."""
+    clock), else 0 (no synchroniser: nothing reads the pad, no clk to
+    sample it on, or the tile opts out through pad_reset_sync). Raises
+    PadResetOptOutError on a malformed opt-out."""
+    if pad_reset_opt_out(spec) is not None:
+        return 0
     tt_pins = spec.get("tt_pins") or {}
     bound = macro_bound_ports(spec)
     reads_pad = False
@@ -474,6 +524,7 @@ def generate_tt_wrapper(spec: dict, tiles: str | None = None,
     used_uio_in_bits: set[int] = set()
     bound = macro_bound_ports(spec)
     sync_n = pad_reset_latency(spec)
+    opt_out = pad_reset_opt_out(spec)
 
     for name, port in sorted(ports.items()):
         width = int(port.get("width", 1))
@@ -556,6 +607,8 @@ def generate_tt_wrapper(spec: dict, tiles: str | None = None,
         "    input  wire       rst_n",
         ");",
         *(_pad_reset_sync(sync_n) if sync_n else []),
+        *([f"  // pad reset synchroniser off (spec.yaml pad_reset_sync): "
+           f"{' '.join(opt_out.split())}"] if opt_out else []),
         *in_assigns,
         "",
         f"  {top} u_{top} (",

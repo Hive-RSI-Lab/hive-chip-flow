@@ -557,3 +557,27 @@ def test_msde_release_refuses_a_nested_side_of_the_wrong_skill(tmp_path, capsys)
     out = json.loads(capsys.readouterr().out)
     assert code == 1, out
     assert any("expected 'ade'" in v["msg"] for v in out["violations"])
+
+
+def test_release_names_a_pad_reset_opt_out_as_a_warning_not_a_pass(tmp_path, capsys):
+    ws = make_vde_ws(tmp_path)
+    (ws / "spec" / "spec.yaml").write_text(
+        "top: top\nrequirements: []\npad_reset_sync:\n  mode: off\n"
+        "  reason: \"tb holds clk, see #1\"\n", encoding="utf-8")
+    pass_every_gate(ws)
+    code = check_release.main(["--workspace", str(ws)])
+    captured = capsys.readouterr()
+    out = json.loads(captured.out)
+    assert code == 0, out
+    assert [w["kind"] for w in out["warnings"]] == ["pad_reset_sync_off"]
+    assert "tb holds clk, see #1" in out["warnings"][0]["msg"]
+    assert "WARNING pad_reset_sync_off: " in captured.err
+
+
+def test_release_without_an_opt_out_has_no_pad_reset_warning(tmp_path, capsys):
+    ws = make_vde_ws(tmp_path)
+    pass_every_gate(ws)
+    assert check_release.main(["--workspace", str(ws)]) == 0
+    captured = capsys.readouterr()
+    assert not json.loads(captured.out).get("warnings")
+    assert "pad_reset_sync_off" not in captured.err

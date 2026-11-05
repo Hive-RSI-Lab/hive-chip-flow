@@ -177,3 +177,14 @@ def test_load_spec_reads_real_yaml(tmp_path):
     p.write_text("top: foo\nrequirements: []\n", encoding="utf-8")
     data = speclib.load_spec(p)
     assert data == {"top": "foo", "requirements": []}
+
+
+def test_pad_reset_opt_out_without_a_reason_is_a_violation():
+    spec = {**GOOD_SPEC, "pad_reset_sync": {"mode": False}}
+    kinds = {v["kind"] for v in speclib.lint_spec(spec)}
+    assert "pad_reset_sync_no_reason" in kinds
+    spec = {**GOOD_SPEC, "pad_reset_sync": {"mode": "on", "reason": "x"}}
+    assert "pad_reset_sync_malformed" in {
+        v["kind"] for v in speclib.lint_spec(spec)}
+    spec = {**GOOD_SPEC, "pad_reset_sync": {"mode": False, "reason": "why"}}
+    assert speclib.lint_spec(spec) == []
