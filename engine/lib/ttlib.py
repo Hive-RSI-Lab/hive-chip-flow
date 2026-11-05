@@ -365,11 +365,14 @@ def validate_tt_pins(spec: dict, tiles: str | None = None) -> list[str]:
                         "spec.yaml 'ports'")
     for name, port in ports.items():
         if name in bound:
-            if name in tt_pins:
+            # a digital OUTPUT that feeds a macro pin may also fan out to a
+            # TT output pad (debug visibility); an input may not
+            if name in tt_pins and port.get("dir") != "output":
                 problems.append(f"port {name!r} is wired to macro pin "
                                 f"{'.'.join(bound[name])} and may not also "
                                 "have a tt_pins mapping")
-            continue
+            if name not in tt_pins:
+                continue
         if name not in tt_pins:
             problems.append(f"port {name!r} has no tt_pins mapping")
             continue
@@ -582,7 +585,8 @@ def generate_tt_wrapper(spec: dict, tiles: str | None = None,
         width = int(port.get("width", 1))
         wire = f"w_{name}"
         conns.append(f"      .{name}({wire})")
-        if name in bound:
+        if name in bound and not (port.get("dir") == "output"
+                                  and name in tt_pins):
             # driven by (or driving) a macro pin, not a TT pin
             in_assigns.append(f"  wire [{width - 1}:0] {wire};" if width > 1
                               else f"  wire {wire};")
