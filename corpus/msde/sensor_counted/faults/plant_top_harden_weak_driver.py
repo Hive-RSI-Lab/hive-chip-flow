@@ -1,12 +1,13 @@
 """Fault: a macro output driver too weak for its own liberty limits
 (gates.yaml's msde top_harden row, the signoff STA's max slew check).
 
-Declares macro_timing for the analog side (osc_out's limits are sized so
-the stock output buffer meets them at every corner), runs macro_lib and a
-real top harden on the untouched design, and requires it to pass with the
-macro's per-corner liberty loaded at every STA corner - so the lib view,
+The analog spec declares macro_timing (osc_out's limits are sized so the
+stock output buffer meets them at every corner); macro_lib has run on the
+untouched design (faults.macro_lib_first). This runs a real top harden on the untouched
+design and requires it to pass with the macro's per-corner liberty loaded at every STA corner - so the lib view,
 not a black box, is what the harden timed. Then it shrinks osc_out's
-output buffer to a quarter of its width (W/4) and re-runs macro_lib: the
+output buffer to a quarter of its width (W/4), re-runs macro_lib and
+puts the netlist back (the layout is still the stock one): the
 new libs carry the weak driver's slower edges against the same
 max_transition, and top_harden must fail with max_slew_violation on
 osc_out."""
@@ -16,27 +17,8 @@ import re
 MACRO = "sensor_counted_analog"
 PIN = "osc_out"
 
-# osc_out limits: the stock buffer's worst edge at max_capacitance_pf is
-# under max_transition_ns at every corner (macro_lib warns
-# macro_limit_inconsistent if not); the W/4 buffer's is over it at ss.
-MACRO_TIMING = {
-    "pins": {"osc_en": {"max_transition_ns": 2.0},
-             PIN: {"max_transition_ns": 3.2, "max_capacitance_pf": 0.012}},
-    "static": {"osc_en": "vdd"},
-    "arcs": [{"to": PIN, "source": True, "enable": "osc_en",
-              "settle_ns": 1500, "window_ns": 2500, "step_ns": 0.02}],
-}
-
 STOCK = {"xmpb": "w=2e-6", "xmnb": "w=1e-6"}
 WEAK = {"xmpb": "w=5e-7", "xmnb": "w=2.5e-7"}
-
-
-def _declare_timing(ws: Path) -> None:
-    import yaml
-    spec_p = ws / "analog" / "spec" / "spec.yaml"
-    spec = yaml.safe_load(spec_p.read_text(encoding="utf-8"))
-    spec["macro_timing"] = MACRO_TIMING
-    spec_p.write_text(yaml.safe_dump(spec, sort_keys=False), encoding="utf-8")
 
 
 def _macro_lib(ws: Path, stock: bool) -> None:
@@ -65,18 +47,19 @@ def _lib_view_loaded(ws: Path) -> None:
         if f"{MACRO}__" not in text:
             raise RuntimeError(f"plant_top_harden_weak_driver.py: {log} did "
                                f"not read a {MACRO} liberty")
-    for log in run.rglob("*.log"):
+    for log in run.glob("*-openroad-*/*.log"):  # netgen says it of empty cells
         if "black-box" in log.read_text(encoding="utf-8", errors="replace"):
             raise RuntimeError(f"plant_top_harden_weak_driver.py: {log} "
                                f"black-boxed a cell")
 
 
-def _weaken(ws: Path) -> None:
+def _weaken(ws: Path) -> str:
+    """Shrink the driver in the analog netlist; returns the stock text."""
     nets = sorted((ws / "analog" / "netlist").glob("*.cir"))
     if len(nets) != 1:
         raise RuntimeError(f"plant_top_harden_weak_driver.py: expected one "
                            f"analog netlist, found {nets}")
-    text = nets[0].read_text(encoding="utf-8")
+    text = stock = nets[0].read_text(encoding="utf-8")
     for dev, w in WEAK.items():
         pat = re.compile(rf"^({dev} {PIN} .*?){STOCK[dev]}\b", re.M)
         text, n = pat.subn(rf"\g<1>{w}", text)
@@ -84,17 +67,24 @@ def _weaken(ws: Path) -> None:
             raise RuntimeError(f"plant_top_harden_weak_driver.py: no "
                                f"{dev} {PIN} {STOCK[dev]} line to weaken")
     nets[0].write_text(text, encoding="utf-8")
+    return stock
 
 
 def plant(ws: Path) -> None:
     import check_top_harden
-    _declare_timing(ws)
-    _macro_lib(ws, stock=True)
+    # faults.macro_lib_first has run macro_lib on the untouched design
     payload, _out = check_top_harden.run(["--workspace", str(ws)])
     if payload.get("status") != "pass":
         raise RuntimeError(f"plant_top_harden_weak_driver.py: top_harden did "
                            f"not pass with the stock driver: "
                            f"{payload.get('violations')}")
     _lib_view_loaded(ws)
-    _weaken(ws)
-    _macro_lib(ws, stock=False)
+    stock = _weaken(ws)
+    try:
+        _macro_lib(ws, stock=False)
+    finally:
+        # only the characterized liberty carries the weak driver: the
+        # layout is the stock W, so a weak netlist would fail the top LVS
+        # on a property mismatch before the slew check ever ran
+        (sorted((ws / "analog" / "netlist").glob("*.cir"))[0]
+         ).write_text(stock, encoding="utf-8")

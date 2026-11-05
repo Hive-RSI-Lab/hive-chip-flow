@@ -947,6 +947,10 @@ def macro_abstract(ws: Path, analog: Path, macro: dict, top: Path) -> dict | Non
     except macrolib.Refused as exc:
         raise CheckError(str(exc)) from exc
     macro["files"].update({f"lib_{k}": v for k, v in libs.items()})
+    # a non-clock output's net is don't-touch for the resizer (#191, ttlib.
+    # dont_touch_rx); a clock's stays repairable for CTS
+    macro["dont_touch_nets"] = sorted(
+        pin for pin in mt.outputs if pin not in mt.clocks)
     return {"ceilings": ceilings}
 
 
@@ -1208,7 +1212,7 @@ def run(argv=None):
     except layoutlib.LayoutError as exc:
         raise CheckError(str(exc)) from exc
     macros = [{k: m[k] for k in ("cell", "instance", "location", "size_um",
-                                 "pins", "ua") if k in m}
+                                 "pins", "ua", "dont_touch_nets") if k in m}
               for m in spec["macros"]]
     too_big = [m for m in macros if m["location"] is None]
     tiles = ttlib.spec_tiles(spec)

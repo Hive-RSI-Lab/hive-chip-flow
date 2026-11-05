@@ -272,6 +272,26 @@ def test_macro_config_sets_the_pdn_halo_placement_counts_on(tmp_path):
         ttlib.forbidden_override_keys()
 
 
+def test_macro_output_nets_are_dont_touch_with_the_ua_and_override_rules():
+    import re
+    macro = {"cell": "a", "instance": "u_analog", "location": [1, 2],
+             "power": {"vdd": "vdd", "vss": "vss"}, "ua": {"x": 0},
+             "dont_touch_nets": ["osc_out", "q[0]"],
+             "files": {k: f"a.{k}" for k in ("gds", "lef", "vh", "spice")}}
+    rx = re.compile(ttlib.macro_config([macro])["RSZ_DONT_TOUCH_RX"])
+    assert rx.search("osc_out") and rx.search("u_analog/q[0]")
+    # synthesis names the net after the submodule that wired it
+    assert rx.search("u_sensor_counted_digital.osc_out")
+    assert rx.search("ua[3]")
+    assert not rx.search("u_analog/osc_out2") and not rx.search("my_osc_out")
+    assert not rx.search("u_analog/q[1]")
+    # a clock output (not listed) stays repairable; no macro net, no key
+    assert "RSZ_DONT_TOUCH_RX" not in ttlib.macro_config(
+        [{**macro, "ua": {}, "dont_touch_nets": []}])
+    merged = re.compile(ttlib.merge_rx("^a$", "^b$"))
+    assert merged.search("a") and merged.search("b") and not merged.search("c")
+
+
 def test_clock_port_none_when_spec_names_no_domain():
     assert ttlib.clock_port(COUNTER8_SPEC) is None
     assert ttlib.clock_port({**COUNTER8_SPEC, "clock": {"period_ns": 20}}) is None

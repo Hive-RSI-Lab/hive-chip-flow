@@ -22,6 +22,11 @@ faults:
     gate: top_harden
     plant: plant_top_harden.py
     expect: {status: fail, kind: macro_too_large}
+  # a macro driver at W/4: the top's STA must report its slew (#177, #191)
+  - name: top_harden_macro_driver_w4
+    gate: top_harden
+    plant: plant_top_harden_weak_driver.py
+    expect: {status: fail, kind: max_slew_violation}
   - name: top_drc_metal_spacing_violation
     gate: top_drc
     plant: plant_top_drc.py
