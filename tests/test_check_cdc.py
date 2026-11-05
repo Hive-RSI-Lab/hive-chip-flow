@@ -35,7 +35,8 @@ ONE_FLOP = "always @(posedge clk) begin s1 <= src; s2 <= s1 ^ other; end\n" \
 LOGIC_FIRST = "always @(posedge clk) begin s1 <= src & a; s2 <= s1; end"
 
 
-def make_ws(tmp_path, rtl, clock=TWO_CLOCKS, cdc=None) -> Path:
+def make_ws(tmp_path, rtl, clock=TWO_CLOCKS, cdc=None, tt_pins=None,
+            extra=None) -> Path:
     ws = tmp_path / "ws"
     (ws / "rtl").mkdir(parents=True)
     (ws / "spec").mkdir()
@@ -43,6 +44,9 @@ def make_ws(tmp_path, rtl, clock=TWO_CLOCKS, cdc=None) -> Path:
     spec = {"top": "top", "requirements": []}
     if clock:
         spec["clock"] = clock
+    if tt_pins:
+        spec["tt_pins"] = tt_pins
+    spec.update(extra or {})
     (ws / "spec" / "spec.yaml").write_text(yaml.safe_dump(spec),
                                            encoding="utf-8")
     if cdc is not None:
@@ -581,3 +585,171 @@ endmodule
     p = run(make_ws(tmp_path, rtl, ONE_CLOCK))
     assert p["status"] == "pass", p["violations"]
     assert p["reset_trees"] == []
+
+
+# ---- a TT tile's pad reset defaults to async (#179) ---------------------
+
+# r2r_dac's shape: the pad reset registered once, then a synchronous reset.
+PAD_RESET = """\
+module top (input wire clk, input wire rst_n, input wire [3:0] ui_in,
+            output reg [3:0] q);
+  reg rst_q, rst_q2;
+  {sample}
+  always @(posedge clk) if (!{rst}) q <= 4'd0; else q <= q + ui_in;
+endmodule
+"""
+ONE_SAMPLE = "always @(posedge clk) rst_q <= rst_n;"
+TWO_SAMPLE = "always @(posedge clk) begin rst_q <= rst_n; rst_q2 <= rst_q; end"
+TT_PINS = {"clk": "clk", "rst_n": "rst_n", "ui_in": "ui_in[3:0]",
+           "q": "uo_out[3:0]"}
+
+
+def pad_reset(sample, rst):
+    return PAD_RESET.format(sample=sample, rst=rst)
+
+
+@pytest.mark.slow
+def test_one_flop_sample_of_the_tt_pad_reset_fails(tmp_path):
+    p = run(make_ws(tmp_path, pad_reset(ONE_SAMPLE, "rst_q"), ONE_CLOCK,
+                    tt_pins=TT_PINS))
+    assert kinds(p) == ["cdc_unsynchronized"], p["violations"]
+    [c] = [c for c in p["crossings"] if c["status"] != "synchronized"]
+    assert (c["from"], c["to"]) == ("rst_n", "rst_q"), c
+    assert {"port": "rst_n", "domain": "async",
+            "source": "tt_pins: rst_n -> rst_n (the tile's pad reset)"} \
+        in p["port_domains"]
+
+
+@pytest.mark.slow
+def test_block_without_tt_pins_keeps_the_primary_default(tmp_path):
+    p = run(make_ws(tmp_path, pad_reset(ONE_SAMPLE, "rst_q"), ONE_CLOCK))
+    assert p["status"] == "pass", p["violations"]
+    assert p["port_domains"] == [] and p["assumptions"] == []
+
+
+@pytest.mark.slow
+def test_two_flop_sampler_of_the_tt_pad_reset_passes(tmp_path):
+    p = run(make_ws(tmp_path, pad_reset(TWO_SAMPLE, "rst_q2"), ONE_CLOCK,
+                    tt_pins=TT_PINS))
+    assert p["status"] == "pass", p["violations"]
+
+
+@pytest.mark.slow
+def test_explicit_port_claim_overrides_the_pad_reset_default(tmp_path):
+    p = run(make_ws(tmp_path, pad_reset(ONE_SAMPLE, "rst_q"), ONE_CLOCK,
+                    cdc={"ports": {"rst_n": "clk"}}, tt_pins=TT_PINS))
+    assert p["status"] == "pass", p["violations"]
+    assert p["port_domains"] == [
+        {"port": "rst_n", "domain": "clk", "source": "spec/cdc.yaml"}]
+
+
+@pytest.mark.slow
+def test_inverted_pad_reset_is_async_too(tmp_path):
+    text = """\
+module top (input wire clk, input wire rst, output reg q);
+  reg rst_q;
+  always @(posedge clk) rst_q <= rst;
+  always @(posedge clk) if (rst_q) q <= 1'b0; else q <= ~q;
+endmodule
+"""
+    p = run(make_ws(tmp_path, text, ONE_CLOCK,
+                    tt_pins={"clk": "clk", "rst": "~rst_n", "q": "uo_out[0]"}))
+    assert kinds(p) == ["cdc_unsynchronized"], p["violations"]
+
+
+@pytest.mark.slow
+def test_ui_in_keeps_the_primary_default_and_is_an_assumption(tmp_path):
+    p = run(make_ws(tmp_path, pad_reset(TWO_SAMPLE, "rst_q2"),
+                    {"period_ns": 20, "domains": ["clk"], "primary": "clk"},
+                    tt_pins=TT_PINS))
+    assert p["status"] == "pass", p["violations"]
+    [a] = p["assumptions"]
+    assert a.startswith("ui_in (tt_pins ui_in[3:0]) is taken as synchronous "
+                        "to clock.primary (clk)"), a
+
+
+@pytest.mark.slow
+def test_pad_reset_through_a_reset_synchroniser_still_passes(tmp_path):
+    p = run(make_ws(tmp_path, counter(SYNC2), ONE_CLOCK,
+                    tt_pins={"clk": "clk", "rst_n": "rst_n"}))
+    assert p["status"] == "pass", p["violations"]
+
+
+# ---- scope: through the generated wrapper's pad reset synchroniser -------
+
+# The counter's shape: every flop cleared straight from the block's rst_n,
+# no synchroniser of its own. Alone, rst_n async, that is an unsynced
+# release; as it ships, behind the wrapper's rst_n_sync_q1/q2, it is not.
+RAW_RESET = """\
+module top (input wire clk, input wire rst_n, input wire [3:0] ui_in,
+            output reg [3:0] q);
+  always @(posedge clk or negedge rst_n)
+    if (!rst_n) q <= 4'd0; else q <= q + ui_in;
+endmodule
+"""
+TILE_PORTS = {"ports": {"clk": {"dir": "input"}, "rst_n": {"dir": "input"},
+                        "ui_in": {"dir": "input", "width": 4},
+                        "q": {"dir": "output", "width": 4}}}
+OPT_OUT = {"pad_reset_sync": {"mode": "off", "reason": "a test, see #0"}}
+
+
+def tile(tmp_path, rtl, extra=(), cdc=None):
+    return make_ws(tmp_path, rtl, ONE_CLOCK, tt_pins=TT_PINS, cdc=cdc,
+                   extra={**TILE_PORTS, **dict(extra)})
+
+
+@pytest.mark.slow
+def test_tile_through_the_wrapper_sees_its_synchroniser(tmp_path):
+    p = run(tile(tmp_path, RAW_RESET))
+    assert p["status"] == "pass", p["violations"]
+    assert p["scope"]["scope"] == "wrapper+block", p["scope"]
+    assert p["top"] == "tt_um_top" and p["block"] == "top"
+    [sync] = [r for r in p["reset_syncs"] if r["reset"] == "rst_n"]
+    assert sync["stage_nets"][0] == "rst_n_sync_q1", sync
+    assert p["port_domains"][0]["port"] == "rst_n"
+    assert p["port_domains"][0]["domain"] == "async"
+    [a] = p["assumptions"]
+    assert a.startswith("ui_in (tt_pins ui_in[3:0])"), a
+
+
+@pytest.mark.slow
+def test_one_sample_behind_the_wrapper_passes(tmp_path):
+    # r2r_dac's shape: synchronous inside, the wrapper closed the crossing
+    p = run(tile(tmp_path, pad_reset(ONE_SAMPLE, "rst_q")))
+    assert p["status"] == "pass", p["violations"]
+    assert p["scope"]["scope"] == "wrapper+block"
+
+
+@pytest.mark.slow
+def test_opted_out_tile_rst_n_is_still_checked_as_async(tmp_path):
+    p = run(tile(tmp_path, RAW_RESET, OPT_OUT))
+    assert p["scope"]["scope"] == "block", p["scope"]
+    assert "pad_reset_sync off: a test, see #0" in p["scope"]["why"]
+    assert "rdc_unsynced_release" in kinds(p), p["violations"]
+    p = run(tile(tmp_path / "b", pad_reset(ONE_SAMPLE, "rst_q"), OPT_OUT))
+    assert kinds(p) == ["cdc_unsynchronized"], p["violations"]
+
+
+@pytest.mark.slow
+def test_waivers_keep_the_tile_in_block_scope(tmp_path):
+    p = run(tile(tmp_path, RAW_RESET, cdc={"waivers": [
+        {"reset": "rst_n", "reason": "a test"}]}))
+    assert p["scope"]["scope"] == "block", p["scope"]
+    assert "has waivers" in p["scope"]["why"]
+    assert p["status"] == "pass", p["violations"]
+    assert [w["kind"] for w in p["waived"]] == ["rdc_unsynced_release"]
+
+
+def test_scope_without_a_synchroniser_is_the_block(tmp_path):
+    ws = make_ws(tmp_path, RAW_RESET, ONE_CLOCK, tt_pins=TT_PINS)
+    spec = check_cdc.speclib.load_spec(ws / "spec" / "spec.yaml")
+    wrapped, why = check_cdc.analysis_scope(
+        spec, check_cdc.load_cdc_yaml(ws), ["clk"])
+    assert not wrapped and "the block alone" in why
+
+
+def test_scope_with_a_reasonless_opt_out_refuses(tmp_path):
+    spec = {"top": "top", "tt_pins": TT_PINS, **TILE_PORTS,
+            "pad_reset_sync": {"mode": False}}
+    with pytest.raises(check_cdc.CheckError, match="pad_reset_sync_no_reason"):
+        check_cdc.analysis_scope(spec, {"ports": {}, "waivers": []}, ["clk"])
