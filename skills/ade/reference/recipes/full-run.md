@@ -65,7 +65,7 @@ layout-fixer, who edits the generator and never the GDS.
 
 A second fresh reviewer, then H2. `set-phase P6` without `--force` is the
 proof that drc, lvs and pex_sim each have a recorded result. Then `release`
-(strict), `attest.py build`, `attest.py disposition`, the P6 digest, and
+(strict; it writes the record), `attest.py verify`, `attest.py disposition`, the P6 digest, and
 `set-phase done`. If `release` refuses, it lists every gap at once: go back
 to the phase that owns each one. Never force a phase to get past it.
 

@@ -185,9 +185,9 @@ verbs:
       - gate: release
         why: "strict - refuses rather than pass on any gap; passes once
               every gate above has a fresh recorded pass"
-      - do: "scripts/attest.py build --workspace {ws}"
-        why: "assembles reports/checks.json only once release is fresh-
-              pass; lists every miss at once otherwise"
+      - do: "scripts/attest.py verify --workspace {ws}"
+        why: "release wrote reports/checks.json; this re-checks it, read-only.
+              attest.py build refuses over a record release sealed"
       - do: "scripts/attest.py disposition --workspace {ws}"
         why: "the derived, never-hand-set release state, for H2's digest"
       - human: H2

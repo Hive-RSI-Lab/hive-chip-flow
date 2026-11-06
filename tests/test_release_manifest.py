@@ -143,6 +143,19 @@ def test_attestation_holds_the_manifest_digest(tmp_path, capsys):
     assert code == 0, out
 
 
+def test_attest_build_after_release_keeps_the_tile_verifying(tmp_path, capsys):
+    ws = make_msde_tile(tmp_path)
+    released(ws, capsys)
+    checks = ws / attest_mod.CHECKS_PATH
+    before = checks.read_text()
+    assert attest_mod.main(["build", "--workspace", str(ws)]) == 1
+    out = json.loads(capsys.readouterr().out)
+    assert out["problems"][0].startswith("sealed_record")
+    assert checks.read_text() == before
+    code, report = verify(capsys, ws, "--workspace", ws)
+    assert code == 0, report
+
+
 def test_vde_tile_gets_the_same_manifest(tmp_path, capsys, monkeypatch):
     monkeypatch.setattr(ttship, "librelane_pdk_hash", lambda *_: None)
     ws = make_vde_tile(tmp_path)
