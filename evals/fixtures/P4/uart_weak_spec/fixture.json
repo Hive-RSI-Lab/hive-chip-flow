@@ -1,0 +1,17 @@
+{
+ "version": 1,
+ "skill": "vde",
+ "block": "uart",
+ "stage": "P4",
+ "source": "uart",
+ "frozen_at": "2026-11-06T07:23:28+00:00",
+ "files": {
+  "spec/spec.md": "eef63b58e1ca952eac3e9e88ce02e6ed794a3458148ad33497f871158c823dbf",
+  "spec/spec.yaml": "7df5a8236648aab5e4e628d877ac6728bf88146f917174baa5e0ea4a30c8f864",
+  "tb/test_uart.py": "653fbb497503c9ff01fa1abd651daaa54b4432c40157e4c1d2f9583cf430925f",
+  "tb/uartmodel.py": "093356fc50082e0c42bad7aea050a491ee9e177dcc5254631fa00320602bc2e8",
+  "holdout/test_uart_holdout.py": "f27ee1b7e0915868848775c425951143e08928b0c215493f878a609be0d4f109",
+  "formal/uart_formal.sv": "3a33bd63b32131bc4a912388346ca6bacc4ae2269540bded85bbb12982ea8033",
+  "rtl/uart.v": "db2c4c3e33f0fa5b8af40f8ffe9aafcc5eecd2dd822af0fec9a90d1004ed32c0"
+ }
+}
