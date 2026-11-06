@@ -2,6 +2,8 @@
 freshness. Hermetic (pure venv: yaml)."""
 from __future__ import annotations
 
+import json
+import shutil
 import sys
 from pathlib import Path
 
@@ -151,6 +153,99 @@ def test_harden_signoff_moves_on_any_real_change(tmp_path, change):
         (b / "tt_um_top.v").write_text("module tt_um_top; endmodule\n")
     assert statelib.hash_artifact(a, "harden_signoff") != \
         statelib.hash_artifact(b, "harden_signoff")
+
+
+def _recorded_clone(tmp_path):
+    """A hardened block with its record written and its runs/ gone, as a
+    clone has it; the harden hash from before runs/ went with it."""
+    ws = tmp_path / "blk"
+    harden = _hardened(ws, "/opt/eda/foss/pdks", 1)
+    imap = statelib.load_map()
+    assert statelib.write_harden_records(ws, "vde", "harden", imap) == [
+        "harden/outputs.json"]
+    before = statelib.hash_artifact(harden, "harden_signoff")
+    shutil.rmtree(harden / "runs")
+    return harden, before
+
+
+def test_harden_record_answers_for_runs_a_clone_does_not_have(tmp_path):
+    harden, before = _recorded_clone(tmp_path)
+    assert statelib.hash_artifact(harden, "harden_signoff") == before
+
+
+def test_harden_record_never_moves_the_hash_it_holds(tmp_path):
+    harden = _hardened(tmp_path / "blk", "/opt/eda/foss/pdks", 1)
+    before = statelib.hash_artifact(harden, "harden_signoff")
+    statelib.write_harden_records(tmp_path / "blk", "vde", "harden",
+                                  statelib.load_map())
+    assert (harden / statelib.HARDEN_RECORD).is_file()
+    assert statelib.hash_artifact(harden, "harden_signoff") == before
+
+
+@pytest.mark.parametrize("edit", ["config", "wrapper", "new_file", "own",
+                                  "output", "missing", "garbage"])
+def test_harden_record_goes_stale_in_a_clone(tmp_path, edit):
+    harden, before = _recorded_clone(tmp_path)
+    record = harden / statelib.HARDEN_RECORD
+    doc = json.loads(record.read_text())
+    if edit == "config":
+        cfg = json.loads((harden / "config.json").read_text())
+        cfg["CLOCK_PERIOD"] = 99
+        (harden / "config.json").write_text(json.dumps(cfg))
+    elif edit == "wrapper":
+        (harden / "tt_um_top.v").write_text("module changed; endmodule\n")
+    elif edit == "new_file":
+        (harden / "scratch.txt").write_text("x\n")
+    elif edit == "own":
+        doc["own"] = "0" * 64
+        record.write_text(json.dumps(doc))
+    elif edit == "output":
+        doc["outputs"]["."] = "harden_signoff:" + "0" * 64
+        record.write_text(json.dumps(doc))
+    elif edit == "missing":
+        record.unlink()
+    else:
+        record.write_text("not json {")
+    assert statelib.hash_artifact(harden, "harden_signoff") != before
+
+
+def test_real_runs_are_hashed_whenever_they_exist(tmp_path):
+    """A record never speaks over real files: not for an edited output, and
+    not for a run that left an empty runs/ behind."""
+    ws = tmp_path / "blk"
+    harden = _hardened(ws, "/opt/eda/foss/pdks", 1)
+    statelib.write_harden_records(ws, "vde", "harden", statelib.load_map())
+    before = statelib.hash_artifact(harden, "harden_signoff")
+    netlist = harden / "runs" / "run" / "final" / "nl" / "top.nl.v"
+    netlist.write_text("module top; or2 u0(); endmodule\n")
+    assert statelib.hash_artifact(harden, "harden_signoff") != before
+    shutil.rmtree(harden / "runs")
+    (harden / "runs").mkdir()
+    assert statelib.hash_artifact(harden, "harden_signoff") != before
+
+
+def test_harden_record_answers_for_the_top_kinds(tmp_path):
+    ws = tmp_path / "blk"
+    imap = statelib.load_map()
+    harden = _hardened(ws / "top", "/opt/eda/foss/pdks", 1)
+    pnl = harden / "runs" / "run" / "final" / "pnl"
+    pnl.mkdir()
+    (pnl / "top.pnl.v").write_text("module top; endmodule\n")
+    assert statelib.write_harden_records(ws, "msde", "top_harden", imap) == [
+        "top/harden/outputs.json"]
+    want = {k: statelib.hash_kind(ws, k, imap)[1]
+            for k in ("top_gds", "top_pnl")}
+    assert all(want.values())
+    shutil.rmtree(harden / "runs")
+    assert {k: statelib.hash_kind(ws, k, imap)[1] for k in want} == want
+    (harden / "config.json").write_text("{}")
+    assert statelib.hash_kind(ws, "top_gds", imap)[1] is None
+
+
+def test_a_gate_that_writes_no_harden_output_has_no_record(tmp_path):
+    imap = statelib.load_map()
+    assert statelib.harden_record_targets(tmp_path, "vde", "drc", imap) == {}
+    assert statelib.write_harden_records(tmp_path, "vde", "drc", imap) == []
 
 
 def test_gds_sans_timestamps_refuses_what_is_not_gds():

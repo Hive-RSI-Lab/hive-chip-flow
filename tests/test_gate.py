@@ -197,6 +197,36 @@ def test_pass_records_into_state(tmp_path, capsys):
     assert "rtl" in data["gates"]["lint"]["last"]["inputs"]
 
 
+def _harden_gate(tmp_path: Path, ws: Path, record: str):
+    """A harden gate run with a fake check, over a block with a final/ output
+    and a record from an earlier harden."""
+    final = ws / "harden" / "runs" / "run" / "final" / "gds"
+    final.mkdir(parents=True)
+    (final / "top.gds").write_text("geometry\n")
+    (ws / "harden" / "outputs.json").write_text(record)
+    gates_yaml = tmp_path / "gates.yaml"
+    gates_yaml.write_text(FAKE_GATES_YAML.replace("lint:", "harden:"),
+                          encoding="utf-8")
+    return gate.main(["--gate", "harden", "--workspace", str(ws),
+                      "--gates", str(gates_yaml),
+                      "--checks-dir", str(make_checks_dir(tmp_path))])
+
+
+def test_a_passing_harden_writes_its_outputs_record(tmp_path, capsys):
+    ws = make_ws(tmp_path)
+    assert _harden_gate(tmp_path, ws, "old") == 0
+    doc = json.loads((ws / "harden" / "outputs.json").read_text())
+    assert doc["outputs"]["."].startswith("harden_signoff:")
+    assert doc["own"]
+
+
+def test_a_failing_harden_leaves_no_outputs_record(tmp_path, capsys):
+    ws = make_ws(tmp_path)
+    (ws / "FAIL").write_text("x")
+    assert _harden_gate(tmp_path, ws, "old") == 1
+    assert not (ws / "harden" / "outputs.json").exists()
+
+
 def test_fail_records_and_exits_1(tmp_path, capsys):
     ws = make_ws(tmp_path)
     (ws / "FAIL").write_text("x", encoding="utf-8")
