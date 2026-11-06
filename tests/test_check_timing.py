@@ -27,7 +27,8 @@ FIXTURES = REPO / "tests" / "fixtures" / "opensta"
 CLEAN_SIGNOFF = ("chipflow_check_setup_begin\n"
                  + "".join(f"chipflow_section {s}\n"
                            for s in check_timing.SIGNOFF_SECTIONS)
-                 + "chipflow_section end\n")
+                 + "chipflow_section end\n"
+                 + "chipflow_ideal_clocks_begin\nchipflow_ideal_clocks_end\n")
 CLEAN_COUNTS = ("chipflow_violation_counts slew 0 cap 0 fanout 0\n"
                 + CLEAN_SIGNOFF)
 
@@ -461,7 +462,9 @@ def _fixture(name: str) -> str:
 
 def _good_slack(text: str) -> str:
     body = [ln for ln in text.splitlines() if not ln.startswith("worst slack")]
-    return "worst slack max 7.97\nworst slack min 2.23\n" + "\n".join(body) + "\n"
+    return ("worst slack max 7.97\nworst slack min 2.23\n"
+            "chipflow_ideal_clocks_begin\nchipflow_ideal_clocks_end\n"
+            + "\n".join(body) + "\n")
 
 
 def test_parse_check_setup_reads_unclocked_and_unconstrained():
@@ -598,7 +601,7 @@ TINY2_NETLIST = """module tt_um_tiny2(input clk, input a, input en, output y, ou
  gf180mcu_fd_sc_mcu7t5v0__dffq_1 f1(.D(q0), .CLK(clk), .Q(y));
  gf180mcu_fd_sc_mcu7t5v0__dffq_1 fd(.D(qn0), .CLK(clk), .Q(div));
  gf180mcu_fd_sc_mcu7t5v0__inv_1 i0(.I(div), .ZN(qn0));
- gf180mcu_fd_sc_mcu7t5v0__dffq_1 f2(.D(q0), .CLK(div), .Q(z));
+ gf180mcu_fd_sc_mcu7t5v0__dffq_1 f2(.D(z), .CLK(div), .Q(z));
  gf180mcu_fd_sc_mcu7t5v0__and2_1 ga(.A1(clk), .A2(en), .Z(g));
  gf180mcu_fd_sc_mcu7t5v0__dffq_1 f3(.D(q0), .CLK(g), .Q(w));
 endmodule
@@ -662,6 +665,78 @@ def test_real_opensta_catches_check_setup_and_signoff_faults(
     if not setup and not signoff:
         assert r["setup_ws"] > 0 and r["hold_ws"] > 0, r
         assert check_timing.signoff_violations(r, "tt_um_tiny2", []) == []
+
+
+def _tiny2_corner(tmp_path, sdc, name="t"):
+    final = tmp_path / name / "final"
+    for sub in ("nl", "sdc", "spef/nom"):
+        (final / sub).mkdir(parents=True)
+    (final / "nl" / "tt_um_tiny2.nl.v").write_text(TINY2_NETLIST, encoding="utf-8")
+    (final / "sdc" / "t.sdc").write_text(sdc, encoding="utf-8")
+    (final / "spef" / "nom" / "tt_um_tiny2.nom.spef").write_text(
+        TINY2_SPEF, encoding="utf-8")
+    return check_timing.run_corner(final, "tt_um_tiny2", "nom_tt_025C_3v30",
+                                   check_timing._pdk_root(), tmp_path / name,
+                                   final / "sdc" / "t.sdc", "")
+
+
+@pytest.mark.slow
+def test_real_opensta_propagates_an_sdc_with_no_propagation_line(tmp_path):
+    # #145: read_current_sdc's fallback - no set_/unset_propagated_clock in
+    # the SDC means every clock is propagated, so the divider's and the
+    # clock gate's insertion delay shows in hold slack exactly as with an
+    # explicit set_propagated_clock, and not as with the clocks ideal.
+    plain = _tiny2_corner(tmp_path, tiny2_sdc(), "plain")
+    prop = _tiny2_corner(
+        tmp_path, tiny2_sdc() + "set_propagated_clock [all_clocks]\n", "prop")
+    ideal = _tiny2_corner(
+        tmp_path, tiny2_sdc() + "unset_propagated_clock [all_clocks]\n", "ideal")
+    assert plain["ideal_clocks"] == [] and prop["ideal_clocks"] == [], plain
+    assert plain["hold_ws"] == prop["hold_ws"], (plain, prop)
+    assert plain["hold_ws"] != ideal["hold_ws"], (plain, ideal)
+    assert check_timing.signoff_violations(plain, "tt_um_tiny2", []) == []
+
+
+@pytest.mark.slow
+def test_real_opensta_flags_an_ideal_clock_after_cts(tmp_path):
+    # #145: an SDC that leaves its clocks ideal is timed without skew
+    r = _tiny2_corner(tmp_path,
+                      tiny2_sdc() + "unset_propagated_clock [all_clocks]\n")
+    assert sorted(r["ideal_clocks"]) == ["clk", "div"], r
+    found = [v for v in check_timing.signoff_violations(r, "tt_um_tiny2", [])
+             if v["kind"] == "ideal_clock"]
+    assert len(found) == 1 and "clk" in found[0]["msg"], found
+
+
+@pytest.mark.slow
+def test_real_opensta_skips_a_virtual_clock(tmp_path):
+    # #145: a virtual IO clock has no source pin and is ideal on purpose
+    r = _tiny2_corner(tmp_path, tiny2_sdc()
+                      + "create_clock -name v -period 10\n"
+                      + "set_propagated_clock [get_clocks {clk div}]\n")
+    assert r["ideal_clocks"] == [], r
+    assert not [v for v in check_timing.signoff_violations(r, "tt_um_tiny2", [])
+                if v["kind"] == "ideal_clock"]
+
+
+def test_parse_ideal_clocks_needs_its_closing_marker():
+    text = ("chipflow_ideal_clocks_begin\nchipflow_ideal_clock clk\n"
+            "chipflow_ideal_clock div\nchipflow_ideal_clocks_end\n")
+    assert check_timing.parse_ideal_clocks(text) == ["clk", "div"]
+    with pytest.raises(check_timing.CheckError):
+        check_timing.parse_ideal_clocks(text.replace(
+            "chipflow_ideal_clocks_end\n", ""))
+
+
+def test_an_ideal_clock_fails_the_gate(tmp_path, monkeypatch, capsys):
+    out_text = CLEAN_COUNTS.replace(
+        "chipflow_ideal_clocks_end",
+        "chipflow_ideal_clock clk\nchipflow_ideal_clocks_end")
+    code, out = _gate(tmp_path, monkeypatch, capsys,
+                      "worst slack max 7.97\nworst slack min 2.23\n" + out_text)
+    assert code == 1, out
+    assert [v["kind"] for v in out["violations"]] == ["ideal_clock"]
+    assert out["violations"][0]["refs"] == ["clk"]
 
 
 # #195: one flop with an asynchronous active-low reset straight from a pad,

@@ -176,7 +176,7 @@ gates:
     timing:
       phase: P6
       tool: timing
-      strength: 1
+      strength: 2
       fail_severities: [error]
       max_count: 0
       fault: "a chain that misses the spec's clock"
@@ -185,7 +185,9 @@ gates:
         slew violations; check_setup clean (no unclocked register,
         unconstrained endpoint, unreachable generated clock or
         combinational loop); no min pulse width, min period or clock
-        gating violation.
+        gating violation; no clock left ideal after CTS (an SDC with no
+        set_/unset_propagated_clock line is propagated, as LibreLane
+        reads it).
     drc:
       phase: P6
       tool: drc
