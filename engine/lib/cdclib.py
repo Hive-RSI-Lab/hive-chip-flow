@@ -85,6 +85,7 @@ class Flop:
     latch: bool = False
     reset_pins: list = field(default_factory=list)  # ASYNC_PINS less load data
     reset_value: str | None = None   # a plain one-reset flop's reset state
+    enable: int | None = None        # a yosys enable flop's E pin
 
 
 @dataclass
@@ -124,6 +125,7 @@ class Netlist:
         self.icgs: dict[int, int] = {}       # Q bit -> CLK bit
         self.macros: dict[int, str] = {}     # output bit -> "inst.pin"
         self.loads: dict[int, list] = {}     # bit -> [(kind, owner)]
+        self.cells: dict[int, tuple] = {}    # output bit -> (name, type, conn)
         for name, cell in (module.get("cells") or {}).items():
             self._add_cell(name.lstrip("\\"), cell)
 
@@ -131,6 +133,11 @@ class Netlist:
         typ = cell["type"].lstrip("\\")
         conn = cell.get("connections") or {}
         dirs = cell.get("port_directions") or {}
+        for pin, bits in conn.items():
+            if dirs.get(pin) == "output":
+                for b in bits:
+                    if b not in CONST:
+                        self.cells[b] = (name, typ, conn)
 
         def bit(pin):
             bits = conn.get(pin) or []
@@ -151,7 +158,8 @@ class Netlist:
                                           bit("CLK") or bit("CLKN"))
             data = pins(("D",) + SCAN_PINS + (() if latch else ("E",)))
             ff = Flop(name, bit("Q"), clk, negedge, data, pins(ASYNC_PINS),
-                      latch, pins(RESET_PINS), self._reset_value(typ))
+                      latch, pins(RESET_PINS), self._reset_value(typ),
+                      bit("E") if m and not latch else None)
             if ff.q is not None and ff.q not in CONST:
                 self.flops[ff.q] = ff
             self._read(ff.clk, ("clock", ff))
@@ -516,6 +524,198 @@ class Analysis:
                 and nxt.negedge == ff.negedge)
         return nxt if same else None
 
+    # ---- buses (#168) ----------------------------------------------------
+
+    def _bus_key(self, leaf) -> str:
+        """The source bus a crossing bit belongs to: a register or port with
+        its index dropped, unless port_domains names that one bit (then the
+        bit is a signal of its own)."""
+        nl = self.nl
+        if leaf in nl.in_ports:
+            label = nl.in_ports[leaf]
+            return label if label in self.port_domains else base_name(label)
+        if leaf in nl.macros:
+            return base_name(nl.macros[leaf])
+        return base_name(nl.label(leaf))
+
+    def _group_key(self, leaf, dom) -> str:
+        """What a crossing bit's timing is relative to: its source domain,
+        or one async port (a bit port_domains names, or the whole port).
+        Bits in one group can change in the same source cycle."""
+        nl = self.nl
+        if leaf in nl.in_ports and self.port_domain(nl.in_ports[leaf]) == \
+                "async":
+            return "async:" + self._bus_key(leaf)
+        return ",".join(sorted(dom))
+
+    def sync_chains(self) -> dict:
+        """{last stage Q bit: chain} for every data synchroniser: a flop
+        reading one other-domain source through no logic whose Q feeds a
+        clean chain (sync_stages > 0). The last stage is where the chain's
+        value enters its domain."""
+        if getattr(self, "_chains", None) is not None:
+            return self._chains
+        nl = self.nl
+        out = {}
+        for ff in nl.flops.values():
+            if ff.latch:
+                continue
+            dst = self.domains[ff.q]
+            for pin in ff.data[:1]:
+                leaves, logic = nl.cone(pin)
+                if logic or len(leaves) != 1:
+                    continue
+                leaf = next(iter(leaves))
+                dom = self.source_domain(leaf)
+                if not dom or dom == dst or not self.sync_stages(ff):
+                    continue
+                last, seen = ff, set()
+                while last.q not in seen:
+                    seen.add(last.q)
+                    nxt = self._only_flop_load(last)
+                    if nxt is None:
+                        break
+                    last = nxt
+                out[last.q] = {"leaf": leaf, "first": ff.q, "last": last.q,
+                               "src_dom": dom, "dst_dom": dst,
+                               "bus": self._bus_key(leaf),
+                               "group": self._group_key(leaf, dom)}
+        self._chains = out
+        return out
+
+    def _select_ok(self, sel_bits, dst_dom, group) -> bool:
+        """A select (or enable) that only the destination domain drives and
+        that reads a synchroniser of the data's own group: a req/ack or
+        mux-enable that says when the data is stable."""
+        nl = self.nl
+        chains = self.sync_chains()
+        hit = False
+        for s in sel_bits:
+            leaves, _ = nl.cone(s)
+            for leaf in leaves:
+                ch = chains.get(leaf)
+                if ch and ch["group"] == group and ch["dst_dom"] == dst_dom:
+                    hit = True
+                    continue
+                dom = self.source_domain(leaf)
+                if dom is None or (dom and dom != dst_dom):
+                    return False
+        return hit
+
+    def _qualified(self, leaf, ff: Flop, pin, src_dom) -> bool:
+        """The crossing bit `leaf` reaches `pin` only through a mux whose
+        select, or a flop enable that, _select_ok qualifies."""
+        nl = self.nl
+        dst = self.domains[ff.q]
+        group = self._group_key(leaf, src_dom)
+        if ff.enable is not None and ff.data and pin == ff.data[0] and \
+                self._select_ok([ff.enable], dst, group):
+            return True
+        stack, seen = [pin], set()
+        while stack:
+            b = stack.pop()
+            if b in CONST or b is None or b in seen:
+                continue
+            seen.add(b)
+            if b == leaf:
+                return False
+            c = nl.combs.get(b)
+            if c is None:
+                continue
+            if c.kind == "mux" and c.select and \
+                    self._select_ok(c.select, dst, group):
+                continue
+            stack.extend(c.inputs + c.select)
+        return True
+
+    def bus_findings(self) -> tuple[list, list, list]:
+        """(multibit, reconvergence, bus reports).
+
+        multibit: a source bus whose bits are synchronised one by one into
+        one domain, two or more bits, and prove_gray can't show at most one
+        bit changes per source clock: the receiver can see a value the
+        source never held.
+
+        reconvergence: one flop's D cone reads the last stages of two or
+        more synchronisers of different source buses in one group (bits
+        that can change in the same source cycle): each settles on its own
+        cycle, so the logic sees a mix. Bits of ONE bus meeting again are
+        the multibit rule's. Only the direct cone is read, not a path that
+        passes through another flop first."""
+        nl = self.nl
+        chains = self.sync_chains()
+        buses: dict[tuple, dict] = {}
+        for ch in chains.values():
+            dst = ",".join(sorted(ch["dst_dom"]))
+            g = buses.setdefault((ch["bus"], dst), {
+                "bus": ch["bus"], "from_domain": sorted(ch["src_dom"]),
+                "to_domain": sorted(ch["dst_dom"]), "leaves": set(),
+                "to": set(), "from_aliases": set(), "to_aliases": set()})
+            g["leaves"].add(ch["leaf"])
+            g["to"].add(base_name(nl.label(ch["last"])))
+            g["from_aliases"].update(base_name(a)
+                                     for a in nl.aliases(ch["leaf"]))
+            for q in (ch["first"], ch["last"]):
+                g["to_aliases"].update(base_name(a) for a in nl.aliases(q))
+
+        def order(bits):
+            def k(b):
+                m = re.search(r"\[(\d+)\]$", nl.label(b))
+                return (base_name(nl.label(b)), int(m.group(1)) if m else -1)
+            return sorted(bits, key=k)
+
+        multibit, reports = [], []
+        for (bus, _), g in sorted(buses.items()):
+            if len(g["leaves"]) < 2:
+                continue
+            proof = prove_gray(nl, order(g["leaves"]))
+            row = {"bus": bus, "from": bus, "to": ", ".join(sorted(g["to"])),
+                   "from_domain": g["from_domain"],
+                   "to_domain": g["to_domain"], "bits": len(g["leaves"]),
+                   "from_aliases": sorted(g["from_aliases"]),
+                   "to_aliases": sorted(g["to_aliases"]), "gray": proof}
+            reports.append(row)
+            if not proof["proven"]:
+                multibit.append(row)
+
+        reconv: dict[tuple, dict] = {}
+        for ff in nl.flops.values():
+            dst = self.domains[ff.q]
+            for pin in ff.data:
+                leaves, _ = nl.cone(pin)
+                by_group: dict[str, list] = {}
+                for leaf in leaves:
+                    ch = chains.get(leaf)
+                    if ch and ch["dst_dom"] == dst:
+                        by_group.setdefault(ch["group"], []).append(ch)
+                for group, chs in by_group.items():
+                    names = sorted({ch["bus"] for ch in chs})
+                    if len(names) < 2:
+                        continue
+                    key = (group, base_name(nl.label(ff.q)), tuple(names))
+                    r = reconv.setdefault(key, {
+                        "group": group, "buses": names,
+                        "from": ", ".join(names),
+                        "to": base_name(nl.label(ff.q)),
+                        "from_domain": sorted(chs[0]["src_dom"]),
+                        "to_domain": sorted(dst),
+                        "synchronisers": set(), "from_aliases": set(),
+                        "to_aliases": set(), "bits": 0})
+                    r["bits"] += 1
+                    for ch in chs:
+                        r["synchronisers"].add(base_name(nl.label(ch["last"])))
+                        r["from_aliases"].update(
+                            base_name(a) for a in nl.aliases(ch["leaf"]))
+                    r["to_aliases"].update(base_name(a)
+                                           for a in nl.aliases(ff.q))
+        recon = []
+        for r in reconv.values():
+            for k in ("synchronisers", "from_aliases", "to_aliases"):
+                r[k] = sorted(r[k])
+            recon.append(r)
+        recon.sort(key=lambda r: (r["to"], r["from"]))
+        return multibit, recon, reports
+
     def crossings(self) -> tuple[list, list]:
         """(crossings, input ports with no domain). One crossing per source
         bus, destination bus and status."""
@@ -555,7 +755,11 @@ class Analysis:
                 status = ("synchronized" if stages and direct else
                           "comb_before_sync" if stages else "unsynchronized")
                 for leaf, dom in crossing:
-                    add(status, leaf, ff, dst_dom, dom, stages + 1)
+                    if status != "synchronized" and \
+                            self._qualified(leaf, ff, pin_bit, dom):
+                        add("qualified", leaf, ff, dst_dom, dom, stages + 1)
+                    else:
+                        add(status, leaf, ff, dst_dom, dom, stages + 1)
             for pin_bit in ff.resets:
                 leaves, _ = nl.cone(pin_bit)
                 if ff.q in self.sync_stages_of:
@@ -773,3 +977,300 @@ class Analysis:
 
 def waiver_matches(waiver: dict, names: list[str], key: str) -> bool:
     return any(fnmatchcase(n, waiver[key]) for n in names)
+
+
+# ---- gray proof (#168) ---------------------------------------------------
+
+GRAY_MAX_STATE = 24      # flops kept as state in the bus's cone of influence
+GRAY_MAX_FREE = 10       # free inputs, all 2**N values tried in each state
+GRAY_MAX_UNINIT = 8      # state flops with no async reset, started both ways
+GRAY_MAX_STATES = 1 << 14    # reachable states explored
+
+_FF_TYPE = re.compile(r"^\$_(DFF|DFFE|SDFF|SDFFE|SDFFCE|DFFSR|DFFSRE|ALDFF|"
+                      r"ALDFFE)_([PN01]+)_$")
+
+
+def _mux(a, b, s, full):
+    return (a & (full ^ s)) | (b & s)
+
+
+_GATE_EVAL = {
+    "$_BUF_": lambda v, f: v["A"],
+    "$_NOT_": lambda v, f: f ^ v["A"],
+    "$_AND_": lambda v, f: v["A"] & v["B"],
+    "$_NAND_": lambda v, f: f ^ (v["A"] & v["B"]),
+    "$_OR_": lambda v, f: v["A"] | v["B"],
+    "$_NOR_": lambda v, f: f ^ (v["A"] | v["B"]),
+    "$_XOR_": lambda v, f: v["A"] ^ v["B"],
+    "$_XNOR_": lambda v, f: f ^ v["A"] ^ v["B"],
+    "$_ANDNOT_": lambda v, f: v["A"] & (f ^ v["B"]),
+    "$_ORNOT_": lambda v, f: v["A"] | (f ^ v["B"]),
+    "$_MUX_": lambda v, f: _mux(v["A"], v["B"], v["S"], f),
+    "$_NMUX_": lambda v, f: f ^ _mux(v["A"], v["B"], v["S"], f),
+    "$_AOI3_": lambda v, f: f ^ ((v["A"] & v["B"]) | v["C"]),
+    "$_OAI3_": lambda v, f: f ^ ((v["A"] | v["B"]) & v["C"]),
+    "$_AOI4_": lambda v, f: f ^ ((v["A"] & v["B"]) | (v["C"] & v["D"])),
+    "$_OAI4_": lambda v, f: f ^ ((v["A"] | v["B"]) & (v["C"] | v["D"])),
+    "$_MUX4_": lambda v, f: _mux(_mux(v["A"], v["B"], v["S"], f),
+                                 _mux(v["C"], v["D"], v["S"], f), v["T"], f),
+}
+
+
+def _ff_model(typ: str):
+    """(next-state pins, next(vals, q, full), async reset value or None) for
+    a yosys flop type; None for one this can't simulate (latches, library
+    cells). Async set/reset/load pins are not modelled: see prove_gray."""
+    m = _FF_TYPE.match(typ)
+    if not m:
+        return None
+    kind, pol = m.groups()
+
+    def act(v, pin, p, full):
+        return v[pin] if p == "P" else full ^ v[pin]
+
+    if kind == "DFF" and len(pol) in (1, 3):
+        return ("D",), (lambda v, q, f: v["D"]), \
+            (pol[2] if len(pol) == 3 else None)
+    if kind == "DFFE" and len(pol) in (2, 4):
+        e = pol[-1]
+        return ("D", "E"), (lambda v, q, f: _mux(q, v["D"], act(
+            v, "E", e, f), f)), (pol[2] if len(pol) == 4 else None)
+    if kind in ("SDFF", "SDFFE", "SDFFCE"):
+        r, val = pol[1], pol[2]
+        rv = (lambda f: f) if val == "1" else (lambda f: 0)
+        if kind == "SDFF":
+            return ("D", "R"), (lambda v, q, f: _mux(
+                v["D"], rv(f), act(v, "R", r, f), f)), None
+        e = pol[3]
+        if kind == "SDFFE":
+            return ("D", "R", "E"), (lambda v, q, f: _mux(
+                _mux(q, v["D"], act(v, "E", e, f), f), rv(f),
+                act(v, "R", r, f), f)), None
+        return ("D", "R", "E"), (lambda v, q, f: _mux(
+            q, _mux(v["D"], rv(f), act(v, "R", r, f), f),
+            act(v, "E", e, f), f)), None
+    if kind in ("DFFSR", "ALDFF"):
+        return ("D",), (lambda v, q, f: v["D"]), None
+    if kind in ("DFFSRE", "ALDFFE"):
+        e = pol[-1]
+        return ("D", "E"), (lambda v, q, f: _mux(q, v["D"], act(
+            v, "E", e, f), f)), None
+    return None
+
+
+def _lane_pattern(k: int, lanes: int) -> int:
+    """Lane j holds bit k of j."""
+    period = 1 << (k + 1)
+    unit = ((1 << (1 << k)) - 1) << (1 << k)
+    out = 0
+    for p in range(lanes // period):
+        out |= unit << (p * period)
+    return out
+
+
+def prove_gray(nl: Netlist, bus: list) -> dict:
+    """Whether the flops `bus` (Q bits) change at most one bit per clock, in
+    every state reachable from reset. Explicit-state: the state is the flops
+    on the bus's clock net and edge in its cone of influence; everything else
+    it reads (ports, other domains, macros, x) is a free input, every value
+    tried each cycle. A state flop whose next state reads only free inputs
+    (a synchroniser stage, say) is made free too, until none is left: more
+    behaviours than the real design has, so a proof holds and a failure may
+    be a false alarm. Start: each flop with an async reset at its reset
+    value, every other flop at every value. Async set/reset/load is not
+    modelled once running: a reset drops the bus to its reset value, which
+    the receiving side has to handle anyway.
+
+    {"proven": bool, "why": str, "states": n, "example": [from, to]?}.
+    Anything it can't model (a latch, a library cell, a bus bit that is a
+    port, too many flops or inputs) is not proven, never proven."""
+    def fail(why, **extra):
+        return {"proven": False, "why": why, **extra}
+
+    if not bus:
+        return fail("no bus bits")
+    key = None
+    for b in bus:
+        ff = nl.flops.get(b)
+        if ff is None:
+            return fail(f"{nl.label(b)} is not a flop: a port or macro pin "
+                        "can't be proven gray")
+        k = (nl.canon(ff.clk), ff.negedge)
+        if key is not None and k != key:
+            return fail("the bus's bits are on different clocks or edges")
+        key = k
+
+    def model(q):
+        name, typ, conn = nl.cells[q]
+        return name, typ, conn, _ff_model(typ)
+
+    forced_free: set = set()
+    while True:
+        state, free, combs = list(bus), [], []
+        state_set, free_set, seen = set(bus), set(), set()
+        reads: dict[int, set] = {}
+        i = 0
+        while i < len(state):
+            q = state[i]
+            i += 1
+            name, typ, conn, mdl = model(q)
+            if mdl is None:
+                return fail(f"flop {name} ({typ}) can't be simulated")
+            support = set()
+            stack = [(conn[p][0], q) for p in mdl[0]]
+            local_seen = set()
+            while stack:
+                b, owner = stack.pop()
+                if b in CONST:
+                    if b in ("x", "z"):
+                        support.add(("x", owner))
+                    continue
+                if b in local_seen:
+                    continue
+                local_seen.add(b)
+                ff = nl.flops.get(b)
+                cell = nl.cells.get(b)
+                if ff is not None:
+                    same = (not ff.latch and b not in forced_free and
+                            (nl.canon(ff.clk), ff.negedge) == key and
+                            _ff_model(cell[1]) is not None)
+                    if same:
+                        support.add(b)
+                        if b not in state_set:
+                            state_set.add(b)
+                            state.append(b)
+                    else:
+                        support.add(("free", b))
+                    continue
+                if cell is None or cell[1] not in _GATE_EVAL:
+                    if cell is not None and cell[1].startswith("$_") and \
+                            b not in nl.macros:
+                        return fail(f"cell {cell[0]} ({cell[1]}) can't be "
+                                    "simulated")
+                    support.add(("free", b))
+                    continue
+                if b not in seen:
+                    seen.add(b)
+                    combs.append(b)
+                stack.extend((bits[0], b) for pin, bits in cell[2].items()
+                             if pin != "Y" and bits)
+            reads[q] = support
+        cut = {q for q in state if q not in bus and
+               all(isinstance(s, tuple) for s in reads[q])}
+        if not cut:
+            break
+        forced_free |= cut
+    for q in state:
+        for s in reads[q]:
+            if isinstance(s, tuple) and s not in free_set:
+                free_set.add(s)
+                free.append(s)
+    if len(state) > GRAY_MAX_STATE:
+        return fail(f"{len(state)} flops in its cone of influence, over "
+                    f"{GRAY_MAX_STATE}")
+    if len(free) > GRAY_MAX_FREE:
+        return fail(f"{len(free)} free inputs, over {GRAY_MAX_FREE}")
+
+    # comb cells in evaluation order
+    order, done = [], set()
+    for root in combs:
+        stack = [(root, False)]
+        while stack:
+            b, expanded = stack.pop()
+            if b in done:
+                continue
+            if expanded:
+                done.add(b)
+                order.append(b)
+                continue
+            stack.append((b, True))
+            for pin, bits in nl.cells[b][2].items():
+                if pin != "Y" and bits and bits[0] in nl.cells and \
+                        bits[0] not in nl.flops and bits[0] not in done and \
+                        nl.cells[bits[0]][1] in _GATE_EVAL:
+                    stack.append((bits[0], False))
+    lanes = 1 << len(free)
+    full = (1 << lanes) - 1
+    free_val = {}
+    for k, s in enumerate(free):
+        free_val[s] = _lane_pattern(k, lanes)
+    models = [model(q) for q in state]
+    index = {q: j for j, q in enumerate(state)}
+    xbits = {s[1]: free_val[s] for s in free if s[0] == "x"}
+
+    def value(b, vals, owner):
+        if b == "0":
+            return 0
+        if b == "1":
+            return full
+        if b in ("x", "z"):
+            return xbits.get(owner, 0)
+        if b in index:
+            return vals[b]
+        if ("free", b) in free_val:
+            return free_val[("free", b)]
+        return vals[b]
+
+    uninit = [j for j, m in enumerate(models) if m[3][2] is None]
+    if len(uninit) > GRAY_MAX_UNINIT:
+        return fail(f"{len(uninit)} flops with no async reset in its cone, "
+                    f"over {GRAY_MAX_UNINIT}")
+    base = sum(1 << j for j, m in enumerate(models) if m[3][2] == "1")
+    start = []
+    for n in range(1 << len(uninit)):
+        st = base
+        for t, j in enumerate(uninit):
+            if n >> t & 1:
+                st |= 1 << j
+        start.append(st)
+    bus_idx = [index[b] for b in bus]
+
+    def bus_value(st):
+        return "".join("1" if st >> j & 1 else "0" for j in reversed(bus_idx))
+
+    seen_st, queue = set(start), list(start)
+    while queue:
+        st = queue.pop()
+        vals = {q: (full if st >> j & 1 else 0) for j, q in enumerate(state)}
+        for b in order:
+            _, typ, conn = nl.cells[b]
+            vals[b] = _GATE_EVAL[typ](
+                {p: value(bits[0], vals, b) for p, bits in conn.items()
+                 if p != "Y" and bits}, full)
+        nxt = []
+        for j, q in enumerate(state):
+            _, _, conn, mdl = models[j]
+            pins = {p: value(conn[p][0], vals, q) for p in mdl[0]}
+            nxt.append(mdl[1](pins, vals[q], full) & full)
+        one = two = 0
+        for j in bus_idx:
+            d = vals[state[j]] ^ nxt[j]
+            two |= one & d
+            one |= d
+        if two:
+            lane = (two & -two).bit_length() - 1
+            to = sum(1 << j for j in range(len(state)) if nxt[j] >> lane & 1)
+            return fail("two or more bits change in one clock",
+                        states=len(seen_st),
+                        example=[bus_value(st), bus_value(to)])
+        parts = [(full, 0)]
+        for j in range(len(state)):
+            m = nxt[j]
+            split = []
+            for lanes_p, s in parts:
+                hi = lanes_p & m
+                if hi:
+                    split.append((hi, s | 1 << j))
+                if lanes_p ^ hi:
+                    split.append((lanes_p ^ hi, s))
+            parts = split
+        for _, s in parts:
+            if s not in seen_st:
+                seen_st.add(s)
+                if len(seen_st) > GRAY_MAX_STATES:
+                    return fail(f"over {GRAY_MAX_STATES} reachable states")
+                queue.append(s)
+    return {"proven": True, "states": len(seen_st),
+            "why": f"at most one bit changes per clock in all "
+                   f"{len(seen_st)} reachable states ({len(state)} flops, "
+                   f"{len(free)} free inputs)"}

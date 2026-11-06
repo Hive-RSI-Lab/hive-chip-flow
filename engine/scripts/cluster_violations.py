@@ -153,6 +153,8 @@ FIXER_HINTS: dict[str, str] = {
     "combinational_loop": "rtl",
     # cdc: the RTL's to fix. A waiver is the person's, never a fixer's.
     "cdc_unsynchronized": "rtl",
+    "cdc_multibit_unsafe": "rtl",
+    "cdc_reconvergence": "rtl",
     "cdc_comb_before_sync": "rtl",
     "cdc_async_reset_crossing": "rtl",
     "cdc_glitchy_clock_gate": "rtl",

@@ -10,6 +10,8 @@ whose docstring has the rules. Findings:
 
   cdc_unsynchronized        a flop samples another domain, no 2-flop chain
   cdc_comb_before_sync      a synchroniser with logic ahead of its first flop
+  cdc_multibit_unsafe       a bus synchronised bit by bit, not proven gray
+  cdc_reconvergence         separate synchronisers of one source meet in logic
   cdc_async_reset_crossing  a flop's async set/reset reads another domain's flop
   cdc_glitchy_clock_gate    logic on a clock with no glitch-free structure
   cdc_glitchy_clock_mux     a clock mux
@@ -76,9 +78,20 @@ NOT CHECKED is its own answer (`applicable: false`, status not_applicable),
 never clean. No sequential cell: nothing to check. Sequential cells but no
 `clock.domains` in spec.yaml: domains can't be anchored, and release still owes this
 gate (attest.py), since only the first is a declared exception. Out of scope,
-named in the report's `not_checked`: bus coherence (gray, handshake, MCP),
-reconvergence of separately synchronised bits, and the reset items in
-NOT_CHECKED below.
+named in the report's `not_checked`: whether qualified data really is held
+stable, reconvergence past a further flop, and the reset items in NOT_CHECKED
+below.
+
+Buses (#168, cdclib.Analysis.bus_findings). A bus synchronised bit by bit is
+cdc_multibit_unsafe unless cdclib.prove_gray proves, from the netlist, that
+at most one of its bits changes per source clock: nothing declares a bus gray.
+The report's `buses` has each proof (states explored, or why it failed, with
+an example step). A crossing that enters its domain only through a mux whose
+select (or a flop whose enable) is driven by that domain alone and reads a
+synchroniser of the same source is `qualified` (a req/ack handshake or a
+mux-enable crossing), not cdc_unsynchronized. Separate synchronisers of
+different buses from one source meeting in one flop's D cone are
+cdc_reconvergence. Both take {from, to} waivers like a crossing.
 
 Second view: the same netlist mapped to the liberty goes to OpenSTA with a
 clock on each root port, and `all_registers -clock` must count the flops
@@ -110,8 +123,9 @@ SCRIPT = "check_cdc"
 EDA_BIN = REPO / "bin" / "eda"
 TIMEOUT_S = 600.0
 CDC_REL = "spec/cdc.yaml"
-NOT_CHECKED = ["bus coherence (gray, handshake, multi-cycle)",
-               "reconvergence of separately synchronised bits",
+NOT_CHECKED = ["that data a handshake or mux-enable qualifies is held "
+               "stable at its source while the enable is seen",
+               "reconvergence after a further flop in the destination domain",
                "reset release order between domains",
                "recovery/removal timing of a synchronised release (STA's)",
                "a data path from a flop with no reset into a flop with one",
@@ -519,7 +533,7 @@ def run(argv=None):
 
     open_items = []
     for c in crossings:
-        if c["status"] == "synchronized":
+        if c["status"] in ("synchronized", "qualified"):
             continue
         open_items.append(finding(
             CROSSING_KINDS[c["status"]],
@@ -547,6 +561,21 @@ def run(argv=None):
                         f"domain {where}: unknown until its first clock",
         }[r["kind"]]
         open_items.append(finding(RESET_KINDS[r["kind"]], text, reset=r))
+    multibit, reconvergence, buses = an.bus_findings()
+    for b in multibit:
+        open_items.append(finding(
+            "cdc_multibit_unsafe",
+            f"bus {b['from']} ({'/'.join(b['from_domain'])}) -> {b['to']} "
+            f"({'/'.join(b['to_domain'])}): {b['bits']} bits synchronised "
+            f"one by one, not proven gray ({b['gray']['why']}): the receiver "
+            "can see a value the source never held", crossing=b))
+    for r in reconvergence:
+        open_items.append(finding(
+            "cdc_reconvergence",
+            f"{r['to']} ({'/'.join(r['to_domain'])}) reads "
+            f"{', '.join(r['synchronisers'])}, separate synchronisers of "
+            f"{r['from']} ({'/'.join(r['from_domain'])}): each settles on "
+            "its own cycle, so the logic can see a mix", crossing=r))
     still, waived, unused = apply_waivers(open_items, cfg["waivers"])
     for f in still:
         extra = {k: f[k] for k in ("crossing", "gate", "reset") if k in f}
@@ -591,7 +620,8 @@ def run(argv=None):
         SCRIPT, ws / "rtl", violations, top=top, applicable=True, checked=True,
         domains=an.all_roots, clocks=an.clocks(), crossings=crossings,
         clock_gates=gates, reset_trees=reset_trees,
-        reset_syncs=an.reset_syncs(), waived=waived, crosscheck=xcheck,
+        reset_syncs=an.reset_syncs(), buses=buses,
+        reconvergence=reconvergence, waived=waived, crosscheck=xcheck,
         port_domains=port_rows, assumed_ports=sorted(an.assumed),
         assumptions=assumptions, scope=scope,
         block=block_top,

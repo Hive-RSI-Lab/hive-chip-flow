@@ -149,7 +149,7 @@ gates:
     cdc:
       phase: P5
       tool: cdc
-      strength: 1
+      strength: 2
       fail_severities: [error]
       max_count: 0
       fault: "a flop sampling another clock domain with no synchroniser"
@@ -157,8 +157,10 @@ gates:
         Clock domains inferred from the netlist; every crossing synchronised
         by a clean 2-flop chain, every clock gate glitch-free and every async
         reset's release through a reset synchroniser in each domain it resets,
-        or waived with a reason in spec/cdc.yaml. No sequential cell or no clock info
-        is not applicable, never clean.
+        no bus synchronised bit by bit unless proven gray, and no separately
+        synchronised bits of one source reconverging, or waived with a reason
+        in spec/cdc.yaml. A handshake or mux-enable crossing is recognised.
+        No sequential cell or no clock info is not applicable, never clean.
     harden:
       phase: P6
       tool: harden

@@ -860,3 +860,232 @@ def test_issue169_async_comparator_needs_two_flops(tmp_path, tap, want):
     assert after["assumed_ports"] == []
     assert kinds(after) == want, after["violations"]
     assert after["status"] == ("violations" if want else "pass")
+
+
+# ---- buses and reconvergence (#168) --------------------------------------
+
+# a 4-bit count in clk2, each bit synchronised on its own into clk. {NEXT}
+# is what the synchronised register holds: the binary count or its gray code.
+BUS_COUNTER = """\
+module top (input wire clk, input wire clk2, input wire rst_n,
+            input wire inc, output wire [3:0] y);
+  reg [3:0] bin, tx, s1, s2;
+  wire [3:0] bin_next = bin + {{3'd0, inc}};
+  always @(posedge clk2 or negedge rst_n)
+    if (!rst_n) begin bin <= 0; tx <= 0; end
+    else begin bin <= bin_next; tx <= {next}; end
+  always @(posedge clk) begin s1 <= tx; s2 <= s1; end
+  assign y = s2;
+endmodule
+"""
+CLK2_ASYNC_RST = {"ports": {"rst_n": "async", "inc": "clk2"},
+                  "waivers": [{"reset": "rst_n", "reason":
+                               "test: the bus rules are what's under test"}]}
+
+
+@pytest.mark.slow
+def test_a_binary_counter_synchronised_bit_by_bit_fails(tmp_path):
+    p = run(make_ws(tmp_path, BUS_COUNTER.format(next="bin_next"),
+                    cdc=CLK2_ASYNC_RST))
+    assert kinds(p) == ["cdc_multibit_unsafe"], p["violations"]
+    bus = p["violations"][0]["crossing"]
+    assert (bus["from"], bus["bits"], bus["gray"]["proven"]) == ("tx", 4,
+                                                                  False)
+    a, b = bus["gray"]["example"]
+    assert sum(x != y for x, y in zip(a, b)) >= 2
+
+
+@pytest.mark.slow
+def test_its_gray_coded_twin_is_proven_and_passes(tmp_path):
+    p = run(make_ws(tmp_path, BUS_COUNTER.format(
+        next="bin_next ^ (bin_next >> 1)"), cdc=CLK2_ASYNC_RST))
+    assert p["status"] == "pass", p["violations"]
+    assert [(b["bus"], b["gray"]["proven"]) for b in p["buses"]] == [
+        ("tx", True)]
+
+
+@pytest.mark.slow
+def test_a_multibit_finding_takes_a_crossing_waiver(tmp_path):
+    cdc = {**CLK2_ASYNC_RST, "waivers": CLK2_ASYNC_RST["waivers"] + [
+        {"from": "tx", "to": "s*", "reason": "test"}]}
+    p = run(make_ws(tmp_path, BUS_COUNTER.format(next="bin_next"), cdc=cdc))
+    assert p["status"] == "pass", p["violations"]
+    assert "cdc_multibit_unsafe" in [w["kind"] for w in p["waived"]]
+
+
+# a gray write pointer of an async FIFO (the known answer: clean), its
+# binary twin and its full flag reading the synchronised read pointer
+FIFO_PTR = """\
+module top (input wire clk, input wire clk2, input wire rst_n,
+            input wire winc, input wire rinc, output wire empty_o);
+  reg [4:0] wbin, wgray, rq1, rq2, rbin, rgray, wq1, wq2;
+  wire full = (wgray == {{~rq2[4:3], rq2[2:0]}});
+  wire empty = (rgray == wq2);
+  wire [4:0] wbin_next = wbin + {{4'd0, winc & ~full}};
+  wire [4:0] rbin_next = rbin + {{4'd0, rinc & ~empty}};
+  always @(posedge clk2 or negedge rst_n)
+    if (!rst_n) begin wbin <= 0; wgray <= 0; rq1 <= 0; rq2 <= 0; end
+    else begin
+      wbin <= wbin_next; wgray <= {next};
+      rq1 <= rgray; rq2 <= rq1;
+    end
+  always @(posedge clk or negedge rst_n)
+    if (!rst_n) begin rbin <= 0; rgray <= 0; wq1 <= 0; wq2 <= 0; end
+    else begin
+      rbin <= rbin_next; rgray <= (rbin_next >> 1) ^ rbin_next;
+      wq1 <= wgray; wq2 <= wq1;
+    end
+  assign empty_o = empty;
+endmodule
+"""
+FIFO_CDC = {"ports": {"rst_n": "async", "winc": "clk2", "rinc": "clk"},
+            "waivers": CLK2_ASYNC_RST["waivers"]}
+
+
+@pytest.mark.slow
+def test_an_async_fifo_gray_pointer_is_proven(tmp_path):
+    p = run(make_ws(tmp_path, FIFO_PTR.format(
+        next="(wbin_next >> 1) ^ wbin_next"), cdc=FIFO_CDC))
+    assert p["status"] == "pass", p["violations"]
+    assert sorted((b["bus"], b["gray"]["proven"]) for b in p["buses"]) == [
+        ("rgray", True), ("wgray", True)]
+
+
+@pytest.mark.slow
+def test_its_binary_pointer_twin_fails(tmp_path):
+    p = run(make_ws(tmp_path, FIFO_PTR.format(next="wbin_next"),
+                    cdc=FIFO_CDC))
+    assert kinds(p) == ["cdc_multibit_unsafe"], p["violations"]
+    assert p["violations"][0]["crossing"]["from"] == "wgray"
+
+
+# two flags from clk2, synchronised separately, then {USE}
+RECONVERGE = """\
+module top (input wire clk, input wire clk2, input wire a, input wire b,
+            output reg y, output reg z);
+  reg fa, fb, a1, a2, b1, b2;
+  always @(posedge clk2) begin fa <= a; fb <= b; end
+  always @(posedge clk) begin a1 <= fa; a2 <= a1; b1 <= fb; b2 <= b1; end
+  always @(posedge clk) begin {use} end
+endmodule
+"""
+RECONV_CDC = {"ports": {"a": "clk2", "b": "clk2"}}
+
+
+@pytest.mark.slow
+def test_separately_synchronised_bits_reconverging_fail(tmp_path):
+    p = run(make_ws(tmp_path, RECONVERGE.format(
+        use="y <= a2 & b2; z <= 1'b0;"), cdc=RECONV_CDC))
+    assert kinds(p) == ["cdc_reconvergence"], p["violations"]
+    r = p["violations"][0]["crossing"]
+    assert (r["buses"], r["to"], r["synchronisers"]) == (
+        ["fa", "fb"], "y", ["a2", "b2"])
+
+
+@pytest.mark.slow
+def test_their_twin_used_apart_passes(tmp_path):
+    p = run(make_ws(tmp_path, RECONVERGE.format(use="y <= a2; z <= b2;"),
+                    cdc=RECONV_CDC))
+    assert p["status"] == "pass", p["violations"]
+    assert p["reconvergence"] == []
+
+
+# a req/ack handshake: clk2 holds `data` and toggles req; clk loads it
+# when the synchronised req changes. {LOAD} is how dout is written.
+HANDSHAKE = """\
+module top (input wire clk, input wire clk2, input wire [3:0] d,
+            input wire go, output reg [3:0] dout, output wire ack_o);
+  reg [3:0] data;
+  reg req, r1, r2, r3, ack, k1, k2;
+  always @(posedge clk2) begin
+    k1 <= ack; k2 <= k1;
+    if (go && req == k2) begin data <= d; req <= ~req; end
+  end
+  always @(posedge clk) begin
+    r1 <= req; r2 <= r1; r3 <= r2; ack <= r2;
+    {load}
+  end
+  assign ack_o = r3;
+endmodule
+"""
+HANDSHAKE_CDC = {"ports": {"d": "clk2", "go": "clk2"}}
+
+
+@pytest.mark.slow
+def test_a_handshake_holding_its_data_is_qualified(tmp_path):
+    p = run(make_ws(tmp_path, HANDSHAKE.format(
+        load="if (r2 != r3) dout <= data;"), cdc=HANDSHAKE_CDC))
+    assert p["status"] == "pass", p["violations"]
+    assert ("qualified", "data", "dout") in [
+        (c["status"], c["from"], c["to"]) for c in p["crossings"]]
+
+
+@pytest.mark.slow
+def test_its_twin_with_no_enable_is_unsynchronized(tmp_path):
+    p = run(make_ws(tmp_path, HANDSHAKE.format(load="dout <= data;"),
+                    cdc=HANDSHAKE_CDC))
+    assert kinds(p) == ["cdc_unsynchronized"], p["violations"]
+    assert p["violations"][0]["crossing"]["from"] == "data"
+
+
+# ---- cdclib.prove_gray on hand-built netlists (fast) ---------------------
+
+import cdclib  # noqa: E402
+
+
+def _cell(typ, **conn):
+    out = {"Q", "Y"}
+    return {"type": typ, "connections": {k: [v] for k, v in conn.items()},
+            "port_directions": {k: "output" if k in out else "input"
+                                for k in conn}}
+
+
+def _module(cells, names):
+    return {"ports": {"clk": {"direction": "input", "bits": [2]},
+                      "rst_n": {"direction": "input", "bits": [3]}},
+            "cells": {f"c{i}": c for i, c in enumerate(cells)},
+            "netnames": {n: {"bits": [b]} for n, b in names.items()}}
+
+
+def _ff(d, q, typ="$_DFF_PN0_"):
+    return _cell(typ, C=2, R=3, D=d, Q=q)
+
+
+def test_prove_gray_two_bit_gray_counter():
+    # g0' = ~g1, g1' = g0: 00 01 11 10
+    nl = cdclib.Netlist(_module([_ff(12, 10), _ff(10, 11),
+                                 _cell("$_NOT_", A=11, Y=12)],
+                                {"g0": 10, "g1": 11}))
+    r = cdclib.prove_gray(nl, [10, 11])
+    assert r["proven"], r
+    assert r["states"] == 4
+
+
+def test_prove_gray_binary_counter_fails_with_an_example():
+    # b0' = ~b0, b1' = b1 ^ b0: 01 -> 10 changes both
+    nl = cdclib.Netlist(_module([_ff(12, 10), _ff(13, 11),
+                                 _cell("$_NOT_", A=10, Y=12),
+                                 _cell("$_XOR_", A=11, B=10, Y=13)],
+                                {"b0": 10, "b1": 11}))
+    r = cdclib.prove_gray(nl, [10, 11])
+    assert not r["proven"]
+    assert r["example"] in (["01", "10"], ["11", "00"])
+
+
+def test_prove_gray_free_input_and_unreset_flop():
+    # b0, b1 load a free input each cycle: any value, so any step
+    nl = cdclib.Netlist(_module([_ff(20, 10, "$_DFF_P_"), _ff(21, 11)],
+                                {"b0": 10, "b1": 11}))
+    r = cdclib.prove_gray(nl, [10, 11])
+    assert not r["proven"] and "two or more" in r["why"]
+
+
+def test_prove_gray_refuses_what_it_cannot_model():
+    lat = _cell("$_DLATCH_P_", E=2, D=12, Q=10)
+    nl = cdclib.Netlist(_module([lat, _ff(10, 11),
+                                 _cell("$_NOT_", A=11, Y=12)],
+                                {"g0": 10, "g1": 11}))
+    r = cdclib.prove_gray(nl, [10, 11])
+    assert not r["proven"] and "not a flop" not in r["why"]
+    nl = cdclib.Netlist(_module([_ff(3, 11)], {"g1": 11}))
+    assert not cdclib.prove_gray(nl, [2, 11])["proven"]

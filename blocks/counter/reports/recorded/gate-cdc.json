@@ -123,6 +123,8 @@
     ]
    }
   ],
+  "buses": [],
+  "reconvergence": [],
   "waived": [],
   "crosscheck": {
    "tool": "opensta",
@@ -142,6 +144,10 @@
     "source": "the tile's pad reset, into tt_um_ece298a_counter's synchroniser"
    }
   ],
+  "assumed_ports": [
+   "ui_in",
+   "uio_in"
+  ],
   "assumptions": [
    "ui_in (tt_pins ui_in[7:0]) is taken as synchronous to clock.primary (clk): what drives it is the board's; declare it in spec/cdc.yaml ports if it is not",
    "uio_in (tt_pins uio_in[7:0]) is taken as synchronous to clock.primary (clk): what drives it is the board's; declare it in spec/cdc.yaml ports if it is not"
@@ -152,8 +158,8 @@
   },
   "block": "ece298a_counter",
   "not_checked": [
-   "bus coherence (gray, handshake, multi-cycle)",
-   "reconvergence of separately synchronised bits",
+   "that data a handshake or mux-enable qualifies is held stable at its source while the enable is seen",
+   "reconvergence after a further flop in the destination domain",
    "reset release order between domains",
    "recovery/removal timing of a synchronised release (STA's)",
    "a data path from a flop with no reset into a flop with one",
@@ -167,7 +173,7 @@
   "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
   "pdk_liberty": "dir_bytes:f09377f057ab484ec9e5a45b205c99a5de399e2bdca886531bf9eefa57783f32"
  },
- "strength_at_start": 1,
- "recorded_ts": "2026-11-05T11:17:23",
- "attempts": 5
+ "strength_at_start": 2,
+ "recorded_ts": "2026-11-06T06:36:13",
+ "attempts": 6
 }
