@@ -81,3 +81,6 @@ gates write them again.
   harden through release. Top: `macro_lib`, then top_harden through release;
   `macro_lib` feeds top_harden, so running it last makes the top read stale.
   Every gate passes, and `attest verify` is valid on digital, analog and top.
+- 2026-11-06: re-recorded so each harden commits `harden/outputs.json` (#239).
+  Same order as above; every gate passes, and a clean clone now attests valid
+  from git alone.
