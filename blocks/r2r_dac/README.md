@@ -77,3 +77,7 @@ gates write them again.
 - 2026-11-05: the owner relaxed the 10-90 % bound to 0.53 us, which is what the
   1.5 us settling bound implies for a single pole (1.5 us x 2.197 / (9 ln2) =
   0.528 us). `pex_sim`, analog release and top release all pass.
+- 2026-11-06: re-recorded after the harden strength raise (#145). Digital:
+  harden through release. Top: `macro_lib`, then top_harden through release;
+  `macro_lib` feeds top_harden, so running it last makes the top read stale.
+  Every gate passes, and `attest verify` is valid on digital, analog and top.

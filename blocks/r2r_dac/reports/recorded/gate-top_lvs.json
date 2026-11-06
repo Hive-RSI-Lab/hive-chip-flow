@@ -3,7 +3,7 @@
  "gate": "top_lvs",
  "phase": "P3",
  "tool": "top_lvs",
- "input_digest": "dir_text:4131e1dfa4365d85673c931c421f5ba825595e7075943a81effcd4eb164aa461",
+ "input_digest": "dir_text:81c9c89070f8e7cb4944fb580845ac69869a5e03badd330054a9d8470fd69661",
  "status": "pass",
  "criteria": {
   "fail_severities": [
@@ -34,18 +34,15 @@
   "report": "log/top_lvs/top_lvs.rpt"
  },
  "inputs_at_start": {
-  "top_gds": "dir_text:4131e1dfa4365d85673c931c421f5ba825595e7075943a81effcd4eb164aa461",
-  "analog_layout": "dir_text:7a954c277f279e0a8b3d75e97ed6833bf445cf7e04f4ec0eefae35be290d869d",
+  "top_gds": "dir_text:81c9c89070f8e7cb4944fb580845ac69869a5e03badd330054a9d8470fd69661",
   "top_spec": "json_canonical:e3d10683d18fef15bc12f56940cc3ecba0378a7cbe1133f616f999f1ab263f91",
-  "top_macros": "dir_text:bbd6c7d506f9654ef8aa1d6a518610e26a44601d8229e2fb635167696077c0e6",
+  "top_macros": "dir_text:35df2b1ee6cb7310ba8ba1d5b93e6fbb52430c676dfc641a6c933e1946267adf",
   "top_pnl": "dir_text:794cc7c720bbc420e674e36a6104a4c6215e43ff21e84c209f67043729eeb0ae",
-  "analog_netlist": "dir_text:13970a2f19f36bd8aa49baa3a94132821e16917455715ba77b23b074b4551548",
-  "analog_sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
   "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
   "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
   "pdk_netgen": "dir_text:8164f65bb7d1bef6e27af4c13b1c6ede50973cec7aec482556abb23881aceb04"
  },
  "strength_at_start": 0,
- "recorded_ts": "2026-11-05T23:31:21",
- "attempts": 10
+ "recorded_ts": "2026-11-06T03:28:23",
+ "attempts": 12
 }

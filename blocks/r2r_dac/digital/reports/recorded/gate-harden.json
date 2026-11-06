@@ -22,8 +22,8 @@
  "facts": {
   "top": "r2r_dac_digital",
   "run_tag": "run",
-  "resumed": true,
-  "wall_s": 94.68,
+  "resumed": false,
+  "wall_s": 97.88,
   "run_dir": "harden/runs/run",
   "metrics": {
    "design__instance__count": 2095,
@@ -220,8 +220,8 @@
     }
    },
    "config_sha256": "ab14269c69db89715552ce0dd70eaa0b41c7bb91ada8983289e759db57718239",
-   "resolved_sha256": "34e756325a5327c82c00c5dd824559db99eebb497703258a6fb213ad094e6170",
-   "wall_s": 94.68
+   "resolved_sha256": "d42957a233c259ac051a3a30ac3d3176c9c6f86bfbcd7b2f5f89631ba24b12b0",
+   "wall_s": 97.88
   },
   "signoff_metrics": {
    "antenna__violating__nets": {
@@ -265,6 +265,21 @@
     "status": "ok"
    }
   },
+  "connectivity": {
+   "nets": 471,
+   "undriven": [],
+   "unloaded": [],
+   "tt_inputs_unloaded": [
+    "ena",
+    "uio_in[3]",
+    "uio_in[4]",
+    "uio_in[5]",
+    "uio_in[6]",
+    "uio_in[7]"
+   ],
+   "waived": [],
+   "unused_waivers": []
+  },
   "pad_reset": {
    "latency": 2,
    "sync": true,
@@ -285,7 +300,7 @@
   "pdk_klayout": "dir_text:876da90e8aab65b830b36eca12bd720adfe8240a0952872419d9f2b4abda605d",
   "pdk_netgen": "dir_text:8164f65bb7d1bef6e27af4c13b1c6ede50973cec7aec482556abb23881aceb04"
  },
- "strength_at_start": 0,
- "recorded_ts": "2026-11-05T19:41:52",
- "attempts": 21
+ "strength_at_start": 1,
+ "recorded_ts": "2026-11-06T02:57:31",
+ "attempts": 22
 }

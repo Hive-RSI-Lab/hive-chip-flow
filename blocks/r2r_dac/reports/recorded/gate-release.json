@@ -21,7 +21,7 @@
  "violations": [],
  "facts": {
   "attestation": "reports/checks.json",
-  "attestation_sha256": "8c54aafea16c24efbd57c4400429b0162e4cc8b5500866615f4578d31b2722a2",
+  "attestation_sha256": "c62bee8dcc00bf9af45f657cb7b971ba357d485a60253ca09da042b0ccd14a4b",
   "disposition": "gates-green",
   "waived": [],
   "tt_submission": {
@@ -42,7 +42,7 @@
     "librelane_pdk": "f6eeac7dad085ffcc829ccfd721f7b4ce39edcf7",
     "tt_support_tools": "01d5d2814fa9dd61e9d211e0b235a4a592a9316a",
     "gds": "top/harden/runs/run/final/gds/tt_um_r2r_dac_digital.gds",
-    "gds_sha256": "298e5b9883d3b5927365155dd33c7aa854e8d060cc73d83578e7c8b0719fb4ce",
+    "gds_sha256": "5d1b3f26368540ebe8316a977130fc5f4080ad5a4f133971cbd2f7897e66729f",
     "lef": "top/harden/runs/run/final/lef/tt_um_r2r_dac_digital.lef",
     "lef_sha256": "b50dc910d16c3e4f12517c477d2a4e9f4f139fdd4eb6d9e0a449b32ac292f864",
     "gl": "top/harden/runs/run/final/pnl/tt_um_r2r_dac_digital.pnl.v",
@@ -58,7 +58,7 @@
      "top_module": "tt_um_r2r_dac_digital",
      "pdk": "gf180mcuD",
      "gds_path": "gds/tt_um_r2r_dac_digital.gds",
-     "gds_sha256": "298e5b9883d3b5927365155dd33c7aa854e8d060cc73d83578e7c8b0719fb4ce",
+     "gds_sha256": "5d1b3f26368540ebe8316a977130fc5f4080ad5a4f133971cbd2f7897e66729f",
      "lef_path": "lef/tt_um_r2r_dac_digital.lef",
      "lef_sha256": "b50dc910d16c3e4f12517c477d2a4e9f4f139fdd4eb6d9e0a449b32ac292f864",
      "verilog_path": "src/project.v",
@@ -81,6 +81,6 @@
   "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2"
  },
  "strength_at_start": 0,
- "recorded_ts": "2026-11-05T23:42:06",
- "attempts": 12
+ "recorded_ts": "2026-11-06T03:30:34",
+ "attempts": 15
 }

@@ -45,7 +45,7 @@
   "top": "r2r_dac_digital",
   "run_tag": "run",
   "resumed": false,
-  "wall_s": 144.6,
+  "wall_s": 111.52,
   "signoff_metrics": {
    "antenna__violating__nets": {
     "value": 0,
@@ -87,6 +87,21 @@
     "limit": 0.16500835,
     "status": "ok"
    }
+  },
+  "connectivity": {
+   "nets": 494,
+   "undriven": [],
+   "unloaded": [],
+   "tt_inputs_unloaded": [
+    "ena",
+    "uio_in[3]",
+    "uio_in[4]",
+    "uio_in[5]",
+    "uio_in[6]",
+    "uio_in[7]"
+   ],
+   "waived": [],
+   "unused_waivers": []
   },
   "run_dir": "top/harden/runs/run",
   "metrics": {
@@ -284,8 +299,8 @@
     }
    },
    "config_sha256": "b6391c473a095d48222946cc6b374c35a7bf30529570b5734ef42bb3bad49e85",
-   "resolved_sha256": "ba0821d954f2ee13c2f13d1775b39d34b6b8bec23f662211f615ae176b07d8da",
-   "wall_s": 144.6
+   "resolved_sha256": "f32c32832d8fe5d53f229f00f4c584c3b8ebdfcbe8060b70fef43b373b147c77",
+   "wall_s": 111.52
   },
   "drv_metrics": {
    "design__max_slew_violation__count": {
@@ -473,7 +488,7 @@
   "pdk_klayout": "dir_text:876da90e8aab65b830b36eca12bd720adfe8240a0952872419d9f2b4abda605d",
   "pdk_netgen": "dir_text:8164f65bb7d1bef6e27af4c13b1c6ede50973cec7aec482556abb23881aceb04"
  },
- "strength_at_start": 1,
- "recorded_ts": "2026-11-05T23:29:20",
- "attempts": 15
+ "strength_at_start": 2,
+ "recorded_ts": "2026-11-06T03:25:57",
+ "attempts": 17
 }

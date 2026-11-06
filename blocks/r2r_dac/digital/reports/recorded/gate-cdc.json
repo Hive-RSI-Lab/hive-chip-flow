@@ -1,142 +1,129 @@
 {
-  "script": "gate",
-  "gate": "cdc",
-  "phase": "P5",
-  "tool": "cdc",
-  "input_digest": "dir_text:5b5e3748612f45afdfaedc1d7e6daa228ca0e64c09072bc4ac8b8b6275a6d995",
-  "status": "pass",
-  "criteria": {
-    "fail_severities": [
-      "error"
+ "script": "gate",
+ "gate": "cdc",
+ "phase": "P5",
+ "tool": "cdc",
+ "input_digest": "dir_text:5b5e3748612f45afdfaedc1d7e6daa228ca0e64c09072bc4ac8b8b6275a6d995",
+ "status": "pass",
+ "criteria": {
+  "fail_severities": [
+   "error"
+  ],
+  "max_count": 0
+ },
+ "counts": {
+  "total": 0,
+  "by_severity": {},
+  "by_source": {}
+ },
+ "failing_count": 0,
+ "failing": [],
+ "violations": [],
+ "facts": {
+  "top": "tt_um_r2r_dac_digital",
+  "applicable": true,
+  "checked": true,
+  "domains": [
+   "clk"
+  ],
+  "clocks": [
+   {
+    "net": "u_r2r_dac_digital.clk",
+    "aliases": [
+     "clk",
+     "u_r2r_dac_digital.clk",
+     "w_clk"
     ],
-    "max_count": 0
-  },
-  "counts": {
-    "total": 0,
-    "by_severity": {},
-    "by_source": {}
-  },
-  "failing_count": 0,
-  "failing": [],
-  "violations": [],
-  "facts": {
-    "top": "tt_um_r2r_dac_digital",
-    "applicable": true,
-    "checked": true,
-    "domains": [
-      "clk"
+    "domain": [
+     "clk"
     ],
-    "clocks": [
-      {
-        "net": "u_r2r_dac_digital.clk",
-        "aliases": [
-          "clk",
-          "u_r2r_dac_digital.clk",
-          "w_clk"
-        ],
-        "domain": [
-          "clk"
-        ],
-        "kind": "port",
-        "flops": 60,
-        "edges": [
-          "pos"
-        ]
-      }
-    ],
-    "crossings": [],
-    "clock_gates": [],
-    "reset_trees": [
-      {
-        "net": "rst_n",
-        "aliases": [
-          "rst_n"
-        ],
-        "domain": [
-          "clk"
-        ],
-        "flops": 2,
-        "clock_nets": [
-          "u_r2r_dac_digital.clk"
-        ],
-        "status": "sync_stage",
-        "through_logic": false
-      }
-    ],
-    "reset_syncs": [
-      {
-        "net": "u_r2r_dac_digital.rst_n",
-        "stages": 2,
-        "stage_nets": [
-          "rst_n_sync_q1",
-          "u_r2r_dac_digital.rst_n"
-        ],
-        "reset": "rst_n",
-        "clock": "u_r2r_dac_digital.clk",
-        "domain": [
-          "clk"
-        ]
-      }
-    ],
-    "waived": [],
-    "crosscheck": {
-      "tool": "opensta",
-      "ran": true,
-      "sta": {
-        "clk": 60
-      },
-      "cdclib": {
-        "clk": 60
-      },
-      "match": true
-    },
-    "port_domains": [
-      {
-        "port": "rst_n",
-        "domain": "async",
-        "source": "the tile's pad reset, into tt_um_r2r_dac_digital's synchroniser"
-      }
-    ],
-    "assumptions": [
-      "mode (tt_pins uio_in[1:0]) is taken as synchronous to clock.primary (clk): what drives it is the board's; declare it in spec/cdc.yaml ports if it is not",
-      "slow (tt_pins uio_in[2]) is taken as synchronous to clock.primary (clk): what drives it is the board's; declare it in spec/cdc.yaml ports if it is not",
-      "ui_in (tt_pins ui_in[7:0]) is taken as synchronous to clock.primary (clk): what drives it is the board's; declare it in spec/cdc.yaml ports if it is not"
-    ],
-    "scope": {
-      "scope": "wrapper+block",
-      "why": "the generated wrapper tt_um_r2r_dac_digital and the block: rst_n through the wrapper's 2-flop pad reset synchroniser on clk"
-    },
-    "block": "r2r_dac_digital",
-    "not_checked": [
-      "bus coherence (gray, handshake, multi-cycle)",
-      "reconvergence of separately synchronised bits",
-      "reset release order between domains",
-      "recovery/removal timing of a synchronised release (STA's)",
-      "a data path from a flop with no reset into a flop with one",
-      "a raw reset read synchronously, other than tt_pins's pad reset (a data input: declare it `async` in ports to check it)"
+    "kind": "port",
+    "flops": 60,
+    "edges": [
+     "pos"
     ]
+   }
+  ],
+  "crossings": [],
+  "clock_gates": [],
+  "reset_trees": [
+   {
+    "net": "rst_n",
+    "aliases": [
+     "rst_n"
+    ],
+    "domain": [
+     "clk"
+    ],
+    "flops": 2,
+    "clock_nets": [
+     "u_r2r_dac_digital.clk"
+    ],
+    "status": "sync_stage",
+    "through_logic": false
+   }
+  ],
+  "reset_syncs": [
+   {
+    "net": "u_r2r_dac_digital.rst_n",
+    "stages": 2,
+    "stage_nets": [
+     "rst_n_sync_q1",
+     "u_r2r_dac_digital.rst_n"
+    ],
+    "reset": "rst_n",
+    "clock": "u_r2r_dac_digital.clk",
+    "domain": [
+     "clk"
+    ]
+   }
+  ],
+  "waived": [],
+  "crosscheck": {
+   "tool": "opensta",
+   "ran": true,
+   "sta": {
+    "clk": 60
+   },
+   "cdclib": {
+    "clk": 60
+   },
+   "match": true
   },
-  "inputs_at_start": {
-    "rtl": "dir_text:5b5e3748612f45afdfaedc1d7e6daa228ca0e64c09072bc4ac8b8b6275a6d995",
-    "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119",
-    "cdc_waivers": null,
-    "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
-    "pdk_liberty": "dir_bytes:f09377f057ab484ec9e5a45b205c99a5de399e2bdca886531bf9eefa57783f32"
+  "port_domains": [
+   {
+    "port": "rst_n",
+    "domain": "async",
+    "source": "the tile's pad reset, into tt_um_r2r_dac_digital's synchroniser"
+   }
+  ],
+  "assumptions": [
+   "mode (tt_pins uio_in[1:0]) is taken as synchronous to clock.primary (clk): what drives it is the board's; declare it in spec/cdc.yaml ports if it is not",
+   "slow (tt_pins uio_in[2]) is taken as synchronous to clock.primary (clk): what drives it is the board's; declare it in spec/cdc.yaml ports if it is not",
+   "ui_in (tt_pins ui_in[7:0]) is taken as synchronous to clock.primary (clk): what drives it is the board's; declare it in spec/cdc.yaml ports if it is not"
+  ],
+  "scope": {
+   "scope": "wrapper+block",
+   "why": "the generated wrapper tt_um_r2r_dac_digital and the block: rst_n through the wrapper's 2-flop pad reset synchroniser on clk"
   },
-  "strength_at_start": 1,
-  "record_result": {
-    "ok": true,
-    "recorded": true,
-    "workspace": "blocks/r2r_dac/digital",
-    "gate": "cdc",
-    "status": "pass",
-    "attempts": 9,
-    "inputs": {
-      "rtl": "dir_text:5b5e3748612f45afdfaedc1d7e6daa228ca0e64c09072bc4ac8b8b6275a6d995",
-      "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119",
-      "cdc_waivers": null,
-      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
-      "pdk_liberty": "dir_bytes:f09377f057ab484ec9e5a45b205c99a5de399e2bdca886531bf9eefa57783f32"
-    }
-  }
+  "block": "r2r_dac_digital",
+  "not_checked": [
+   "bus coherence (gray, handshake, multi-cycle)",
+   "reconvergence of separately synchronised bits",
+   "reset release order between domains",
+   "recovery/removal timing of a synchronised release (STA's)",
+   "a data path from a flop with no reset into a flop with one",
+   "a raw reset read synchronously, other than tt_pins's pad reset (a data input: declare it `async` in ports to check it)"
+  ]
+ },
+ "inputs_at_start": {
+  "rtl": "dir_text:5b5e3748612f45afdfaedc1d7e6daa228ca0e64c09072bc4ac8b8b6275a6d995",
+  "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119",
+  "cdc_waivers": null,
+  "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+  "pdk_liberty": "dir_bytes:f09377f057ab484ec9e5a45b205c99a5de399e2bdca886531bf9eefa57783f32"
+ },
+ "strength_at_start": 1,
+ "recorded_ts": "2026-11-06T03:02:48",
+ "attempts": 10
 }
