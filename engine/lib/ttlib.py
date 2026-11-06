@@ -380,6 +380,12 @@ def validate_tt_pins(spec: dict, tiles: str | None = None) -> list[str]:
     return problems
 
 
+def is_wrapper_input(port: str) -> bool:
+    """Whether `port` (`ena`, `ui_in[4]`) is an input of the TT wrapper."""
+    base = port.split("[", 1)[0]
+    return base in _SCALAR_IN or _BUS_KIND.get(base, ("",))[0] == "in"
+
+
 def wrapper_name(spec: dict) -> str:
     top = spec.get("top") or ""
     return top if top.startswith("tt_um_") else f"tt_um_{top}"

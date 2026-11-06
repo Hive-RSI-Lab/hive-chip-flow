@@ -14,3 +14,6 @@ waive it by name with a reason:
 
 If the message says no log names them all, the run dir was trimmed: re-harden.
 A count nobody can name cannot be excused.
+
+The waiver clears this metric row. Harden also reads the final ODB, and there a
+net with no driver stays an error: see `net_undriven`.

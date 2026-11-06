@@ -1,0 +1,10 @@
+CONN_NET	ena	1	0	ena
+CONN_NET	ui_in[4]	1	0	ui_in[4]
+CONN_NET	ui_in[5]	1	0	ui_in[5]
+CONN_NET	uio_in[2]	1	0	uio_in[2]
+CONN_NET	uio_in[3]	1	0	uio_in[3]
+CONN_NET	uio_in[4]	1	0	uio_in[4]
+CONN_NET	uio_in[5]	1	0	uio_in[5]
+CONN_NET	uio_in[6]	1	0	uio_in[6]
+CONN_NET	uio_in[7]	1	0	uio_in[7]
+CONN_END	189

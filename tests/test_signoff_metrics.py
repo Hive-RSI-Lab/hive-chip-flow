@@ -192,6 +192,8 @@ def _flow(metrics):
                 (final / fmt).mkdir(parents=True, exist_ok=True)
                 (final / fmt / f"x.{fmt}").write_text("x", encoding="utf-8")
         (final / "metrics.json").write_text(json.dumps(metrics), encoding="utf-8")
+        (final / "odb").mkdir(parents=True, exist_ok=True)
+        (final / "odb" / "tt_um_counter8.odb").write_text("x", encoding="utf-8")
         (run_dir / "flow.log").write_text("Flow complete.\n", encoding="utf-8")
         return subprocess.CompletedProcess(["eda"], 0, stdout="", stderr="")
     return behavior

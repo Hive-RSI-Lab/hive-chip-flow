@@ -26,6 +26,10 @@ faults on CI" when it names no vde rung, each with both lanes' CI jobs
 passing."""
 from __future__ import annotations
 
+import json
+import os
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -122,3 +126,59 @@ def test_rung_catches_every_planted_fault(tmp_path, skill, rung):
     r for r in _rungs() if r in HARDEN_RUNGS and r not in HELD_BACK])
 def test_harden_rung_catches_every_planted_fault(tmp_path, skill, rung):
     _run(tmp_path, skill, rung)
+
+
+def _plant_connectivity(kind: str, clean: Path, planted: Path) -> str:
+    """The net tests/fixtures/harden_signoff/plant_connectivity.tcl cut."""
+    tcl = REPO / "tests" / "fixtures" / "harden_signoff" / "plant_connectivity.tcl"
+    proc = subprocess.run(
+        [str(REPO / "bin" / "eda"), "openroad", "-no_splash", "-exit", str(tcl)],
+        capture_output=True, text=True, timeout=300, check=True,
+        env={**os.environ, "PLANT_KIND": kind, "PLANT_IN": str(clean),
+             "PLANT_OUT": str(planted)})
+    lines = [ln for ln in proc.stdout.splitlines() if ln.startswith("PLANTED\t")]
+    assert len(lines) == 1, proc.stdout
+    return lines[0].split("\t")[1]
+
+
+@pytest.mark.slow
+@pytest.mark.harden_faults
+def test_connectivity_names_the_net_cut_from_counter8_final_odb(
+        tmp_path, monkeypatch, capsys):
+    """#156: a real harden of counter8 passes, and each net cut from its final
+    ODB fails the gate by name. A gate run re-runs the flow over the run dir, so
+    a manifest plant can't reach this ODB: here only the flow itself is stubbed,
+    and it leaves the planted ODB where the flow would."""
+    import check_harden
+    import faults
+    import gate as gate_mod
+
+    gates = gate_mod.load_gates(gate_mod.DEFAULT_GATES)
+    ws = faults.make_scratch_workspace(tmp_path, CORPUS / "vde" / "counter8",
+                                       "vde", "counter8")
+    report, result = faults.run_gate(ws, "harden", gates, "vde")
+    assert result["status"] == "pass", report
+    assert report["connectivity"]["undriven"] == []
+    assert report["connectivity"]["unloaded"] == []
+    final_odb = ws / "harden" / "runs" / "run" / "final" / "odb" / "tt_um_counter8.odb"
+    clean = tmp_path / "clean.odb"
+    shutil.copy(final_odb, clean)
+
+    real_run = subprocess.run
+    planted = tmp_path / "planted.odb"
+
+    def stubbed_flow(cmd, *args, **kwargs):
+        if cmd[1] != "librelane":
+            return real_run(cmd, *args, **kwargs)
+        shutil.copy(planted, final_odb)
+        return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+
+    monkeypatch.setattr(check_harden.subprocess, "run", stubbed_flow)
+    for kind, finding in (("undriven", "net_undriven"), ("unloaded", "net_unloaded")):
+        net = _plant_connectivity(kind, clean, planted)
+        code = check_harden.main(["--workspace", str(ws)])
+        out = json.loads(capsys.readouterr().out)
+        assert code == 1, out
+        hits = [v for v in out["violations"] if v["kind"] == finding]
+        assert [v["refs"] for v in hits] == [[net]], out["violations"]
+        assert net in hits[0]["msg"]

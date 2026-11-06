@@ -129,7 +129,7 @@ Gates (from `engine/reference/gates.yaml`, run via `gate.py --gate <name>
 | cover | P4 | line >= 95%, toggle >= 90% on the DUT; exclusions carry reasons |
 | synth | P5 | no latches, unmapped cells or combinational loops |
 | cdc | P5 | every crossing between inferred clock domains synchronised, every clock gate glitch-free, every async reset released through a reset synchroniser in each domain it resets, or waived with a reason in `spec/cdc.yaml`; no clock info is not checked, never clean |
-| harden (job) | P6 | LibreLane finishes clean, produces GDS/LEF/netlist/SDF/metrics; records the QoR table, tool versions and config hash (`chip-flow qor show`/`diff`/`repro`) |
+| harden (job) | P6 | LibreLane finishes clean, produces GDS/LEF/netlist/SDF/metrics; in the final ODB no net lacks a driver, and none lacks a load unless it is a TT input or waived; records the QoR table, tool versions and config hash (`chip-flow qor show`/`diff`/`repro`) |
 | timing | P6 | setup+hold slack >= 0 at every corner |
 | drc | P6 | 0 violations, magic + klayout |
 | lvs | P6 | extracted layout matches the hardened netlist |
