@@ -122,6 +122,55 @@ class AuthorError(ShipError):
     """The spec asks for a blank author."""
 
 
+class WorkflowEditedError(ShipError):
+    """A person edited a workflow release staged from an older template."""
+
+
+# The first line after `name:` in a workflow release staged: the sha256 of the
+# rest of the file, so a re-stage can tell its own output (refreshed) from
+# one a person has since edited (kept, or refused when the template moved).
+WF_MARKER = re.compile(r"^# chip-flow-staged sha256=([0-9a-f]{64})\n", re.M)
+WF_HEADER = "# Staged by chip-flow release (engine/lib/ttship.py)"
+
+
+def _wf_hash(text: str) -> str:
+    return hashlib.sha256(WF_MARKER.sub("", text, count=1).encode("utf-8")).hexdigest()
+
+
+def _marked(text: str) -> str:
+    """`text`, a generated workflow, with its marker after the name line."""
+    head, rest = text.split("\n", 1)
+    return f"{head}\n# chip-flow-staged sha256={_wf_hash(text)}\n{rest}"
+
+
+def _refresh_generated(wf: Path, current: str | None) -> None:
+    """Remove each workflow under `wf` that release staged and nobody edited,
+    so staging writes the current template in its place. One a person edited
+    stays when it was staged from the template `current` is; one staged from
+    an older template (or before the marker, so its edits can't be told
+    apart) raises WorkflowEditedError. A workflow without the header is the
+    person's own and stays."""
+    want = _wf_hash(current) if current is not None else None
+    for p in sorted(wf.glob("*.y*ml")):
+        text = p.read_text(encoding="utf-8")
+        m = WF_MARKER.search(text)
+        if m is None and WF_HEADER not in text:
+            continue
+        if m and m.group(1) == _wf_hash(text):
+            p.unlink()
+            continue
+        if m and m.group(1) == want:
+            continue
+        rel = Path(*p.parts[-3:]).as_posix()
+        why = ("was staged from an older template and then edited" if m else
+               "was staged before release marked its workflows, so its edits "
+               "can't be told apart from the template")
+        raise WorkflowEditedError(
+            f"{rel} {why}: merge your edits into the current template "
+            f"(delete {rel} and re-run release to get it), or drop its "
+            "chip-flow-staged and 'Staged by' lines to keep it as your own")
+
+
 def _sha256(path: Path) -> str | None:
     if not path.is_file():
         return None
@@ -441,7 +490,9 @@ def stamped_info(ws: Path, text: str) -> str:
 def stage(ws: Path, dest: Path, sign: dict,
           sources: dict | None = None) -> list[str]:
     """Write the TT repo tree for this tile at `dest`; return the paths
-    written (relative to dest). An existing workflow is left alone. `sources`,
+    written (relative to dest). A workflow release staged and nobody edited is
+    rewritten from the current template; any other is kept, except one edited
+    after staging from an older template (`_refresh_generated`). `sources`,
     if given, gets tree path -> the workspace file it came from."""
     ws, dest = Path(ws), Path(dest)
     sources = {} if sources is None else sources
@@ -496,15 +547,16 @@ def stage(ws: Path, dest: Path, sign: dict,
         put(f"gl/{top}.v", (ws / sign["gl"]).read_bytes(), sign["gl"])
     _stage_gl_test(ws, put)
     wf = dest / ".github" / "workflows"
+    current = _marked(default_workflow(
+        tools_ref=sign.get("tt_support_tools"),
+        verilog_path="gl/${{ steps.top_module.outputs.TOP_MODULE }}.v",
+        gl_test_pdk=sign["open_pdks"], pdk=sign["pdk"])) if sign.get("open_pdks") else None
+    _refresh_generated(wf, current)
     if not any(wf.glob("*.y*ml")):
-        if not sign.get("open_pdks"):
+        if current is None:
             raise ShipError("no open_pdks commit for the signed-off run, so "
                             "there is no PDK to run its gate-level test on")
-        put(".github/workflows/gds.yaml",
-            default_workflow(tools_ref=sign.get("tt_support_tools"),
-                             verilog_path="gl/${{ steps.top_module.outputs.TOP_MODULE }}.v",
-                             gl_test_pdk=sign["open_pdks"], pdk=sign["pdk"])
-            .encode("utf-8"))
+        put(".github/workflows/gds.yaml", current.encode("utf-8"))
     return written
 
 
@@ -564,8 +616,8 @@ def stage_analog(ws: Path, dest: Path, sign: dict,
     block's hand-kept tt/src/*.v instead when it has them, plus digital/rtl.
     info.yaml is tt/info.yaml, else top/harden/info.yaml, with its author
     written (`stamped_info`); test/ is tt/test/*;
-    the workflow is tt/workflows/*, else the custom_gds default, and one
-    already in the tree is left alone. Also removes what only the digital
+    the workflow is tt/workflows/*, else the custom_gds default; one already
+    in the tree is kept or refreshed as stage() does. Also removes what only the digital
     template uses: src/config.json and the fpga workflow, which can't build a
     design with an analog macro."""
     ws, dest = Path(ws), Path(dest)
@@ -626,16 +678,16 @@ def stage_analog(ws: Path, dest: Path, sign: dict,
         verilog_path = ANALOG_NETLIST
     wf = dest / ".github" / "workflows"
     kept_wf = sorted((tt / "workflows").glob("*.y*ml")) if (tt / "workflows").is_dir() else []
+    current = _marked(default_workflow(tools_ref=sign.get("tt_support_tools"),
+                                       verilog_path=verilog_path, pdk=sign["pdk"]))
+    _refresh_generated(wf, current)
     if not any(wf.glob("*.y*ml")):
         wf.mkdir(parents=True, exist_ok=True)
         for p in kept_wf:
             shutil.copyfile(p, wf / p.name)
             written.append(f".github/workflows/{p.name}")
         if not kept_wf:
-            (wf / "gds.yaml").write_text(
-                default_workflow(tools_ref=sign.get("tt_support_tools"),
-                                 verilog_path=verilog_path, pdk=sign["pdk"]),
-                encoding="utf-8")
+            (wf / "gds.yaml").write_text(current, encoding="utf-8")
             written.append(".github/workflows/gds.yaml")
     (dest / "src" / "config.json").unlink(missing_ok=True)
     (wf / "fpga.yaml").unlink(missing_ok=True)
@@ -902,6 +954,8 @@ def release_check(ws: Path, repo: Path | None = None, pdk_hash=None,
         staged = (stage_analog if skill == "msde" else stage)(ws, repo, sign, sources)
     except AuthorError as exc:
         return [f"tt_author_blank: {exc}"], {}
+    except WorkflowEditedError as exc:
+        return [f"tt_workflow_edited_stale: {exc}"], {}
     except ShipError as exc:
         return [f"tt_no_signoff: {exc}"], {}
     problems, shipped = ship_problems(repo, sign)
