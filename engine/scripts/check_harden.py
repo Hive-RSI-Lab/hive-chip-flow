@@ -82,6 +82,17 @@ Floating nets carry their names in the log of the step that counted them.
 TT's repair step counts the power nets, so every TT harden records at least
 VPWR and VGND there: a named power net does not count. A count the log does
 not name in full (a trimmed run dir) fails, since nothing shows what floats.
+
+Connectivity (#156): that metric is counted once, at global placement, and only
+for nets with a load and no driver. So after a finished flow
+`read_connectivity()` reads the final ODB itself and `judge_connectivity()`
+rules on what it lists: a net with no driver is `net_undriven`, and nothing
+excuses it; a net with no load is `net_unloaded`, unless it carries a TT wrapper
+input port or `floating_nets_waived` names it. An antenna diode is no load. The
+report carries the names as `connectivity`, and the metric row stays as the
+cross-check. A flow that exits 0 with no final ODB is
+`harden_missing_artifact`; an ODB that OpenROAD can't read is a refusal, never
+a pass.
 """
 from __future__ import annotations
 
@@ -122,6 +133,8 @@ GATES_YAML = ENGINE / "reference" / "gates.yaml"
 POWER_NETS = {"VPWR", "VGND"}  # ttlib.harden_config's VDD_PIN/GND_PIN
 _FLOATING_RE = re.compile(r"found (\d+) floating nets")
 _ANTENNA_NET_RE = re.compile(r"^\s*Net:?\s+(\S+)", re.MULTILINE)
+CONNECTIVITY_TCL = ENGINE / "lib" / "net_connectivity.tcl"
+CONNECTIVITY_TIMEOUT_S = 600.0
 
 
 def _step_number(path: Path) -> int:
@@ -250,6 +263,77 @@ def signoff_metrics(metrics: dict, signoff: dict, run_dir: Path, top: str,
         if over:
             finding(kind, msg, refs=refs or [name], metric=name, value=value,
                     limit=limit, **extras)
+    return table, violations
+
+
+def parse_connectivity(text: str) -> tuple[int, list[dict]] | None:
+    """(signal nets read, the rows net_connectivity.tcl listed), or None when
+    its end row is missing: a list cut short says nothing about the nets it
+    did not reach."""
+    rows, seen = [], None
+    for line in text.splitlines():
+        field = line.split("\t")
+        if field[0] == "CONN_NET" and len(field) == 5:
+            rows.append({"net": field[1].replace("\\", ""),
+                         "drivers": int(field[2]), "loads": int(field[3]),
+                         "inputs": [p.replace("\\", "")
+                                    for p in field[4].split(",") if p]})
+        elif field[0] == "CONN_END" and len(field) == 2:
+            seen = int(field[1])
+    return None if seen is None else (seen, rows)
+
+
+def read_connectivity(odb: Path, cwd: Path) -> tuple[int, list[dict]]:
+    """net_connectivity.tcl's answer on a final ODB. An answer that can't be
+    had raises: the check did not run, and that is never a pass."""
+    cmd = [str(EDA_BIN), "openroad", "-no_splash", "-exit",
+           str(CONNECTIVITY_TCL)]
+    try:
+        proc = subprocess.run(cmd, cwd=str(cwd), capture_output=True, text=True,
+                              encoding="utf-8", errors="replace",
+                              timeout=CONNECTIVITY_TIMEOUT_S,
+                              env={**os.environ,
+                                   "CONNECTIVITY_ODB": str(odb)})
+    except subprocess.TimeoutExpired as exc:
+        raise CheckError(f"the connectivity read of {odb} timed out after "
+                         f"{CONNECTIVITY_TIMEOUT_S:g}s: {exc}") from exc
+    parsed = parse_connectivity(proc.stdout or "")
+    if proc.returncode != 0 or parsed is None or parsed[0] == 0:
+        raise CheckError(
+            f"could not read the nets of {odb} (openroad exit "
+            f"{proc.returncode}), so its connectivity is unchecked: "
+            f"{((proc.stdout or '') + (proc.stderr or ''))[-2000:]}")
+    return parsed
+
+
+def judge_connectivity(seen: int, rows: list[dict], signoff: dict,
+                       top: str) -> tuple[dict, list[dict]]:
+    """(the report's `connectivity` table, the findings) for
+    read_connectivity's answer. A waiver excuses no load, never no driver."""
+    waivers = signoff.get("floating_nets_waived", {})
+    undriven, unloaded, tt_inputs, waived = [], [], [], []
+    for row in rows:
+        net = row["net"]
+        if row["drivers"] == 0:
+            undriven.append(net)
+        elif any(ttlib.is_wrapper_input(p) for p in row["inputs"]):
+            tt_inputs.append(net)
+        elif net in waivers:
+            waived.append(net)
+        else:
+            unloaded.append(net)
+    table = {"nets": seen, "undriven": sorted(undriven),
+             "unloaded": sorted(unloaded),
+             "tt_inputs_unloaded": sorted(tt_inputs), "waived": sorted(waived),
+             "unused_waivers": sorted(set(waivers) - set(waived))}
+    violations = [
+        checklib.violation("harden", "error", None, top, kind, names,
+                           f"{what} in the final ODB: {', '.join(names)}",
+                           "check_harden")
+        for kind, what, names in (
+            ("net_undriven", "nets with no driver", table["undriven"]),
+            ("net_unloaded", "nets with no load", table["unloaded"]))
+        if names]
     return table, violations
 
 
@@ -549,11 +633,27 @@ def run(argv=None):
             metrics, signoff, run_dir, top)
         violations += signoff_violations
 
+    connectivity = None
+    if proc.returncode == 0:
+        odb = (run_dir / "final" / "odb"
+               / f"{ttlib.wrapper_name(spec)}.odb").resolve()
+        if odb.is_file():
+            connectivity, net_violations = judge_connectivity(
+                *read_connectivity(odb, harden_dir), signoff, top)
+            violations += net_violations
+        else:
+            violations.append(checklib.violation(
+                "harden", "error", None, top, "harden_missing_artifact", [],
+                f"librelane exited 0 but there is no {odb}, so no net of the "
+                "final design was checked", "check_harden",
+                resumed=resumed, wall_s=wall_s))
+
     payload = checklib.report(SCRIPT, ws / "rtl", violations, top=top,
                               run_tag=args.run_tag, resumed=resumed,
                               wall_s=wall_s,
                               run_dir=str(run_dir), metrics=metric_subset,
                               qor=qor, signoff_metrics=signoff_table,
+                              connectivity=connectivity,
                               pad_reset=pad_reset)
     return payload, args.out
 

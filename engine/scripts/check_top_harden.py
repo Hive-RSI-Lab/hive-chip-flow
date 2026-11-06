@@ -1627,7 +1627,7 @@ def run(argv=None):
         write_top_spec(top, spec)
     inner, _out = check_harden.run(["--workspace", str(top)])
     facts = {k: inner[k] for k in ("top", "run_tag", "resumed", "wall_s",
-                                   "signoff_metrics",
+                                   "signoff_metrics", "connectivity",
                                    "run_dir", "metrics", "qor") if k in inner}
     dont_touch = {f"{m['instance']}/{pin}": net for m in spec["macros"]
                   for pin, net in (m.get("dont_touch_nets") or {}).items()}

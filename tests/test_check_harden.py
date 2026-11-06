@@ -62,13 +62,20 @@ CLEAN_SIGNOFF_METRICS = {
 }
 
 
-def _fake_run_factory(librelane_behavior):
+CLEAN_CONNECTIVITY = subprocess.CompletedProcess(
+    ["eda", "openroad"], 0, stdout="CONN_END\t80\n", stderr="")
+
+
+def _fake_run_factory(librelane_behavior, connectivity=CLEAN_CONNECTIVITY):
     """librelane_behavior(cwd: Path) -> CompletedProcess-like namespace for
     the `eda librelane ...` call; the `--print-toolchain-root` call always
-    succeeds with a fake path."""
+    succeeds with a fake path; the read of the final ODB's nets answers
+    `connectivity`."""
     def fake_run(cmd, cwd=None, **kwargs):
         if "--print-toolchain-root" in cmd:
             return subprocess.CompletedProcess(cmd, 0, stdout="/fake/toolchain\n", stderr="")
+        if str(check_harden.CONNECTIVITY_TCL) in cmd:
+            return connectivity
         if cmd[1] in FAKE_VERSIONS:     # qorlib.env_versions (#65)
             return subprocess.CompletedProcess(cmd, 0, stdout=FAKE_VERSIONS[cmd[1]],
                                                stderr="")
@@ -165,6 +172,8 @@ def test_pass_when_flow_completes_and_final_artifacts_exist(tmp_path, monkeypatc
                 d = final / fmt
                 d.mkdir(parents=True, exist_ok=True)
                 (d / f"tt_um_counter8.{fmt}").write_text("x", encoding="utf-8")
+        (final / "odb").mkdir(parents=True, exist_ok=True)
+        (final / "odb" / "tt_um_counter8.odb").write_text("x", encoding="utf-8")
         run_dir.mkdir(parents=True, exist_ok=True)
         (run_dir / "flow.log").write_text("Flow complete.\n", encoding="utf-8")
         return subprocess.CompletedProcess(["eda", "librelane"], 0, stdout="", stderr="")

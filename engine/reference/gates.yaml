@@ -162,7 +162,7 @@ gates:
     harden:
       phase: P6
       tool: harden
-      strength: 0
+      strength: 1
       job: true
       fail_severities: [error]
       max_count: 0
@@ -170,7 +170,9 @@ gates:
       description: >-
         The flow finishes with no failing step and produces GDS, LEF,
         netlist, SDF, metrics; the signoff metrics are present and inside
-        harden_metrics' limits.
+        harden_metrics' limits; in the final ODB no net lacks a driver, and
+        none lacks a load unless it is a TT wrapper input or waived in
+        floating_nets_waived (net_undriven, net_unloaded).
     timing:
       phase: P6
       tool: timing
@@ -428,7 +430,7 @@ gates:
     top_harden:
       phase: P3
       tool: top_harden
-      strength: 1
+      strength: 2
       job: true
       fail_severities: [error]
       max_count: 0
@@ -438,7 +440,10 @@ gates:
         macro: the flow finishes with no failing step and produces GDS,
         LEF, netlist, SDF, metrics; the signoff metrics are present and
         inside harden_metrics' limits, and no max_slew or max_cap
-        violation at any corner (top_harden_metrics). A non-clock analog
+        violation at any corner (top_harden_metrics). In the final ODB no
+        net lacks a driver, and none lacks a load unless it is a TT wrapper
+        input or waived in floating_nets_waived (net_undriven,
+        net_unloaded). A non-clock analog
         macro output is never buffered: its net (read from a synthesis
         probe, `macro_net_unresolved` when the pin has no single net) is
         don't-touch for the resizer, else repair_design buffers it until

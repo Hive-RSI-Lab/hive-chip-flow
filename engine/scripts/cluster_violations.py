@@ -177,6 +177,8 @@ FIXER_HINTS: dict[str, str] = {
     # harden (check_harden.py)
     "flow_step_failed": "harden",
     "harden_missing_artifact": "harden",
+    "net_undriven": "harden",
+    "net_unloaded": "harden",
 
     # qor (qor.py, #65)
     "qor_regression": "harden",
