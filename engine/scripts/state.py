@@ -15,7 +15,8 @@ mutating subcommand appends a timestamped event to `history`.
 Schema (version 3):
     {
       "version": 3, "skill": "vde|ade|msde", "block": str,
-      "workspace": str, "created": ts, "updated": ts,
+      "workspace": str (relative or `.`: see checklib.record_safe),
+      "created": ts, "updated": ts,
       "phase": "P0".."P8" | "done",
       "toolchain": {"image", "versions_sha", "pdk", "pdk_sha"} | null,
       "gates": {gate_name: {phase, status: pass|fail, attempts: int,
@@ -342,7 +343,10 @@ class State:
                         f"{(cur or 'missing')[:12]}) - another writer landed; "
                         "reload and redo the mutation, nothing was written")
             self.data["updated"] = now()
-            text = json.dumps(self.data, indent=1)
+            # state.json is committed: nothing recorded in it, an error's log
+            # path or a person's answer included, names this machine
+            text = json.dumps(
+                checklib.record_safe(self.data, self.path.parent), indent=1)
             _atomic_write(self.path, text)
             self.base_digest = safelib.sha256_bytes(text.encode("utf-8"))
 

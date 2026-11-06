@@ -27,7 +27,9 @@ import json
 import os
 import re
 import signal
+import socket
 import subprocess
+import tempfile
 import sys
 import time
 from pathlib import Path
@@ -105,6 +107,64 @@ def workspace_relative(obj, ws):
             return {k: sub(x) for k, x in v.items()}
         return v
     return sub(obj)
+
+
+# any home directory, this machine's or the one a record was copied from
+_HOME_RX = re.compile(r"(?<![\w./~-])/(?:home|Users)/[^/\s\"':]+")
+
+
+def _private_names() -> list[str]:
+    """Machine names no record may carry: this machine's, plus those in
+    CHIP_FLOW_PRIVATE_NAMES (comma-separated), so that other machines and
+    channels are named in the environment and never in this repo."""
+    full = socket.gethostname()
+    extra = os.environ.get("CHIP_FLOW_PRIVATE_NAMES", "").split(",")
+    names = {n.strip() for n in (full, full.split(".")[0], *extra)}
+    # a name this short, or localhost, would match ordinary words
+    return sorted((n for n in names
+                   if len(n) >= 3 and n.lower() != "localhost"),
+                  key=len, reverse=True)
+
+
+def record_safe(obj, ws):
+    """obj (any JSON value) as a committed record may hold it: paths under
+    the workspace relative (workspace_relative), a home directory `~`, the
+    temp directory `<tmp>`, a machine name `<host>`.
+
+    A name is replaced only inside text, never where the same letters are a
+    path part, a hash's normalizer prefix or a whole value: a block, skill or
+    gate that shares a machine's name is an identifier the record is read
+    back by. Dict keys are left alone for the same reason."""
+    roots = {"~": [os.path.expanduser("~")],
+             "<tmp>": [tempfile.gettempdir(), os.environ.get("TMPDIR") or "",
+                       "/tmp"]}
+    subs = sorted(((p, to) for to, ps in roots.items() for r in ps if r
+                   for p in {os.path.abspath(r), os.path.realpath(r)}
+                   if len(p) > 1),
+                  key=lambda x: len(x[0]), reverse=True)
+    by_root = dict(subs)
+    path_rx = re.compile(
+        r"(?<![\w./~-])(" + "|".join(re.escape(p) for p, _ in subs)
+        + r")(?=/|(?![\w.+-]))") if subs else None
+    names = _private_names()
+    name_rx = re.compile(
+        r"(?<![\w./-])(?:" + "|".join(re.escape(n) for n in names)
+        + r")(?![\w/-]|:[0-9a-f])", re.IGNORECASE) if names else None
+
+    def sub(v):
+        if isinstance(v, str):
+            if path_rx:
+                v = path_rx.sub(lambda m: by_root[m.group(1)], v)
+            v = _HOME_RX.sub("~", v)
+            if name_rx and not name_rx.fullmatch(v):
+                v = name_rx.sub("<host>", v)
+            return v
+        if isinstance(v, list):
+            return [sub(x) for x in v]
+        if isinstance(v, dict):
+            return {k: sub(x) for k, x in v.items()}
+        return v
+    return sub(workspace_relative(obj, ws))
 
 
 def utf8_stdout() -> None:

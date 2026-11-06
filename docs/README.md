@@ -37,6 +37,12 @@ what's different when an agent runs them inside the Hive.
   `${CHIP_FLOW_HOME:-...}/bin/eda python ${CHIP_FLOW_HOME:-...}/engine/scripts/<x>.py`;
   with those set, run them as written. `chip-flow <script> [args]` is the
   same thing shorter, and `chip-flow eda <tool> [args]` runs any tool.
+- `state.json` is committed, so saving one strips what names the machine:
+  workspace paths go relative, a home directory becomes `~`, the temp
+  directory `<tmp>`, and this machine's name `<host>`. To cover other
+  machines and private channels, list them in `CHIP_FLOW_PRIVATE_NAMES`
+  (comma-separated). The tests apply the same rule to every tracked
+  `state.json`.
 - Read the skill's `SKILL.md` (`skills/<vde|ade|msde>/SKILL.md`), then start
   from `chip-flow task_router --skill <skill> --task "<the ask>" --workspace blocks/<name>`
   and follow its recipe (`skills/<skill>/reference/recipes/<verb>.md`).
