@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import re
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -21,6 +22,8 @@ sys.path.insert(0, str(SCRIPTS))
 sys.path.insert(0, str(ENGINE / "lib"))
 
 import pytest  # noqa: E402
+
+import checklib  # noqa: E402
 
 import state as state_mod  # noqa: E402
 import statelib  # noqa: E402
@@ -73,6 +76,90 @@ def test_save_is_atomic_compare_and_swap(tmp_path):
     st2.add_decision("c", "d")
     with pytest.raises(safelib.StaleWriteError):
         st2.save()
+
+
+# ------------------------------------------------- nothing private on disk
+
+def _saved(ws: Path) -> dict:
+    return json.loads((ws / "state.json").read_text(encoding="utf-8"))
+
+
+def test_a_saved_state_carries_no_machine_paths_or_names(tmp_path, monkeypatch):
+    monkeypatch.setattr(checklib.socket, "gethostname",
+                        lambda: "thismachine.example")
+    monkeypatch.setenv("CHIP_FLOW_PRIVATE_NAMES", "otherbox, secretchan")
+    monkeypatch.setenv("HOME", "/home/someone")
+    ws = ws_empty(tmp_path)
+    st = state_mod.State.init(ws.resolve(), "vde", "counter8")
+    st.add_decision(
+        f"sim failed: see {ws.resolve()}/log/sim.log",
+        "tool at /home/someone/tools/x, copy at /Users/else/y, scratch "
+        f"/tmp/run1, ran on thismachine.example and otherbox, in #secretchan")
+    st.save()
+    text = (ws / "state.json").read_text(encoding="utf-8")
+    for leak in (str(ws.resolve()), "/home/", "/Users/", "/tmp/",
+                 "thismachine", "otherbox", "secretchan"):
+        assert leak not in text, leak
+    d = _saved(ws)
+    assert d["workspace"] == "."
+    decision = d["decisions"][-1]
+    assert "log/sim.log" in json.dumps(decision)
+    assert "~/tools/x" in json.dumps(decision)
+    assert "<tmp>/run1" in json.dumps(decision)
+    assert "#<host>" in json.dumps(decision)
+
+
+def test_a_gate_error_mark_writes_its_log_path_relative(tmp_path):
+    ws = ws_empty(tmp_path).resolve()
+    st = state_mod.State.init(ws, "vde", "counter8")
+    st.data["gates"]["sim"] = {"last": {"status": "pass"}, "stale": []}
+    st.mark_gate_error("sim", f"ngspice died, see {ws}/log/sim/run.log")
+    st.save()
+    d = _saved(ws)
+    assert str(ws) not in json.dumps(d)
+    assert d["gates"]["sim"]["stale"][-1]["error"].endswith("log/sim/run.log")
+    assert d["history"][-1]["error"].endswith("log/sim/run.log")
+
+
+def test_a_name_that_is_also_an_identifier_or_path_part_stays(tmp_path,
+                                                             monkeypatch):
+    """A block, path part or hash prefix sharing a machine's name is what the
+    record is read back by: only running text loses it."""
+    monkeypatch.setattr(checklib.socket, "gethostname", lambda: "counter8")
+    ws = ws_empty(tmp_path)
+    st = state_mod.State.init(ws, "vde", "counter8")
+    st.data["artifacts"]["rtl"] = {"path": "counter8/x.v",
+                                   "hash": "counter8:0123abcd"}
+    st.add_decision("ran on counter8", "b")
+    st.save()
+    d = _saved(ws)
+    assert d["block"] == "counter8"
+    assert d["artifacts"]["rtl"] == {"path": "counter8/x.v",
+                                     "hash": "counter8:0123abcd"}
+    assert "<host>" in json.dumps(d["decisions"][-1])
+    state_mod.State.load(ws / "state.json").save()      # still loads and saves
+
+
+def test_a_short_name_or_localhost_is_not_scrubbed(monkeypatch):
+    monkeypatch.setenv("CHIP_FLOW_PRIVATE_NAMES", "ab,,localhost")
+    monkeypatch.setattr(checklib.socket, "gethostname", lambda: "localhost")
+    text = "ab ran against localhost"
+    assert checklib.record_safe(text, "/nowhere") == text
+
+
+def test_tracked_state_files_carry_nothing_private():
+    """The landing check on what is already committed. Other machines' and
+    channels' names come from CHIP_FLOW_PRIVATE_NAMES, never from this file."""
+    tracked = subprocess.run(
+        ["git", "ls-files", "blocks/*state.json"], cwd=REPO,
+        capture_output=True, text=True)
+    if tracked.returncode != 0:
+        pytest.skip("not a git checkout")
+    paths = [REPO / p for p in tracked.stdout.split()]
+    assert paths
+    for path in paths:
+        doc = json.loads(path.read_text(encoding="utf-8"))
+        assert checklib.record_safe(doc, path.parent) == doc, path
 
 
 # ------------------------------------------------------ M1's own scenario
