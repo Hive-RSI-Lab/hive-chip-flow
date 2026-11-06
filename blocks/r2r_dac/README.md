@@ -83,4 +83,5 @@ gates write them again.
   Every gate passes, and `attest verify` is valid on digital, analog and top.
 - 2026-11-06: re-recorded so each harden commits `harden/outputs.json` (#239).
   Same order as above; every gate passes, and a clean clone now attests valid
-  from git alone.
+  from git alone. Then `split`, after #240 made digital_spec and digital_cdc
+  its inputs, and `release` over it.

@@ -1,7 +1,7 @@
 {
  "skill": "msde",
  "block": "r2r_dac",
- "ts": "2026-11-06T05:37:00",
+ "ts": "2026-11-06T06:05:45",
  "pdk": {
   "name": "gf180mcuD",
   "open_pdks": "1689ac3f2dc763876eaf967227c7dfe831b031ae",
@@ -79,12 +79,14 @@
    "tool": "split",
    "version": 1,
    "status": "pass",
-   "attempts": 9,
-   "ts": "2026-11-05T23:22:47",
+   "attempts": 10,
+   "ts": "2026-11-06T05:59:25",
    "inputs": {
     "interface": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
     "digital_side_spec": "json_canonical:e52fd5cabc96bf3cfe80463861809e640516e763ffe6d5ad341dd19366f87352",
-    "analog_side_spec": "json_canonical:61734e544be2b0cd5fb5d3373df1e39f971c980f0e71decd49621c97736c30bd"
+    "analog_side_spec": "json_canonical:61734e544be2b0cd5fb5d3373df1e39f971c980f0e71decd49621c97736c30bd",
+    "digital_spec": "json_canonical:316aabe3e699eb67a766fb42296b9a90d765394b6deefb2d5178cc8865c08bbf",
+    "digital_cdc": null
    },
    "reason": null
   },
@@ -204,7 +206,7 @@
    }
   ],
   "manifest": "release/manifest.json",
-  "manifest_sha256": "c606a28959e17fa88c48a06c6e598fe8668de58b1cd86818cb53afd78d1c824f"
+  "manifest_sha256": "8dc9b76ab0bf86301ab336f00acfac70ebb067187aefcd82c33120b765f8fc80"
  },
- "attestation_sha256": "b75160e110df7d1b84e4d844df1ae83f063f639cf9b2c906c03a23413cee3ad8"
+ "attestation_sha256": "b7583880a7bf768ebaefc26c465f7681b5c2a4516c453d07a9ce934c4f785a5b"
 }

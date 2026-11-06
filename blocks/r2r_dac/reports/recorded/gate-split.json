@@ -22,14 +22,21 @@
  "facts": {
   "signals": [
    "dac_code"
-  ]
+  ],
+  "cdc": {
+   "checked": true,
+   "file": "digital/spec/cdc.yaml",
+   "async_ports": []
+  }
  },
  "inputs_at_start": {
   "interface": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
   "digital_side_spec": "json_canonical:e52fd5cabc96bf3cfe80463861809e640516e763ffe6d5ad341dd19366f87352",
-  "analog_side_spec": "json_canonical:61734e544be2b0cd5fb5d3373df1e39f971c980f0e71decd49621c97736c30bd"
+  "analog_side_spec": "json_canonical:61734e544be2b0cd5fb5d3373df1e39f971c980f0e71decd49621c97736c30bd",
+  "digital_spec": "json_canonical:316aabe3e699eb67a766fb42296b9a90d765394b6deefb2d5178cc8865c08bbf",
+  "digital_cdc": null
  },
  "strength_at_start": 0,
- "recorded_ts": "2026-11-05T23:22:47",
- "attempts": 9
+ "recorded_ts": "2026-11-06T05:59:25",
+ "attempts": 10
 }
