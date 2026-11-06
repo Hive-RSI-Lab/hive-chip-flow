@@ -1,0 +1,9 @@
+{
+  "code_mismatches": {"max": 0},
+  "codes_sampled": {"min": 4},
+  "vout_00": {"min": 2.45, "max": 3.25},
+  "vout_01": {"min": 1.85, "max": 2.52},
+  "vout_10": {"min": 0.48, "max": 0.72},
+  "vout_11": {"max": 0.05},
+  "monotonic_falling": {"min": 1}
+}

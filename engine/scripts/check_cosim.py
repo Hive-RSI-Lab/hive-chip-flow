@@ -64,6 +64,18 @@ additively - never instead of the above, since a bench can fail its own
 assertion for exactly the reason a measure is out of bounds and both facts
 are worth keeping.
 
+An msde block with a digital/ side ships as an analog tile: the digital
+block behind the generated TT wrapper (its pad reset synchroniser in front
+of rst_n) with the analog cell as a hard macro. The bench runs through that
+same frame (ttlib.write_sim_frame on the top spec check_top_harden hardens,
+ttlib.macro_top_spec): the build gains the wrapper, a harness module
+`tt_frame_<digital top>` with the digital spec's own port list, and a
+pin-only model of the macro, and the bench instantiates
+`tt_frame_<digital top>` where it would instantiate the digital top. A
+bench whose digital top sits anywhere but inside that wrapper is refused,
+before the sim runs (`cosim_top_unframed`): it would not see the pad
+reset latency the tile ships with.
+
 CLI/exit contract: checklib's (argparse, JSON to stdout or --out, exit 0
 pass, 1 violations, 2 error with a remediation string).
 """
@@ -85,6 +97,8 @@ sys.path.insert(0, str(ENGINE / "lib"))
 import checklib  # noqa: E402
 import cocotblib  # noqa: E402
 import simlib  # noqa: E402
+import speclib  # noqa: E402
+import ttlib  # noqa: E402
 from checklib import CheckError  # noqa: E402
 
 SCRIPT = "check_cosim"
@@ -208,6 +222,98 @@ def collect_sources(tb_dir: Path) -> list[Path]:
     if not files:
         raise CheckError(f"no .v/.sv files under {tb_dir}")
     return files
+
+
+def frame_spec(ws: Path) -> dict | None:
+    """The analog tile's top spec, as check_top_harden assembles it
+    (ttlib.macro_top_spec) without the layout: the digital spec with the
+    analog cell, named by the analog spec's `top`, as its one macro. None
+    for a workspace with no digital/spec/spec.yaml (a bench-only rung such
+    as corpus/msde/ring_osc_div), which has no tile to frame."""
+    dpath = ws / "digital" / "spec" / "spec.yaml"
+    if not dpath.is_file():
+        return None
+    dspec = speclib.load_spec(dpath)
+    apath = ws / "analog" / "spec" / "spec.yaml"
+    aspec = speclib.load_spec(apath) if apath.is_file() else None
+    cell = aspec.get("top") if isinstance(aspec, dict) else None
+    if not isinstance(dspec, dict) or not dspec.get("top"):
+        raise CheckError(f"{dpath}: no `top` - the frame wraps it")
+    if not isinstance(cell, str) or not cell:
+        raise CheckError(f"no analog `top` at {apath} - the frame's macro "
+                         "model is named after it")
+    import yaml
+    iface = yaml.safe_load((ws / "interface.yaml").read_text(
+        encoding="utf-8")) or {}
+    signals = {str(s["name"]).lower() for s in iface.get("signals") or []}
+    ports = {p.lower(): p for p in dspec.get("ports") or {}}
+    missing = sorted(signals - set(ports))
+    if missing:
+        raise CheckError(f"interface.yaml names {missing}, which the digital "
+                         "spec.yaml's ports do not have")
+    macro = {"cell": cell, "instance": ttlib.ANALOG_MACRO_INSTANCE,
+             "pins": {s: ports[s] for s in sorted(signals)},
+             "ua": {str(p).lower(): k
+                    for p, k in (iface.get("ua_pins") or {}).items()}}
+    return ttlib.macro_top_spec(dspec, macro, signals, iface.get("tiles"))
+
+
+SCOPE_RE = re.compile(r'^S_(\w+) \.scope module, "([^"]+)" "([^"]+)"'
+                      r'[^;]*?(?:, S_(\w+))?;$', re.M)
+
+
+def scope_parents(vvp_text: str) -> list[tuple[str, str, str | None]]:
+    """[(instance, module, parent module or None)] for every module scope
+    an Icarus vvp file elaborates (`S_<id> .scope module, "<inst>"
+    "<module>" ..., S_<parent>;`, the root scopes with no parent)."""
+    rows = [(m.group(1), m.group(2), m.group(3), m.group(4))
+            for m in SCOPE_RE.finditer(vvp_text)]
+    module_of = {sid: mod for sid, _inst, mod, _par in rows}
+    return [(inst, mod, module_of.get(par) if par else None)
+            for _sid, inst, mod, par in rows]
+
+
+def unframed(scopes: list[tuple[str, str, str | None]], block: str,
+             wrapper: str) -> list[str]:
+    """Why the bench's elaborated hierarchy does not run `block` through
+    the tile's `wrapper` (empty = framed): every instance of block must sit
+    inside wrapper, and at least one must."""
+    hosts = [(inst, parent) for inst, mod, parent in scopes if mod == block]
+    if not hosts:
+        return [f"no instance of {block} at all"]
+    return [f"{inst} ({block}) sits in {parent or 'the root'}, not in "
+            f"{wrapper}" for inst, parent in hosts if parent != wrapper]
+
+
+def elaborate(sources: list[Path], top: str, out: Path) -> str | None:
+    """The bench's vvp text from a plain Icarus compile (no sim), or None
+    when it does not compile - the cocotb build then reports why."""
+    exe = shutil.which("iverilog")
+    cmd = [exe] if exe else [str(EDA_BIN), "iverilog"]
+    out.parent.mkdir(parents=True, exist_ok=True)
+    proc = subprocess.run([*cmd, "-g2012", "-o", str(out), "-s", top,
+                           *map(str, sources)], capture_output=True,
+                          text=True, timeout=300)
+    if proc.returncode != 0 or not out.is_file():
+        return None
+    return out.read_text(encoding="utf-8", errors="replace")
+
+
+def check_framed(spec: dict, sources: list[Path], top: str,
+                 build_dir: Path) -> None:
+    """Refuse (cosim_top_unframed) a bench whose digital top the tile's
+    wrapper does not hold."""
+    text = elaborate(sources, top, build_dir / "frame_check.vvp")
+    if text is None:
+        return
+    why = unframed(scope_parents(text), spec["top"], ttlib.wrapper_name(spec))
+    if why:
+        frame = ttlib.SIM_FRAME_PREFIX + spec["top"]
+        raise CheckError(
+            f"cosim_top_unframed: {'; '.join(why)}. The tile ships "
+            f"{spec['top']} behind its pad reset synchroniser, so the bench "
+            f"must instantiate {frame} (same ports as {spec['top']}, built "
+            "by this gate) where it instantiates the digital top")
 
 
 def scan_nonconvergence(log_text: str) -> list[str]:
@@ -342,6 +448,12 @@ def run(argv=None):
 
     build_dir = ws / BUILD_SUBDIR
     shutil.rmtree(build_dir, ignore_errors=True)
+    # through the tile's pad, as the top ships it (ttlib.write_sim_frame)
+    spec = frame_spec(ws)
+    framed = spec and ttlib.write_sim_frame(spec, build_dir / "frame")
+    if framed:
+        sources = sources + framed[0]
+        check_framed(spec, sources, meta["top"], build_dir)
     results_xml = ws / "log" / RESULTS_NAME
     xml_path = cocotblib.run_cocotb(build_dir, tb_dir, sources, meta["top"],
                                     modules, results_xml,
@@ -393,6 +505,7 @@ def run(argv=None):
     payload = checklib.report(SCRIPT, interface_path, violations, top=meta["top"],
                               analog_netlist=meta["analog_netlist"],
                               analog_kind=meta["analog_kind"],
+                              sim_frame=framed[1] if framed else None,
                               measures=measures,
                               tests_run=sorted(results),
                               ngspice_signatures=sorted(set(nonconv)),

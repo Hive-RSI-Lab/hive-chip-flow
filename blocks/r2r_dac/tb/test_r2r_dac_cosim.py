@@ -1,6 +1,6 @@
 """Cosim bench for r2r_dac: the released digital front end (Icarus) drives
-dac_code into the R-2R ladder simulated by ngspice through cocotbext-ams's
-MixedSignalBridge (behavioral drivers, real resistor ladder: r2r_ideal.sp).
+dac_code into the R-2R ladder simulated by ngspice through cosimlib's
+CosimBridge (behavioral drivers, real resistor ladder: r2r_ideal.sp).
 
 Measures, with bounds from the brief (../brief/spec.md), not the design:
   dnl_max_abs, inl_max_abs <= 0.5 LSB, monotonic = 1   [brief targets]
@@ -29,7 +29,9 @@ import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import FallingEdge, RisingEdge, Timer, ValueChange
 from cocotb.utils import get_sim_time
-from cocotbext.ams import AnalogBlock, DigitalPin, MixedSignalBridge
+from cocotbext.ams import AnalogBlock, DigitalPin
+from cosimlib import CosimBridge
+from padreset import latency
 
 HERE = Path(__file__).resolve().parent
 LIBNGSPICE = os.environ["LIBNGSPICE_PATH"]
@@ -91,7 +93,7 @@ async def test_r2r_dac_cosim(dut):
         vss=0.0,
         tran_step="1n",
     )
-    bridge = MixedSignalBridge(
+    bridge = CosimBridge(
         dut, [block], max_sync_interval_ns=SYNC_NS, simulator_lib=LIBNGSPICE)
     sim_task = cocotb.start_soon(bridge.start(duration_ns=DURATION_NS))
 
@@ -122,6 +124,10 @@ async def test_r2r_dac_cosim(dut):
             await RisingEdge(dut.clk)
         await FallingEdge(dut.clk)
         dut.rst_n.value = 1
+        # rst_n reaches the block through the tile's pad reset synchroniser
+        # (the frame instance `digital`): wait out its latency.
+        for _ in range(latency(dut.digital)):
+            await FallingEdge(dut.clk)
 
         # DNL / INL / monotonic / full scale: every code through ui_in.
         for code in range(256):

@@ -1,0 +1,6 @@
+{
+  "top": "dac_tile_cosim_top",
+  "bounds": "dac_tile.bounds.json",
+  "analog_netlist": "dac_tile_ideal.sp",
+  "analog_kind": "ideal"
+}
