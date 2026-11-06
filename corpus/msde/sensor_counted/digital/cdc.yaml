@@ -1,0 +1,6 @@
+# spec/cdc.yaml of the digital side: osc_out is the ring oscillator's
+# output, asynchronous to clk (interface.yaml domain clk_free), so the cdc
+# gate checks its synchroniser (written by split_cdc.py; check_split holds
+# it to interface.yaml).
+ports:
+  osc_out: async

@@ -10,5 +10,7 @@ Correct whichever file disagrees with that.
 **Trap:** marking an asynchronous analog output as belonging to the
 digital clock domain makes `split` pass and hides a metastability bug. The
 digital side's `cdc` gate cannot see it either: it takes an input port's domain
-from `spec/cdc.yaml` and otherwise assumes `clock.primary`, so declare the port
-`async` there.
+from `spec/cdc.yaml` and otherwise assumes `clock.primary` (the report
+lists such ports under `assumed_ports`). Once the domain is `clk_free`,
+`split_cdc.py` writes the port as `async` there, and `split` fails with
+`cdc_async_undeclared` until it does.

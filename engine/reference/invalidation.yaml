@@ -129,6 +129,9 @@ artifact_kinds:
   # analog spec.yaml's `top` (check_analog_lvs.reference_cell names the
   # macro's .subckt from it)
   digital_spec:  {path: "digital/spec/spec.yaml", norm: json_canonical}
+  # the digital side's cdc ports, which split holds to interface.yaml's
+  # async a2d signals (check_split.cdc_findings, #169)
+  digital_cdc:   {path: "digital/spec/cdc.yaml", norm: json_canonical}
   analog_spec:   {path: "analog/spec/spec.yaml", norm: json_canonical}
   # the two root-level side specs split checks against interface.yaml
   # (check_split.SIDE_SPECS)
@@ -261,8 +264,10 @@ gate_inputs:
   msde:
     # #113: every file each gate opens (tests/test_msde_freshness.py plants
     # an edit per input and checks exactly these gates go stale).
-    # split reads interface.yaml and the two root-level side specs.
-    split:    [interface, digital_side_spec, analog_side_spec]
+    # split reads interface.yaml and the two root-level side specs, and
+    # (#169) the nested digital spec's clock domains and its cdc.yaml.
+    split:    [interface, digital_side_spec, analog_side_spec, digital_spec,
+               digital_cdc]
     # the bench simulates the released RTL and the sized analog netlist; its
     # analog model (ideal or transistor .sp) lives in tb/. A calibrated
     # model's source has no file of its own until model_check (#107) lands.

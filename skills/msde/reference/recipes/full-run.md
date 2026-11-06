@@ -51,6 +51,12 @@ nested workspace. Every `--workspace` in those plans already points at
   `corpus/msde/sensor_counted`), so its own harden, signoff and release
   make a complete standalone tile. `top_harden` later drops those pins and
   wires the signals to the analog macro instead.
+- **Async inputs are declared before the digital cdc gate.** Once the
+  digital workspace has its `spec/spec.yaml`, run `split_cdc.py
+  --workspace {ws}`. It writes every async a2d signal into
+  `digital/spec/cdc.yaml` as `async`, and the digital `cdc` gate then checks
+  its synchroniser. `split` fails with `cdc_async_undeclared` until it is
+  done (`recipes/split.md`).
 
 Before P3, `attest.py verify` on both nested workspaces must come back
 valid.

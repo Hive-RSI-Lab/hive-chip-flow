@@ -31,6 +31,21 @@ map). The fix is always to make the three files
 agree, and the question is which one is wrong: `interface.yaml` is the
 authority unless the brief says otherwise.
 
+Once the nested digital workspace exists (`digital/spec/spec.yaml`),
+`split` also checks it against the interface. Every a2d signal in
+domain `clk_free` that is not one of the digital `clock.domains` must be
+`async` under `ports` in `digital/spec/cdc.yaml`. If it is missing, or
+given a clock, `split` fails with `cdc_async_undeclared`. A port that file
+calls `async` while `interface.yaml` gives it a clocked domain fails
+with `cdc_async_contradicts_interface`. Right after creating the digital
+workspace, run `eda python engine/scripts/split_cdc.py --workspace <ws>`.
+It writes those ports and keeps the rest of the file. It refuses a port the
+file already gives a clock: one of the two files is wrong. Without
+this, the digital `cdc` gate takes the async input as synchronous to
+`clock.primary` (it lists such ports under `assumed_ports`) and passes a
+one-flop sample. Until the digital workspace exists, the report has
+`cdc.checked: false` and the reason.
+
 ## Changing the interface later
 
 The router plans `interface_edit`, which marks `split`, `cosim`,
@@ -47,6 +62,7 @@ until it is fresh again, then the top gates. `top_harden` runs as a job
 
 ## Freshness
 
-`split` hashes `interface.yaml` and both side specs (`digital_spec.yaml`,
-`analog_spec.yaml`; `invalidation.yaml` gate_inputs), so an edit to any of
-them stales a recorded `split` pass.
+`split` hashes `interface.yaml`, both side specs (`digital_spec.yaml`,
+`analog_spec.yaml`), the nested `digital/spec/spec.yaml` and
+`digital/spec/cdc.yaml` (`invalidation.yaml` gate_inputs). An edit to any
+of them stales a recorded `split` pass.

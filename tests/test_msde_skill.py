@@ -178,6 +178,7 @@ def _top_kinds() -> set[str]:
 def _split_kinds() -> set[str]:
     src = (ENGINE / "scripts" / "check_split.py").read_text(encoding="utf-8")
     literal = set(re.findall(r'\bbad\(\s*"([a-z_]+)"', src))
+    literal |= set(re.findall(r'out\.append\(\(\s*"([a-z_]+)"', src))
     return literal | {f"{f}_mismatch" for f in check_split.SIGNAL_FIELDS}
 
 
@@ -187,7 +188,8 @@ def test_kind_scan_finds_the_kinds_it_should():
     assert {"measure_out_of_bounds", "ngspice_non_convergence", "ic_ignored",
             "test_failed", "test_skipped"} <= _cosim_kinds()
     assert {"signal_missing_from_spec", "signal_not_declared",
-            "width_mismatch"} <= _split_kinds()
+            "width_mismatch", "cdc_async_undeclared",
+            "cdc_async_contradicts_interface"} <= _split_kinds()
     assert {"macro_too_large", "flow_step_failed", "harden_missing_artifact",
             "magic_drc_violation", "klayout_drc_violation",
             "netlist_mismatch", "ua_pin_off_template",

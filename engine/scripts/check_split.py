@@ -37,6 +37,21 @@ and with `pad_missing_from_ua_pins` when a pad the analog side declares is
 not in ua_pins. A malformed `ua_pins` (not a mapping) or `pads` (not a list
 of names) is refused (exit 2).
 
+Async crossings (#169). The digital side's cdc gate takes an input port
+it is not told about as synchronous to its primary clock, so an
+asynchronous analog output sampled by one flop would read clean there.
+Every interface.yaml signal that is `a2d` with domain `clk_free` and is not
+one of the digital spec's clock domains (a clock root, like a PLL's
+vco_out) is an async port (`async_ports`), and the digital side's
+spec/cdc.yaml (`digital/spec/cdc.yaml`, written from these by
+split_cdc.py) must declare each one `async` in its `ports`: one missing or
+given a clock domain fails as `cdc_async_undeclared`, and a `ports: async`
+entry for an interface signal whose domain is a clock fails as
+`cdc_async_contradicts_interface`. That is checked once the nested digital
+workspace has its spec (`digital/spec/spec.yaml`); before it, the report's
+`cdc.checked` is false with the reason, and the digital spec's arrival
+stales this gate (invalidation.yaml), so release still needs it checked.
+
 CLI/exit contract: checklib's (argparse, JSON to stdout or --out, exit 0
 pass, 1 violations, 2 error with a remediation string).
 """
@@ -65,6 +80,11 @@ SIDE_SPECS = {"digital": "digital_spec.yaml", "analog": "analog_spec.yaml"}
 # the two"), so it is checked and required with the same weight as the four
 # the prose does name.
 SIGNAL_FIELDS = ("direction", "level", "domain", "width", "load")
+# The nested digital workspace's spec and cdc file (#169).
+DIGITAL_NESTED_SPEC = "digital/spec/spec.yaml"
+DIGITAL_CDC = "digital/spec/cdc.yaml"
+# interface.yaml's domain for an analog output with no clock (splitter.md)
+ASYNC_DOMAIN = "clk_free"
 # A name that is itself a Tiny Tapeout analog pad: ua, ua[k], ua_*, uaK.
 UA_PAD_RE = re.compile(r"^ua(\[\d+\]|_.*|\d+)?$", re.I)
 
@@ -161,6 +181,60 @@ def load_analog_pads(path: Path) -> set[str]:
     return {p.lower() for p in pads}
 
 
+def digital_clock_domains(path: Path) -> set[str]:
+    """The nested digital spec.yaml's clock.domains (its clock ports)."""
+    clock = _load_yaml_mapping(path, "digital spec").get("clock")
+    domains = clock.get("domains") if isinstance(clock, dict) else None
+    return {d for d in domains or [] if isinstance(d, str)}
+
+
+def async_ports(interface: dict[str, dict], clocks: set[str]) -> dict:
+    """{port: 'async'}: each a2d clk_free signal that is not a digital clock
+    domain - what the digital side's spec/cdc.yaml `ports` must declare."""
+    return {name: "async" for name, sig in sorted(interface.items())
+            if sig["direction"] == "a2d" and sig["domain"] == ASYNC_DOMAIN
+            and name not in clocks}
+
+
+def load_cdc_ports(path: Path) -> dict:
+    """spec/cdc.yaml's `ports` ({} when the file or the key is absent);
+    anything but a mapping of names is refused."""
+    if not path.is_file():
+        return {}
+    ports = _load_yaml_mapping(path, "spec/cdc.yaml").get("ports")
+    if ports is None:
+        return {}
+    if not isinstance(ports, dict):
+        raise CheckError(f"{path}: 'ports' must be a mapping "
+                         "{<port>: <domain>|async}")
+    return ports
+
+
+def cdc_findings(interface: dict[str, dict], clocks: set[str],
+                 ports: dict) -> list[tuple[str, str, str]]:
+    """(kind, signal, msg) for each place spec/cdc.yaml's `ports` and the
+    interface's async a2d signals disagree (module docstring)."""
+    out = []
+    for name in async_ports(interface, clocks):
+        if ports.get(name) != "async":
+            got = ("does not declare it" if name not in ports
+                   else f"says {ports[name]!r}")
+            out.append(("cdc_async_undeclared", name,
+                        f"{name!r} is an async a2d signal (interface.yaml "
+                        f"domain {ASYNC_DOMAIN}) but {DIGITAL_CDC} {got}: "
+                        f"its ports must say '{name}: async' (split_cdc.py "
+                        "writes it), or the cdc gate reads the crossing as "
+                        "synchronous"))
+    for name, dom in sorted(ports.items()):
+        sig = interface.get(name)
+        if dom == "async" and sig and sig["domain"] != ASYNC_DOMAIN:
+            out.append(("cdc_async_contradicts_interface", name,
+                        f"{DIGITAL_CDC} declares {name!r} async but "
+                        f"interface.yaml puts it in domain {sig['domain']!r}:"
+                        " one of the two is wrong"))
+    return out
+
+
 def run(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--workspace", required=True, help="block workspace")
@@ -225,8 +299,21 @@ def run(argv=None):
            f"ua_pins does not map it; add '{name}: <ua index>' under ua_pins "
            "or it never reaches a pad")
 
+    if (ws / DIGITAL_NESTED_SPEC).is_file():
+        clocks = digital_clock_domains(ws / DIGITAL_NESTED_SPEC)
+        for kind, name, msg in cdc_findings(
+                interface, clocks, load_cdc_ports(ws / DIGITAL_CDC)):
+            bad(kind, [name], msg)
+        cdc = {"checked": True, "file": DIGITAL_CDC,
+               "async_ports": sorted(async_ports(interface, clocks))}
+    else:
+        cdc = {"checked": False, "file": DIGITAL_CDC,
+               "async_ports": sorted(async_ports(interface, set())),
+               "reason": f"no {DIGITAL_NESTED_SPEC} yet: the digital side's "
+                         "cdc ports are checked once it exists"}
+
     payload = checklib.report(SCRIPT, interface_path, violations,
-                              signals=sorted(interface))
+                              signals=sorted(interface), cdc=cdc)
     return payload, args.out
 
 
