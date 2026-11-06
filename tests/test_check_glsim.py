@@ -483,3 +483,33 @@ def test_compare_netlists_ignores_only_the_power_pins(tmp_path):
     b.write_text(PNL)
     assert check_glsim.compare_netlists(a, b) is None
     assert [c[0] for c in check_glsim.netlist_cells(NL)] == ["filltie_1", "inv_1", "inv_1"]
+
+
+def test_port_alias_collapses_onto_the_port_and_nothing_else_moves():
+    text = (
+        "module t (a, b, c, d);\n"
+        " output [1:0] a;\n output b;\n output c;\n input d;\n"
+        " wire net115;\n wire net1150;\n wire net7;\n"
+        " buf_1 place115 (.I(d), .Z(net115));\n"
+        " buf_1 load (.I(net115), .Z(net1150));\n"
+        " assign a[1] = net115;\n"
+        " assign b = net115;\n"
+        " assign c = d;\n"
+        " assign a[0] = 1'b0;\n"
+        "endmodule\n")
+    out = check_glsim.collapse_port_aliases(text)
+    assert "wire net115;" not in out and "assign a[1]" not in out
+    assert ".Z(a[1])" in out and ".I(a[1])" in out
+    assert "wire net1150;" in out and ".Z(net1150)" in out
+    # a second port on the net keeps its assign, now from the first port
+    assert "assign b = a[1];" in out
+    # a port on the right, not a declared wire, and a constant stay as written
+    assert "assign c = d;" in out and "assign a[0] = 1'b0;" in out
+
+
+def test_netlist_for_icarus_collapses_port_aliases(tmp_path):
+    src, dest = tmp_path / "in.v", tmp_path / "out.v"
+    src.write_text(" wire n1;\n buf_1 u (.I(x), .Z(n1));\n"
+                   " assign p[3] = n1;\n", encoding="utf-8")
+    check_glsim.netlist_for_icarus(src, dest, {})
+    assert dest.read_text() == " buf_1 u (.I(x), .Z(p[3]));\n"

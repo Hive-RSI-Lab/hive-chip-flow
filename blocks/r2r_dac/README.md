@@ -24,7 +24,7 @@ It's an msde block of three workspaces, each with its own `state.json`:
 ## Decisions carried with it
 
 - Timing meets 50 MHz at every corner: worst setup slack at ss/125 °C/3.0 V
-  is +1.59 ns. The person's earlier acceptance of a −0.87 ns miss there no
+  is +2.82 ns. The person's earlier acceptance of a −0.87 ns miss there no
   longer applies, so `digital/reports/waivers.json` is gone (it's in git
   history). The sine table now loads a register instead of feeding `dac_code`
   directly, with the same code at `dac_code` on every cycle.
@@ -64,7 +64,7 @@ gates write them again.
   again once, against the same numbers (`inputs_sha256` d5e263c9…4f55);
   that's theirs, and until then release refuses as it should.
 - 2026-11-05: the table's read moved one step earlier and `sine_val` became a
-  register, which closes 50 MHz at every corner (ss/125C setup +1.59 ns), so
+  register, which closes 50 MHz at every corner (ss/125C setup +2.82 ns), so
   the waiver above no longer applies and the file is gone (see git history).
   The re-approval the entry above asks for isn't needed.
 - 2026-11-05: `pex_sim` now runs its bench at every corner it picks, and its

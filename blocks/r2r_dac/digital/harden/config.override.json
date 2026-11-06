@@ -1,4 +1,6 @@
 {
-  "//": "The post-route repair's default 10% margin was too thin here: it aimed for 2.7 ns on routed-estimate parasitics, and detailed routing left aoi21_1 _562_ at 3.09 ns against the 3 ns limit at ss/125C, 15% over its aim. 20% is the margin the placement repair already uses (DESIGN_REPAIR_MAX_SLEW_PCT).",
-  "GRT_DESIGN_REPAIR_MAX_SLEW_PCT": 20
+  "//": "The post-route repair's default 10% margin was too thin here: it aimed for 2.7 ns on routed-estimate parasitics, and detailed routing left aoi21_1 _562_ at 3.09 ns against the 3 ns limit at ss/125C, 15% over its aim. 20% is the margin the placement repair already uses (DESIGN_REPAIR_MAX_SLEW_PCT). Timing repair: with placement blind to timing and no setup repair after routing, adding the wrapper's two reset flops moved the sine table path (cnt_p1 to sine_val) from +1.59 ns to -0.64 ns at ss/125C with no change to that logic, so that slack was placement luck. PL_TIMING_DRIVEN and RUN_POST_GRT_RESIZER_TIMING make the flow work on the path; the post-route repair alone reached only +0.04 ns.",
+  "GRT_DESIGN_REPAIR_MAX_SLEW_PCT": 20,
+  "PL_TIMING_DRIVEN": true,
+  "RUN_POST_GRT_RESIZER_TIMING": true
 }

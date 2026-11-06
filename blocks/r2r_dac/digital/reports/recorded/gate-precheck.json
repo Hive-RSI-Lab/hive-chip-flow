@@ -3,7 +3,7 @@
  "gate": "precheck",
  "phase": "P6",
  "tool": "precheck",
- "input_digest": "harden_signoff:99737837152047465e088facc0b56400d37a87462870196f939c59c36bcfaa69",
+ "input_digest": "harden_signoff:857853e12358b7137b1d3595ab578ac6079a9d2e0161f7469c877da78139ad68",
  "status": "pass",
  "criteria": {
   "fail_severities": [
@@ -21,10 +21,15 @@
  "violations": [],
  "facts": {
   "top": "tt_um_r2r_dac_digital",
-  "checks_run": 12
+  "checks_run": 12,
+  "pad_reset": {
+   "latency": 2,
+   "sync": true,
+   "opt_out_reason": null
+  }
  },
  "inputs_at_start": {
-  "harden": "harden_signoff:99737837152047465e088facc0b56400d37a87462870196f939c59c36bcfaa69",
+  "harden": "harden_signoff:857853e12358b7137b1d3595ab578ac6079a9d2e0161f7469c877da78139ad68",
   "harden_info": "json_canonical:e722bc7d8de703255711480061816e03c2199ce2ea6dff004d19c5a958436590",
   "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119",
   "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
@@ -32,6 +37,6 @@
   "pdk_klayout": "dir_text:876da90e8aab65b830b36eca12bd720adfe8240a0952872419d9f2b4abda605d"
  },
  "strength_at_start": 0,
- "recorded_ts": "2026-11-05T13:49:32",
- "attempts": 5
+ "recorded_ts": "2026-11-05T19:51:16",
+ "attempts": 8
 }

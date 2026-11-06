@@ -111,5 +111,7 @@
     "dir::../macros/r2r_dac_analog.spice"
   ],
   "RSZ_DONT_TOUCH_RX": "^ua\\[\\d+\\]$",
-  "GRT_DESIGN_REPAIR_MAX_SLEW_PCT": 20
+  "GRT_DESIGN_REPAIR_MAX_SLEW_PCT": 20,
+  "PL_TIMING_DRIVEN": true,
+  "RUN_POST_GRT_RESIZER_TIMING": true
 }

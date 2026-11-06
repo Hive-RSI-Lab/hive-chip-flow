@@ -120,8 +120,12 @@ TT standalone pins: ui_in -> ui_in, mode -> uio_in[1:0], slow -> uio_in[2], dac_
 ## Timing at the slow corner
 
 The block meets 50 MHz at every corner. Worst setup slack at ss / 125 C /
-3.0 V is +1.59 ns with max parasitics (+1.91 ns nominal, +2.18 ns min); tt
-is +10.64 ns and ff +13.27 ns. Hold is met at every corner.
+3.0 V is +2.82 ns with max parasitics (+3.04 ns nominal, +3.23 ns min); tt
+is +11.37 ns and ff +13.62 ns. Hold is met at every corner (+0.18 ns at ff).
+That margin comes from timing-driven placement and post-route setup repair
+(harden/config.override.json): without them the wrapper's two reset flops
+alone moved the sine table path to -0.64 ns, so the slack before them was
+placement luck.
 
 Earlier forms missed at ss / 125 C, the last by 0.87 ns, and the owner
 accepted that on 2026-10-13. Registering sine_val took the table off both

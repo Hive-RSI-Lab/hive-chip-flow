@@ -31,15 +31,15 @@
   "survivors_by_class": {},
   "equivalent_by": {},
   "unproven_survivors": {},
-  "wall_s": 12.89
+  "wall_s": 5.99
  },
  "inputs_at_start": {
   "rtl": "dir_text:5b5e3748612f45afdfaedc1d7e6daa228ca0e64c09072bc4ac8b8b6275a6d995",
-  "tb": "dir_text:3d7769f785322e639d37580c2e85e19fdd9b82876af0927410c75ad81d11554b",
+  "tb": "dir_text:04af66bc6eb7fca3a2248c8ba77586ee3233d41be6fc978dfde7a7fb936be615",
   "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119",
   "mutant_rulings": null
  },
  "strength_at_start": 0,
- "recorded_ts": "2026-11-05T12:59:04",
- "attempts": 8
+ "recorded_ts": "2026-11-05T19:27:37",
+ "attempts": 11
 }

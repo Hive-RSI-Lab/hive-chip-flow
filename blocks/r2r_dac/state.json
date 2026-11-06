@@ -4,16 +4,16 @@
  "block": "r2r_dac",
  "workspace": "blocks/r2r_dac",
  "created": "2026-09-25T05:42:01",
- "updated": "2026-11-05T18:11:43",
+ "updated": "2026-11-05T20:08:14",
  "phase": "P4",
  "toolchain": null,
  "gates": {
   "split": {
    "phase": "P1",
    "status": "pass",
-   "attempts": 5,
+   "attempts": 8,
    "last": {
-    "ts": "2026-11-05T17:59:09",
+    "ts": "2026-11-05T19:53:57",
     "status": "pass",
     "failing_count": 0,
     "total": 0,
@@ -84,15 +84,54 @@
      },
      "strength": 0,
      "job": null
+    },
+    {
+     "ts": "2026-11-05T18:34:37",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "interface": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
+      "digital_side_spec": "json_canonical:e52fd5cabc96bf3cfe80463861809e640516e763ffe6d5ad341dd19366f87352",
+      "analog_side_spec": "json_canonical:61734e544be2b0cd5fb5d3373df1e39f971c980f0e71decd49621c97736c30bd"
+     },
+     "strength": 0,
+     "job": null
+    },
+    {
+     "ts": "2026-11-05T19:07:59",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "interface": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
+      "digital_side_spec": "json_canonical:e52fd5cabc96bf3cfe80463861809e640516e763ffe6d5ad341dd19366f87352",
+      "analog_side_spec": "json_canonical:61734e544be2b0cd5fb5d3373df1e39f971c980f0e71decd49621c97736c30bd"
+     },
+     "strength": 0,
+     "job": null
+    },
+    {
+     "ts": "2026-11-05T19:53:57",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "interface": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
+      "digital_side_spec": "json_canonical:e52fd5cabc96bf3cfe80463861809e640516e763ffe6d5ad341dd19366f87352",
+      "analog_side_spec": "json_canonical:61734e544be2b0cd5fb5d3373df1e39f971c980f0e71decd49621c97736c30bd"
+     },
+     "strength": 0,
+     "job": null
     }
    ]
   },
   "top_harden": {
    "phase": "P3",
    "status": "pass",
-   "attempts": 11,
+   "attempts": 14,
    "last": {
-    "ts": "2026-11-05T18:05:35",
+    "ts": "2026-11-05T20:00:02",
     "status": "pass",
     "failing_count": 0,
     "total": 0,
@@ -108,7 +147,7 @@
      "top_sdc": null,
      "digital_sdc": null,
      "top_override": null,
-     "digital_override": "json_canonical:5b8877353f2d842dc6dfeef026a1f29a0951e069de204e9590ddb8c0a8211980",
+     "digital_override": "json_canonical:287e8a2e466f0d26930245056d99dcc9dec4f71d106936c4f0bee579012017eb",
      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
      "pdk_liberty": "dir_bytes:f09377f057ab484ec9e5a45b205c99a5de399e2bdca886531bf9eefa57783f32",
      "pdk_librelane": "dir_text:34d9ac7321e45f53bb312360322931fa53cbee081929f4bd7047d6e84b5fdb37",
@@ -119,7 +158,7 @@
     "strength": 1,
     "job": null,
     "facts": {
-     "wall_s": 110.92
+     "wall_s": 101.07
     }
    },
    "history": [
@@ -341,15 +380,108 @@
      "facts": {
       "wall_s": 110.92
      }
+    },
+    {
+     "ts": "2026-11-05T18:40:13",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "digital_rtl": "dir_text:5b5e3748612f45afdfaedc1d7e6daa228ca0e64c09072bc4ac8b8b6275a6d995",
+      "interface": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
+      "digital_spec": "json_canonical:316aabe3e699eb67a766fb42296b9a90d765394b6deefb2d5178cc8865c08bbf",
+      "analog_layout": "dir_text:7a954c277f279e0a8b3d75e97ed6833bf445cf7e04f4ec0eefae35be290d869d",
+      "analog_netlist": "dir_text:13970a2f19f36bd8aa49baa3a94132821e16917455715ba77b23b074b4551548",
+      "analog_sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
+      "analog_spec": "json_canonical:e501d6a76274910fb82ae99aa3d7190e0a89bf501faa94d88f2163f26372dc1b",
+      "macro_lib": "dir_text:7d683ae50505dd0dd60a5b5f61822c4a0603d49a03503e82b2441c5092e4eaf0",
+      "top_sdc": null,
+      "digital_sdc": null,
+      "top_override": null,
+      "digital_override": "json_canonical:5b8877353f2d842dc6dfeef026a1f29a0951e069de204e9590ddb8c0a8211980",
+      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+      "pdk_liberty": "dir_bytes:f09377f057ab484ec9e5a45b205c99a5de399e2bdca886531bf9eefa57783f32",
+      "pdk_librelane": "dir_text:34d9ac7321e45f53bb312360322931fa53cbee081929f4bd7047d6e84b5fdb37",
+      "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
+      "pdk_klayout": "dir_text:876da90e8aab65b830b36eca12bd720adfe8240a0952872419d9f2b4abda605d",
+      "pdk_netgen": "dir_text:8164f65bb7d1bef6e27af4c13b1c6ede50973cec7aec482556abb23881aceb04"
+     },
+     "strength": 1,
+     "job": null,
+     "facts": {
+      "wall_s": 105.44
+     }
+    },
+    {
+     "ts": "2026-11-05T19:13:22",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "digital_rtl": "dir_text:5b5e3748612f45afdfaedc1d7e6daa228ca0e64c09072bc4ac8b8b6275a6d995",
+      "interface": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
+      "digital_spec": "json_canonical:316aabe3e699eb67a766fb42296b9a90d765394b6deefb2d5178cc8865c08bbf",
+      "analog_layout": "dir_text:7a954c277f279e0a8b3d75e97ed6833bf445cf7e04f4ec0eefae35be290d869d",
+      "analog_netlist": "dir_text:13970a2f19f36bd8aa49baa3a94132821e16917455715ba77b23b074b4551548",
+      "analog_sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
+      "analog_spec": "json_canonical:e501d6a76274910fb82ae99aa3d7190e0a89bf501faa94d88f2163f26372dc1b",
+      "macro_lib": "dir_text:7d683ae50505dd0dd60a5b5f61822c4a0603d49a03503e82b2441c5092e4eaf0",
+      "top_sdc": null,
+      "digital_sdc": null,
+      "top_override": null,
+      "digital_override": "json_canonical:fb8b45f39928e5ee7cb6dcd5537429d8e2438396e018ce60f2a032fe7d245d19",
+      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+      "pdk_liberty": "dir_bytes:f09377f057ab484ec9e5a45b205c99a5de399e2bdca886531bf9eefa57783f32",
+      "pdk_librelane": "dir_text:34d9ac7321e45f53bb312360322931fa53cbee081929f4bd7047d6e84b5fdb37",
+      "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
+      "pdk_klayout": "dir_text:876da90e8aab65b830b36eca12bd720adfe8240a0952872419d9f2b4abda605d",
+      "pdk_netgen": "dir_text:8164f65bb7d1bef6e27af4c13b1c6ede50973cec7aec482556abb23881aceb04"
+     },
+     "strength": 1,
+     "job": null,
+     "facts": {
+      "wall_s": 107.14
+     }
+    },
+    {
+     "ts": "2026-11-05T20:00:02",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "digital_rtl": "dir_text:5b5e3748612f45afdfaedc1d7e6daa228ca0e64c09072bc4ac8b8b6275a6d995",
+      "interface": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
+      "digital_spec": "json_canonical:316aabe3e699eb67a766fb42296b9a90d765394b6deefb2d5178cc8865c08bbf",
+      "analog_layout": "dir_text:7a954c277f279e0a8b3d75e97ed6833bf445cf7e04f4ec0eefae35be290d869d",
+      "analog_netlist": "dir_text:13970a2f19f36bd8aa49baa3a94132821e16917455715ba77b23b074b4551548",
+      "analog_sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
+      "analog_spec": "json_canonical:e501d6a76274910fb82ae99aa3d7190e0a89bf501faa94d88f2163f26372dc1b",
+      "macro_lib": "dir_text:7d683ae50505dd0dd60a5b5f61822c4a0603d49a03503e82b2441c5092e4eaf0",
+      "top_sdc": null,
+      "digital_sdc": null,
+      "top_override": null,
+      "digital_override": "json_canonical:287e8a2e466f0d26930245056d99dcc9dec4f71d106936c4f0bee579012017eb",
+      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+      "pdk_liberty": "dir_bytes:f09377f057ab484ec9e5a45b205c99a5de399e2bdca886531bf9eefa57783f32",
+      "pdk_librelane": "dir_text:34d9ac7321e45f53bb312360322931fa53cbee081929f4bd7047d6e84b5fdb37",
+      "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
+      "pdk_klayout": "dir_text:876da90e8aab65b830b36eca12bd720adfe8240a0952872419d9f2b4abda605d",
+      "pdk_netgen": "dir_text:8164f65bb7d1bef6e27af4c13b1c6ede50973cec7aec482556abb23881aceb04"
+     },
+     "strength": 1,
+     "job": null,
+     "facts": {
+      "wall_s": 101.07
+     }
     }
    ]
   },
   "cosim": {
    "phase": "P3",
    "status": "pass",
-   "attempts": 7,
+   "attempts": 10,
    "last": {
-    "ts": "2026-11-05T18:05:59",
+    "ts": "2026-11-05T20:01:39",
     "status": "pass",
     "failing_count": 0,
     "total": 0,
@@ -475,20 +607,71 @@
      },
      "strength": 0,
      "job": null
+    },
+    {
+     "ts": "2026-11-05T18:40:28",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "interface": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
+      "tb": "dir_text:61ebd816d194d1ee1f65bd3ea5b8c4e4e9537593f9cb58d45b7172d9a87ed6b0",
+      "digital_rtl": "dir_text:5b5e3748612f45afdfaedc1d7e6daa228ca0e64c09072bc4ac8b8b6275a6d995",
+      "analog_netlist": "dir_text:13970a2f19f36bd8aa49baa3a94132821e16917455715ba77b23b074b4551548",
+      "analog_sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
+      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+      "pdk_models": "dir_text:84e0f27991c27acae27ec5243fd0d1587f7bfb2655e802ed0eb92a811cf5f7f8"
+     },
+     "strength": 0,
+     "job": null
+    },
+    {
+     "ts": "2026-11-05T19:13:36",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "interface": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
+      "tb": "dir_text:61ebd816d194d1ee1f65bd3ea5b8c4e4e9537593f9cb58d45b7172d9a87ed6b0",
+      "digital_rtl": "dir_text:5b5e3748612f45afdfaedc1d7e6daa228ca0e64c09072bc4ac8b8b6275a6d995",
+      "analog_netlist": "dir_text:13970a2f19f36bd8aa49baa3a94132821e16917455715ba77b23b074b4551548",
+      "analog_sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
+      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+      "pdk_models": "dir_text:84e0f27991c27acae27ec5243fd0d1587f7bfb2655e802ed0eb92a811cf5f7f8"
+     },
+     "strength": 0,
+     "job": null
+    },
+    {
+     "ts": "2026-11-05T20:01:39",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "interface": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
+      "tb": "dir_text:61ebd816d194d1ee1f65bd3ea5b8c4e4e9537593f9cb58d45b7172d9a87ed6b0",
+      "digital_rtl": "dir_text:5b5e3748612f45afdfaedc1d7e6daa228ca0e64c09072bc4ac8b8b6275a6d995",
+      "analog_netlist": "dir_text:13970a2f19f36bd8aa49baa3a94132821e16917455715ba77b23b074b4551548",
+      "analog_sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
+      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+      "pdk_models": "dir_text:84e0f27991c27acae27ec5243fd0d1587f7bfb2655e802ed0eb92a811cf5f7f8"
+     },
+     "strength": 0,
+     "job": null
     }
    ]
   },
   "top_drc": {
    "phase": "P3",
    "status": "pass",
-   "attempts": 6,
+   "attempts": 9,
    "last": {
-    "ts": "2026-11-05T18:09:16",
+    "ts": "2026-11-05T20:03:35",
     "status": "pass",
     "failing_count": 0,
     "total": 0,
     "inputs": {
-     "top_gds": "dir_text:5365b6fa379b91e6c5ef0894085ebd579f0c9b886282d32fa4aed7645cb666de",
+     "top_gds": "dir_text:ab59ff6df1075b2b1347358a84b5cd5d8d220d00e145ed33423726e6a37efd93",
      "top_spec": "json_canonical:e3d10683d18fef15bc12f56940cc3ecba0378a7cbe1133f616f999f1ab263f91",
      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
      "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
@@ -605,20 +788,77 @@
       "magic_count": 0,
       "klayout_count": 0
      }
+    },
+    {
+     "ts": "2026-11-05T18:42:28",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "top_gds": "dir_text:737ba99b63cf846480d824156b784a2e12984eec1b7c9c8478f1737705db64a0",
+      "top_spec": "json_canonical:e3d10683d18fef15bc12f56940cc3ecba0378a7cbe1133f616f999f1ab263f91",
+      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+      "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
+      "pdk_klayout": "dir_text:876da90e8aab65b830b36eca12bd720adfe8240a0952872419d9f2b4abda605d"
+     },
+     "strength": 0,
+     "job": null,
+     "facts": {
+      "magic_count": 0,
+      "klayout_count": 0
+     }
+    },
+    {
+     "ts": "2026-11-05T19:15:12",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "top_gds": "dir_text:a2b27b11c3b9037c341845d09027d260378fa6743c48f3e283a3da272a62f54f",
+      "top_spec": "json_canonical:e3d10683d18fef15bc12f56940cc3ecba0378a7cbe1133f616f999f1ab263f91",
+      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+      "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
+      "pdk_klayout": "dir_text:876da90e8aab65b830b36eca12bd720adfe8240a0952872419d9f2b4abda605d"
+     },
+     "strength": 0,
+     "job": null,
+     "facts": {
+      "magic_count": 0,
+      "klayout_count": 0
+     }
+    },
+    {
+     "ts": "2026-11-05T20:03:35",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "top_gds": "dir_text:ab59ff6df1075b2b1347358a84b5cd5d8d220d00e145ed33423726e6a37efd93",
+      "top_spec": "json_canonical:e3d10683d18fef15bc12f56940cc3ecba0378a7cbe1133f616f999f1ab263f91",
+      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+      "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
+      "pdk_klayout": "dir_text:876da90e8aab65b830b36eca12bd720adfe8240a0952872419d9f2b4abda605d"
+     },
+     "strength": 0,
+     "job": null,
+     "facts": {
+      "magic_count": 0,
+      "klayout_count": 0
+     }
     }
    ]
   },
   "precheck": {
    "phase": "P3",
    "status": "pass",
-   "attempts": 6,
+   "attempts": 9,
    "last": {
-    "ts": "2026-11-05T18:11:14",
+    "ts": "2026-11-05T20:07:26",
     "status": "pass",
     "failing_count": 0,
     "total": 0,
     "inputs": {
-     "top_gds": "dir_text:5365b6fa379b91e6c5ef0894085ebd579f0c9b886282d32fa4aed7645cb666de",
+     "top_gds": "dir_text:ab59ff6df1075b2b1347358a84b5cd5d8d220d00e145ed33423726e6a37efd93",
      "interface": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
      "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
@@ -730,24 +970,78 @@
      "facts": {
       "checks_run": 12
      }
+    },
+    {
+     "ts": "2026-11-05T18:45:17",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "top_gds": "dir_text:737ba99b63cf846480d824156b784a2e12984eec1b7c9c8478f1737705db64a0",
+      "interface": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
+      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+      "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
+      "pdk_klayout": "dir_text:876da90e8aab65b830b36eca12bd720adfe8240a0952872419d9f2b4abda605d"
+     },
+     "strength": 0,
+     "job": null,
+     "facts": {
+      "checks_run": 12
+     }
+    },
+    {
+     "ts": "2026-11-05T19:17:13",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "top_gds": "dir_text:a2b27b11c3b9037c341845d09027d260378fa6743c48f3e283a3da272a62f54f",
+      "interface": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
+      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+      "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
+      "pdk_klayout": "dir_text:876da90e8aab65b830b36eca12bd720adfe8240a0952872419d9f2b4abda605d"
+     },
+     "strength": 0,
+     "job": null,
+     "facts": {
+      "checks_run": 12
+     }
+    },
+    {
+     "ts": "2026-11-05T20:07:26",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "top_gds": "dir_text:ab59ff6df1075b2b1347358a84b5cd5d8d220d00e145ed33423726e6a37efd93",
+      "interface": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
+      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+      "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
+      "pdk_klayout": "dir_text:876da90e8aab65b830b36eca12bd720adfe8240a0952872419d9f2b4abda605d"
+     },
+     "strength": 0,
+     "job": null,
+     "facts": {
+      "checks_run": 12
+     }
     }
    ]
   },
   "top_lvs": {
    "phase": "P3",
    "status": "pass",
-   "attempts": 6,
+   "attempts": 9,
    "last": {
-    "ts": "2026-11-05T18:09:19",
+    "ts": "2026-11-05T20:04:34",
     "status": "pass",
     "failing_count": 0,
     "total": 0,
     "inputs": {
-     "top_gds": "dir_text:5365b6fa379b91e6c5ef0894085ebd579f0c9b886282d32fa4aed7645cb666de",
+     "top_gds": "dir_text:ab59ff6df1075b2b1347358a84b5cd5d8d220d00e145ed33423726e6a37efd93",
      "analog_layout": "dir_text:7a954c277f279e0a8b3d75e97ed6833bf445cf7e04f4ec0eefae35be290d869d",
      "top_spec": "json_canonical:e3d10683d18fef15bc12f56940cc3ecba0378a7cbe1133f616f999f1ab263f91",
-     "top_macros": "dir_text:77ccd780ffb0fc3162f78581dcc1657f618aaad1b6574a1b752ce2eb6ae58301",
-     "top_pnl": "dir_text:09214ef4cbb07d50a3e4161a027d479af912d18041ae12668dd986256a807d87",
+     "top_macros": "dir_text:e74a65725af084fbba1c480a273162691bac7018f2bedb936b3cf42c428db608",
+     "top_pnl": "dir_text:794cc7c720bbc420e674e36a6104a4c6215e43ff21e84c209f67043729eeb0ae",
      "analog_netlist": "dir_text:13970a2f19f36bd8aa49baa3a94132821e16917455715ba77b23b074b4551548",
      "analog_sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
@@ -859,15 +1153,75 @@
      },
      "strength": 0,
      "job": null
+    },
+    {
+     "ts": "2026-11-05T18:43:02",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "top_gds": "dir_text:737ba99b63cf846480d824156b784a2e12984eec1b7c9c8478f1737705db64a0",
+      "analog_layout": "dir_text:7a954c277f279e0a8b3d75e97ed6833bf445cf7e04f4ec0eefae35be290d869d",
+      "top_spec": "json_canonical:e3d10683d18fef15bc12f56940cc3ecba0378a7cbe1133f616f999f1ab263f91",
+      "top_macros": "dir_text:85b64be5ead16cdc3f7b5d79052fcce424966129019fb66169d2f2d52f94ba4f",
+      "top_pnl": "dir_text:ed25c4e827ae34db956a5635ed6fc5c793620128239fc8ac72eb1ac56471ee1c",
+      "analog_netlist": "dir_text:13970a2f19f36bd8aa49baa3a94132821e16917455715ba77b23b074b4551548",
+      "analog_sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
+      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+      "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
+      "pdk_netgen": "dir_text:8164f65bb7d1bef6e27af4c13b1c6ede50973cec7aec482556abb23881aceb04"
+     },
+     "strength": 0,
+     "job": null
+    },
+    {
+     "ts": "2026-11-05T19:15:16",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "top_gds": "dir_text:a2b27b11c3b9037c341845d09027d260378fa6743c48f3e283a3da272a62f54f",
+      "analog_layout": "dir_text:7a954c277f279e0a8b3d75e97ed6833bf445cf7e04f4ec0eefae35be290d869d",
+      "top_spec": "json_canonical:e3d10683d18fef15bc12f56940cc3ecba0378a7cbe1133f616f999f1ab263f91",
+      "top_macros": "dir_text:8bc780a576c1577d5270bb0166b76e9321b7ba710bffe54e7148ba079630804f",
+      "top_pnl": "dir_text:794cc7c720bbc420e674e36a6104a4c6215e43ff21e84c209f67043729eeb0ae",
+      "analog_netlist": "dir_text:13970a2f19f36bd8aa49baa3a94132821e16917455715ba77b23b074b4551548",
+      "analog_sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
+      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+      "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
+      "pdk_netgen": "dir_text:8164f65bb7d1bef6e27af4c13b1c6ede50973cec7aec482556abb23881aceb04"
+     },
+     "strength": 0,
+     "job": null
+    },
+    {
+     "ts": "2026-11-05T20:04:34",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "top_gds": "dir_text:ab59ff6df1075b2b1347358a84b5cd5d8d220d00e145ed33423726e6a37efd93",
+      "analog_layout": "dir_text:7a954c277f279e0a8b3d75e97ed6833bf445cf7e04f4ec0eefae35be290d869d",
+      "top_spec": "json_canonical:e3d10683d18fef15bc12f56940cc3ecba0378a7cbe1133f616f999f1ab263f91",
+      "top_macros": "dir_text:e74a65725af084fbba1c480a273162691bac7018f2bedb936b3cf42c428db608",
+      "top_pnl": "dir_text:794cc7c720bbc420e674e36a6104a4c6215e43ff21e84c209f67043729eeb0ae",
+      "analog_netlist": "dir_text:13970a2f19f36bd8aa49baa3a94132821e16917455715ba77b23b074b4551548",
+      "analog_sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
+      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+      "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
+      "pdk_netgen": "dir_text:8164f65bb7d1bef6e27af4c13b1c6ede50973cec7aec482556abb23881aceb04"
+     },
+     "strength": 0,
+     "job": null
     }
    ]
   },
   "release": {
    "phase": "P4",
    "status": "fail",
-   "attempts": 6,
+   "attempts": 9,
    "last": {
-    "ts": "2026-11-05T18:11:43",
+    "ts": "2026-11-05T20:08:14",
     "status": "fail",
     "failing_count": 1,
     "total": 1,
@@ -985,15 +1339,72 @@
      },
      "strength": 0,
      "job": null
+    },
+    {
+     "ts": "2026-11-05T18:46:11",
+     "status": "fail",
+     "failing_count": 2,
+     "total": 2,
+     "inputs": {
+      "interface": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
+      "digital_rtl": "dir_text:5b5e3748612f45afdfaedc1d7e6daa228ca0e64c09072bc4ac8b8b6275a6d995",
+      "analog_layout": "dir_text:7a954c277f279e0a8b3d75e97ed6833bf445cf7e04f4ec0eefae35be290d869d",
+      "digital_spec": "json_canonical:316aabe3e699eb67a766fb42296b9a90d765394b6deefb2d5178cc8865c08bbf",
+      "analog_netlist": "dir_text:13970a2f19f36bd8aa49baa3a94132821e16917455715ba77b23b074b4551548",
+      "analog_sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
+      "digital_side_spec": "json_canonical:e52fd5cabc96bf3cfe80463861809e640516e763ffe6d5ad341dd19366f87352",
+      "analog_side_spec": "json_canonical:61734e544be2b0cd5fb5d3373df1e39f971c980f0e71decd49621c97736c30bd",
+      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2"
+     },
+     "strength": 0,
+     "job": null
+    },
+    {
+     "ts": "2026-11-05T19:17:25",
+     "status": "fail",
+     "failing_count": 2,
+     "total": 2,
+     "inputs": {
+      "interface": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
+      "digital_rtl": "dir_text:5b5e3748612f45afdfaedc1d7e6daa228ca0e64c09072bc4ac8b8b6275a6d995",
+      "analog_layout": "dir_text:7a954c277f279e0a8b3d75e97ed6833bf445cf7e04f4ec0eefae35be290d869d",
+      "digital_spec": "json_canonical:316aabe3e699eb67a766fb42296b9a90d765394b6deefb2d5178cc8865c08bbf",
+      "analog_netlist": "dir_text:13970a2f19f36bd8aa49baa3a94132821e16917455715ba77b23b074b4551548",
+      "analog_sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
+      "digital_side_spec": "json_canonical:e52fd5cabc96bf3cfe80463861809e640516e763ffe6d5ad341dd19366f87352",
+      "analog_side_spec": "json_canonical:61734e544be2b0cd5fb5d3373df1e39f971c980f0e71decd49621c97736c30bd",
+      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2"
+     },
+     "strength": 0,
+     "job": null
+    },
+    {
+     "ts": "2026-11-05T20:08:14",
+     "status": "fail",
+     "failing_count": 1,
+     "total": 1,
+     "inputs": {
+      "interface": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
+      "digital_rtl": "dir_text:5b5e3748612f45afdfaedc1d7e6daa228ca0e64c09072bc4ac8b8b6275a6d995",
+      "analog_layout": "dir_text:7a954c277f279e0a8b3d75e97ed6833bf445cf7e04f4ec0eefae35be290d869d",
+      "digital_spec": "json_canonical:316aabe3e699eb67a766fb42296b9a90d765394b6deefb2d5178cc8865c08bbf",
+      "analog_netlist": "dir_text:13970a2f19f36bd8aa49baa3a94132821e16917455715ba77b23b074b4551548",
+      "analog_sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
+      "digital_side_spec": "json_canonical:e52fd5cabc96bf3cfe80463861809e640516e763ffe6d5ad341dd19366f87352",
+      "analog_side_spec": "json_canonical:61734e544be2b0cd5fb5d3373df1e39f971c980f0e71decd49621c97736c30bd",
+      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2"
+     },
+     "strength": 0,
+     "job": null
     }
    ]
   },
   "macro_lib": {
    "phase": "P3",
    "status": "pass",
-   "attempts": 5,
+   "attempts": 8,
    "last": {
-    "ts": "2026-11-05T18:02:52",
+    "ts": "2026-11-05T19:57:06",
     "status": "pass",
     "failing_count": 0,
     "total": 0,
@@ -1946,6 +2357,483 @@
        }
       }
      }
+    },
+    {
+     "ts": "2026-11-05T18:38:20",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "interface": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
+      "analog_netlist": "dir_text:13970a2f19f36bd8aa49baa3a94132821e16917455715ba77b23b074b4551548",
+      "analog_sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
+      "analog_spec": "json_canonical:e501d6a76274910fb82ae99aa3d7190e0a89bf501faa94d88f2163f26372dc1b",
+      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+      "pdk_models": "dir_text:84e0f27991c27acae27ec5243fd0d1587f7bfb2655e802ed0eb92a811cf5f7f8",
+      "pdk_liberty": "dir_bytes:f09377f057ab484ec9e5a45b205c99a5de399e2bdca886531bf9eefa57783f32"
+     },
+     "strength": 1,
+     "job": null,
+     "facts": {
+      "corners": {
+       "tt_025C_3v30": {
+        "lib": "r2r_dac_analog__tt_025C_3v30.lib",
+        "vdd": 3.3,
+        "input_cap_pf": {
+         "dac_code[0]": {
+          "capacitance": 0.031147878787878787,
+          "rise_capacitance": 0.031146060606060604,
+          "fall_capacitance": 0.031147878787878787
+         },
+         "dac_code[1]": {
+          "capacitance": 0.031147878787878787,
+          "rise_capacitance": 0.031146060606060604,
+          "fall_capacitance": 0.031147878787878787
+         },
+         "dac_code[2]": {
+          "capacitance": 0.031147878787878787,
+          "rise_capacitance": 0.031146060606060604,
+          "fall_capacitance": 0.031147878787878787
+         },
+         "dac_code[3]": {
+          "capacitance": 0.031147878787878787,
+          "rise_capacitance": 0.031146060606060604,
+          "fall_capacitance": 0.031147878787878787
+         },
+         "dac_code[4]": {
+          "capacitance": 0.031147878787878787,
+          "rise_capacitance": 0.031146060606060604,
+          "fall_capacitance": 0.031147878787878787
+         },
+         "dac_code[5]": {
+          "capacitance": 0.031147878787878787,
+          "rise_capacitance": 0.031146060606060604,
+          "fall_capacitance": 0.031147878787878787
+         },
+         "dac_code[6]": {
+          "capacitance": 0.031147878787878787,
+          "rise_capacitance": 0.031146060606060604,
+          "fall_capacitance": 0.031147878787878787
+         },
+         "dac_code[7]": {
+          "capacitance": 0.031147878787878787,
+          "rise_capacitance": 0.031146060606060604,
+          "fall_capacitance": 0.031147878787878787
+         }
+        }
+       },
+       "ss_125C_3v00": {
+        "lib": "r2r_dac_analog__ss_125C_3v00.lib",
+        "vdd": 3.0,
+        "input_cap_pf": {
+         "dac_code[0]": {
+          "capacitance": 0.031079000000000002,
+          "rise_capacitance": 0.0310772,
+          "fall_capacitance": 0.031079000000000002
+         },
+         "dac_code[1]": {
+          "capacitance": 0.03107903333333333,
+          "rise_capacitance": 0.0310772,
+          "fall_capacitance": 0.03107903333333333
+         },
+         "dac_code[2]": {
+          "capacitance": 0.03107903333333333,
+          "rise_capacitance": 0.0310772,
+          "fall_capacitance": 0.03107903333333333
+         },
+         "dac_code[3]": {
+          "capacitance": 0.03107903333333333,
+          "rise_capacitance": 0.0310772,
+          "fall_capacitance": 0.03107903333333333
+         },
+         "dac_code[4]": {
+          "capacitance": 0.03107903333333333,
+          "rise_capacitance": 0.0310772,
+          "fall_capacitance": 0.03107903333333333
+         },
+         "dac_code[5]": {
+          "capacitance": 0.03107903333333333,
+          "rise_capacitance": 0.0310772,
+          "fall_capacitance": 0.03107903333333333
+         },
+         "dac_code[6]": {
+          "capacitance": 0.031079099999999995,
+          "rise_capacitance": 0.031077233333333332,
+          "fall_capacitance": 0.031079099999999995
+         },
+         "dac_code[7]": {
+          "capacitance": 0.031079099999999995,
+          "rise_capacitance": 0.031077266666666666,
+          "fall_capacitance": 0.031079099999999995
+         }
+        }
+       },
+       "ff_n40C_3v60": {
+        "lib": "r2r_dac_analog__ff_n40C_3v60.lib",
+        "vdd": 3.6,
+        "input_cap_pf": {
+         "dac_code[0]": {
+          "capacitance": 0.031899166666666666,
+          "rise_capacitance": 0.03189805555555555,
+          "fall_capacitance": 0.031899166666666666
+         },
+         "dac_code[1]": {
+          "capacitance": 0.031899166666666666,
+          "rise_capacitance": 0.03189805555555555,
+          "fall_capacitance": 0.031899166666666666
+         },
+         "dac_code[2]": {
+          "capacitance": 0.031899166666666666,
+          "rise_capacitance": 0.03189805555555555,
+          "fall_capacitance": 0.031899166666666666
+         },
+         "dac_code[3]": {
+          "capacitance": 0.031899166666666666,
+          "rise_capacitance": 0.03189805555555555,
+          "fall_capacitance": 0.031899166666666666
+         },
+         "dac_code[4]": {
+          "capacitance": 0.031899166666666666,
+          "rise_capacitance": 0.03189805555555555,
+          "fall_capacitance": 0.031899166666666666
+         },
+         "dac_code[5]": {
+          "capacitance": 0.031899166666666666,
+          "rise_capacitance": 0.03189805555555555,
+          "fall_capacitance": 0.031899166666666666
+         },
+         "dac_code[6]": {
+          "capacitance": 0.031899166666666666,
+          "rise_capacitance": 0.03189805555555555,
+          "fall_capacitance": 0.031899166666666666
+         },
+         "dac_code[7]": {
+          "capacitance": 0.031899166666666666,
+          "rise_capacitance": 0.03189805555555555,
+          "fall_capacitance": 0.031899166666666666
+         }
+        }
+       }
+      }
+     }
+    },
+    {
+     "ts": "2026-11-05T19:11:28",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "interface": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
+      "analog_netlist": "dir_text:13970a2f19f36bd8aa49baa3a94132821e16917455715ba77b23b074b4551548",
+      "analog_sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
+      "analog_spec": "json_canonical:e501d6a76274910fb82ae99aa3d7190e0a89bf501faa94d88f2163f26372dc1b",
+      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+      "pdk_models": "dir_text:84e0f27991c27acae27ec5243fd0d1587f7bfb2655e802ed0eb92a811cf5f7f8",
+      "pdk_liberty": "dir_bytes:f09377f057ab484ec9e5a45b205c99a5de399e2bdca886531bf9eefa57783f32"
+     },
+     "strength": 1,
+     "job": null,
+     "facts": {
+      "corners": {
+       "tt_025C_3v30": {
+        "lib": "r2r_dac_analog__tt_025C_3v30.lib",
+        "vdd": 3.3,
+        "input_cap_pf": {
+         "dac_code[0]": {
+          "capacitance": 0.031147878787878787,
+          "rise_capacitance": 0.031146060606060604,
+          "fall_capacitance": 0.031147878787878787
+         },
+         "dac_code[1]": {
+          "capacitance": 0.031147878787878787,
+          "rise_capacitance": 0.031146060606060604,
+          "fall_capacitance": 0.031147878787878787
+         },
+         "dac_code[2]": {
+          "capacitance": 0.031147878787878787,
+          "rise_capacitance": 0.031146060606060604,
+          "fall_capacitance": 0.031147878787878787
+         },
+         "dac_code[3]": {
+          "capacitance": 0.031147878787878787,
+          "rise_capacitance": 0.031146060606060604,
+          "fall_capacitance": 0.031147878787878787
+         },
+         "dac_code[4]": {
+          "capacitance": 0.031147878787878787,
+          "rise_capacitance": 0.031146060606060604,
+          "fall_capacitance": 0.031147878787878787
+         },
+         "dac_code[5]": {
+          "capacitance": 0.031147878787878787,
+          "rise_capacitance": 0.031146060606060604,
+          "fall_capacitance": 0.031147878787878787
+         },
+         "dac_code[6]": {
+          "capacitance": 0.031147878787878787,
+          "rise_capacitance": 0.031146060606060604,
+          "fall_capacitance": 0.031147878787878787
+         },
+         "dac_code[7]": {
+          "capacitance": 0.031147878787878787,
+          "rise_capacitance": 0.031146060606060604,
+          "fall_capacitance": 0.031147878787878787
+         }
+        }
+       },
+       "ss_125C_3v00": {
+        "lib": "r2r_dac_analog__ss_125C_3v00.lib",
+        "vdd": 3.0,
+        "input_cap_pf": {
+         "dac_code[0]": {
+          "capacitance": 0.031079000000000002,
+          "rise_capacitance": 0.0310772,
+          "fall_capacitance": 0.031079000000000002
+         },
+         "dac_code[1]": {
+          "capacitance": 0.03107903333333333,
+          "rise_capacitance": 0.0310772,
+          "fall_capacitance": 0.03107903333333333
+         },
+         "dac_code[2]": {
+          "capacitance": 0.03107903333333333,
+          "rise_capacitance": 0.0310772,
+          "fall_capacitance": 0.03107903333333333
+         },
+         "dac_code[3]": {
+          "capacitance": 0.03107903333333333,
+          "rise_capacitance": 0.0310772,
+          "fall_capacitance": 0.03107903333333333
+         },
+         "dac_code[4]": {
+          "capacitance": 0.03107903333333333,
+          "rise_capacitance": 0.0310772,
+          "fall_capacitance": 0.03107903333333333
+         },
+         "dac_code[5]": {
+          "capacitance": 0.03107903333333333,
+          "rise_capacitance": 0.0310772,
+          "fall_capacitance": 0.03107903333333333
+         },
+         "dac_code[6]": {
+          "capacitance": 0.031079099999999995,
+          "rise_capacitance": 0.031077233333333332,
+          "fall_capacitance": 0.031079099999999995
+         },
+         "dac_code[7]": {
+          "capacitance": 0.031079099999999995,
+          "rise_capacitance": 0.031077266666666666,
+          "fall_capacitance": 0.031079099999999995
+         }
+        }
+       },
+       "ff_n40C_3v60": {
+        "lib": "r2r_dac_analog__ff_n40C_3v60.lib",
+        "vdd": 3.6,
+        "input_cap_pf": {
+         "dac_code[0]": {
+          "capacitance": 0.031899166666666666,
+          "rise_capacitance": 0.03189805555555555,
+          "fall_capacitance": 0.031899166666666666
+         },
+         "dac_code[1]": {
+          "capacitance": 0.031899166666666666,
+          "rise_capacitance": 0.03189805555555555,
+          "fall_capacitance": 0.031899166666666666
+         },
+         "dac_code[2]": {
+          "capacitance": 0.031899166666666666,
+          "rise_capacitance": 0.03189805555555555,
+          "fall_capacitance": 0.031899166666666666
+         },
+         "dac_code[3]": {
+          "capacitance": 0.031899166666666666,
+          "rise_capacitance": 0.03189805555555555,
+          "fall_capacitance": 0.031899166666666666
+         },
+         "dac_code[4]": {
+          "capacitance": 0.031899166666666666,
+          "rise_capacitance": 0.03189805555555555,
+          "fall_capacitance": 0.031899166666666666
+         },
+         "dac_code[5]": {
+          "capacitance": 0.031899166666666666,
+          "rise_capacitance": 0.03189805555555555,
+          "fall_capacitance": 0.031899166666666666
+         },
+         "dac_code[6]": {
+          "capacitance": 0.031899166666666666,
+          "rise_capacitance": 0.03189805555555555,
+          "fall_capacitance": 0.031899166666666666
+         },
+         "dac_code[7]": {
+          "capacitance": 0.031899166666666666,
+          "rise_capacitance": 0.03189805555555555,
+          "fall_capacitance": 0.031899166666666666
+         }
+        }
+       }
+      }
+     }
+    },
+    {
+     "ts": "2026-11-05T19:57:06",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "interface": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
+      "analog_netlist": "dir_text:13970a2f19f36bd8aa49baa3a94132821e16917455715ba77b23b074b4551548",
+      "analog_sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
+      "analog_spec": "json_canonical:e501d6a76274910fb82ae99aa3d7190e0a89bf501faa94d88f2163f26372dc1b",
+      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+      "pdk_models": "dir_text:84e0f27991c27acae27ec5243fd0d1587f7bfb2655e802ed0eb92a811cf5f7f8",
+      "pdk_liberty": "dir_bytes:f09377f057ab484ec9e5a45b205c99a5de399e2bdca886531bf9eefa57783f32"
+     },
+     "strength": 1,
+     "job": null,
+     "facts": {
+      "corners": {
+       "tt_025C_3v30": {
+        "lib": "r2r_dac_analog__tt_025C_3v30.lib",
+        "vdd": 3.3,
+        "input_cap_pf": {
+         "dac_code[0]": {
+          "capacitance": 0.031147878787878787,
+          "rise_capacitance": 0.031146060606060604,
+          "fall_capacitance": 0.031147878787878787
+         },
+         "dac_code[1]": {
+          "capacitance": 0.031147878787878787,
+          "rise_capacitance": 0.031146060606060604,
+          "fall_capacitance": 0.031147878787878787
+         },
+         "dac_code[2]": {
+          "capacitance": 0.031147878787878787,
+          "rise_capacitance": 0.031146060606060604,
+          "fall_capacitance": 0.031147878787878787
+         },
+         "dac_code[3]": {
+          "capacitance": 0.031147878787878787,
+          "rise_capacitance": 0.031146060606060604,
+          "fall_capacitance": 0.031147878787878787
+         },
+         "dac_code[4]": {
+          "capacitance": 0.031147878787878787,
+          "rise_capacitance": 0.031146060606060604,
+          "fall_capacitance": 0.031147878787878787
+         },
+         "dac_code[5]": {
+          "capacitance": 0.031147878787878787,
+          "rise_capacitance": 0.031146060606060604,
+          "fall_capacitance": 0.031147878787878787
+         },
+         "dac_code[6]": {
+          "capacitance": 0.031147878787878787,
+          "rise_capacitance": 0.031146060606060604,
+          "fall_capacitance": 0.031147878787878787
+         },
+         "dac_code[7]": {
+          "capacitance": 0.031147878787878787,
+          "rise_capacitance": 0.031146060606060604,
+          "fall_capacitance": 0.031147878787878787
+         }
+        }
+       },
+       "ss_125C_3v00": {
+        "lib": "r2r_dac_analog__ss_125C_3v00.lib",
+        "vdd": 3.0,
+        "input_cap_pf": {
+         "dac_code[0]": {
+          "capacitance": 0.031079000000000002,
+          "rise_capacitance": 0.0310772,
+          "fall_capacitance": 0.031079000000000002
+         },
+         "dac_code[1]": {
+          "capacitance": 0.03107903333333333,
+          "rise_capacitance": 0.0310772,
+          "fall_capacitance": 0.03107903333333333
+         },
+         "dac_code[2]": {
+          "capacitance": 0.03107903333333333,
+          "rise_capacitance": 0.0310772,
+          "fall_capacitance": 0.03107903333333333
+         },
+         "dac_code[3]": {
+          "capacitance": 0.03107903333333333,
+          "rise_capacitance": 0.0310772,
+          "fall_capacitance": 0.03107903333333333
+         },
+         "dac_code[4]": {
+          "capacitance": 0.03107903333333333,
+          "rise_capacitance": 0.0310772,
+          "fall_capacitance": 0.03107903333333333
+         },
+         "dac_code[5]": {
+          "capacitance": 0.03107903333333333,
+          "rise_capacitance": 0.0310772,
+          "fall_capacitance": 0.03107903333333333
+         },
+         "dac_code[6]": {
+          "capacitance": 0.031079099999999995,
+          "rise_capacitance": 0.031077233333333332,
+          "fall_capacitance": 0.031079099999999995
+         },
+         "dac_code[7]": {
+          "capacitance": 0.031079099999999995,
+          "rise_capacitance": 0.031077266666666666,
+          "fall_capacitance": 0.031079099999999995
+         }
+        }
+       },
+       "ff_n40C_3v60": {
+        "lib": "r2r_dac_analog__ff_n40C_3v60.lib",
+        "vdd": 3.6,
+        "input_cap_pf": {
+         "dac_code[0]": {
+          "capacitance": 0.031899166666666666,
+          "rise_capacitance": 0.03189805555555555,
+          "fall_capacitance": 0.031899166666666666
+         },
+         "dac_code[1]": {
+          "capacitance": 0.031899166666666666,
+          "rise_capacitance": 0.03189805555555555,
+          "fall_capacitance": 0.031899166666666666
+         },
+         "dac_code[2]": {
+          "capacitance": 0.031899166666666666,
+          "rise_capacitance": 0.03189805555555555,
+          "fall_capacitance": 0.031899166666666666
+         },
+         "dac_code[3]": {
+          "capacitance": 0.031899166666666666,
+          "rise_capacitance": 0.03189805555555555,
+          "fall_capacitance": 0.031899166666666666
+         },
+         "dac_code[4]": {
+          "capacitance": 0.031899166666666666,
+          "rise_capacitance": 0.03189805555555555,
+          "fall_capacitance": 0.031899166666666666
+         },
+         "dac_code[5]": {
+          "capacitance": 0.031899166666666666,
+          "rise_capacitance": 0.03189805555555555,
+          "fall_capacitance": 0.031899166666666666
+         },
+         "dac_code[6]": {
+          "capacitance": 0.031899166666666666,
+          "rise_capacitance": 0.03189805555555555,
+          "fall_capacitance": 0.031899166666666666
+         },
+         "dac_code[7]": {
+          "capacitance": 0.031899166666666666,
+          "rise_capacitance": 0.03189805555555555,
+          "fall_capacitance": 0.031899166666666666
+         }
+        }
+       }
+      }
+     }
     }
    ]
   }
@@ -2024,157 +2912,157 @@
    "path": "interface.yaml",
    "kind": "interface",
    "sha256": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
-   "hashed": "2026-11-05T18:11:43"
+   "hashed": "2026-11-05T20:08:14"
   },
   "digital_rtl": {
    "path": "digital/rtl",
    "kind": "digital_rtl",
    "sha256": "dir_text:5b5e3748612f45afdfaedc1d7e6daa228ca0e64c09072bc4ac8b8b6275a6d995",
-   "hashed": "2026-11-05T18:11:43"
+   "hashed": "2026-11-05T20:08:14"
   },
   "analog_layout": {
    "path": "analog/layout",
    "kind": "analog_layout",
    "sha256": "dir_text:7a954c277f279e0a8b3d75e97ed6833bf445cf7e04f4ec0eefae35be290d869d",
-   "hashed": "2026-11-05T18:11:43"
+   "hashed": "2026-11-05T20:08:14"
   },
   "tb": {
    "path": "tb",
    "kind": "tb",
    "sha256": "dir_text:61ebd816d194d1ee1f65bd3ea5b8c4e4e9537593f9cb58d45b7172d9a87ed6b0",
-   "hashed": "2026-11-05T18:05:59"
+   "hashed": "2026-11-05T20:01:39"
   },
   "analog_netlist": {
    "path": "analog/netlist",
    "kind": "analog_netlist",
    "sha256": "dir_text:13970a2f19f36bd8aa49baa3a94132821e16917455715ba77b23b074b4551548",
-   "hashed": "2026-11-05T18:11:43"
+   "hashed": "2026-11-05T20:08:14"
   },
   "analog_sizing": {
    "path": "analog/sizing/sizing.yaml",
    "kind": "analog_sizing",
    "sha256": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
-   "hashed": "2026-11-05T18:11:43"
+   "hashed": "2026-11-05T20:08:14"
   },
   "top_gds": {
    "path": "top/harden/runs/run/final/gds",
    "kind": "top_gds",
-   "sha256": "dir_text:5365b6fa379b91e6c5ef0894085ebd579f0c9b886282d32fa4aed7645cb666de",
-   "hashed": "2026-11-05T18:11:14"
+   "sha256": "dir_text:ab59ff6df1075b2b1347358a84b5cd5d8d220d00e145ed33423726e6a37efd93",
+   "hashed": "2026-11-05T20:07:26"
   },
   "analog_spec": {
    "path": "analog/spec/spec.yaml",
    "kind": "analog_spec",
    "sha256": "json_canonical:e501d6a76274910fb82ae99aa3d7190e0a89bf501faa94d88f2163f26372dc1b",
-   "hashed": "2026-11-05T18:05:35"
+   "hashed": "2026-11-05T20:00:02"
   },
   "pdk_version": {
    "path": "${PDK_ROOT}/SOURCES",
    "kind": "pdk_version",
    "sha256": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
-   "hashed": "2026-11-05T18:11:43"
+   "hashed": "2026-11-05T20:08:14"
   },
   "pdk_models": {
    "path": "${PDK_ROOT}/libs.tech/ngspice",
    "kind": "pdk_models",
    "sha256": "dir_text:84e0f27991c27acae27ec5243fd0d1587f7bfb2655e802ed0eb92a811cf5f7f8",
-   "hashed": "2026-11-05T18:05:59"
+   "hashed": "2026-11-05T20:01:39"
   },
   "pdk_liberty": {
    "path": "${PDK_ROOT}/libs.ref/gf180mcu_fd_sc_mcu7t5v0/lib",
    "kind": "pdk_liberty",
    "sha256": "dir_bytes:f09377f057ab484ec9e5a45b205c99a5de399e2bdca886531bf9eefa57783f32",
-   "hashed": "2026-11-05T18:05:35"
+   "hashed": "2026-11-05T20:00:02"
   },
   "digital_spec": {
    "path": "digital/spec/spec.yaml",
    "kind": "digital_spec",
    "sha256": "json_canonical:316aabe3e699eb67a766fb42296b9a90d765394b6deefb2d5178cc8865c08bbf",
-   "hashed": "2026-11-05T18:11:43"
+   "hashed": "2026-11-05T20:08:14"
   },
   "macro_lib": {
    "path": "macro_lib",
    "kind": "macro_lib",
    "sha256": "dir_text:7d683ae50505dd0dd60a5b5f61822c4a0603d49a03503e82b2441c5092e4eaf0",
-   "hashed": "2026-11-05T18:05:35"
+   "hashed": "2026-11-05T20:00:02"
   },
   "top_sdc": {
    "path": "top.sdc",
    "kind": "top_sdc",
    "sha256": null,
-   "hashed": "2026-11-05T18:05:35"
+   "hashed": "2026-11-05T20:00:02"
   },
   "digital_sdc": {
    "path": "digital/harden/constraints.sdc",
    "kind": "digital_sdc",
    "sha256": null,
-   "hashed": "2026-11-05T18:05:35"
+   "hashed": "2026-11-05T20:00:02"
   },
   "top_override": {
    "path": "top.override.json",
    "kind": "top_override",
    "sha256": null,
-   "hashed": "2026-11-05T18:05:35"
+   "hashed": "2026-11-05T20:00:02"
   },
   "digital_override": {
    "path": "digital/harden/config.override.json",
    "kind": "digital_override",
-   "sha256": "json_canonical:5b8877353f2d842dc6dfeef026a1f29a0951e069de204e9590ddb8c0a8211980",
-   "hashed": "2026-11-05T18:05:35"
+   "sha256": "json_canonical:287e8a2e466f0d26930245056d99dcc9dec4f71d106936c4f0bee579012017eb",
+   "hashed": "2026-11-05T20:00:02"
   },
   "pdk_librelane": {
    "path": "${PDK_ROOT}/libs.tech/librelane",
    "kind": "pdk_librelane",
    "sha256": "dir_text:34d9ac7321e45f53bb312360322931fa53cbee081929f4bd7047d6e84b5fdb37",
-   "hashed": "2026-11-05T18:05:35"
+   "hashed": "2026-11-05T20:00:02"
   },
   "pdk_magic": {
    "path": "${PDK_ROOT}/libs.tech/magic",
    "kind": "pdk_magic",
    "sha256": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
-   "hashed": "2026-11-05T18:11:14"
+   "hashed": "2026-11-05T20:07:26"
   },
   "pdk_klayout": {
    "path": "${PDK_ROOT}/libs.tech/klayout",
    "kind": "pdk_klayout",
    "sha256": "dir_text:876da90e8aab65b830b36eca12bd720adfe8240a0952872419d9f2b4abda605d",
-   "hashed": "2026-11-05T18:11:14"
+   "hashed": "2026-11-05T20:07:26"
   },
   "pdk_netgen": {
    "path": "${PDK_ROOT}/libs.tech/netgen",
    "kind": "pdk_netgen",
    "sha256": "dir_text:8164f65bb7d1bef6e27af4c13b1c6ede50973cec7aec482556abb23881aceb04",
-   "hashed": "2026-11-05T18:09:19"
+   "hashed": "2026-11-05T20:04:34"
   },
   "top_spec": {
    "path": "top/spec/spec.yaml",
    "kind": "top_spec",
    "sha256": "json_canonical:e3d10683d18fef15bc12f56940cc3ecba0378a7cbe1133f616f999f1ab263f91",
-   "hashed": "2026-11-05T18:09:19"
+   "hashed": "2026-11-05T20:04:34"
   },
   "top_macros": {
    "path": "top/macros",
    "kind": "top_macros",
-   "sha256": "dir_text:77ccd780ffb0fc3162f78581dcc1657f618aaad1b6574a1b752ce2eb6ae58301",
-   "hashed": "2026-11-05T18:09:19"
+   "sha256": "dir_text:e74a65725af084fbba1c480a273162691bac7018f2bedb936b3cf42c428db608",
+   "hashed": "2026-11-05T20:04:34"
   },
   "top_pnl": {
    "path": "top/harden/runs/run/final/pnl",
    "kind": "top_pnl",
-   "sha256": "dir_text:09214ef4cbb07d50a3e4161a027d479af912d18041ae12668dd986256a807d87",
-   "hashed": "2026-11-05T18:09:19"
+   "sha256": "dir_text:794cc7c720bbc420e674e36a6104a4c6215e43ff21e84c209f67043729eeb0ae",
+   "hashed": "2026-11-05T20:04:34"
   },
   "digital_side_spec": {
    "path": "digital_spec.yaml",
    "kind": "digital_side_spec",
    "sha256": "json_canonical:e52fd5cabc96bf3cfe80463861809e640516e763ffe6d5ad341dd19366f87352",
-   "hashed": "2026-11-05T18:11:43"
+   "hashed": "2026-11-05T20:08:14"
   },
   "analog_side_spec": {
    "path": "analog_spec.yaml",
    "kind": "analog_side_spec",
    "sha256": "json_canonical:61734e544be2b0cd5fb5d3373df1e39f971c980f0e71decd49621c97736c30bd",
-   "hashed": "2026-11-05T18:11:43"
+   "hashed": "2026-11-05T20:08:14"
   }
  },
  "open_issues": [
@@ -2843,6 +3731,198 @@
    "gate": "release",
    "status": "fail",
    "attempt": 6,
+   "failing_count": 1
+  },
+  {
+   "ts": "2026-11-05T18:34:37",
+   "event": "gate",
+   "gate": "split",
+   "status": "pass",
+   "attempt": 6,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-11-05T18:38:20",
+   "event": "gate",
+   "gate": "macro_lib",
+   "status": "pass",
+   "attempt": 6,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-11-05T18:40:13",
+   "event": "gate",
+   "gate": "top_harden",
+   "status": "pass",
+   "attempt": 12,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-11-05T18:40:28",
+   "event": "gate",
+   "gate": "cosim",
+   "status": "pass",
+   "attempt": 8,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-11-05T18:42:28",
+   "event": "gate",
+   "gate": "top_drc",
+   "status": "pass",
+   "attempt": 7,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-11-05T18:43:02",
+   "event": "gate",
+   "gate": "top_lvs",
+   "status": "pass",
+   "attempt": 7,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-11-05T18:45:17",
+   "event": "gate",
+   "gate": "precheck",
+   "status": "pass",
+   "attempt": 7,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-11-05T18:46:11",
+   "event": "gate",
+   "gate": "release",
+   "status": "fail",
+   "attempt": 7,
+   "failing_count": 2
+  },
+  {
+   "ts": "2026-11-05T19:07:59",
+   "event": "gate",
+   "gate": "split",
+   "status": "pass",
+   "attempt": 7,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-11-05T19:11:28",
+   "event": "gate",
+   "gate": "macro_lib",
+   "status": "pass",
+   "attempt": 7,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-11-05T19:13:22",
+   "event": "gate",
+   "gate": "top_harden",
+   "status": "pass",
+   "attempt": 13,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-11-05T19:13:36",
+   "event": "gate",
+   "gate": "cosim",
+   "status": "pass",
+   "attempt": 9,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-11-05T19:15:12",
+   "event": "gate",
+   "gate": "top_drc",
+   "status": "pass",
+   "attempt": 8,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-11-05T19:15:16",
+   "event": "gate",
+   "gate": "top_lvs",
+   "status": "pass",
+   "attempt": 8,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-11-05T19:17:13",
+   "event": "gate",
+   "gate": "precheck",
+   "status": "pass",
+   "attempt": 8,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-11-05T19:17:25",
+   "event": "gate",
+   "gate": "release",
+   "status": "fail",
+   "attempt": 8,
+   "failing_count": 2
+  },
+  {
+   "ts": "2026-11-05T19:53:57",
+   "event": "gate",
+   "gate": "split",
+   "status": "pass",
+   "attempt": 8,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-11-05T19:57:06",
+   "event": "gate",
+   "gate": "macro_lib",
+   "status": "pass",
+   "attempt": 8,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-11-05T20:00:02",
+   "event": "gate",
+   "gate": "top_harden",
+   "status": "pass",
+   "attempt": 14,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-11-05T20:01:39",
+   "event": "gate",
+   "gate": "cosim",
+   "status": "pass",
+   "attempt": 10,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-11-05T20:03:35",
+   "event": "gate",
+   "gate": "top_drc",
+   "status": "pass",
+   "attempt": 9,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-11-05T20:04:34",
+   "event": "gate",
+   "gate": "top_lvs",
+   "status": "pass",
+   "attempt": 9,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-11-05T20:07:26",
+   "event": "gate",
+   "gate": "precheck",
+   "status": "pass",
+   "attempt": 9,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-11-05T20:08:14",
+   "event": "gate",
+   "gate": "release",
+   "status": "fail",
+   "attempt": 9,
    "failing_count": 1
   }
  ]

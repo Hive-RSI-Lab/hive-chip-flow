@@ -3,7 +3,7 @@
  "gate": "glsim",
  "phase": "P6",
  "tool": "glsim",
- "input_digest": "harden_signoff:99737837152047465e088facc0b56400d37a87462870196f939c59c36bcfaa69",
+ "input_digest": "harden_signoff:857853e12358b7137b1d3595ab578ac6079a9d2e0161f7469c877da78139ad68",
  "status": "pass",
  "criteria": {
   "fail_severities": [
@@ -44,31 +44,33 @@
    }
   },
   "sdf": {
-   "zero_interconnects_dropped": 581,
+   "zero_interconnects_dropped": 574,
    "sdf_unannotated": [
-    "_350_ (gf180mcu_fd_sc_mcu7t5v0__xor2_1)",
-    "_356_ (gf180mcu_fd_sc_mcu7t5v0__xor2_1)",
-    "_398_ (gf180mcu_fd_sc_mcu7t5v0__xor2_2)",
-    "_406_ (gf180mcu_fd_sc_mcu7t5v0__xnor2_2)",
-    "_407_ (gf180mcu_fd_sc_mcu7t5v0__xor2_2)",
-    "_454_ (gf180mcu_fd_sc_mcu7t5v0__mux2_2)",
-    "_467_ (gf180mcu_fd_sc_mcu7t5v0__mux2_2)",
-    "_511_ (gf180mcu_fd_sc_mcu7t5v0__mux2_2)"
+    "_403_ (gf180mcu_fd_sc_mcu7t5v0__xor2_1)",
+    "_410_ (gf180mcu_fd_sc_mcu7t5v0__xnor2_2)",
+    "_411_ (gf180mcu_fd_sc_mcu7t5v0__xor2_1)",
+    "_438_ (gf180mcu_fd_sc_mcu7t5v0__xor2_1)",
+    "_450_ (gf180mcu_fd_sc_mcu7t5v0__xor2_2)",
+    "_484_ (gf180mcu_fd_sc_mcu7t5v0__mux2_2)",
+    "_490_ (gf180mcu_fd_sc_mcu7t5v0__mux2_2)",
+    "_502_ (gf180mcu_fd_sc_mcu7t5v0__mux2_2)",
+    "_514_ (gf180mcu_fd_sc_mcu7t5v0__mux2_2)",
+    "_558_ (gf180mcu_fd_sc_mcu7t5v0__mux2_2)"
    ],
    "instances_renamed": {}
   },
   "netlists": {
-   "nl_sha256": "00c68e281d9d627a07380c7978f724008053f6c4c51da56f4bd2138edc0b29bc",
-   "pnl_sha256": "95d7e5875696fe85c68f5a72db88f556eace41086cd416ad0bdf1cd79573d7ac"
+   "nl_sha256": "3b6088332492a67a4efe4f97a4e22e76e6a7a1126531d037ba02daba9e5a0437",
+   "pnl_sha256": "0d9c2b9302933aabfd6e4ac05f1ae7a2ee39bb8ee09e6e94c26b0e7ecbe6a4c5"
   }
  },
  "inputs_at_start": {
-  "harden": "harden_signoff:99737837152047465e088facc0b56400d37a87462870196f939c59c36bcfaa69",
-  "tb": "dir_text:3d7769f785322e639d37580c2e85e19fdd9b82876af0927410c75ad81d11554b",
+  "harden": "harden_signoff:857853e12358b7137b1d3595ab578ac6079a9d2e0161f7469c877da78139ad68",
+  "tb": "dir_text:04af66bc6eb7fca3a2248c8ba77586ee3233d41be6fc978dfde7a7fb936be615",
   "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119",
   "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2"
  },
  "strength_at_start": 0,
- "recorded_ts": "2026-11-05T13:45:26",
- "attempts": 5
+ "recorded_ts": "2026-11-05T19:47:31",
+ "attempts": 10
 }

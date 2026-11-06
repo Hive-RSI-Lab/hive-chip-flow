@@ -3,7 +3,7 @@
  "gate": "timing",
  "phase": "P6",
  "tool": "timing",
- "input_digest": "harden_signoff:99737837152047465e088facc0b56400d37a87462870196f939c59c36bcfaa69",
+ "input_digest": "harden_signoff:857853e12358b7137b1d3595ab578ac6079a9d2e0161f7469c877da78139ad68",
  "status": "pass",
  "criteria": {
   "fail_severities": [
@@ -23,59 +23,59 @@
   "top": "tt_um_r2r_dac_digital",
   "corners": {
    "max_ff_n40C_3v60": {
-    "setup_ws": 13.27,
-    "hold_ws": 0.45,
+    "setup_ws": 13.62,
+    "hold_ws": 0.18,
     "multiple_clock": []
    },
    "max_ss_125C_3v00": {
-    "setup_ws": 1.59,
-    "hold_ws": 2.24,
+    "setup_ws": 2.82,
+    "hold_ws": 1.36,
     "multiple_clock": []
    },
    "max_tt_025C_3v30": {
-    "setup_ws": 10.64,
-    "hold_ws": 0.99,
+    "setup_ws": 11.37,
+    "hold_ws": 0.53,
     "multiple_clock": []
    },
    "min_ff_n40C_3v60": {
-    "setup_ws": 13.32,
-    "hold_ws": 0.44,
+    "setup_ws": 13.64,
+    "hold_ws": 0.18,
     "multiple_clock": []
    },
    "min_ss_125C_3v00": {
-    "setup_ws": 2.18,
-    "hold_ws": 2.22,
+    "setup_ws": 3.23,
+    "hold_ws": 1.37,
     "multiple_clock": []
    },
    "min_tt_025C_3v30": {
-    "setup_ws": 10.95,
-    "hold_ws": 0.97,
+    "setup_ws": 11.58,
+    "hold_ws": 0.53,
     "multiple_clock": []
    },
    "nom_ff_n40C_3v60": {
-    "setup_ws": 13.3,
-    "hold_ws": 0.45,
+    "setup_ws": 13.63,
+    "hold_ws": 0.18,
     "multiple_clock": []
    },
    "nom_ss_125C_3v00": {
-    "setup_ws": 1.91,
-    "hold_ws": 2.23,
+    "setup_ws": 3.04,
+    "hold_ws": 1.36,
     "multiple_clock": []
    },
    "nom_tt_025C_3v30": {
-    "setup_ws": 10.81,
-    "hold_ws": 0.98,
+    "setup_ws": 11.49,
+    "hold_ws": 0.53,
     "multiple_clock": []
    }
   }
  },
  "inputs_at_start": {
-  "harden": "harden_signoff:99737837152047465e088facc0b56400d37a87462870196f939c59c36bcfaa69",
+  "harden": "harden_signoff:857853e12358b7137b1d3595ab578ac6079a9d2e0161f7469c877da78139ad68",
   "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119",
   "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
   "pdk_liberty": "dir_bytes:f09377f057ab484ec9e5a45b205c99a5de399e2bdca886531bf9eefa57783f32"
  },
  "strength_at_start": 1,
- "recorded_ts": "2026-11-05T13:30:22",
- "attempts": 12
+ "recorded_ts": "2026-11-05T19:42:31",
+ "attempts": 19
 }
