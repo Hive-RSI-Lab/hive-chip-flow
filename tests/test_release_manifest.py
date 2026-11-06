@@ -314,7 +314,9 @@ def test_stage_analog_lays_out_what_assemble_does(tmp_path, capsys):
     (repo / ".github" / "workflows").mkdir(parents=True)
     (repo / "src" / "config.json").write_text("{}")
     (repo / ".github/workflows/fpga.yaml").write_text("name: fpga\n")
-    wf = ttship.default_workflow()
+    # the repo's own workflow (no staged header): kept as it is
+    wf = "".join(l for l in ttship.default_workflow().splitlines(keepends=True)
+                 if not l.startswith(ttship.WF_HEADER))
     (repo / ".github/workflows/gds.yaml").write_text(wf)
     released(ws, capsys, "--tt-repo", str(repo))
     assert not (repo / "src/config.json").exists()
@@ -338,6 +340,17 @@ def test_stage_analog_without_overlay_uses_top(tmp_path, capsys):
     assert (tree / "src" / "macro.v").read_text() == BLACKBOX
     assert "custom_gds" in (tree / ".github/workflows/gds.yaml").read_text()
     assert f"project:\n  top_module: {TOP}" in (tree / "info.yaml").read_text()
+
+
+def test_stage_analog_refreshes_its_own_stale_workflow(tmp_path, capsys):
+    ws = make_msde_tile(tmp_path)
+    released(ws, capsys)
+    gds = ws / "release/tt/.github/workflows/gds.yaml"
+    current = gds.read_text()
+    body = ttship.WF_MARKER.sub("", current, count=1)
+    gds.write_text(ttship._marked(body.replace(ttship.PNG_REPORT_STEP, "\n")))
+    released(ws, capsys)
+    assert gds.read_text() == current
 
 
 def test_stamped_info_yaml_stays_tied_only_while_it_is_what_stage_writes(tmp_path, capsys):

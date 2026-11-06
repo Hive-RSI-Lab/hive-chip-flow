@@ -173,6 +173,70 @@ def test_stage_keeps_an_existing_workflow(tmp_path):
     assert (ws / "release/tt/.github/workflows/gds.yaml").read_text() == TEMPLATE_WF
 
 
+def stale_generated(ws: Path) -> str:
+    """A workflow as an older release staged it: the template then (here,
+    one without the PNG report), marked as generated."""
+    staged(ws)
+    old = ttship._marked(without_png_report(
+        ttship.WF_MARKER.sub("", staged_wf(ws), count=1)))
+    plant(ws, old)
+    return old
+
+
+def test_stage_refreshes_a_stale_generated_workflow(tmp_path):
+    # Known answer: the counter's release tree kept a gds.yaml staged before
+    # #202 and release refused it as tt_png_unreported; release now rewrites
+    # its own unedited output from the current template.
+    ws = make_ws(tmp_path)
+    old = stale_generated(ws)
+    problems, rec = ttship.release_check(ws, pdk_hash=pdk_hash())
+    assert problems == [], problems
+    assert staged_wf(ws) != old
+    assert ttship.PNG_REPORT_STEP in staged_wf(ws)
+    assert ".github/workflows/gds.yaml" in rec["staged"]
+
+
+def test_stage_keeps_an_edited_workflow_of_the_current_template(tmp_path):
+    ws = make_ws(tmp_path)
+    staged(ws)
+    edited = staged_wf(ws).replace("runs-on: ubuntu-24.04", "runs-on: ubuntu-latest", 1)
+    plant(ws, edited)
+    problems, rec = ttship.release_check(ws, pdk_hash=pdk_hash())
+    assert problems == [], problems
+    assert staged_wf(ws) == edited
+    assert ".github/workflows/gds.yaml" not in rec["staged"]
+
+
+def test_edited_workflow_of_an_older_template_is_refused(tmp_path):
+    ws = make_ws(tmp_path)
+    old = stale_generated(ws).replace("runs-on: ubuntu-24.04", "runs-on: ubuntu-latest", 1)
+    plant(ws, old)
+    problems, _ = ttship.release_check(ws, pdk_hash=pdk_hash())
+    assert rules(problems) == ["tt_workflow_edited_stale"]
+    assert "older template" in problems[0]
+    assert staged_wf(ws) == old            # a person's edits are never overwritten
+
+
+def test_workflow_staged_before_the_marker_is_refused(tmp_path):
+    # Can't tell its edits from the template: refused, never overwritten.
+    ws = make_ws(tmp_path)
+    staged(ws)
+    legacy = ttship.WF_MARKER.sub("", staged_wf(ws), count=1)
+    assert ttship.WF_HEADER in legacy
+    plant(ws, legacy)
+    problems, _ = ttship.release_check(ws, pdk_hash=pdk_hash())
+    assert rules(problems) == ["tt_workflow_edited_stale"]
+    assert staged_wf(ws) == legacy
+
+
+def test_staged_workflow_carries_its_own_hash(tmp_path):
+    ws = make_ws(tmp_path)
+    staged(ws)
+    m = ttship.WF_MARKER.search(staged_wf(ws))
+    assert m and m.group(1) == ttship._wf_hash(staged_wf(ws))
+    assert staged_wf(ws).startswith("name: gds\n# chip-flow-staged sha256=")
+
+
 # ---------------------------------------------------------------- re-harden
 
 def test_template_workflow_refused_for_librelane_3_0_14(tmp_path):
