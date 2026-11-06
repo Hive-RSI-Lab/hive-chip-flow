@@ -68,6 +68,11 @@ because a design can meet setup and hold everywhere and still fail them:
     read with sta_recovery_removal_checks_enabled off (setup and hold
     only) and these get their own marked sections, one item per violating
     endpoint pin.
+  - an ideal clock after CTS (issue #145, `ideal_clock`): the SDC is read
+    with read_current_sdc's propagation fallback (no set_/
+    unset_propagated_clock in it -> every clock propagated, as LibreLane
+    times it), then any clock with a source that is still not propagated
+    is a finding. A virtual clock (no source) is skipped.
 
 Failure classification (the same three-way split check_harden.py uses):
   - no `harden/runs/run/final/` at all -> CheckError (harden has not run;
@@ -150,6 +155,74 @@ SIGNOFF_TCL = (
               f"{' -verbose' if name in ASYNC_SECTIONS else ''}\n"
               for name in SIGNOFF_SECTIONS)
     + f'puts "{SIGNOFF_END}"\n')
+# #145: read_current_sdc's (scripts/openroad/common/io.tcl) propagation
+# fallback, run after read_sdc as LibreLane runs it: an SDC that never says
+# set_propagated_clock/unset_propagated_clock gets every clock propagated
+# (OPENLANE_SDC_IDEAL_CLOCKS=0), so a hand-written signoff SDC with no
+# propagation line is timed with skew here too, not ideal. Then every clock
+# still ideal after it - signoff is post-CTS, so an ideal clock hides skew
+# and insertion delay, the main hold risk - is listed between markers, as
+# corner.tcl's unpropagated.rpt lists them. A clock with no source (a
+# virtual IO clock) is ideal on purpose and is not listed.
+# One difference from io.tcl: the fallback leaves a generated clock with no
+# master (period still 0 after update_generated_clks; check_setup's
+# generated_clock_unreachable) ideal, since OpenSTA 3.1.0 segfaults in
+# report_worst_slack on it once propagated. It is still an error either
+# way: check_setup reports it, and it is listed here.
+IDEAL_BEGIN = "chipflow_ideal_clocks_begin"
+IDEAL_MARK = "chipflow_ideal_clock"
+IDEAL_END = "chipflow_ideal_clocks_end"
+
+
+def propagation_tcl(sdc: Path) -> str:
+    q = tcl_escape(str(sdc))
+    return (
+        "proc chipflow_string_in_file {file_path substring} {\n"
+        "    set f [open $file_path r]\n"
+        "    set data [read $f]\n"
+        "    close $f\n"
+        "    return [expr {[string first $substring $data] != -1}]\n"
+        "}\n"
+        f"if {{ ![chipflow_string_in_file {q} \"set_propagated_clock\"] && "
+        f"![chipflow_string_in_file {q} \"unset_propagated_clock\"] }} {{\n"
+        "    if { [info exists ::env(OPENLANE_SDC_IDEAL_CLOCKS)] && "
+        "$::env(OPENLANE_SDC_IDEAL_CLOCKS) } {\n"
+        "        unset_propagated_clock [all_clocks]\n"
+        "    } else {\n"
+        "        sta::update_generated_clks\n"
+        "        foreach chipflow_clk [all_clocks] {\n"
+        "            if { ![get_property $chipflow_clk is_generated] || "
+        "[get_property $chipflow_clk period] > 0 } {\n"
+        "                set_propagated_clock $chipflow_clk\n"
+        "            }\n"
+        "        }\n"
+        "    }\n"
+        "}\n")
+
+
+IDEAL_TCL = (
+    f'puts "{IDEAL_BEGIN}"\n'
+    "foreach chipflow_clk [all_clocks] {\n"
+    "    if { ![get_property $chipflow_clk is_propagated] && "
+    "[llength [get_property $chipflow_clk sources]] > 0 } {\n"
+    f'        puts "{IDEAL_MARK} [get_property $chipflow_clk full_name]"\n'
+    "    }\n"
+    "}\n"
+    f'puts "{IDEAL_END}"\n')
+
+
+def parse_ideal_clocks(output: str) -> list[str]:
+    """The clocks IDEAL_TCL listed as ideal after CTS. No closing marker is
+    a CheckError: a run that died before it proves no clock propagated."""
+    lines = [ln.strip() for ln in output.splitlines()]
+    if IDEAL_BEGIN not in lines or IDEAL_END not in lines:
+        raise CheckError(f"eda sta printed no {IDEAL_BEGIN}/{IDEAL_END} "
+                         "lines - the ideal clock check never ran")
+    start, end = lines.index(IDEAL_BEGIN), lines.index(IDEAL_END)
+    return [ln[len(IDEAL_MARK) + 1:].strip() for ln in lines[start + 1:end]
+            if ln.startswith(IDEAL_MARK + " ")]
+
+
 # OpenSTA folds recovery checks into `report_worst_slack -max` and removal
 # into `-min`, so with them on a late reset release reads as a setup
 # violation. The worst-slack lines are taken with them off (setup/hold
@@ -416,7 +489,9 @@ def run_corner(final_dir: Path, top: str, corner: str, pdk_root: Path,
         + env_tcl
         + f"set ::env(_CURRENT_CORNER_NAME) {tcl_escape(corner)}\n"
         f"read_sdc {tcl_escape(str(sdc))}\n"
-        f"read_spef {spef}\n"
+        + propagation_tcl(sdc)
+        + f"read_spef {spef}\n"
+        + IDEAL_TCL
         + WORST_SLACK_TCL
         + "report_check_types -max_slew -max_capacitance -max_fanout -violators\n"
         + COUNTS_TCL + SIGNOFF_TCL + "exit\n", encoding="utf-8")
@@ -442,6 +517,7 @@ def run_corner(final_dir: Path, top: str, corner: str, pdk_root: Path,
     try:
         setup_findings = parse_check_setup(output)
         signoff = parse_signoff_checks(output)
+        ideal = parse_ideal_clocks(output)
     except CheckError as exc:
         raise CheckError(f"corner {corner!r}: {exc} (exit {proc.returncode}): "
                          f"{output[-2000:]}") from exc
@@ -454,7 +530,7 @@ def run_corner(final_dir: Path, top: str, corner: str, pdk_root: Path,
                              f"violating pin(s){': ' + shown if shown else ''}")
     return {"corner": corner, "setup_ws": slacks["max"], "hold_ws": slacks["min"],
            "violators": violators, "check_setup": setup_findings,
-           "signoff": signoff}
+           "signoff": signoff, "ideal_clocks": ideal}
 
 
 SIGNOFF_KINDS = {"min_pulse_width": "min_pulse_width_violation",
@@ -513,6 +589,15 @@ def signoff_violations(r: dict, top: str, waived: list[str]) -> list[dict]:
             f"corner {r['corner']}: {len(items)} {why}"
             f"{': ' + _shown(items) if items else ''}",
             "opensta", corner=r["corner"]))
+    ideal = r.get("ideal_clocks") or []
+    if ideal:
+        out.append(checklib.violation(
+            "timing", "error", None, top, "ideal_clock", ideal[:50],
+            f"corner {r['corner']}: {len(ideal)} clock(s) still ideal "
+            f"(not propagated) after CTS: {_shown(ideal)} - post-route "
+            "timing on an ideal clock ignores its skew and insertion delay; "
+            "drop the SDC's unset_propagated_clock or set_propagated_clock "
+            "on it", "opensta", corner=r["corner"]))
     for section, items in r["signoff"].items():
         if items:
             out.append(checklib.violation(
