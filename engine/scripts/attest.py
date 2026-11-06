@@ -143,6 +143,9 @@ def waiver_problems(w: dict, gate: str, entry: dict, verdict: dict) -> list[str]
         problems.append(f"waiver [{label}]: {verdict['strength_stale']} - a "
                         "waiver never covers a result the stricter gate has "
                         "not given")
+    for why in verdict.get("upstream_stale") or []:
+        problems.append(f"waiver [{label}]: {why} - a waiver never covers a "
+                        "gate whose upstream has to re-run first (#147)")
     current = waiver_inputs_sha256(verdict.get("current_inputs"))
     if current is None:
         problems.append(f"waiver [{label}]: the gate has no current input "
@@ -297,6 +300,8 @@ def gate_check(ws: Path, skill: str, gate: str, data: dict,
             reason = "freshness unknown (no recorded input hashes)"
         elif verdict.get("strength_stale"):
             reason = "stale: " + verdict["strength_stale"]
+        elif verdict.get("upstream_stale"):
+            reason = "stale: " + "; ".join(verdict["upstream_stale"])
         elif any(m.get("edit_class") == "gate_error"
                  for m in verdict.get("stale_marks") or []):
             reason = "stale: a later run of this gate ended in error"

@@ -422,7 +422,8 @@ def test_vde_other_spec_edits_still_stale_every_spec_reader(tmp_path, edit):
     ws = _vde_ws_with_passes(tmp_path)
     (ws / "spec" / "spec.yaml").write_text(VDE_SPEC.replace(*edit),
                                            encoding="utf-8")
-    assert _not_fresh(ws) == set(VDE_GATES) - {"release"}
+    # release reads no spec, but comes after harden (#147)
+    assert _not_fresh(ws) == set(VDE_GATES)
 
 
 def test_vde_non_mapping_spec_still_stales_every_spec_reader(tmp_path):
@@ -431,7 +432,7 @@ def test_vde_non_mapping_spec_still_stales_every_spec_reader(tmp_path):
     ws = _vde_ws_with_passes(tmp_path)
     (ws / "spec" / "spec.yaml").write_text("- not a mapping\n",
                                            encoding="utf-8")
-    assert _not_fresh(ws) == set(VDE_GATES) - {"release"}
+    assert _not_fresh(ws) == set(VDE_GATES)    # release after harden (#147)
 
 
 def _ade_ws_with_passes(tmp_path, gates):
