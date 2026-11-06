@@ -44,7 +44,9 @@ Subcommands:
   disposition  Print the DERIVED release disposition (never hand-set):
                draft (nothing has passed yet), in-progress (some gates
                green), gates-green (every applicable gate fresh-pass),
-               blocked (a gate has a recorded FAIL). Read-only.
+               blocked (a gate has a recorded FAIL). An msde block counts
+               its sides: a recorded FAIL in one blocks it, and a side not
+               released holds it at in-progress. Read-only.
 
 CLI: JSON to stdout or --out; exit 0 ok / 1 refused-or-invalid /
 2 operational error.
@@ -484,7 +486,11 @@ def disposition(ws: Path) -> dict:
     """The derived release disposition. Never hand-set: draft (nothing has
     passed), in-progress (some applicable gates green), gates-green (every
     applicable gate fresh-pass), blocked (a gate's last recorded result is
-    FAIL)."""
+    FAIL).
+
+    An msde block counts its sides too: a recorded FAIL in one blocks the
+    top, named "<side>/<gate>", and a side that does not verify as released
+    holds a green top at in-progress with the reason under `nested`."""
     state_path = ws / "state.json"
     if not state_path.is_file():
         return {"disposition": "draft", "reason": "no state.json"}
@@ -496,11 +502,21 @@ def disposition(ws: Path) -> dict:
     fresh = statelib.freshness_report(data, ws, imap)
     checks = [gate_check(ws, skill, g, data, imap, fresh)
              for g in applicable_gates(skill, imap)]
-    if any(c.get("status") == "fail" for c in checks):
-        return {"disposition": "blocked",
-                "failing": [c["gate"] for c in checks if c.get("status") == "fail"]}
+    failing = [c["gate"] for c in checks if c.get("status") == "fail"]
+    if skill == "msde":
+        for side in NESTED:
+            if (ws / side / "state.json").is_file():
+                failing += [f"{side}/{g}" for g in
+                            disposition(ws / side).get("failing", [])]
+    if failing:
+        return {"disposition": "blocked", "failing": failing}
     if all(c.get("ok") for c in checks):
-        return {"disposition": "gates-green", "gates": [c["gate"] for c in checks]}
+        nested = nested_problems(ws) if skill == "msde" else []
+        if not nested:
+            return {"disposition": "gates-green",
+                    "gates": [c["gate"] for c in checks]}
+        return {"disposition": "in-progress",
+                "gates_passed": [c["gate"] for c in checks], "nested": nested}
     if any(c.get("ran") for c in checks):
         return {"disposition": "in-progress",
                 "gates_passed": [c["gate"] for c in checks if c.get("ok")]}
