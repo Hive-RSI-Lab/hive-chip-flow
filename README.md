@@ -32,7 +32,8 @@ person signs off between stages. Submitting a tile is always the person's.
   corpus rung's planted faults that need no harden, each caught by its gate
   (`tests/test_corpus_faults.py`).
 - **Blocks**, `bin/chip-flow check-all`: re-runs every gate each block under
-  `blocks/` records, from a scratch copy, through `bin/eda`, then the
+  `blocks/` owes (gates.yaml's rows for its skill, less those its spec
+  declares not applicable; one with no record shows as owed), from a scratch copy, through `bin/eda`, then the
   probes. Slow (it hardens). Each step's outcome goes into a step cache
   outside git, keyed by the hash of what that step read; `--stale` runs
   only the blocks with a step no run covers, `--budget S` stops at S

@@ -5,9 +5,9 @@
 
 Copies each block under blocks/ to a scratch dir, so the clone stays as it
 was, and re-runs there, through engine/scripts/gate.py, every step of its
-plan (score.plan): every gate each of its workspaces records in state.json,
-passed or failed, and every gate its reports/waivers.json waives: an msde
-block's analog/ (ade) and digital/ (vde) sides first, then its top. Gates
+plan (score.plan): every gate gates.yaml registers for each of its workspaces
+that its spec doesn't declare not applicable, recorded or owed, any other gate
+it records, and every gate its reports/waivers.json waives: an msde block's analog/ (ade) and digital/ (vde) sides first, then its top. Gates
 run in pipeline order and record into the scratch copy's state.json, so a
 later gate (timing after harden, release after all) reads what this run
 made, not what was committed. A waived gate that fails prints as waived:
