@@ -53,7 +53,7 @@ SWEEP = {
     "corpus/vde/riscv": "sweep",
     "corpus/vde/spi_fifo": "sweep",
     "corpus/vde/uart": "sweep",
-    "blocks/r2r_dac/top": "macros: drives the block directly",
+    "blocks/r2r_dac/top": "framed in its cosim bench (check_cosim, #208)",
     "evals/fixtures/P3/counter8_tb/ws": "block-level fixture",
     "evals/fixtures/P4/counter8_rtl/ws": "block-level fixture",
     "evals/fixtures/P4/uart_rtl/ws": "block-level fixture",

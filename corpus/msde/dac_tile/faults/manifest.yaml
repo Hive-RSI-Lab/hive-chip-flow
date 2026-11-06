@@ -26,3 +26,12 @@ faults:
     gate: precheck
     plant: plant_precheck.py
     expect: {status: fail, kind: precheck_failed}
+  # #208: the cosim top runs the digital side inside its TT frame
+  - name: cosim_tb_ignores_pad_reset_latency
+    gate: cosim
+    plant: plant_cosim_ignores_latency.py
+    expect: {status: fail, kind: measure_out_of_bounds}
+  - name: cosim_top_unframed
+    gate: cosim
+    plant: plant_cosim_unframed.py
+    expect: {status: refused, error: "cosim_top_unframed"}
