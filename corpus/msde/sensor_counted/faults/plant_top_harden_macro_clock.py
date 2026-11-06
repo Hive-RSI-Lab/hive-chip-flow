@@ -17,7 +17,6 @@ RTL = "sensor_counted_digital.v"
 BUFFER = "gf180mcu_fd_sc_mcu7t5v0__buf_2"
 RECORD = "reports/recorded/osc_clock.json"
 MHZ = 12.5
-DRIVE_KINDS = {"max_slew_violation", "max_cap_violation"}
 SDC = """\
 create_clock -name osc -period 80 [get_pins u_analog/osc_out]
 set_clock_groups -asynchronous -group clk -group osc
@@ -74,19 +73,14 @@ def divider(ws: Path, clock: str = "osc_out", extra: str = "") -> None:
 
 
 def harden_clean(ws: Path) -> dict:
-    """Run top_harden on the design with CTS alone on the clock. This
-    oscillator can't drive CTS's root buffer inside the slew limit at ss, a
-    finding the gate owes the macro's driver and the proof has no part in, so
-    that is the one failure allowed here."""
+    """Run top_harden on the design with CTS alone on the clock: it must
+    pass outright, the oscillator driving CTS's root buffer inside its slew
+    and cap limits at every corner (#213)."""
     import check_top_harden
     payload, _out = check_top_harden.run(["--workspace", str(ws)])
-    others = [v for v in payload.get("violations") or []
-              if v.get("kind") not in DRIVE_KINDS
-              or not all(r == "u_analog/osc_out" or r.startswith("clkbuf_0_")
-                         for r in v.get("refs") or [])]
-    if others:
+    if payload.get("status") != "pass":
         raise RuntimeError(f"{PLANT}: top_harden did not pass with CTS alone "
-                           f"on the clock: {others}")
+                           f"on the clock: {payload.get('violations')}")
     proof = payload.get("clock_proof") or {}
     buffers = (proof.get("u_analog/osc_out") or {}).get("buffers")
     if not buffers:

@@ -2,7 +2,7 @@ top: sensor_counted_analog
 supply:
   vdd: 3.3
 # The ten ring devices; see spec.md "Bench strength" for why the enable
-# pair (xmp0e, xmn0e) and the output buffer (xmpb, xmnb) are not listed.
+# pair (xmp0e, xmn0e) and the output buffer (xmpb..xmnd) are not listed.
 devices: [xmp0a, xmn0a, xmp1, xmn1, xmp2, xmn2, xmp3, xmn3, xmp4, xmn4]
 corners: default
 measures:
@@ -26,12 +26,14 @@ measures:
     bounds: {min: 0.2159, max: 0.2266}
 # The crossing pins' timing limits, for the macro_lib gate's liberty (the top
 # harden times the macro against it). osc_out's limits are sized so the stock
-# output buffer meets them at every corner; the W/4 driver
-# (faults/plant_top_harden_weak_driver.py) does not.
+# output buffer meets them at every corner with margin, and drives a clock
+# tree's root buffer inside its input slew limit at ss (#213); the buffer with
+# its last stage at minimum width (faults/plant_top_harden_weak_driver.py)
+# does not.
 macro_timing:
   pins:
     osc_en: {max_transition_ns: 2.0}
-    osc_out: {max_transition_ns: 3.2, max_capacitance_pf: 0.012}
+    osc_out: {max_transition_ns: 0.5, max_capacitance_pf: 0.05}
   static: {osc_en: vdd}
   arcs:
     - {to: osc_out, source: true, enable: osc_en, settle_ns: 1500, window_ns: 2500, step_ns: 0.02}

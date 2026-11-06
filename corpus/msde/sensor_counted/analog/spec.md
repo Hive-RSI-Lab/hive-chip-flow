@@ -41,17 +41,17 @@ buffer loads). A ring device at twice its width moves a share by 0.02-0.06;
 one with its bulk left floating moves it by 0.0025-0.006, which is why the
 bounds are only 0.0012 outside the PVT envelope for stages 1-3.
 
-`devices` in spec.yaml lists the ten ring devices. Four are left out,
+`devices` in spec.yaml lists the ten ring devices. Eight are left out,
 because no measure can bound them across PVT: the enable pfet `xmp0e`
 (off while the ring runs, so its width changes nothing), the enable
-nfet `xmn0e` (its floating-bulk mutant moves nothing), and the buffer
-`xmpb`/`xmnb` (their width only moves `osc_out`'s edges, by less than PVT
-does). A type flip of any of the four stops the ring, and LVS checks their
-sizes against the netlist.
+nfet `xmn0e` (its floating-bulk mutant moves nothing), and the buffer's
+six devices `xmpb`..`xmnd` (their width only moves `osc_out`'s edges, by
+less than PVT does). A type flip of any of them stops the ring or the
+output, and LVS checks their sizes against the netlist.
 
 ## Layout
 
-layout/gen_sensor_counted_analog.py, a 45.6 x 31.0um macro in the pin
+layout/gen_sensor_counted_analog.py, a 70.8 x 31.0um macro in the pin
 conventions of docs/spikes/macro_harden/gen_inv.py: `vdd`/`vss` metal3
 straps the full cell width along the top and bottom, `osc_en` a metal2
 track at the left edge and `osc_out` one at the right edge. Nothing is
