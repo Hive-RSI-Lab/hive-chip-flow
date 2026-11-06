@@ -41,8 +41,8 @@ Q = ttlib.PAD_RESET_SYNC_FLOP
 
 # Every workspace whose tile reads the rst_n pad, and how a change to the
 # pad reset is checked on it: "plants" runs the plants below, "sweep" is a
-# row of the before/after sim+holdout+cdc table in the change's PR, and the
-# other two are driven block-level, where the latency is 0.
+# row of the before/after sim+holdout+cdc table in the change's PR, "framed"
+# runs through the frame by another route.
 SWEEP = {
     "blocks/counter": "plants",
     "blocks/r2r_dac/digital": "plants",
@@ -54,9 +54,9 @@ SWEEP = {
     "corpus/vde/spi_fifo": "sweep",
     "corpus/vde/uart": "sweep",
     "blocks/r2r_dac/top": "framed in its cosim bench (check_cosim, #208)",
-    "evals/fixtures/P3/counter8_tb/ws": "block-level fixture",
-    "evals/fixtures/P4/counter8_rtl/ws": "block-level fixture",
-    "evals/fixtures/P4/uart_rtl/ws": "block-level fixture",
+    "evals/fixtures/P3/counter8_tb/ws": "framed in its bench (bench.py)",
+    "evals/fixtures/P4/counter8_rtl/ws": "framed in its bench (bench.py)",
+    "evals/fixtures/P4/uart_rtl/ws": "framed in its bench (bench.py)",
 }
 
 
@@ -123,10 +123,10 @@ def test_passes_through_the_real_synchroniser(tmp_path, block):
 
 @pytest.mark.slow
 @pytest.mark.parametrize("block", BLOCKS)
-def test_the_same_benches_pass_driving_the_block_directly(tmp_path, block):
-    with ttlib.block_level_sim("test: no pad in front of the block"):
-        assert statuses(run(tmp_path, block)) == {"sim": "pass",
-                                                  "holdout": "pass"}
+def test_the_same_benches_pass_driving_the_block_directly(tmp_path, monkeypatch,
+                                                          block):
+    monkeypatch.setattr(ttlib, "write_sim_frame", lambda *a, **k: None)
+    assert statuses(run(tmp_path, block)) == {"sim": "pass", "holdout": "pass"}
 
 
 @pytest.mark.slow
@@ -137,6 +137,10 @@ def test_a_wrong_pad_latency_fails_sim_and_holdout(tmp_path, monkeypatch,
     plant(monkeypatch, fn)
     results = run(tmp_path, block)
     assert statuses(results) == {"sim": "fail", "holdout": "fail"}
+    # these benches read the latency, so a wrong wrapper is a failed test,
+    # never blamed on the bench
+    assert {v.get("kind") for r in results.values() for v in r["failing"]
+            } <= {"test_failed", "holdout_failed", "holdout_stimulus_fault"}
     if block == "r2r_dac":
         assert R2R_RANDOM in failed_tests(results), failed_tests(results)
 

@@ -56,9 +56,9 @@ Frozen fixtures under `evals/fixtures/<stage>/<name>/`; `bench.py --compare` fai
 
 | stage | fixture | baseline composite | gates | written |
 |---|---|---|---|---|
-| P3 | counter8_tb | 1.0 | sim pass, mutate pass, cover pass | 2026-09-25 |
-| P4 | counter8_rtl | 1.0 | lint pass, sim pass, holdout pass, mutate pass, formal pass, cover pass | 2026-09-25 |
-| P4 | uart_rtl | 0.8127 | lint pass, sim pass, holdout pass, mutate fail, formal fail, cover pass | 2026-09-25 |
+| P3 | counter8_tb | 1.0 | sim pass, mutate pass, cover pass | 2026-11-06 |
+| P4 | counter8_rtl | 1.0 | lint pass, sim pass, holdout pass, mutate pass, formal pass, cover pass | 2026-11-06 |
+| P4 | uart_rtl | 1.0 | lint pass, sim pass, holdout pass, mutate pass, formal pass, cover pass | 2026-11-06 |
 
 ## CVDP
 

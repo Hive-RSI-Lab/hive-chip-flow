@@ -1,241 +1,170 @@
-"""Held-out cocotb tests for the uart transmitter, written from spec/ alone.
-
-Each test exercises a corner the visible tb/ suite deliberately leaves
-alone: every byte value, frames with no idle gap, a one-clock reset at
-every point of a frame, rst and start on the same edge, start pulses on
-every clock of a frame in flight (including its last), and data changing
-on every clock from the one right after the latch.
-
-Same discipline as tb/: drive and sample on FallingEdge only, and compare
-tx/busy with the cycle model on every clock.
-"""
-import os
-import sys
+"""Held-out tests for uart: corners the visible suite does not drive
+(every byte value, back-to-back frames, resets and start pulses at every
+frame offset, held start, random stimulus). Self-contained: own reference
+model, written from spec/spec.md alone. Inputs driven and outputs sampled
+on FallingEdge."""
+import random
 
 import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import FallingEdge
+from padreset import pad_reset
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from uart_holdout_model import (DEFAULT_CLKS_PER_BIT, FRAME_BITS,  # noqa: E402
-                                UartModel, decode_frame, frame_bits)
-
-CLK_PERIOD_NS = 10
+CPB = 4
+FRAME = 11 * CPB
 
 
-def clks_per_bit(dut) -> int:
-    try:
-        v = int(dut.CLKS_PER_BIT.value)
-        if v >= 1:
-            return v
-    except Exception:
-        pass
-    return DEFAULT_CLKS_PER_BIT
+class Model:
+    def __init__(self):
+        self.bits = None
+        self.k = 0
 
-
-class Bench:
-    def __init__(self, dut):
-        self.dut = dut
-        self.model = UartModel(clks_per_bit(dut))
-        self.cpb = self.model.cpb
-        self.cycle = 0
-        self.trace: list[tuple[int, int]] = []
-
-    async def start(self):
-        cocotb.start_soon(Clock(self.dut.clk, CLK_PERIOD_NS, unit="ns").start())
-        self.dut.rst.value = 0
-        self.dut.start.value = 0
-        self.dut.data.value = 0
-        await FallingEdge(self.dut.clk)
-
-    def read(self):
-        tx = self.dut.tx.value
-        busy = self.dut.busy.value
-        assert tx.is_resolvable and busy.is_resolvable, (
-            f"clock {self.cycle}: tx={tx} busy={busy} not 0/1 "
-            f"(model: {self.model.where()})")
-        return int(tx), int(busy)
-
-    async def clock(self, rst=0, start=0, data=None):
-        if data is not None:
-            self.dut.data.value = data & 0xFF
-            sampled = data & 0xFF
+    def step(self, rst, start, data):
+        if rst:
+            self.bits = None
+        elif self.bits is None:
+            if start:
+                d = [(data >> i) & 1 for i in range(8)]
+                self.bits = [0] + d + [sum(d) & 1, 1]
+                self.k = 0
         else:
-            sampled = int(self.dut.data.value)
-        self.dut.rst.value = rst
-        self.dut.start.value = start
-        await FallingEdge(self.dut.clk)
-        self.model.step(rst, start, sampled)
-        self.cycle += 1
-        got = self.read()
-        self.trace.append(got)
-        exp = self.model.outputs()
-        assert got == exp, (
-            f"clock {self.cycle}: expected (tx, busy) = {exp}, got {got} at "
-            f"{self.model.where()} (rst={rst} start={start} "
-            f"data=0x{sampled:02x})")
-        return got
-
-    async def reset(self):
-        await self.clock(rst=1)
-        await self.clock(rst=1)
-        await self.clock()
-
-    async def idle(self, n, data=None):
-        for _ in range(n):
-            await self.clock(data=data)
-
-    def decode(self, frame_trace, byte):
-        cpb = self.cpb
-        assert len(frame_trace) == FRAME_BITS * cpb
-        assert all(b for _, b in frame_trace), (
-            f"busy dropped inside the frame for 0x{byte:02x}")
-        tx = [t for t, _ in frame_trace]
-        line = []
-        for k in range(FRAME_BITS):
-            chunk = tx[k * cpb:(k + 1) * cpb]
-            assert len(set(chunk)) == 1, (
-                f"bit {k} of the frame for 0x{byte:02x} not held {cpb} "
-                f"clocks: {chunk}")
-            line.append(chunk[0])
-        exp = frame_bits(byte)
-        assert line == exp, (
-            f"frame for 0x{byte:02x}: expected {exp} ({decode_frame(exp)}), "
-            f"got {line} ({decode_frame(line)})")
+            self.k += 1
+            if self.k == FRAME:
+                self.bits = None
+        return (1, 0) if self.bits is None else (self.bits[self.k // CPB], 1)
 
 
-# req: REQ-PARITY-EVEN REQ-DATA-LSB-FIRST REQ-BIT-HOLD REQ-BUSY-FRAME REQ-STOP-BIT
+async def reset(dut, cycles=3):
+    dut.start.value = 0
+    dut.data.value = 0
+    await FallingEdge(dut.clk)
+    await pad_reset(dut, dut.rst, cycles)
+
+
+async def tick(dut, m, start=0, data=0, what=""):
+    dut.start.value = start
+    dut.data.value = data
+    await FallingEdge(dut.clk)
+    exp = m.step(0, start, data)
+    got = (int(dut.tx.value), int(dut.busy.value))
+    assert got == exp, f"{what}: expected (tx,busy)={exp}, got {got}"
+    if got[1] == 0:
+        assert got[0] == 1, f"{what}: tx low while busy low"
+
+
+async def reset_checked(dut, m, cycles=1, start=0, data=0):
+    """Pad reset (start/data held through it), then expect idle."""
+    dut.start.value = start
+    dut.data.value = data
+    await pad_reset(dut, dut.rst, cycles)
+    dut.start.value = 0
+    m.bits = None
+    got = (int(dut.tx.value), int(dut.busy.value))
+    assert got == (1, 0), f"after reset expected (1,0), got {got}"
+
+
+def clock(dut):
+    cocotb.start_soon(Clock(dut.clk, 10, unit="ns").start())
+
+
+# req: REQ-PARITY-EVEN REQ-DATA-LSB-FIRST REQ-START-BIT REQ-STOP-BIT REQ-BIT-HOLD REQ-BUSY-FRAME
 @cocotb.test()
 async def test_all_bytes_back_to_back(dut):
-    """All 256 byte values, each frame's start pulse on the first clock busy
-    reads 0 after the previous frame (no idle gap beyond the spec's
-    minimum). Every parity case and every data bit in both states."""
-    tb = Bench(dut)
-    await tb.start()
-    await tb.reset()
+    clock(dut)
+    await reset(dut)
+    m = Model()
     for byte in range(256):
-        mark = len(tb.trace)
-        await tb.clock(start=1, data=byte)
-        for _ in range(tb.model.frame_len - 1):
-            await tb.clock()
-        tb.decode(tb.trace[mark:], byte)
-        # the clock after the stop bit's hold: busy reads 0, tx 1, and the
-        # next start pulse is driven right here - the first edge on which
-        # busy is 0 - with no extra gap
-        tx, busy = await tb.clock()
-        assert (tx, busy) == (1, 0), (
-            f"clock after the 0x{byte:02x} frame: expected tx=1 busy=0, got "
-            f"tx={tx} busy={busy}")
-    assert tb.model.frames_started == list(range(256))
-
-
-# req: REQ-RESET
-@cocotb.test()
-async def test_one_clock_reset_every_offset(dut):
-    """A single-clock rst at every clock of a frame (start bit through the
-    stop bit's last hold clock) abandons it: idle on the next clock, no
-    resumption, and the following frame is sent correctly."""
-    tb = Bench(dut)
-    await tb.start()
-    await tb.reset()
-    frame_len = tb.model.frame_len
-    for offset in range(frame_len):
-        byte = (0x5B + 37 * offset) & 0xFF
-        await tb.clock(start=1, data=byte)
-        for _ in range(offset):
-            await tb.clock()
-        tx, busy = await tb.clock(rst=1)
-        assert (tx, busy) == (1, 0), (
-            f"rst for one clock at frame clock {offset}: expected tx=1 "
-            f"busy=0 on the next clock, got tx={tx} busy={busy}")
-        # no resumption of the abandoned frame
-        await tb.idle(frame_len + 1)
-        mark = len(tb.trace)
-        await tb.clock(start=1, data=~byte)
-        for _ in range(frame_len - 1):
-            await tb.clock()
-        tb.decode(tb.trace[mark:], (~byte) & 0xFF)
-        await tb.clock()
+        # start is driven on the clock busy has just dropped for the
+        # previous frame (accepted: busy is 0 on that edge).
+        await tick(dut, m, 1, byte, f"byte {byte:#x} start")
+        for i in range(1, FRAME):
+            await tick(dut, m, 0, (~byte) & 0xFF, f"byte {byte:#x} clk {i}")
+        if byte == 255:
+            await tick(dut, m, 0, 0, "tail")
+    assert int(dut.busy.value) == 0
 
 
 # req: REQ-RESET REQ-IDLE
 @cocotb.test()
-async def test_reset_and_start_same_edge(dut):
-    """start sampled on the same edge as rst is lost: no frame begins,
-    before or after rst is released. A start on the first clock after rst
-    drops is accepted normally."""
-    tb = Bench(dut)
-    await tb.start()
-    await tb.reset()
-    for byte in (0x00, 0xA5, 0xFF):
-        tx, busy = await tb.clock(rst=1, start=1, data=byte)
-        assert (tx, busy) == (1, 0), (
-            f"rst and start on the same edge (data 0x{byte:02x}): expected "
-            f"idle, got tx={tx} busy={busy}")
-        for _ in range(FRAME_BITS * tb.cpb + 2):
-            tx, busy = await tb.clock()
-            assert (tx, busy) == (1, 0), (
-                f"a start lost to rst began a frame anyway: tx={tx} "
-                f"busy={busy}")
-    # start on the very first clock with rst low
-    await tb.clock(rst=1)
-    mark = len(tb.trace)
-    await tb.clock(start=1, data=0x69)
-    for _ in range(tb.model.frame_len - 1):
-        await tb.clock()
-    tb.decode(tb.trace[mark:], 0x69)
-    await tb.idle(2)
+async def test_one_clock_reset_at_every_offset(dut):
+    clock(dut)
+    await reset(dut)
+    for off in range(FRAME + 2):
+        m = Model()
+        byte = (off * 37 + 5) & 0xFF
+        await tick(dut, m, 1, byte, "start")
+        for i in range(off):
+            await tick(dut, m, 0, byte, f"off {off} pre {i}")
+        await reset_checked(dut, m, 1)
+        for i in range(3):
+            await tick(dut, m, 0, 0xFF, f"off {off} idle {i}")
+        nb = (~byte) & 0xFF
+        await tick(dut, m, 1, nb, f"off {off} new start")
+        for i in range(FRAME):
+            await tick(dut, m, 0, byte, f"off {off} new frame {i}")
 
 
-# req: REQ-START-WHILE-BUSY REQ-BUSY-FRAME REQ-LATCH-ON-START
+# req: REQ-RESET
 @cocotb.test()
-async def test_start_on_every_busy_clock(dut):
-    """start pulses on every clock of a frame in flight, including its last
-    busy clock, each with a different data value: the frame is unchanged,
-    busy falls on time and no second frame follows."""
-    tb = Bench(dut)
-    await tb.start()
-    await tb.reset()
-    frame_len = tb.model.frame_len
-    for phase, byte in ((1, 0x0F), (0, 0xB2)):
-        mark = len(tb.trace)
-        await tb.clock(start=1, data=byte)
-        # one-clock start pulses on alternate clocks; the two frames use
-        # opposite phases so together they cover every clock of a frame
-        for i in range(1, frame_len):
-            await tb.clock(start=int(i % 2 == phase),
-                           data=(byte ^ (0x11 * i)) & 0xFF)
-        tb.decode(tb.trace[mark:], byte)
-        # a start pulse on the edge after the frame's last busy clock is
-        # displayed is sampled while busy reads 1, so it is ignored too
-        tx, busy = await tb.clock(start=1, data=~byte)
-        assert (tx, busy) == (1, 0), (
-            f"start sampled on the last busy clock of the 0x{byte:02x} "
-            f"frame was not ignored: tx={tx} busy={busy}")
-        for _ in range(frame_len + 2):
-            tx, busy = await tb.clock(start=0, data=~byte)
-            assert (tx, busy) == (1, 0), (
-                f"a start pulsed during the 0x{byte:02x} frame was queued "
-                f"as a second frame: tx={tx} busy={busy}")
-    assert tb.model.frames_started == [0x0F, 0xB2]
+async def test_start_on_reset_edge_is_lost(dut):
+    clock(dut)
+    await reset(dut)
+    m = Model()
+    await reset_checked(dut, m, 1, start=1, data=0xFF)
+    for i in range(FRAME + 4):
+        await tick(dut, m, 0, 0xFF, f"lost start {i}")
+    assert int(dut.busy.value) == 0 and int(dut.tx.value) == 1
+    # reset in the middle of a frame, with a start also pending
+    await tick(dut, m, 1, 0x42)
+    for _ in range(9):
+        await tick(dut, m)
+    await reset_checked(dut, m, 2, start=1, data=0x24)
+    for i in range(FRAME + 4):
+        await tick(dut, m, 0, 0x24, f"post-reset idle {i}")
 
 
-# req: REQ-LATCH-ON-START REQ-IDLE
+# req: REQ-START-WHILE-BUSY REQ-LATCH-ON-START
 @cocotb.test()
-async def test_data_churn_every_clock(dut):
-    """data changes on every clock, including the one right after the start
-    edge and the idle clocks with start low: only the value present on the
-    accepting start edge is sent, and idle stays idle."""
-    tb = Bench(dut)
-    await tb.start()
-    await tb.reset()
-    for byte in (0x01, 0x80, 0xE7):
-        for i in range(5):
-            tx, busy = await tb.clock(start=0, data=byte ^ (0xFF - i))
-            assert (tx, busy) == (1, 0)
-        mark = len(tb.trace)
-        await tb.clock(start=1, data=byte)
-        for i in range(1, tb.model.frame_len):
-            await tb.clock(data=(~byte if i % 2 else byte ^ 0x5A) & 0xFF)
-        tb.decode(tb.trace[mark:], byte)
-        await tb.clock(data=~byte)
+async def test_start_pulse_at_every_offset(dut):
+    clock(dut)
+    await reset(dut)
+    for off in range(1, FRAME + 2):
+        m = Model()
+        await tick(dut, m, 1, 0xB3, f"off {off} first")
+        for i in range(off - 1):
+            await tick(dut, m, 0, 0x00, f"off {off} pre {i}")
+        # off 1..43 land while busy (ignored); off 44 is accepted (busy low)
+        await tick(dut, m, 1, 0x4D, f"off {off} second start")
+        for i in range(2 * FRAME + 3):
+            await tick(dut, m, 0, 0xFF, f"off {off} after {i}")
+        assert int(dut.busy.value) == 0 and int(dut.tx.value) == 1
+
+
+# req: REQ-START-WHILE-BUSY REQ-LATCH-ON-START REQ-BUSY-FRAME
+@cocotb.test()
+async def test_start_held_high_changing_data(dut):
+    clock(dut)
+    await reset(dut)
+    m = Model()
+    for i in range(5 * FRAME + 7):
+        await tick(dut, m, 1, (i * 29 + 3) & 0xFF, f"held start clk {i}")
+    for i in range(FRAME + 2):
+        await tick(dut, m, 0, 0, f"drain {i}")
+
+
+# req: REQ-IDLE REQ-RESET REQ-TX-IDLE-HIGH-WHEN-NOT-BUSY REQ-START-WHILE-BUSY REQ-LATCH-ON-START
+@cocotb.test()
+async def test_random_stimulus_vs_model(dut):
+    clock(dut)
+    await reset(dut)
+    m = Model()
+    rng = random.Random(0x5EED)
+    for i in range(6000):
+        r = rng.random()
+        if r < 0.004:
+            await reset_checked(dut, m, rng.choice((1, 1, 2)),
+                                start=rng.getrandbits(1), data=rng.getrandbits(8))
+            continue
+        # bursts of idle make frames complete; start is otherwise sparse
+        start = 1 if rng.random() < 0.04 else 0
+        await tick(dut, m, start, rng.getrandbits(8), f"random clk {i}")

@@ -43,20 +43,16 @@ never a score - except mutate refusing RTL whose sim gate already failed
 in this bench (REFUSES_AFTER), which is recorded as not run and scores 0,
 never a pass.
 
-Three fixtures predate the tile's pad reset synchroniser (ttlib
-write_sim_frame): their benches were recorded from a model's output against
-the block driven directly. Their fixture.json carries `sim_frame: block`,
-and a bench of one runs sim and holdout without the pad frame
-(ttlib.block_level_sim) and says so in its report (`sim_frame`). Only the
-fixtures in PRE_PAD_FRAME_FIXTURES may carry that pin; any other fixture
-with it is refused, so a new fixture is always benched through the pad.
+A fixture is always benched through the tile's pad frame (ttlib
+write_sim_frame), as sim and holdout run in a real workspace, so a bench that
+ignores the pad's reset latency fails by name (tb_ignores_pad_latency,
+holdout_ignores_pad_latency).
 
 CLI/exit contract: checklib's (JSON out, exit 0 pass, 1 findings, 2 error).
 """
 from __future__ import annotations
 
 import argparse
-import contextlib
 import datetime as dt
 import hashlib
 import json
@@ -75,15 +71,9 @@ import checklib  # noqa: E402
 import faults  # noqa: E402
 import gate  # noqa: E402
 import state as state_mod  # noqa: E402
-import ttlib  # noqa: E402
 from checklib import CheckError  # noqa: E402
 
 SCRIPT = "bench"
-# the frozen fixtures benched block-level (fixture.json `sim_frame: block`):
-# recorded before the pad frame, kept as recorded rather than re-written
-PRE_PAD_FRAME_FIXTURES = frozenset({"P3/counter8_tb", "P4/counter8_rtl",
-                                    "P4/uart_rtl"})
-SIM_FRAME_BLOCK = "block"
 DEFAULT_GATES = ENGINE / "reference" / "gates.yaml"
 EVALS = REPO / "evals"
 # the files a fixture carries: the artifact directories a gate reads, never
@@ -244,35 +234,12 @@ def score_gate(name: str, report: dict, result: dict) -> float:
     return 0.0
 
 
-def sim_frame(fx: Path, meta: dict) -> str:
-    """'pad' (the default: sim and holdout through the tile's pad frame) or
-    'block' for a pinned pre-pad-frame fixture. Raises CheckError on any
-    other value, or on the pin outside PRE_PAD_FRAME_FIXTURES."""
-    pin = meta.get("sim_frame")
-    if pin is None:
-        return "pad"
-    name = f"{fx.parent.name}/{fx.name}"
-    if pin != SIM_FRAME_BLOCK:
-        raise CheckError(f"fixture {name}: sim_frame {pin!r} is not "
-                         f"{SIM_FRAME_BLOCK!r}")
-    if name not in PRE_PAD_FRAME_FIXTURES:
-        raise CheckError(f"fixture {name} pins sim_frame: block but is not "
-                         "one of the pre-pad-frame fixtures "
-                         f"({', '.join(sorted(PRE_PAD_FRAME_FIXTURES))}); "
-                         "a fixture is benched through the pad")
-    return SIM_FRAME_BLOCK
-
-
 def bench(fx: Path, meta: dict, gates: dict) -> dict:
-    frame = sim_frame(fx, meta)
     names = stage_gates(meta["skill"], meta["stage"], gates)
     rows = gates.get(meta["skill"]) or {}
     per_gate = {}
     t_all = time.monotonic()
-    block_level = (ttlib.block_level_sim(f"fixture {fx.name}: pre-pad-frame")
-                   if frame == SIM_FRAME_BLOCK else contextlib.nullcontext())
-    with tempfile.TemporaryDirectory(prefix="chip-flow-bench-") as tmp, \
-            block_level:
+    with tempfile.TemporaryDirectory(prefix="chip-flow-bench-") as tmp:
         ws = scratch_from_fixture(Path(tmp), fx, meta)
         for name in names:
             if name not in rows:
@@ -311,7 +278,7 @@ def bench(fx: Path, meta: dict, gates: dict) -> dict:
             }
     composite = sum(g["score"] for g in per_gate.values()) / len(per_gate)
     return {"composite": round(composite, 4), "gates": per_gate,
-            "sim_frame": frame, "wall_s": round(time.monotonic() - t_all, 2)}
+            "wall_s": round(time.monotonic() - t_all, 2)}
 
 
 def compare(score: dict, base: dict) -> list[str]:
@@ -397,7 +364,7 @@ def run(argv=None):
         stage=args.stage, skill=meta["skill"], block=meta["block"],
         composite=score["composite"],
         baseline_composite=base["composite"] if base else None,
-        sim_frame=score["sim_frame"], gates=score["gates"],
+        gates=score["gates"],
         wall_s=score["wall_s"])
     rel_input(payload)
     stamp = dt.datetime.now().strftime("%Y-%m-%dT%H%M%S")

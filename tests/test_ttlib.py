@@ -749,7 +749,7 @@ def test_write_sim_frame_writes_wrapper_and_harness(tmp_path):
     assert all(p.is_file() for p in sources)
 
 
-def test_write_sim_frame_none_without_a_synchroniser_or_when_block_level(tmp_path):
+def test_write_sim_frame_none_without_a_synchroniser(tmp_path):
     assert ttlib.write_sim_frame(COUNTER8_SPEC, tmp_path / "a") is None
     # a tile with a hard macro is framed too (#208), with the macro's
     # pin-only model among the sources
@@ -757,8 +757,6 @@ def test_write_sim_frame_none_without_a_synchroniser_or_when_block_level(tmp_pat
                                              "pins": {}}]}
     sources, _top = ttlib.write_sim_frame(macro, tmp_path / "b")
     assert sources[-1].name == "m.v"
-    with ttlib.block_level_sim("test"):
-        assert ttlib.write_sim_frame(CLOCKED_COUNTER8, tmp_path / "c") is None
     assert ttlib.write_sim_frame(CLOCKED_COUNTER8, tmp_path / "d") is not None
 
 

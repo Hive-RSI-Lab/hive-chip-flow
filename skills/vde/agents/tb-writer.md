@@ -44,7 +44,18 @@ JSON out, exit 0/1/2. Keep output ASCII. **No web tools.**
    Put shared reference-model code in `tb/` alongside the tests that use
    it (a plain module, not a `test_*.py` file itself - `cocotblib.
    test_modules()` only collects `test_*.py`).
-3. Write `holdout/test_<block>_holdout.py`: tests that exercise a case the
+3. Reset through the tile's pad. When `tt_pins` in `spec.yaml` maps a
+   block input to the tile's `rst_n` (`rst: "~rst_n"`), `sim` and `holdout`
+   run your bench through the generated wrapper, and reset leaves the block
+   a fixed number of clocks after your bench releases it. So reset only
+   with `from padreset import pad_reset`, after a `FallingEdge`:
+   `await pad_reset(dut, dut.rst, cycles)`. It waits out that latency, and
+   when it returns the block has just left reset. Never drive reset by hand
+   and count clocks from your own release, and never hard-code the latency:
+   the gate fails a bench that does (`tb_ignores_pad_latency`,
+   `holdout_ignores_pad_latency`). Tests and helpers in `holdout/` do the
+   same.
+4. Write `holdout/test_<block>_holdout.py`: tests that exercise a case the
    VISIBLE suite deliberately does not - the corner the spec implies but a
    surface reading of the requirements might skip (a one-clock reset
    asserted mid-run rather than only at start-up; a byte value that
@@ -52,13 +63,13 @@ JSON out, exit 0/1/2. Keep output ASCII. **No web tools.**
    tagging convention - `check_holdout.py` refuses an untagged held-out
    test. Never duplicate a visible test verbatim into holdout/; it has to
    test something the visible suite does not, or it proves nothing.
-4. You cannot run `sim` or `holdout` yourself - both need `rtl/`, which
+5. You cannot run `sim` or `holdout` yourself - both need `rtl/`, which
    does not exist yet. Do not fabricate a stub RTL to self-check; that is
    exactly the shortcut section 2 exists to prevent. Read your own tests
    back once, checking every requirement's `check: sim|both` id is tagged
    somewhere and every assertion is checking the SPEC's stated behavior,
    not an assumption about implementation.
-5. `state.py holdout --workspace <ws> --written-by tb-writer` - pins
+6. `state.py holdout --workspace <ws> --written-by tb-writer` - pins
    `state.holdout`'s hash once you are done, so a later change to
    `holdout/` is visible.
 
@@ -111,7 +122,8 @@ a design to read.
 
 A held-out test died in its own stimulus code before any assert judged the
 design: a `tb/` helper it imports changed shape, or a call it makes no
-longer fits. The RTL is not at fault, so this comes to you, the test's
+longer fits. `holdout_ignores_pad_latency` comes the same way: a held-out
+bench resets without `padreset`, and the fix is its reset stimulus. The RTL is not at fault, so this comes to you, the test's
 author, and not to the rtl fixer. You may open `holdout/` for this order.
 
 - Adapt stimulus and helper calls only: how a helper's return is unpacked,

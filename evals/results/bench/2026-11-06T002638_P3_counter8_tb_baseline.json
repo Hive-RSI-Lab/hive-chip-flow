@@ -1,0 +1,59 @@
+{
+ "script": "bench",
+ "status": "pass",
+ "counts": {
+  "total": 0,
+  "by_severity": {},
+  "by_source": {}
+ },
+ "violations": [],
+ "mode": "baseline",
+ "fixture": "counter8_tb",
+ "stage": "P3",
+ "skill": "vde",
+ "block": "counter8",
+ "composite": 1.0,
+ "baseline_composite": null,
+ "sim_frame": "pad",
+ "gates": {
+  "sim": {
+   "status": "pass",
+   "score": 1.0,
+   "failing": 0,
+   "kinds": [],
+   "metrics": {
+    "tests_passed": 4
+   },
+   "wall_s": 2.44
+  },
+  "mutate": {
+   "status": "pass",
+   "score": 1.0,
+   "failing": 0,
+   "kinds": [],
+   "metrics": {
+    "kill_rate": 1.0,
+    "killed": 19,
+    "survived": 0
+   },
+   "wall_s": 9.21
+  },
+  "cover": {
+   "status": "pass",
+   "score": 1.0,
+   "failing": 0,
+   "kinds": [],
+   "metrics": {
+    "line_pct": 100.0,
+    "toggle_pct": 100.0
+   },
+   "wall_s": 4.35
+  }
+ },
+ "wall_s": 16.01,
+ "report_schema": 1,
+ "checker_version": 1,
+ "generated_at": "2026-11-06T05:26:38+00:00",
+ "input": "evals/fixtures/P3/counter8_tb",
+ "input_digest": "dir_text:e429d982009c84df21bbea7150ec47dd42a9a0796d34febad74c68580cc2b31c"
+}

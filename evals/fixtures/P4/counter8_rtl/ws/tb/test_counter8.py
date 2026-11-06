@@ -1,111 +1,100 @@
-"""Visible tests for counter8, written from spec/spec.yaml before any RTL."""
-import sys
-from pathlib import Path
+"""Visible tests for counter8. Drive and sample on FallingEdge only; the
+count read at a falling edge is the value the previous rising edge set."""
+import cocotb
+from cocotb.clock import Clock
+from cocotb.triggers import FallingEdge, Timer
+from padreset import pad_reset
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+from refmodel import Counter8Model
 
-import cocotb  # noqa: E402
-from cocotb.triggers import FallingEdge, Timer  # noqa: E402
-
-from counter8_common import Bench, read_count  # noqa: E402
+CLK_PERIOD_NS = 10
 
 
-# req: REQ-RST-SYNC
-@cocotb.test()
-async def test_reset_held_keeps_zero(dut):
-    """rst held high: count is 0 after every rising edge, for many edges."""
-    tb = Bench(dut)
-    await tb.start()
-    for i in range(20):
-        got = await tb.tick(1)
-        assert got == 0, f"reset edge {i}: expected count=0 got {got}"
+async def start(dut):
+    cocotb.start_soon(Clock(dut.clk, CLK_PERIOD_NS, unit="ns").start())
+    dut.rst.value = 0
+    await FallingEdge(dut.clk)
+    await pad_reset(dut, dut.rst, 2)
+    # the block has just left reset: count is 0, next rising edge gives 1
+    assert int(dut.count.value) == 0, f"count after reset: {int(dut.count.value)}"
+
+
+async def run_checked(dut, model, n):
+    for _ in range(n):
+        await FallingEdge(dut.clk)
+        exp = model.step(0)
+        got = int(dut.count.value)
+        assert got == exp, f"expected {exp}, got {got}"
 
 
 # req: REQ-INC
 @cocotb.test()
 async def test_increments_by_one(dut):
-    """After reset, count goes 1, 2, 3, ... one per rising edge."""
-    tb = Bench(dut)
-    await tb.start()
-    await tb.reset()
-    for i in range(1, 101):
-        got = await tb.tick(0)
-        assert got == i, f"edge {i} after reset release: expected {i} got {got}"
+    await start(dut)
+    await run_checked(dut, Counter8Model(), 40)
+
+
+# req: REQ-WRAP
+@cocotb.test()
+async def test_wraps_255_to_0_and_continues(dut):
+    await start(dut)
+    model = Counter8Model()
+    saw_255 = saw_wrap = False
+    prev = 0
+    for _ in range(600):
+        await FallingEdge(dut.clk)
+        exp = model.step(0)
+        got = int(dut.count.value)
+        assert got == exp, f"expected {exp}, got {got}"
+        if prev == 255:
+            assert got == 0, f"after 255 expected 0, got {got}"
+            saw_wrap = True
+        saw_255 |= got == 255
+        prev = got
+    assert saw_255 and saw_wrap
 
 
 # req: REQ-RST-SYNC
 @cocotb.test()
-async def test_reset_is_synchronous(dut):
-    """rst rising between edges does not clear count until the next rising
-    edge, and a rst pulse that starts and ends between two edges has no
-    effect at all."""
-    tb = Bench(dut)
-    await tb.start()
-    await tb.reset()
-    for _ in range(9):
-        await tb.tick(0)
-    before = read_count(dut)
-    assert before == 9, f"expected count=9 before glitch, got {before}"
+async def test_reset_is_synchronous_and_holds_zero(dut):
+    await start(dut)
+    model = Counter8Model()
+    await run_checked(dut, model, 17)
+    before = int(dut.count.value)
+    assert before != 0
 
-    # A pulse wholly between two rising edges (we are at a falling edge).
+    # rst rises just after a falling edge: no clock edge has seen it, so
+    # count must not move between edges.
     dut.rst.value = 1
     await Timer(1, unit="ns")
-    got = read_count(dut)
-    assert got == before, f"rst high between edges changed count: {before} -> {got}"
-    await Timer(1, unit="ns")
-    dut.rst.value = 0
-    await Timer(1, unit="ns")
-    got = read_count(dut)
-    assert got == before, f"rst pulse between edges changed count: {before} -> {got}"
-    await FallingEdge(dut.clk)
-    got = read_count(dut)
-    assert got == before + 1, (
-        f"rst low at the edge after a between-edge pulse: expected {before + 1} got {got}")
-    tb.model.step(0)
+    assert int(dut.count.value) == before, \
+        f"count changed {before} -> {int(dut.count.value)} between edges (async reset?)"
+    await Timer(3, unit="ns")
+    assert int(dut.count.value) == before, "count changed before the rising edge"
 
-    # rst raised at a falling edge: count holds until the rising edge, then 0.
-    dut.rst.value = 1
-    await Timer(2, unit="ns")
-    got = read_count(dut)
-    assert got == before + 1, f"count cleared before the rising edge: got {got}"
-    await FallingEdge(dut.clk)
-    got = read_count(dut)
-    assert got == 0, f"rst high at the rising edge: expected 0 got {got}"
-    tb.model.step(1)
-    await tb.tick(0)
+    # held across several edges: 0 after each
+    for i in range(4):
+        await FallingEdge(dut.clk)
+        assert int(dut.count.value) == 0, \
+            f"hold edge {i}: expected 0, got {int(dut.count.value)}"
+    await pad_reset(dut, dut.rst, 1)
+    assert int(dut.count.value) == 0
+    model.count = 0
+    await run_checked(dut, model, 5)
 
 
-# req: REQ-WRAP REQ-INC
+# req: REQ-RST-PULSE REQ-INC
 @cocotb.test()
-async def test_wraps_255_to_0(dut):
-    """Count runs 0..255, wraps to 0 and keeps counting through 0, 1, 2 ..."""
-    tb = Bench(dut)
-    await tb.start()
-    await tb.reset()
-    seen = []
-    for _ in range(260):
-        seen.append(await tb.tick(0))
-    idx = seen.index(255)
-    assert idx == 254, f"expected 255 on edge 255 after reset, found at {idx + 1}"
-    assert seen[idx + 1:idx + 5] == [0, 1, 2, 3], (
-        f"after 255 expected [0, 1, 2, 3] got {seen[idx + 1:idx + 5]}")
-
-
-# req: REQ-RST-PULSE
-@cocotb.test()
-async def test_one_cycle_reset_mid_run(dut):
-    """A one-clock rst while counting clears count on the next edge; count is
-    1 on the edge after release."""
-    tb = Bench(dut)
-    await tb.start()
-    await tb.reset()
-    for _ in range(37):
-        await tb.tick(0)
-    assert tb.model.count == 37
-    got = await tb.tick(1)
-    assert got == 0, f"one-clock reset at count 37: expected 0 got {got}"
-    got = await tb.tick(0)
-    assert got == 1, f"first edge after release: expected 1 got {got}"
-    for i in range(2, 12):
-        got = await tb.tick(0)
-        assert got == i, f"counting after pulse: expected {i} got {got}"
+async def test_one_clock_reset_pulse_midrun(dut):
+    await start(dut)
+    model = Counter8Model()
+    for run_len in (5, 100, 255):
+        await run_checked(dut, model, run_len)
+        before = int(dut.count.value)
+        assert before != 0, "need a non-zero count before the pulse"
+        await pad_reset(dut, dut.rst, 1)
+        model.count = 0
+        got = int(dut.count.value)
+        assert got == 0, f"pulse at count {before}: expected 0, got {got}"
+        await run_checked(dut, model, 3)
+        assert int(dut.count.value) == 3
