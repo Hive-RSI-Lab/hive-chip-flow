@@ -58,13 +58,13 @@
   "tb": "dir_text:dcd7071c607e26a3ef2e66ea82ca699aad8c7f2bd431e9044bf43d9d323d8346",
   "digital_rtl": "dir_text:5b5e3748612f45afdfaedc1d7e6daa228ca0e64c09072bc4ac8b8b6275a6d995",
   "digital_spec": "json_canonical:316aabe3e699eb67a766fb42296b9a90d765394b6deefb2d5178cc8865c08bbf",
-  "analog_spec": "json_canonical:e501d6a76274910fb82ae99aa3d7190e0a89bf501faa94d88f2163f26372dc1b",
+  "analog_spec": "json_canonical:b9e53ef91f0292ed45f1b07aaad65e5fd2f9a72429ef84c86c5f15846cbe9cc8",
   "analog_netlist": "dir_text:13970a2f19f36bd8aa49baa3a94132821e16917455715ba77b23b074b4551548",
   "analog_sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
   "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
   "pdk_models": "dir_text:84e0f27991c27acae27ec5243fd0d1587f7bfb2655e802ed0eb92a811cf5f7f8"
  },
  "strength_at_start": 0,
- "recorded_ts": "2026-11-05T22:39:55",
- "attempts": 11
+ "recorded_ts": "2026-11-05T23:38:30",
+ "attempts": 12
 }

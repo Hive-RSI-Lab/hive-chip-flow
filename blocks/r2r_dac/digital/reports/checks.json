@@ -1,7 +1,7 @@
 {
  "skill": "vde",
  "block": "r2r_dac",
- "ts": "2026-11-05T19:51:48",
+ "ts": "2026-11-05T23:42:01",
  "pdk": {
   "name": "gf180mcuD",
   "open_pdks": "1689ac3f2dc763876eaf967227c7dfe831b031ae",
@@ -16,8 +16,8 @@
    "tool": "cdc",
    "version": 1,
    "status": "pass",
-   "attempts": 8,
-   "ts": "2026-11-05T19:49:03",
+   "attempts": 9,
+   "ts": "2026-11-05T21:08:04",
    "inputs": {
     "rtl": "dir_text:5b5e3748612f45afdfaedc1d7e6daa228ca0e64c09072bc4ac8b8b6275a6d995",
     "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119",
@@ -352,7 +352,7 @@
    }
   ],
   "manifest": "release/manifest.json",
-  "manifest_sha256": "b3671fd2233b88b8a468057387bb4ef44c506819d498d184b902f0f7c162be22"
+  "manifest_sha256": "ced98a932262ba95ca28fe2c4f59f038f424722647cfb858e2b5d7048b1ff0fe"
  },
- "attestation_sha256": "74a1a48af3ce064eab6e2daf1d5e6a723a422174db2aaaa47957376ac3f55fb8"
+ "attestation_sha256": "6b3e7f5ce145d658e4336183294fc439e541472fed61783e003aff957206c39c"
 }

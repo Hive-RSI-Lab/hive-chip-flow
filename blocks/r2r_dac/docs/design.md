@@ -49,7 +49,7 @@ The ladder (`blocks/r2r_dac/analog/netlist/r2r_dac_analog.cir`) is a standard R-
 
 ## Results over the corners
 
-ngspice, pre-layout, at a fixed 3.3 V: the brief's nine corners (tt, ff, ss × −40, 25, 125 °C) plus two passive skews at 27 °C (`tt_pss`, `tt_pff`: typical transistors with slow or fast resistors). The sim_pvt gate passed with no errors and 17 warnings, all on two derived bounds the owner set as trade-offs: 10–90 % edges at ss, and INL with one unit off by 1 %.
+ngspice, pre-layout, at a fixed 3.3 V: the brief's nine corners (tt, ff, ss × −40, 25, 125 °C) plus two passive skews at 27 °C (`tt_pss`, `tt_pff`: typical transistors with slow or fast resistors). The sim_pvt gate passed with no errors and 11 warnings, all on one derived bound the owner set as a trade-off: INL with one unit off by 1 %.
 
 ### DC: DNL, INL, gain (bound ±0.5 LSB)
 
@@ -71,7 +71,7 @@ The quiescent supply current is 73 to 110 µA.
 
 **Mismatch.** The GF180 poly resistor models have no per-instance mismatch (`ppolyf_u` has `mis_r = 0`, and `res_statistical` is global only), so Monte Carlo can't move DNL or INL. The last column stands in for it: the worst INL when any one unit is off by ±1 %. It exceeds 0.5 LSB at every corner (warning, accepted).
 
-### Step: full-scale settling (bound 1.5 µs) and edges (bound 0.5 µs)
+### Step: full-scale settling (bound 1.5 µs) and edges (bound 0.53 µs)
 
 | corner | settle to 0.5 LSB, rise / fall (µs) | 10–90 %, rise / fall (ns) | supply peak (mA) |
 |---|---|---|---|
@@ -109,18 +109,18 @@ The glitch is small because the 190 ns RC filters it. The flow noted that the pr
 
 ### Worst corner
 
-**ss** is the worst corner for accuracy and speed: ss 125 °C has the worst INL (0.355 LSB), gain error (−0.014 LSB) and one-unit sensitivity (0.649 LSB), and ss −40 °C has the slowest settling (1.441 µs) and the only edges over 0.5 µs (506 ns). ff 125 °C has the largest glitch and ff −40 °C the largest supply peak. Every hard bound passes at every corner; the misses are the two warning-level trade-offs above.
+**ss** is the worst corner for accuracy and speed: ss 125 °C has the worst INL (0.355 LSB), gain error (−0.014 LSB) and one-unit sensitivity (0.649 LSB), and ss −40 °C has the slowest settling (1.441 µs) and the slowest edges (506 ns, inside the 0.53 µs bound). ff 125 °C has the largest glitch and ff −40 °C the largest supply peak. Every hard bound passes at every corner; the misses are the warning-level trade-off above.
 
 ### Post-layout
 
-The pex_sim gate ran the step and glitch benches on the netlist extracted from the macro's layout (2,910 parasitic R, 2,084 C) and passed:
+The pex_sim gate ran the step and glitch benches on the netlist extracted from the macro's layout (2,926 parasitic R, 2,311 C) at tt 25 °C, ff 125 °C, ss −40 °C and ss 125 °C, and passed. The table gives tt 25 °C; ss −40 °C is the slowest corner, at 1.451 µs settling and 511.5 / 509.5 ns edges. The owner moved the edge bound from 500 ns to 530 ns on 2026-11-05 because of that corner: 530 ns is what the 1.5 µs settling bound implies for this single-pole output.
 
 | measure | rise / up | fall / down | bound |
 |---|---|---|---|
 | settling to 0.5 LSB | 1.202 µs | 1.197 µs | 1.5 µs |
-| 10–90 % | 424 ns | 422 ns | 500 ns |
-| glitch energy | 23.8 pV·s | 14.9 pV·s | 260 pV·s |
-| glitch peak | 21.8 mV | 22.5 mV | 52 mV |
+| 10–90 % | 424 ns | 422 ns | 530 ns |
+| glitch energy | 23.4 pV·s | 15.0 pV·s | 260 pV·s |
+| glitch peak | 20.9 mV | 26.0 mV | 52 mV |
 
 ### Co-simulation
 

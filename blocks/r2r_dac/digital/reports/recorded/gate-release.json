@@ -21,7 +21,7 @@
  "violations": [],
  "facts": {
   "attestation": "reports/checks.json",
-  "attestation_sha256": "74a1a48af3ce064eab6e2daf1d5e6a723a422174db2aaaa47957376ac3f55fb8",
+  "attestation_sha256": "6b3e7f5ce145d658e4336183294fc439e541472fed61783e003aff957206c39c",
   "disposition": "gates-green",
   "waived": [],
   "tt_submission": {
@@ -83,6 +83,6 @@
   "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2"
  },
  "strength_at_start": 0,
- "recorded_ts": "2026-11-05T19:51:51",
- "attempts": 7
+ "recorded_ts": "2026-11-05T23:42:04",
+ "attempts": 8
 }

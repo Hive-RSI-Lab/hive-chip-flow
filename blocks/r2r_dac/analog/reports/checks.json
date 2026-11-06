@@ -1,7 +1,12 @@
 {
  "skill": "ade",
  "block": "r2r_dac_analog",
- "ts": "2026-10-13T06:18:19",
+ "ts": "2026-11-05T23:22:16",
+ "pdk": {
+  "name": "gf180mcuD",
+  "open_pdks": "1689ac3f2dc763876eaf967227c7dfe831b031ae",
+  "ciel": "1689ac3f2dc763876eaf967227c7dfe831b031ae"
+ },
  "checks": [
   {
    "gate": "bench_strength",
@@ -11,14 +16,16 @@
    "tool": "bench_strength",
    "version": 1,
    "status": "pass",
-   "attempts": 4,
-   "ts": "2026-10-13T06:12:56",
+   "attempts": 8,
+   "ts": "2026-11-05T21:52:01",
    "inputs": {
     "netlist": "dir_text:13970a2f19f36bd8aa49baa3a94132821e16917455715ba77b23b074b4551548",
-    "tb": "dir_text:bd1a8539e7092bb573bd6811f95fc170b4fce78f2829463999ce0bfe4f4a0609",
+    "tb": "dir_text:f39ddda9f2efd5463da75d99f486ff1ea8d2038b91027869426db82f0bf513e4",
     "mutant_rulings": null,
-    "spec_yaml": "json_canonical:99047ed51c88b1767b136d48e2c3832967daa1e22eec34905494620acacea45d",
-    "sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df"
+    "spec_yaml": "json_canonical:b9e53ef91f0292ed45f1b07aaad65e5fd2f9a72429ef84c86c5f15846cbe9cc8",
+    "sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
+    "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+    "pdk_models": "dir_text:84e0f27991c27acae27ec5243fd0d1587f7bfb2655e802ed0eb92a811cf5f7f8"
    },
    "reason": null
   },
@@ -30,11 +37,14 @@
    "tool": "analog_drc",
    "version": 1,
    "status": "pass",
-   "attempts": 8,
-   "ts": "2026-10-13T06:13:09",
+   "attempts": 12,
+   "ts": "2026-11-05T21:52:47",
    "inputs": {
     "layout": "dir_text:7a954c277f279e0a8b3d75e97ed6833bf445cf7e04f4ec0eefae35be290d869d",
-    "spec_yaml": "json_canonical:99047ed51c88b1767b136d48e2c3832967daa1e22eec34905494620acacea45d"
+    "spec_yaml": "json_canonical:b9e53ef91f0292ed45f1b07aaad65e5fd2f9a72429ef84c86c5f15846cbe9cc8",
+    "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+    "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
+    "pdk_klayout": "dir_text:876da90e8aab65b830b36eca12bd720adfe8240a0952872419d9f2b4abda605d"
    },
    "reason": null
   },
@@ -46,13 +56,17 @@
    "tool": "analog_lvs",
    "version": 1,
    "status": "pass",
-   "attempts": 6,
-   "ts": "2026-10-13T06:13:11",
+   "attempts": 10,
+   "ts": "2026-11-05T21:54:13",
    "inputs": {
     "layout": "dir_text:7a954c277f279e0a8b3d75e97ed6833bf445cf7e04f4ec0eefae35be290d869d",
     "netlist": "dir_text:13970a2f19f36bd8aa49baa3a94132821e16917455715ba77b23b074b4551548",
-    "spec_yaml": "json_canonical:99047ed51c88b1767b136d48e2c3832967daa1e22eec34905494620acacea45d",
-    "sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df"
+    "spec_yaml": "json_canonical:b9e53ef91f0292ed45f1b07aaad65e5fd2f9a72429ef84c86c5f15846cbe9cc8",
+    "sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
+    "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+    "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
+    "pdk_netgen": "dir_text:8164f65bb7d1bef6e27af4c13b1c6ede50973cec7aec482556abb23881aceb04",
+    "pdk_klayout": "dir_text:876da90e8aab65b830b36eca12bd720adfe8240a0952872419d9f2b4abda605d"
    },
    "reason": null
   },
@@ -65,7 +79,7 @@
    "version": 1,
    "status": null,
    "inputs": {
-    "spec_yaml": "json_canonical:99047ed51c88b1767b136d48e2c3832967daa1e22eec34905494620acacea45d"
+    "spec_yaml": "json_canonical:b9e53ef91f0292ed45f1b07aaad65e5fd2f9a72429ef84c86c5f15846cbe9cc8"
    },
    "reason": "not applicable: spec.yaml asks for no Monte Carlo (no 'mc.enabled: true'), re-read at this release"
   },
@@ -77,11 +91,11 @@
    "tool": "netlist_lint",
    "version": 1,
    "status": "pass",
-   "attempts": 7,
-   "ts": "2026-10-13T06:11:20",
+   "attempts": 11,
+   "ts": "2026-11-05T21:44:42",
    "inputs": {
     "netlist": "dir_text:13970a2f19f36bd8aa49baa3a94132821e16917455715ba77b23b074b4551548",
-    "spec_yaml": "json_canonical:99047ed51c88b1767b136d48e2c3832967daa1e22eec34905494620acacea45d"
+    "spec_yaml": "json_canonical:b9e53ef91f0292ed45f1b07aaad65e5fd2f9a72429ef84c86c5f15846cbe9cc8"
    },
    "reason": null
   },
@@ -93,14 +107,18 @@
    "tool": "pex_sim",
    "version": 1,
    "status": "pass",
-   "attempts": 1,
-   "ts": "2026-10-13T06:18:12",
+   "attempts": 4,
+   "ts": "2026-11-05T23:21:54",
    "inputs": {
     "layout": "dir_text:7a954c277f279e0a8b3d75e97ed6833bf445cf7e04f4ec0eefae35be290d869d",
-    "tb": "dir_text:bd1a8539e7092bb573bd6811f95fc170b4fce78f2829463999ce0bfe4f4a0609",
-    "layout_ref": "dir_text:5d154f2a5ad18af4700b7c34b6bcdf6cc30b8e4429b27e5057c69d507921ac60",
+    "tb": "dir_text:f39ddda9f2efd5463da75d99f486ff1ea8d2038b91027869426db82f0bf513e4",
+    "layout_ref": "dir_text:c4aa1a8579f2b576c7bbfb34464926cef64b1f078bacd41d28ec3e82650f2e7e",
     "netlist": "dir_text:13970a2f19f36bd8aa49baa3a94132821e16917455715ba77b23b074b4551548",
-    "spec_yaml": "json_canonical:99047ed51c88b1767b136d48e2c3832967daa1e22eec34905494620acacea45d"
+    "spec_yaml": "json_canonical:b9e53ef91f0292ed45f1b07aaad65e5fd2f9a72429ef84c86c5f15846cbe9cc8",
+    "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+    "pdk_models": "dir_text:84e0f27991c27acae27ec5243fd0d1587f7bfb2655e802ed0eb92a811cf5f7f8",
+    "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
+    "pdk_klayout": "dir_text:876da90e8aab65b830b36eca12bd720adfe8240a0952872419d9f2b4abda605d"
    },
    "reason": null
   },
@@ -112,13 +130,15 @@
    "tool": "sim_pvt",
    "version": 1,
    "status": "pass",
-   "attempts": 6,
-   "ts": "2026-10-13T06:12:32",
+   "attempts": 10,
+   "ts": "2026-11-05T21:48:40",
    "inputs": {
     "netlist": "dir_text:13970a2f19f36bd8aa49baa3a94132821e16917455715ba77b23b074b4551548",
-    "tb": "dir_text:bd1a8539e7092bb573bd6811f95fc170b4fce78f2829463999ce0bfe4f4a0609",
-    "spec_yaml": "json_canonical:99047ed51c88b1767b136d48e2c3832967daa1e22eec34905494620acacea45d",
-    "sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df"
+    "tb": "dir_text:f39ddda9f2efd5463da75d99f486ff1ea8d2038b91027869426db82f0bf513e4",
+    "spec_yaml": "json_canonical:b9e53ef91f0292ed45f1b07aaad65e5fd2f9a72429ef84c86c5f15846cbe9cc8",
+    "sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
+    "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+    "pdk_models": "dir_text:84e0f27991c27acae27ec5243fd0d1587f7bfb2655e802ed0eb92a811cf5f7f8"
    },
    "reason": null
   },
@@ -130,13 +150,15 @@
    "tool": "sim_tt",
    "version": 1,
    "status": "pass",
-   "attempts": 7,
-   "ts": "2026-10-13T06:11:25",
+   "attempts": 11,
+   "ts": "2026-11-05T21:45:17",
    "inputs": {
     "netlist": "dir_text:13970a2f19f36bd8aa49baa3a94132821e16917455715ba77b23b074b4551548",
-    "tb": "dir_text:bd1a8539e7092bb573bd6811f95fc170b4fce78f2829463999ce0bfe4f4a0609",
-    "spec_yaml": "json_canonical:99047ed51c88b1767b136d48e2c3832967daa1e22eec34905494620acacea45d",
-    "sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df"
+    "tb": "dir_text:f39ddda9f2efd5463da75d99f486ff1ea8d2038b91027869426db82f0bf513e4",
+    "spec_yaml": "json_canonical:b9e53ef91f0292ed45f1b07aaad65e5fd2f9a72429ef84c86c5f15846cbe9cc8",
+    "sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
+    "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+    "pdk_models": "dir_text:84e0f27991c27acae27ec5243fd0d1587f7bfb2655e802ed0eb92a811cf5f7f8"
    },
    "reason": null
   },
@@ -148,13 +170,13 @@
    "tool": "spec_lint_ade",
    "version": 1,
    "status": "pass",
-   "attempts": 9,
-   "ts": "2026-10-13T06:11:08",
+   "attempts": 13,
+   "ts": "2026-11-05T21:43:23",
    "inputs": {
-    "spec_yaml": "json_canonical:99047ed51c88b1767b136d48e2c3832967daa1e22eec34905494620acacea45d"
+    "spec_yaml": "json_canonical:b9e53ef91f0292ed45f1b07aaad65e5fd2f9a72429ef84c86c5f15846cbe9cc8"
    },
    "reason": null
   }
  ],
- "attestation_sha256": "8e9ff6841b943ddb8349072e66e88c8398125a7ef260469d0c05cdd7058111ea"
+ "attestation_sha256": "e4c1c82c53353269a4cce9d0beccb908adc596e25e995aed3278f5dcc4e8abda"
 }
