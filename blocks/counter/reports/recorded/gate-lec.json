@@ -23,23 +23,29 @@
   "top": "ece298a_counter",
   "links": {
    "rtl_vs_synth": {
+    "fsm": [],
+    "constants": {},
     "key_points": 12,
     "unmatched": {
      "gold": [],
      "gate": []
     },
+    "compared": 72,
     "proved": 72,
-    "partitions": 72,
+    "prover": "abc cec",
     "rtl_init": false
    },
    "synth_vs_final": {
+    "fsm": [],
+    "constants": {},
     "key_points": 12,
     "unmatched": {
      "gold": [],
      "gate": []
     },
+    "compared": 72,
     "proved": 72,
-    "partitions": 72,
+    "prover": "abc cec",
     "rtl_init": false
    }
   },
@@ -51,7 +57,7 @@
   "not_checked": [
    "power-up values (no initial state exists in silicon)",
    "timing",
-   "retiming and FSM recoding (they fail, not pass)"
+   "retiming (it fails, not passes)"
   ]
  },
  "inputs_at_start": {
@@ -62,6 +68,6 @@
   "pdk_liberty": "dir_bytes:f09377f057ab484ec9e5a45b205c99a5de399e2bdca886531bf9eefa57783f32"
  },
  "strength_at_start": 0,
- "recorded_ts": "2026-11-06T04:02:44",
- "attempts": 3
+ "recorded_ts": "2026-11-06T08:01:09",
+ "attempts": 5
 }

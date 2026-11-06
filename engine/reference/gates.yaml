@@ -228,10 +228,12 @@ gates:
         a stray gate in final/nl on a cone the visible tests never sensitise,
         which glsim passes
       description: >-
-        RTL = LibreLane's synth netlist = final/nl, proved by eqy on every
-        flop's clock, set, reset and data and every output, with kepler-formal
-        as a second engine on the netlist link. An unproven point is a finding,
-        and a run dir trimmed of the synth view a refusal.
+        RTL = LibreLane's synth netlist = final/nl, proved by one miter per
+        link on every flop's clock, set, reset and data and every output (eqy
+        names the failures), recoded FSMs through synthesis's map and dropped
+        flops proved constant, with kepler-formal as a second engine on the
+        netlist link. An unproven point is a finding, and a run dir trimmed of
+        the synth view a refusal.
     precheck:
       phase: P6
       tool: precheck

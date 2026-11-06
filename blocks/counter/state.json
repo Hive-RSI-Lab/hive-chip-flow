@@ -4,7 +4,7 @@
  "block": "counter",
  "workspace": "blocks/counter",
  "created": "2026-10-29T09:54:57",
- "updated": "2026-11-06T06:36:13",
+ "updated": "2026-11-06T08:01:09",
  "phase": "P0",
  "toolchain": null,
  "gates": {
@@ -2139,9 +2139,9 @@
   "lec": {
    "phase": "P6",
    "status": "pass",
-   "attempts": 3,
+   "attempts": 5,
    "last": {
-    "ts": "2026-11-06T04:02:44",
+    "ts": "2026-11-06T08:01:09",
     "status": "pass",
     "failing_count": 0,
     "total": 0,
@@ -2199,6 +2199,36 @@
      },
      "strength": 0,
      "job": null
+    },
+    {
+     "ts": "2026-11-06T07:41:26",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "harden": "harden_signoff:bba0c728de80ed1d73908601fbb85b1eaa19ec3b3c5955b037d72a1d738e5e77",
+      "rtl": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:ec426c58dd9f2334b09759284010f4068e5638e331ac28be8742ab3fee1e7b69",
+      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+      "pdk_liberty": "dir_bytes:f09377f057ab484ec9e5a45b205c99a5de399e2bdca886531bf9eefa57783f32"
+     },
+     "strength": 0,
+     "job": null
+    },
+    {
+     "ts": "2026-11-06T08:01:09",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "harden": "harden_signoff:bba0c728de80ed1d73908601fbb85b1eaa19ec3b3c5955b037d72a1d738e5e77",
+      "rtl": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:ec426c58dd9f2334b09759284010f4068e5638e331ac28be8742ab3fee1e7b69",
+      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+      "pdk_liberty": "dir_bytes:f09377f057ab484ec9e5a45b205c99a5de399e2bdca886531bf9eefa57783f32"
+     },
+     "strength": 0,
+     "job": null
     }
    ]
   }
@@ -2224,13 +2254,13 @@
    "path": "rtl",
    "kind": "rtl",
    "sha256": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
-   "hashed": "2026-11-06T06:36:13"
+   "hashed": "2026-11-06T08:01:09"
   },
   "spec_yaml_sans_formal": {
    "path": "spec/spec.yaml",
    "kind": "spec_yaml_sans_formal",
    "sha256": "json_canonical_sans_formal:ec426c58dd9f2334b09759284010f4068e5638e331ac28be8742ab3fee1e7b69",
-   "hashed": "2026-11-06T06:36:13"
+   "hashed": "2026-11-06T08:01:09"
   },
   "tb": {
    "path": "tb",
@@ -2284,7 +2314,7 @@
    "path": "harden",
    "kind": "harden",
    "sha256": "harden_signoff:bba0c728de80ed1d73908601fbb85b1eaa19ec3b3c5955b037d72a1d738e5e77",
-   "hashed": "2026-11-06T04:12:02"
+   "hashed": "2026-11-06T08:01:09"
   },
   "cdc_waivers": {
    "path": "spec/cdc.yaml",
@@ -2296,13 +2326,13 @@
    "path": "${PDK_ROOT}/SOURCES",
    "kind": "pdk_version",
    "sha256": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
-   "hashed": "2026-11-06T06:36:13"
+   "hashed": "2026-11-06T08:01:09"
   },
   "pdk_liberty": {
    "path": "${PDK_ROOT}/libs.ref/gf180mcu_fd_sc_mcu7t5v0/lib",
    "kind": "pdk_liberty",
    "sha256": "dir_bytes:f09377f057ab484ec9e5a45b205c99a5de399e2bdca886531bf9eefa57783f32",
-   "hashed": "2026-11-06T06:36:13"
+   "hashed": "2026-11-06T08:01:09"
   },
   "pdk_librelane": {
    "path": "${PDK_ROOT}/libs.tech/librelane",
@@ -3136,6 +3166,22 @@
    "gate": "cdc",
    "status": "pass",
    "attempt": 6,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-11-06T07:41:26",
+   "event": "gate",
+   "gate": "lec",
+   "status": "pass",
+   "attempt": 4,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-11-06T08:01:09",
+   "event": "gate",
+   "gate": "lec",
+   "status": "pass",
+   "attempt": 5,
    "failing_count": 0
   }
  ]
