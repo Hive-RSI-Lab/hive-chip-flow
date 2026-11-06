@@ -268,6 +268,12 @@ find_workspace = statelib.find_workspace
 RECORDED_DIR = Path("reports") / "recorded"
 
 
+def report_text(body: dict, ws: str | None) -> str:
+    """The gate's report as it is written: a workspace's reports are
+    committed with its block, so they get the same scrub as state.json."""
+    return json.dumps(checklib.record_safe(body, ws) if ws else body, indent=2)
+
+
 def write_recorded_copy(ws: Path, gate_name: str, result: dict,
                         g: dict) -> None:
     """The recorded run's whole result, as reports/recorded/gate-<g>.json,
@@ -279,7 +285,8 @@ def write_recorded_copy(ws: Path, gate_name: str, result: dict,
     body = {**result, "recorded_ts": (g.get("last") or {}).get("ts"),
             "attempts": g.get("attempts")}
     tmp = path.with_suffix(".json.tmp")
-    tmp.write_text(json.dumps(body, indent=1), encoding="utf-8")
+    tmp.write_text(json.dumps(checklib.record_safe(body, ws), indent=1),
+                   encoding="utf-8")
     tmp.replace(path)
 
 
@@ -539,8 +546,8 @@ def main(argv: list[str] | None = None) -> int:
         result = evaluate(args.gate, gate, report)
         if args.workspace:
             # what the gate writes and records names the workspace's files
-            # relative to it, never by this machine's absolute path
-            result = checklib.workspace_relative(result, args.workspace)
+            # relative to it, and holds nothing State.save would scrub
+            result = checklib.record_safe(result, args.workspace)
         if inputs_at_start is not None:
             result["inputs_at_start"] = inputs_at_start
         if strength_at_start is not None:
@@ -565,7 +572,7 @@ def main(argv: list[str] | None = None) -> int:
                 skill, args.gate, gate, result,
                 Path(args.workspace) if args.workspace else None)
             if args.workspace:
-                result["record_result"] = checklib.workspace_relative(
+                result["record_result"] = checklib.record_safe(
                     result["record_result"], args.workspace)
 
         if result["status"] == "pass" and args.commit:
@@ -575,7 +582,7 @@ def main(argv: list[str] | None = None) -> int:
             # report, not the last one's, and leaves no modified copy.
             if args.out:
                 Path(args.out).parent.mkdir(parents=True, exist_ok=True)
-                Path(args.out).write_text(json.dumps(result, indent=2),
+                Path(args.out).write_text(report_text(result, args.workspace),
                                           encoding="utf-8")
             result["commit_result"] = git_commit_on_pass(
                 args.commit, Path(args.workspace))
@@ -587,7 +594,7 @@ def main(argv: list[str] | None = None) -> int:
                 "remediation": f"{type(exc).__name__}: {exc}"}
         if error_mark is not None:
             body["stale_mark"] = error_mark
-        text = json.dumps(body, indent=2)
+        text = report_text(body, args.workspace)
         if args.out:
             Path(args.out).parent.mkdir(parents=True, exist_ok=True)
             Path(args.out).write_text(text, encoding="utf-8")
@@ -597,7 +604,7 @@ def main(argv: list[str] | None = None) -> int:
             print(text)
         return 2
 
-    text = json.dumps(result, indent=2)
+    text = report_text(result, args.workspace)
     cr = result.get("commit_result")
     if args.out and cr is not None and cr.get("committed"):
         # Already written and committed above; rewriting it to add the

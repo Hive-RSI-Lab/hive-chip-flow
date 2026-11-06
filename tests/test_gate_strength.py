@@ -269,14 +269,14 @@ def test_attest_build_names_the_bump(tmp_path, monkeypatch):
 
 def test_verify_fails_an_attestation_once_a_gate_is_bumped(tmp_path, monkeypatch):
     """A nested msde release goes through attest verify, so a bump reaches it."""
-    ws = make_ws(tmp_path, "msde", "sensor_counted")
-    pass_every_gate(ws, "msde")
+    ws = make_ws(tmp_path, "ade", "sensor_counted")
+    pass_every_gate(ws, "ade")
     att, problems = attest_mod.build(ws)
     assert problems == []
     attest_mod.write_attestation(ws, att)
     assert attest_mod.verify(ws)["valid"] is True
-    gate = next(iter(statelib.load_map()["gate_inputs"]["msde"]))
-    bump(monkeypatch, tmp_path, skill="msde", gate=gate)
+    gate = next(iter(statelib.load_map()["gate_inputs"]["ade"]))
+    bump(monkeypatch, tmp_path, skill="ade", gate=gate)
     assert attest_mod.verify(ws)["valid"] is False
 
 

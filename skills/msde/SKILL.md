@@ -148,8 +148,8 @@ Gates (`engine/reference/gates.yaml`, msde rows), in pipeline order:
 | precheck | P3 | Tiny Tapeout's own precheck passes on the top's GDS; an analog tile's used ua pads, and only those, carry metal | `check_precheck.py` |
 | release | P4 | every msde gate fresh-pass AND both nested workspaces released | `check_release.py` |
 
-`release` for an msde block runs `check_release.py`'s `nested_problems()`
-on top of the usual attestation: each of `digital/` and `analog/` must
+`release` for an msde block, `attest.py build` and `attest.py verify` run
+`attest.py`'s `nested_problems()` on top of the usual attestation: each of `digital/` and `analog/` must
 hold a `state.json` of the right skill whose own `reports/checks.json`
 still verifies (`attest.py verify`). A nested edit after that side
 released fails here as `nested_not_released`.

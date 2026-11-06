@@ -73,6 +73,8 @@ import statelib  # noqa: E402
 
 SCRIPT = "attest"
 CHECKS_PATH = "reports/checks.json"
+# msde's nested workspaces: directory under the msde block -> its skill.
+NESTED = {"digital": "vde", "analog": "ade"}
 WAIVERS_PATH = "reports/waivers.json"
 # a waiver missing any of these is not durable - never applied, always a
 # problem attest.py's own build() surfaces (docs/design.md 1.5's release
@@ -396,6 +398,27 @@ def write_attestation(ws: Path, attestation: dict) -> Path:
     return path
 
 
+def nested_problems(ws: Path) -> list[str]:
+    """Why an msde block's nested runs do not count as released, one
+    string per side ("nested_<side>: <reason>"); empty when both do."""
+    problems = []
+    for side, skill in NESTED.items():
+        sub = ws / side
+        if not (sub / "state.json").is_file():
+            problems.append(f"nested_{side}: no nested workspace at {side}/")
+            continue
+        data = checklib.load_json(sub / "state.json", f"{side}/state.json")
+        if data.get("skill") != skill:
+            problems.append(f"nested_{side}: {side}/ is skill "
+                            f"{data.get('skill')!r}, expected {skill!r}")
+            continue
+        verdict = verify(sub)
+        if not verdict.get("valid"):
+            problems.append(f"nested_{side}: not released: "
+                            f"{verdict.get('reason')}")
+    return problems
+
+
 def verify(ws: Path) -> dict:
     path = ws / CHECKS_PATH
     if not path.is_file():
@@ -411,6 +434,14 @@ def verify(ws: Path) -> dict:
     if att is None:
         return {"valid": False, "reason": "; ".join(problems),
                 "attestation_sha256": recorded["attestation_sha256"]}
+    # an msde block is released only with both its sides: its own gates can
+    # all be green while a side fails, and "valid" here reads as "Released"
+    # in the design doc
+    if att["skill"] == "msde":
+        nested = nested_problems(ws)
+        if nested:
+            return {"valid": False, "reason": "; ".join(nested),
+                    "attestation_sha256": recorded["attestation_sha256"]}
     if att.get("pdk") != recorded.get("pdk"):
         return {"valid": False,
                 "reason": f"signed off on PDK {recorded.get('pdk')}, the "
@@ -481,6 +512,10 @@ def run(argv=None) -> tuple[dict, str | None, int]:
 
     if args.cmd == "build":
         att, problems = build(ws, max_report_age_h=args.max_report_age_h)
+        if att is not None and att["skill"] == "msde":
+            problems = nested_problems(ws)
+            if problems:
+                att = None
         if att is None:
             result.update(status="violations", problems=problems,
                           attestation=None)

@@ -70,29 +70,6 @@ import ttlib  # noqa: E402
 import ttship  # noqa: E402
 
 SCRIPT = "check_release"
-# msde's nested workspaces: directory under the msde block -> its skill.
-NESTED = {"digital": "vde", "analog": "ade"}
-
-
-def nested_problems(ws: Path) -> list[str]:
-    """Why an msde block's nested runs do not count as released, one
-    string per side ("<side>: <reason>"); empty when both do."""
-    problems = []
-    for side, skill in NESTED.items():
-        sub = ws / side
-        if not (sub / "state.json").is_file():
-            problems.append(f"nested_{side}: no nested workspace at {side}/")
-            continue
-        data = checklib.load_json(sub / "state.json", f"{side}/state.json")
-        if data.get("skill") != skill:
-            problems.append(f"nested_{side}: {side}/ is skill "
-                            f"{data.get('skill')!r}, expected {skill!r}")
-            continue
-        verdict = attest_mod.verify(sub)
-        if not verdict.get("valid"):
-            problems.append(f"nested_{side}: not released: "
-                            f"{verdict.get('reason')}")
-    return problems
 
 
 def input_path(ws: Path) -> Path:
@@ -153,7 +130,7 @@ def run(argv=None):
     att, problems = attest_mod.build(ws, max_report_age_h=args.max_report_age_h)
     skill = checklib.load_json(ws / "state.json", "state.json").get("skill")
     if skill == "msde":
-        nested = nested_problems(ws)
+        nested = attest_mod.nested_problems(ws)
         if nested:
             att, problems = None, problems + nested
     # A hardened tile ships through a TT workflow: the GDS it ships must be

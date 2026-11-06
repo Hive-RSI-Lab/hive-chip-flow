@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import sys
+import tempfile
 import threading
 import time
 from pathlib import Path
@@ -609,6 +610,65 @@ def run(argv=None):
               "input": str(args.workspace), "input_digest": None}
     return payload, args.out
 '''
+
+
+PRIVATE_REPORT_LINES = (
+    '    payload["log"] = str(Path.home() / "work" / "run.log")\n'
+    '    payload["elsewhere"] = "/home/someone/x.v"\n'
+    '    payload["scratch"] = str(Path(tempfile.gettempdir()) / "sim" / "a.raw")\n'
+    '    payload["note"] = "ran on privatebox last night"\n')
+
+
+def assert_report_scrubbed(text: str) -> None:
+    assert "/home/someone" not in text
+    assert str(Path.home()) not in text
+    assert tempfile.gettempdir() not in text
+    assert "privatebox" not in text
+
+
+def test_gate_reports_get_the_scrub_state_save_gives(tmp_path, capsys,
+                                                     monkeypatch):
+    # The report at --out and the recorded copy are committed with the block
+    # next to state.json, so what State.save scrubs must not reach them.
+    monkeypatch.setenv("CHIP_FLOW_PRIVATE_NAMES", "privatebox")
+    ws = make_ws(tmp_path)
+    gates_yaml = make_gates_yaml(tmp_path)
+    checks_dir = make_checks_dir(tmp_path, "import tempfile\n" + FAKE_CHECK.replace(
+        '    return payload, args.out',
+        PRIVATE_REPORT_LINES + '    return payload, args.out'))
+    out_path = tmp_path / "gate-lint.json"
+    code = gate.main(["--gate", "lint", "--workspace", str(ws),
+                      "--gates", str(gates_yaml), "--checks-dir", str(checks_dir),
+                      "--out", str(out_path)])
+    assert code == 0
+    out = json.loads(out_path.read_text(encoding="utf-8"))
+    assert out["facts"]["log"] == "~/work/run.log"
+    assert out["facts"]["scratch"] == "<tmp>/sim/a.raw"
+    assert out["facts"]["note"] == "ran on <host> last night"
+    assert_report_scrubbed(out_path.read_text(encoding="utf-8"))
+    recorded = ws / "reports" / "recorded" / "gate-lint.json"
+    assert_report_scrubbed(recorded.read_text(encoding="utf-8"))
+    assert_report_scrubbed((ws / "state.json").read_text(encoding="utf-8"))
+
+
+def test_a_gate_error_report_gets_the_same_scrub(tmp_path, capsys, monkeypatch):
+    # An error report lands where the result would have, with a traceback
+    # that names this machine's paths.
+    monkeypatch.setenv("CHIP_FLOW_PRIVATE_NAMES", "privatebox")
+    ws = make_ws(tmp_path)
+    gates_yaml = make_gates_yaml(tmp_path)
+    checks_dir = make_checks_dir(tmp_path, FAKE_CHECK.replace(
+        '    return payload, args.out',
+        '    raise RuntimeError("no licence on privatebox at " + str(Path.home()))'))
+    out_path = tmp_path / "gate-lint.json"
+    code = gate.main(["--gate", "lint", "--workspace", str(ws),
+                      "--gates", str(gates_yaml), "--checks-dir", str(checks_dir),
+                      "--out", str(out_path)])
+    assert code == 2
+    out = json.loads(out_path.read_text(encoding="utf-8"))
+    assert out["status"] == "error"
+    assert "<host>" in out["remediation"]
+    assert_report_scrubbed(out_path.read_text(encoding="utf-8"))
 
 
 def _run_editing_gate(tmp_path, capsys, revert: bool):

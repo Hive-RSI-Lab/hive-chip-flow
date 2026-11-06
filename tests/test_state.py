@@ -162,6 +162,23 @@ def test_tracked_state_files_carry_nothing_private():
         assert checklib.record_safe(doc, path.parent) == doc, path
 
 
+def test_tracked_gate_reports_carry_nothing_private():
+    """The same landing check on the reports committed next to state.json:
+    anything gate.py wrote before its report went through record_safe, or a
+    copy made by hand, fails here."""
+    tracked = subprocess.run(
+        ["git", "ls-files", "blocks/*/reports/*.json"], cwd=REPO,
+        capture_output=True, text=True)
+    if tracked.returncode != 0:
+        pytest.skip("not a git checkout")
+    paths = [REPO / p for p in tracked.stdout.split()]
+    assert paths
+    for path in paths:
+        ws = next(p.parent for p in path.parents if p.name == "reports")
+        doc = json.loads(path.read_text(encoding="utf-8"))
+        assert checklib.record_safe(doc, ws) == doc, path
+
+
 # ------------------------------------------------------ M1's own scenario
 
 def test_ws_empty_init_edit_freshness_resume(tmp_path):
