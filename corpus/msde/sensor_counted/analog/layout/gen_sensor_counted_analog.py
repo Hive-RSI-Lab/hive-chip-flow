@@ -2,7 +2,8 @@
 the msde rung sensor_counted (docs/design.md 5, "Layout is code").
 
 Draws netlist/sensor_counted_analog.cir: a NAND-enabled five-stage ring of
-L=10um devices plus a short-channel output buffer, as a hard macro the
+L=10um devices plus a three-stage short-channel output buffer, as a hard
+macro the
 digital harden can place (docs/spikes/macro_harden/gen_inv.py's pin
 conventions):
 
@@ -13,7 +14,7 @@ conventions):
 
 Nothing is drawn above metal3.
 
-Floorplan: seven columns, left to right A E 1 2 3 4 B. Each column is a
+Floorplan: nine columns, left to right A E 1 2 3 4 B C D. Each column is a
 pfet over an nfet, both turned so the channel (L) runs vertically: the pfet
 by +90 (drain at its bottom, source and bulk tie at its top), the nfet by
 -90 (drain at its top, source and bulk tie at its bottom). The drains meet
@@ -22,7 +23,8 @@ in a routing band between the two rows. In that band:
   drain link   metal1, the column's centre, pfet drain to nfet drain
   gate link    metal1, left of centre, pfet gate strip to nfet gate strip
   T1           metal2, stage k's drain link to stage k+1's gate link
-               (A->1 via E's pfet drain, 1->2, 2->3, 3->4, 4->B, B->edge)
+               (A->1 via E's pfet drain, 1->2, ..., 4->B, B->C, C->D,
+               D->edge)
   T2           metal2, the feedback n4: column 4's drain link to A's gate
   T3           metal2, osc_en: E's gate link to the left edge
   nm           metal2, xmn0e's drain up the A|E gap to xmn0a's source
@@ -59,8 +61,11 @@ COLUMNS = [
     ("3", ("xmp3", 2.0, RING_L, True), ("xmn3", 1.0, RING_L, True)),
     ("4", ("xmp4", 2.0, RING_L, True), ("xmn4", 1.0, RING_L, True)),
     ("B", ("xmpb", 2.0, BUF_L, True), ("xmnb", 1.0, BUF_L, True)),
+    ("C", ("xmpc", 4.0, BUF_L, True), ("xmnc", 2.0, BUF_L, True)),
+    ("D", ("xmpd", 12.0, BUF_L, True), ("xmnd", 6.0, BUF_L, True)),
 ]
-PITCH = 6.6       # column centre to centre
+PITCH = 6.6       # column centre to centre, for columns 2um wide
+WIDE = 2.0        # a wider column moves its neighbours out by the excess
 X0 = 3.0          # first column's centre
 BAND = 4.0        # nfet drain top to pfet drain bottom
 VIA = 0.26        # GF180 via1/via2 are a fixed 0.26 square
@@ -144,8 +149,13 @@ def generate():
     t1, t2, t3 = y_nd + 2.9, y_nd + 2.0, y_nd + 1.1
 
     cols = {}
-    for i, (name, (pref, pw, pl, ptie), (nref, nw, nl, ntie)) in enumerate(COLUMNS):
-        cx = X0 + i * PITCH
+    cx, last = X0 - PITCH, None
+    for name, (pref, pw, pl, ptie), (nref, nw, nl, ntie) in COLUMNS:
+        # the FETs lie on their side, so W is a column's width: keep the
+        # gap between two columns what it is between two 2um ones
+        excess = max(pw, nw, WIDE) - WIDE
+        cx += PITCH + ((last if last is not None else excess) + excess) / 2
+        last = excess
         pcell = draw_fet.draw_pfet(l_gate=pl, w_gate=pw,
                                    bulk="Bulk Tie" if ptie else "None")
         ncell = draw_fet.draw_nfet(l_gate=nl, w_gate=nw,
@@ -173,7 +183,7 @@ def generate():
             layoutlib.rect(top, cx - LINK / 2, t1 - PAD / 2, cx + LINK / 2,
                            p["d"][3], M1)
 
-    # T1: n0 (A, E's pfet drain) -> 1, then k -> k+1, 4 -> B, B -> edge
+    # T1: n0 (A, E's pfet drain) -> 1, then k -> k+1, ..., C -> D
     order = [c[0] for c in COLUMNS]
     def link(src, dst, y):
         xs, xd = cols[src]["cx"], cols[dst]["gx"]
@@ -195,9 +205,9 @@ def generate():
     layoutlib.rect(top, 0.0, t3 - PAD / 2, ex + PAD / 2, t3 + PAD / 2, M2)
     labels.append(("osc_en", 0.5, t3, LY["metal2_label"]))
 
-    # osc_out: B's drain link out to the right edge
-    x_right = max(X0 + (len(COLUMNS) - 1) * PITCH + X0, MIN_W)
-    bx = cols["B"]["cx"]
+    # osc_out: D's drain link out to the right edge
+    x_right = max(cx + last / 2 + X0, MIN_W)
+    bx = cols["D"]["cx"]
     via12(top, bx, t1)
     layoutlib.rect(top, bx - PAD / 2, t1 - PAD / 2, x_right, t1 + PAD / 2, M2)
     labels.append(("osc_out", x_right - 0.5, t1, LY["metal2_label"]))

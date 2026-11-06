@@ -10,9 +10,10 @@
 *
 * Frequency comes from channel length: every ring device is L=10um, and a
 * long-channel stage delay goes as L^2 (C_gate ~ W*L, I_d ~ W/L), so the
-* ring runs at a few MHz without any capacitor. The buffer xmnb/xmpb is a
-* short-channel inverter that squares the ring's slow edges into a full-
-* swing 3.3V output able to drive a standard-cell input.
+* ring runs at a few MHz without any capacitor. The buffer is three short-
+* channel inverters (xmpb/xmnb, xmpc/xmnc, xmpd/xmnd), each wider than the
+* last, that square the ring's slow edges into a full-swing 3.3V output able
+* to drive a clock tree's root buffer.
 .subckt sensor_counted_analog osc_en osc_out vdd vss
 * stage 0: NAND(n4, osc_en) -> n0
 xmp0a n0 n4     vdd vdd pfet_03v3 w=2e-6 l=1e-5
@@ -28,7 +29,14 @@ xmp3 n3 n2 vdd vdd pfet_03v3 w=2e-6 l=1e-5
 xmn3 n3 n2 vss vss nfet_03v3 w=1e-6 l=1e-5
 xmp4 n4 n3 vdd vdd pfet_03v3 w=2e-6 l=1e-5
 xmn4 n4 n3 vss vss nfet_03v3 w=1e-6 l=1e-5
-* output buffer: osc_out = not n4
-xmpb osc_out n4 vdd vdd pfet_03v3 w=2e-6 l=5e-7
-xmnb osc_out n4 vss vss nfet_03v3 w=1e-6 l=5e-7
+* output buffer: three short-channel inverters, each two to three times
+* the one before, so osc_out = not n4. The first is small, so n4 sees the same
+* load as a single inverter would; the last can drive a clock tree's root
+* buffer at ss within that buffer's input slew limit (#213).
+xmpb nb n4 vdd vdd pfet_03v3 w=2e-6 l=5e-7
+xmnb nb n4 vss vss nfet_03v3 w=1e-6 l=5e-7
+xmpc nc nb vdd vdd pfet_03v3 w=4e-6 l=5e-7
+xmnc nc nb vss vss nfet_03v3 w=2e-6 l=5e-7
+xmpd osc_out nc vdd vdd pfet_03v3 w=1.2e-5 l=5e-7
+xmnd osc_out nc vss vss nfet_03v3 w=6e-6 l=5e-7
 .ends sensor_counted_analog

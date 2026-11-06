@@ -6,7 +6,7 @@ stock output buffer meets them at every corner); macro_lib has run on the
 untouched design (faults.macro_lib_first). This runs a real top harden on the untouched
 design and requires it to pass with the macro's per-corner liberty loaded at every STA corner - so the lib view,
 not a black box, is what the harden timed. Then it shrinks osc_out's
-output buffer to a quarter of its width (W/4), re-runs macro_lib and
+output buffer's last stage to minimum width, re-runs macro_lib and
 puts the netlist back (the layout is still the stock one): the
 new libs carry the weak driver's slower edges against the same
 max_transition, and top_harden must fail with max_slew_violation on
@@ -17,8 +17,8 @@ import re
 MACRO = "sensor_counted_analog"
 PIN = "osc_out"
 
-STOCK = {"xmpb": "w=2e-6", "xmnb": "w=1e-6"}
-WEAK = {"xmpb": "w=5e-7", "xmnb": "w=2.5e-7"}
+STOCK = {"xmpd": "w=1.2e-5", "xmnd": "w=6e-6"}
+WEAK = {"xmpd": "w=2.2e-7", "xmnd": "w=2.2e-7"}
 
 
 def _macro_lib(ws: Path, stock: bool) -> None:

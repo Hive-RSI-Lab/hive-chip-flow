@@ -1,4 +1,4 @@
-"""Fault: the W/4 macro driver of plant_top_harden_weak_driver.py, with the
+"""Fault: the weak macro driver of plant_top_harden_weak_driver.py, with the
 digital side reading osc_out through a wire of its own name (#191).
 
 Synthesis keeps one alias for the net on u_analog/osc_out, and with
@@ -7,7 +7,7 @@ Synthesis keeps one alias for the net on u_analog/osc_out, and with
 repair_design buffered the net until the job ran out of memory. Read from
 the synthesis probe, the net is don't-touch whatever its name, the harden
 finishes, and top_harden fails max_slew_violation on the weak driver like
-the plain W/4 row - not a lost job."""
+the plain weak-driver row - not a lost job."""
 import importlib.util
 import re
 from pathlib import Path
@@ -35,7 +35,7 @@ def _rename(ws: Path) -> None:
 
 def plant(ws: Path) -> None:
     # faults.macro_lib_first has run macro_lib on the untouched design; the
-    # stock harden's pass is top_harden_macro_driver_w4's to prove
+    # stock harden's pass is top_harden_macro_driver_weak's to prove
     _rename(ws)
     stock = weak._weaken(ws)
     try:
