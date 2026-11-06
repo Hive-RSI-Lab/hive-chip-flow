@@ -114,7 +114,7 @@ OPEN: <a requirement whose sequence length you could not work out from the
 
 `SKILL.md`'s fix loop sends every `formal`-domain order to YOU (the order's
 `role_prompt` names this file): `property_failed`, `cover_not_reached`,
-`engine_disagreement`, `vacuous_pass`, a bounded property, or a missing or wrong
+`engine_disagreement`, `property_undecided`, `vacuous_pass`, a bounded property, or a missing or wrong
 `formal:` depth. The generic `fixer` has no formal domain.
 - Inputs: `spec/spec.md`, `spec/spec.yaml`, your own `formal/*.sv`, and the
   work order JSON - its `cluster.violations` and `remediations`. READ THE
