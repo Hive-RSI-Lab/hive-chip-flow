@@ -149,7 +149,7 @@ gates:
     cdc:
       phase: P5
       tool: cdc
-      strength: 0
+      strength: 1
       fail_severities: [error]
       max_count: 0
       fault: "a flop sampling another clock domain with no synchroniser"

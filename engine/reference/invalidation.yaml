@@ -261,8 +261,11 @@ gate_inputs:
     # the bench simulates the released RTL and the sized analog netlist; its
     # analog model (ideal or transistor .sp) lives in tb/. A calibrated
     # model's source has no file of its own until model_check (#107) lands.
-    cosim:    [interface, tb, digital_rtl, analog_netlist, analog_sizing,
-               pdk_version, pdk_models]
+    # #208: the bench runs through the tile's pad frame, built from the
+    # digital spec.yaml (ports, tt_pins, pad reset latency) and the analog
+    # spec.yaml's `top` (the macro model's name).
+    cosim:    [interface, tb, digital_rtl, digital_spec, analog_spec,
+               analog_netlist, analog_sizing, pdk_version, pdk_models]
     # check_top_harden.assemble: interface.yaml (signals, widths, ua_pins,
     # tiles), the digital spec.yaml (ports, tt_pins, everything copied into
     # top/spec), digital/rtl, digital/harden/constraints.sdc or top.sdc,

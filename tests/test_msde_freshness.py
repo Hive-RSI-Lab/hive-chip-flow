@@ -130,11 +130,12 @@ def _set(doc, keys, value):
 # (what is edited, the edit, the gates that read it - from the scripts)
 PLANTED = {
     # check_top_harden.assemble copies tt_pins (minus interface signals)
-    # into top/spec; release attests the nested spec
+    # into top/spec; release attests the nested spec; cosim builds the
+    # same top's pad frame from it (#208)
     "tt_pins entry in digital/spec/spec.yaml": (
         lambda ws: _edit_yaml(ws / "digital" / "spec" / "spec.yaml",
                               lambda d: _set(d, ["tt_pins", "en"], "ui_in[1]")),
-        {"top_harden", "release"}),
+        {"cosim", "top_harden", "release"}),
     # the sized .subckt: cosim's bench, top_harden's macro, top_lvs's
     # schematic side
     "W in analog/sizing/sizing.yaml": (
@@ -150,11 +151,12 @@ PLANTED = {
         lambda ws: _edit_yaml(ws / "analog_spec.yaml",
                               lambda d: _set(d, ["pads"], ["vout", "vref"])),
         {"split", "release"}),
-    # reference_cell reads the analog spec's top
+    # reference_cell reads the analog spec's top; cosim names the frame's
+    # macro model after it (#208)
     "top in analog/spec/spec.yaml": (
         lambda ws: _edit_yaml(ws / "analog" / "spec" / "spec.yaml",
                               lambda d: _set(d, ["top"], "blk_ana")),
-        {"top_harden"}),
+        {"cosim", "top_harden"}),
     "analog netlist": (
         lambda ws: (lambda: _w(ws / "analog" / "netlist" / "blk_analog.cir",
                                ".subckt blk_analog ctrl vout\n.ends\n")),

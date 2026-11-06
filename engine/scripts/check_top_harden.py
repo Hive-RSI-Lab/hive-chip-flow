@@ -146,7 +146,7 @@ TOP_SDC_NAME = "top.sdc"
 # the integrator's harden config override for the assembled top, beside
 # top.sdc (top_override)
 TOP_OVERRIDE_NAME = "top.override.json"
-INSTANCE = "u_analog"
+INSTANCE = ttlib.ANALOG_MACRO_INSTANCE
 VDD_RE = re.compile(r"^(a?vdd|vpwr|vcc)", re.IGNORECASE)
 VSS_RE = re.compile(r"^(a?vss|gnd|vgnd)", re.IGNORECASE)
 # the layer engine/lib/macro_pdn.tcl joins to the tile's Metal4 stripes,
@@ -1071,15 +1071,10 @@ def assemble(ws: Path) -> tuple[Path, dict]:
     macro["pins"] = {pin: ports[pin] for pin in macro["pins"]}
     size = macro_size(Path(macro["files"]["lef"]),
                       Path(macro["files"]["gds"]), macro["cell"])
-    tspec = dict(dspec)
-    if iface.get("tiles"):
-        tspec["tiles"] = str(iface["tiles"])
-    tspec["macros"] = [macro]
+    tspec = ttlib.macro_top_spec(dspec, macro, signals, iface.get("tiles"))
     tiles = ttlib.spec_tiles(tspec)
     macro["location"] = centre(ttlib.tile_die_area(tiles), *size)
     macro["size_um"] = list(size)
-    tspec["tt_pins"] = {k: v for k, v in (dspec.get("tt_pins") or {}).items()
-                        if k.lower() not in signals}
     if macro["location"] is None:
         return top, tspec
     # a ua map off the analog template is a design finding like a macro too
