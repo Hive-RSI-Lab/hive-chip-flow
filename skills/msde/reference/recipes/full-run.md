@@ -86,8 +86,8 @@ A fresh reviewer, then `release`. For an msde block it refuses unless every
 msde gate is fresh-pass AND both nested workspaces still verify as
 released (`attest.py`, `nested_problems`) - an edit inside either
 side after it released reads as `nested_not_released`, and the fix is to
-re-release that side, never to waive it. Then `attest.py build`,
-`disposition`, and H2.
+re-release that side, never to waive it. `release` writes the record, so
+then `attest.py verify`, `disposition`, and H2.
 
 **The design document.** Once `release` passes and H2 is recorded, build
 the block's design document:

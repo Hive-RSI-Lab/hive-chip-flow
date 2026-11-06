@@ -14,5 +14,5 @@ router (`task_router.py --skill <vde|ade> --verb resume --workspace
 touched, then `release` here.
 
 **Trap:** a stale nested release is the planted fault this gate must
-catch. Never waive it, and never re-run the nested `attest.py build`
-without re-running the gates it attests.
+catch. Never waive it, and never re-run the nested `release` without
+re-running the gates it attests.

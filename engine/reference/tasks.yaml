@@ -188,9 +188,9 @@ verbs:
       - gate: release
         why: "release is strict (docs/design.md 1.5) - it refuses rather
               than pass on a gap"
-      - do: "scripts/attest.py build --workspace {ws}"
-        why: "assembles reports/checks.json only when every applicable gate
-              is fresh-pass; lists every miss at once otherwise"
+      - do: "scripts/attest.py verify --workspace {ws}"
+        why: "release wrote reports/checks.json; this re-checks it, read-only.
+              attest.py build refuses over a record release sealed"
       - do: "scripts/attest.py disposition --workspace {ws}"
         why: "the derived, never-hand-set release state"
       - human: H2

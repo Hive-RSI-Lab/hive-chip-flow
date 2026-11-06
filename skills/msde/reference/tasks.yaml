@@ -137,9 +137,9 @@ verbs:
       - gate: release
         why: "strict - every msde gate fresh-pass AND both nested
               workspaces released (attest.py nested_problems)"
-      - do: "scripts/attest.py build --workspace {ws}"
-        why: "assembles reports/checks.json only once release is
-              fresh-pass"
+      - do: "scripts/attest.py verify --workspace {ws}"
+        why: "release wrote reports/checks.json; this re-checks it, read-only.
+              attest.py build refuses over a record release sealed"
       - do: "scripts/attest.py disposition --workspace {ws}"
         why: "the derived release state, for H2's digest"
       - human: H2

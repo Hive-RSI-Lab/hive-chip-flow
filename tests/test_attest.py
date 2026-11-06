@@ -16,6 +16,7 @@ sys.path.insert(0, str(SCRIPTS))
 sys.path.insert(0, str(ENGINE / "lib"))
 
 import attest as attest_mod  # noqa: E402
+import check_release  # noqa: E402
 import state as state_mod  # noqa: E402
 import statelib  # noqa: E402
 
@@ -270,6 +271,36 @@ def test_cli_build_exit_1_then_0(tmp_path, capsys):
     assert out["disposition"]["disposition"] == "gates-green"
 
 
+def test_attest_build_refuses_over_a_sealed_record(tmp_path, capsys):
+    """Only release can seal; a rebuild must not silently drop the seal."""
+    ws = make_msde_with_released_sides(tmp_path)
+    pass_every_gate(ws, "msde")
+    att, problems = attest_mod.build(ws)
+    assert att is not None, problems
+    att = check_release.with_tt_submission(att, {"manifest_sha256": "abc"})
+    attest_mod.write_attestation(ws, att)
+    before = (ws / "reports" / "checks.json").read_text(encoding="utf-8")
+    code = attest_mod.main(["build", "--workspace", str(ws)])
+    out = json.loads(capsys.readouterr().out)
+    assert code == 1
+    assert out["status"] == "violations"
+    assert out["problems"][0].startswith("sealed_record")
+    assert (ws / "reports" / "checks.json").read_text(encoding="utf-8") == before
+
+
+def test_no_skill_doc_sends_an_agent_to_attest_build_after_release():
+    """Every release step is followed by verify, which cannot drop the seal."""
+    docs = [REPO / "engine" / "reference" / "tasks.yaml"]
+    for skill in ("vde", "ade", "msde"):
+        ref = REPO / "skills" / skill / "reference"
+        docs += [ref / "tasks.yaml", ref / "recipes" / "full-run.md"]
+    for doc in docs:
+        text = doc.read_text(encoding="utf-8")
+        assert "scripts/attest.py build" not in text, doc
+        assert "`attest.py build`" not in text, doc
+        assert "attest.py verify" in text, doc
+
+
 # ------------------------------------------------- a scope-out made at H1
 
 MIM_RULING = ("MIM capacitor spread is out of scope for this rung: MIM "
@@ -396,8 +427,8 @@ def test_an_msde_record_does_not_verify_with_a_side_missing(tmp_path):
 
 def test_attest_build_cannot_turn_a_failing_side_into_a_valid_top(tmp_path,
                                                                   capsys):
-    """verify's remedy for a stale record is `attest build`: following it
-    with a side failing must not leave a record that reads as released."""
+    """Rebuilding a stale record with a side failing must not leave a record
+    that reads as released."""
     ws = make_released_msde(tmp_path)
     before = (ws / "reports" / "checks.json").read_text(encoding="utf-8")
     fail_gate(ws / "analog", "pex_sim")

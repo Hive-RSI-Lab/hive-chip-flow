@@ -63,8 +63,8 @@ full-run.
 
 ## P8
 
-`release` (strict - refuses on any gap, by design), `attest.py build` then
-`disposition`, H2. Passes once every P6 gate has a fresh recorded pass.
+`release` (strict - refuses on any gap, by design; it writes the record),
+`attest.py verify` then `disposition`, H2. Passes once every P6 gate has a fresh recorded pass.
 
 **The design document.** Once `release` passes and H2 is recorded, build
 the block's design document:

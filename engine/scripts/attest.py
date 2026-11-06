@@ -37,7 +37,8 @@ Subcommands:
   build        Assemble + write reports/checks.json. Refuses (status
                violations, exit 1, nothing written) unless every applicable
                gate has a fresh recorded pass. The refusal lists every miss
-               at once.
+               at once. Also refuses over a record `release` sealed: only
+               release writes that seal, so re-run release to replace it.
   verify       Re-verify the written checks.json against the current tree
                and state. Read-only. Exit 0 valid / 1 invalid.
   disposition  Print the DERIVED release disposition (never hand-set):
@@ -398,6 +399,24 @@ def write_attestation(ws: Path, attestation: dict) -> Path:
     return path
 
 
+def sealed_problem(ws: Path) -> str | None:
+    """A refusal when reports/checks.json holds release's manifest seal.
+
+    check_release.py adds tt_submission.manifest_sha256 after build(), so a
+    record the CLI rebuilt would have no seal and `release --verify` would
+    refuse the tile. release is the only writer that can seal: the manifest
+    it seals is made there from the staged tree."""
+    path = ws / CHECKS_PATH
+    if not path.is_file():
+        return None
+    recorded = checklib.load_json(path, "checks.json")
+    if not (recorded.get("tt_submission") or {}).get("manifest_sha256"):
+        return None
+    return (f"sealed_record: {CHECKS_PATH} holds the manifest seal `release` "
+            "wrote and a rebuild here would drop it - run the `release` gate "
+            "for a new record, `attest.py verify` to check this one")
+
+
 def nested_problems(ws: Path) -> list[str]:
     """Why an msde block's nested runs do not count as released, one
     string per side ("nested_<side>: <reason>"); empty when both do."""
@@ -446,17 +465,17 @@ def verify(ws: Path) -> dict:
         return {"valid": False,
                 "reason": f"signed off on PDK {recorded.get('pdk')}, the "
                           f"toolchain carries {att.get('pdk')} - re-run the "
-                          "PDK gates and `attest build`",
+                          "PDK gates and the `release` gate",
                 "attestation_sha256": recorded["attestation_sha256"]}
     if att.get("scoped_out") != recorded.get("scoped_out"):
         return {"valid": False,
                 "reason": "the scope-outs recorded at H1 changed since the "
-                          "attestation - re-run `attest build`",
+                          "attestation - re-run the `release` gate",
                 "attestation_sha256": recorded["attestation_sha256"]}
     if att["checks"] != recorded["checks"]:
         return {"valid": False,
                 "reason": "recorded checks no longer match the current "
-                          "gate results - re-run `attest build`",
+                          "gate results - re-run the `release` gate",
                 "attestation_sha256": recorded["attestation_sha256"]}
     return {"valid": True, "attestation_sha256": recorded["attestation_sha256"]}
 
@@ -516,6 +535,10 @@ def run(argv=None) -> tuple[dict, str | None, int]:
             problems = nested_problems(ws)
             if problems:
                 att = None
+        if att is not None:
+            sealed = sealed_problem(ws)
+            if sealed:
+                att, problems = None, [sealed]
         if att is None:
             result.update(status="violations", problems=problems,
                           attestation=None)
