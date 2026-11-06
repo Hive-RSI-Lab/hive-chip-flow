@@ -3,7 +3,7 @@
  "gate": "timing",
  "phase": "P6",
  "tool": "timing",
- "input_digest": "harden_signoff:4d718538b2e7f271af41031d0bcb0116a7a42974690a3901ca86c719ebce5c7e",
+ "input_digest": "harden_signoff:bba0c728de80ed1d73908601fbb85b1eaa19ec3b3c5955b037d72a1d738e5e77",
  "status": "pass",
  "criteria": {
   "fail_severities": [
@@ -23,59 +23,59 @@
   "top": "tt_um_ece298a_counter",
   "corners": {
    "max_ff_n40C_3v60": {
-    "setup_ws": 10.53,
-    "hold_ws": 0.19,
-    "multiple_clock": []
-   },
-   "max_ss_125C_3v00": {
-    "setup_ws": 7.15,
-    "hold_ws": 1.39,
-    "multiple_clock": []
-   },
-   "max_tt_025C_3v30": {
-    "setup_ws": 9.74,
-    "hold_ws": 0.55,
-    "multiple_clock": []
-   },
-   "min_ff_n40C_3v60": {
-    "setup_ws": 10.57,
-    "hold_ws": 0.19,
-    "multiple_clock": []
-   },
-   "min_ss_125C_3v00": {
-    "setup_ws": 7.28,
-    "hold_ws": 1.39,
-    "multiple_clock": []
-   },
-   "min_tt_025C_3v30": {
-    "setup_ws": 9.8,
-    "hold_ws": 0.54,
-    "multiple_clock": []
-   },
-   "nom_ff_n40C_3v60": {
     "setup_ws": 10.55,
     "hold_ws": 0.19,
     "multiple_clock": []
    },
+   "max_ss_125C_3v00": {
+    "setup_ws": 7.02,
+    "hold_ws": 1.38,
+    "multiple_clock": []
+   },
+   "max_tt_025C_3v30": {
+    "setup_ws": 9.76,
+    "hold_ws": 0.54,
+    "multiple_clock": []
+   },
+   "min_ff_n40C_3v60": {
+    "setup_ws": 10.58,
+    "hold_ws": 0.19,
+    "multiple_clock": []
+   },
+   "min_ss_125C_3v00": {
+    "setup_ws": 7.17,
+    "hold_ws": 1.37,
+    "multiple_clock": []
+   },
+   "min_tt_025C_3v30": {
+    "setup_ws": 9.81,
+    "hold_ws": 0.53,
+    "multiple_clock": []
+   },
+   "nom_ff_n40C_3v60": {
+    "setup_ws": 10.56,
+    "hold_ws": 0.19,
+    "multiple_clock": []
+   },
    "nom_ss_125C_3v00": {
-    "setup_ws": 7.22,
-    "hold_ws": 1.39,
+    "setup_ws": 7.1,
+    "hold_ws": 1.38,
     "multiple_clock": []
    },
    "nom_tt_025C_3v30": {
-    "setup_ws": 9.77,
+    "setup_ws": 9.79,
     "hold_ws": 0.54,
     "multiple_clock": []
    }
   }
  },
  "inputs_at_start": {
-  "harden": "harden_signoff:4d718538b2e7f271af41031d0bcb0116a7a42974690a3901ca86c719ebce5c7e",
+  "harden": "harden_signoff:bba0c728de80ed1d73908601fbb85b1eaa19ec3b3c5955b037d72a1d738e5e77",
   "spec_yaml_sans_formal": "json_canonical_sans_formal:ec426c58dd9f2334b09759284010f4068e5638e331ac28be8742ab3fee1e7b69",
   "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
   "pdk_liberty": "dir_bytes:f09377f057ab484ec9e5a45b205c99a5de399e2bdca886531bf9eefa57783f32"
  },
  "strength_at_start": 2,
- "recorded_ts": "2026-11-06T01:26:32",
- "attempts": 7
+ "recorded_ts": "2026-11-06T02:19:03",
+ "attempts": 8
 }

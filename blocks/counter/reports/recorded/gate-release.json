@@ -21,7 +21,7 @@
  "violations": [],
  "facts": {
   "attestation": "reports/checks.json",
-  "attestation_sha256": "c0d448894f250b35be79d28b5fe966fbf5f1cd21fbabb499a018dff3585cc868",
+  "attestation_sha256": "fc6e6c37f31443e4f119f3402fc63e6dce6e2527050079a8dc9a34bebae0ee03",
   "disposition": "gates-green",
   "waived": [],
   "tt_submission": {
@@ -49,13 +49,13 @@
     "librelane_pdk": "f6eeac7dad085ffcc829ccfd721f7b4ce39edcf7",
     "tt_support_tools": "01d5d2814fa9dd61e9d211e0b235a4a592a9316a",
     "gds": "harden/runs/run/final/gds/tt_um_ece298a_counter.gds",
-    "gds_sha256": "409a11eaaaf590c6428222ab91256e99fc27dbcac7f2a4bebd66de7390e35cc1",
+    "gds_sha256": "4e98390e7401cf0a92e3e828c01977689b87d9894f0f21c7c07dc770824bb800",
     "lef": "harden/runs/run/final/lef/tt_um_ece298a_counter.lef",
-    "lef_sha256": "d6ed88913c6d768e70256f50befbc9a6e9eb2b0f22632de93756dc9b4762af7f",
+    "lef_sha256": "0e02af726f19109d54f7e795d768f49e5e6ce57382d05816cc08dd3bc70f3855",
     "gl": "harden/runs/run/final/pnl/tt_um_ece298a_counter.pnl.v",
-    "gl_sha256": "08eaacb8d560e114bf7dc624d5a48d2ae8653828bb9c54a2b1927b158bf8a0ad",
+    "gl_sha256": "b98df4d5aaa3279c796e32d800dff71d9e755c14ca769b46cfd4771a87b66356",
     "gl_is_shipped": true,
-    "glsim_gl_sha256": "08eaacb8d560e114bf7dc624d5a48d2ae8653828bb9c54a2b1927b158bf8a0ad"
+    "glsim_gl_sha256": "b98df4d5aaa3279c796e32d800dff71d9e755c14ca769b46cfd4771a87b66356"
    },
    "shipped": [
     {
@@ -65,12 +65,12 @@
      "top_module": "tt_um_ece298a_counter",
      "pdk": "gf180mcuD",
      "gds_path": "gds/tt_um_ece298a_counter.gds",
-     "gds_sha256": "409a11eaaaf590c6428222ab91256e99fc27dbcac7f2a4bebd66de7390e35cc1",
+     "gds_sha256": "4e98390e7401cf0a92e3e828c01977689b87d9894f0f21c7c07dc770824bb800",
      "lef_path": "lef/tt_um_ece298a_counter.lef",
-     "lef_sha256": "d6ed88913c6d768e70256f50befbc9a6e9eb2b0f22632de93756dc9b4762af7f",
+     "lef_sha256": "0e02af726f19109d54f7e795d768f49e5e6ce57382d05816cc08dd3bc70f3855",
      "verilog_path": "gl/tt_um_ece298a_counter.v",
-     "verilog_sha256": "08eaacb8d560e114bf7dc624d5a48d2ae8653828bb9c54a2b1927b158bf8a0ad",
-     "glsim_sha256": "08eaacb8d560e114bf7dc624d5a48d2ae8653828bb9c54a2b1927b158bf8a0ad"
+     "verilog_sha256": "b98df4d5aaa3279c796e32d800dff71d9e755c14ca769b46cfd4771a87b66356",
+     "glsim_sha256": "b98df4d5aaa3279c796e32d800dff71d9e755c14ca769b46cfd4771a87b66356"
     }
    ]
   },
@@ -79,10 +79,10 @@
  },
  "inputs_at_start": {
   "rtl": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
-  "harden": "harden_signoff:4d718538b2e7f271af41031d0bcb0116a7a42974690a3901ca86c719ebce5c7e",
+  "harden": "harden_signoff:bba0c728de80ed1d73908601fbb85b1eaa19ec3b3c5955b037d72a1d738e5e77",
   "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2"
  },
  "strength_at_start": 0,
- "recorded_ts": "2026-11-05T07:22:59",
- "attempts": 6
+ "recorded_ts": "2026-11-06T02:26:30",
+ "attempts": 7
 }

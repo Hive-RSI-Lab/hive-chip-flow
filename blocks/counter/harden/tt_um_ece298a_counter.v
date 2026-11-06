@@ -11,12 +11,25 @@ module tt_um_ece298a_counter (
     input  wire       clk,
     input  wire       rst_n
 );
+  // pad reset synchroniser: 2 flops on clk (ttlib.PAD_RESET_LATENCY),
+  // cleared at once by rst_n low, released through the chain
+  reg rst_n_sync_q1;
+  reg rst_n_sync_q2;
+  always @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      rst_n_sync_q1 <= 1'b0;
+      rst_n_sync_q2 <= 1'b0;
+    end else begin
+      rst_n_sync_q1 <= 1'b1;
+      rst_n_sync_q2 <= rst_n_sync_q1;
+    end
+  end
   wire w_clk;
   assign w_clk = clk;
   wire w_ena;
   assign w_ena = ena;
   wire w_rst_n;
-  assign w_rst_n = rst_n;
+  assign w_rst_n = rst_n_sync_q2;
   wire [7:0] w_ui_in;
   assign w_ui_in = ui_in[7:0];
   wire [7:0] w_uio_in;

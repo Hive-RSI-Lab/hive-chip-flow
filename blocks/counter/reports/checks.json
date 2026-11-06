@@ -1,7 +1,7 @@
 {
  "skill": "vde",
  "block": "counter",
- "ts": "2026-11-05T07:22:56",
+ "ts": "2026-11-06T02:26:28",
  "pdk": {
   "name": "gf180mcuD",
   "open_pdks": "1689ac3f2dc763876eaf967227c7dfe831b031ae",
@@ -16,8 +16,8 @@
    "tool": "cdc",
    "version": 1,
    "status": "pass",
-   "attempts": 4,
-   "ts": "2026-11-01T11:10:41",
+   "attempts": 5,
+   "ts": "2026-11-05T11:17:23",
    "inputs": {
     "rtl": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
     "spec_yaml_sans_formal": "json_canonical_sans_formal:ec426c58dd9f2334b09759284010f4068e5638e331ac28be8742ab3fee1e7b69",
@@ -35,11 +35,11 @@
    "tool": "cover",
    "version": 1,
    "status": "pass",
-   "attempts": 3,
-   "ts": "2026-11-01T11:10:38",
+   "attempts": 4,
+   "ts": "2026-11-05T08:02:28",
    "inputs": {
     "rtl": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
-    "tb": "dir_text:44b914540eb555744ca22e68ecb3bfc12d4b674941a109098e2120116c7518de",
+    "tb": "dir_text:1a9e6faab6600130823e4ed8154e094fed3d16ebb98f4d6a474351cd134dddff",
     "spec_yaml": "json_canonical:969b0fe1155ae8e297f5db8ca34afc10e02ba481ea588d4287af70b8e371a5b7"
    },
    "reason": null
@@ -52,10 +52,10 @@
    "tool": "drc",
    "version": 1,
    "status": "pass",
-   "attempts": 5,
-   "ts": "2026-11-05T00:12:05",
+   "attempts": 6,
+   "ts": "2026-11-06T02:20:07",
    "inputs": {
-    "harden": "harden_signoff:4d718538b2e7f271af41031d0bcb0116a7a42974690a3901ca86c719ebce5c7e",
+    "harden": "harden_signoff:bba0c728de80ed1d73908601fbb85b1eaa19ec3b3c5955b037d72a1d738e5e77",
     "spec_yaml_sans_formal": "json_canonical_sans_formal:ec426c58dd9f2334b09759284010f4068e5638e331ac28be8742ab3fee1e7b69",
     "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
     "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
@@ -88,11 +88,11 @@
    "tool": "glsim",
    "version": 1,
    "status": "pass",
-   "attempts": 5,
-   "ts": "2026-11-05T00:15:33",
+   "attempts": 6,
+   "ts": "2026-11-06T02:24:20",
    "inputs": {
-    "harden": "harden_signoff:4d718538b2e7f271af41031d0bcb0116a7a42974690a3901ca86c719ebce5c7e",
-    "tb": "dir_text:44b914540eb555744ca22e68ecb3bfc12d4b674941a109098e2120116c7518de",
+    "harden": "harden_signoff:bba0c728de80ed1d73908601fbb85b1eaa19ec3b3c5955b037d72a1d738e5e77",
+    "tb": "dir_text:1a9e6faab6600130823e4ed8154e094fed3d16ebb98f4d6a474351cd134dddff",
     "spec_yaml_sans_formal": "json_canonical_sans_formal:ec426c58dd9f2334b09759284010f4068e5638e331ac28be8742ab3fee1e7b69",
     "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2"
    },
@@ -106,8 +106,8 @@
    "tool": "harden",
    "version": 1,
    "status": "pass",
-   "attempts": 5,
-   "ts": "2026-11-05T00:08:50",
+   "attempts": 6,
+   "ts": "2026-11-06T02:18:50",
    "inputs": {
     "rtl": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
     "harden_config": "json_canonical_sans_roots:f86ce9db491412ccc0ac48e5d05139a34f8fef6e05c529c9239f10a4c3cd2de4",
@@ -132,11 +132,11 @@
    "tool": "holdout",
    "version": 1,
    "status": "pass",
-   "attempts": 3,
-   "ts": "2026-11-01T11:11:03",
+   "attempts": 4,
+   "ts": "2026-11-05T08:27:30",
    "inputs": {
     "rtl": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
-    "holdout": "dir_text:746feb4c3733514a9cedd67f6eeb26604b0c0cfaa3e2c6b7eabaee1d34e01b2d",
+    "holdout": "dir_text:fb8d89cdea7e2d1106319346a2079912521ca1f89a8834fa0b96f638b704cc21",
     "spec_yaml_sans_formal": "json_canonical_sans_formal:ec426c58dd9f2334b09759284010f4068e5638e331ac28be8742ab3fee1e7b69"
    },
    "reason": null
@@ -149,10 +149,10 @@
    "tool": "lec",
    "version": 1,
    "status": "pass",
-   "attempts": 1,
-   "ts": "2026-11-05T00:16:12",
+   "attempts": 2,
+   "ts": "2026-11-06T02:22:50",
    "inputs": {
-    "harden": "harden_signoff:4d718538b2e7f271af41031d0bcb0116a7a42974690a3901ca86c719ebce5c7e",
+    "harden": "harden_signoff:bba0c728de80ed1d73908601fbb85b1eaa19ec3b3c5955b037d72a1d738e5e77",
     "rtl": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
     "spec_yaml_sans_formal": "json_canonical_sans_formal:ec426c58dd9f2334b09759284010f4068e5638e331ac28be8742ab3fee1e7b69",
     "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
@@ -184,10 +184,10 @@
    "tool": "lvs",
    "version": 1,
    "status": "pass",
-   "attempts": 5,
-   "ts": "2026-11-05T00:14:58",
+   "attempts": 6,
+   "ts": "2026-11-06T02:21:04",
    "inputs": {
-    "harden": "harden_signoff:4d718538b2e7f271af41031d0bcb0116a7a42974690a3901ca86c719ebce5c7e",
+    "harden": "harden_signoff:bba0c728de80ed1d73908601fbb85b1eaa19ec3b3c5955b037d72a1d738e5e77",
     "spec_yaml_sans_formal": "json_canonical_sans_formal:ec426c58dd9f2334b09759284010f4068e5638e331ac28be8742ab3fee1e7b69",
     "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
     "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
@@ -203,11 +203,11 @@
    "tool": "mutate",
    "version": 1,
    "status": "pass",
-   "attempts": 3,
-   "ts": "2026-11-01T11:10:36",
+   "attempts": 4,
+   "ts": "2026-11-05T08:02:40",
    "inputs": {
     "rtl": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
-    "tb": "dir_text:44b914540eb555744ca22e68ecb3bfc12d4b674941a109098e2120116c7518de",
+    "tb": "dir_text:1a9e6faab6600130823e4ed8154e094fed3d16ebb98f4d6a474351cd134dddff",
     "spec_yaml_sans_formal": "json_canonical_sans_formal:ec426c58dd9f2334b09759284010f4068e5638e331ac28be8742ab3fee1e7b69",
     "mutant_rulings": null
    },
@@ -221,10 +221,10 @@
    "tool": "precheck",
    "version": 1,
    "status": "pass",
-   "attempts": 5,
-   "ts": "2026-11-05T00:18:44",
+   "attempts": 6,
+   "ts": "2026-11-06T02:26:14",
    "inputs": {
-    "harden": "harden_signoff:4d718538b2e7f271af41031d0bcb0116a7a42974690a3901ca86c719ebce5c7e",
+    "harden": "harden_signoff:bba0c728de80ed1d73908601fbb85b1eaa19ec3b3c5955b037d72a1d738e5e77",
     "harden_info": "json_canonical:f695957862502907d834adb8801ec93f4f59eaf89bf74f8192f72bb3c514eba1",
     "spec_yaml_sans_formal": "json_canonical_sans_formal:ec426c58dd9f2334b09759284010f4068e5638e331ac28be8742ab3fee1e7b69",
     "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
@@ -241,11 +241,11 @@
    "tool": "sim",
    "version": 1,
    "status": "pass",
-   "attempts": 3,
-   "ts": "2026-11-01T11:10:25",
+   "attempts": 4,
+   "ts": "2026-11-05T08:02:22",
    "inputs": {
     "rtl": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
-    "tb": "dir_text:44b914540eb555744ca22e68ecb3bfc12d4b674941a109098e2120116c7518de",
+    "tb": "dir_text:1a9e6faab6600130823e4ed8154e094fed3d16ebb98f4d6a474351cd134dddff",
     "spec_yaml_sans_formal": "json_canonical_sans_formal:ec426c58dd9f2334b09759284010f4068e5638e331ac28be8742ab3fee1e7b69"
    },
    "reason": null
@@ -291,10 +291,10 @@
    "tool": "timing",
    "version": 1,
    "status": "pass",
-   "attempts": 6,
-   "ts": "2026-11-05T07:22:33",
+   "attempts": 8,
+   "ts": "2026-11-06T02:19:03",
    "inputs": {
-    "harden": "harden_signoff:4d718538b2e7f271af41031d0bcb0116a7a42974690a3901ca86c719ebce5c7e",
+    "harden": "harden_signoff:bba0c728de80ed1d73908601fbb85b1eaa19ec3b3c5955b037d72a1d738e5e77",
     "spec_yaml_sans_formal": "json_canonical_sans_formal:ec426c58dd9f2334b09759284010f4068e5638e331ac28be8742ab3fee1e7b69",
     "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
     "pdk_liberty": "dir_bytes:f09377f057ab484ec9e5a45b205c99a5de399e2bdca886531bf9eefa57783f32"
@@ -327,13 +327,13 @@
    "librelane_pdk": "f6eeac7dad085ffcc829ccfd721f7b4ce39edcf7",
    "tt_support_tools": "01d5d2814fa9dd61e9d211e0b235a4a592a9316a",
    "gds": "harden/runs/run/final/gds/tt_um_ece298a_counter.gds",
-   "gds_sha256": "409a11eaaaf590c6428222ab91256e99fc27dbcac7f2a4bebd66de7390e35cc1",
+   "gds_sha256": "4e98390e7401cf0a92e3e828c01977689b87d9894f0f21c7c07dc770824bb800",
    "lef": "harden/runs/run/final/lef/tt_um_ece298a_counter.lef",
-   "lef_sha256": "d6ed88913c6d768e70256f50befbc9a6e9eb2b0f22632de93756dc9b4762af7f",
+   "lef_sha256": "0e02af726f19109d54f7e795d768f49e5e6ce57382d05816cc08dd3bc70f3855",
    "gl": "harden/runs/run/final/pnl/tt_um_ece298a_counter.pnl.v",
-   "gl_sha256": "08eaacb8d560e114bf7dc624d5a48d2ae8653828bb9c54a2b1927b158bf8a0ad",
+   "gl_sha256": "b98df4d5aaa3279c796e32d800dff71d9e755c14ca769b46cfd4771a87b66356",
    "gl_is_shipped": true,
-   "glsim_gl_sha256": "08eaacb8d560e114bf7dc624d5a48d2ae8653828bb9c54a2b1927b158bf8a0ad"
+   "glsim_gl_sha256": "b98df4d5aaa3279c796e32d800dff71d9e755c14ca769b46cfd4771a87b66356"
   },
   "shipped": [
    {
@@ -343,16 +343,16 @@
     "top_module": "tt_um_ece298a_counter",
     "pdk": "gf180mcuD",
     "gds_path": "gds/tt_um_ece298a_counter.gds",
-    "gds_sha256": "409a11eaaaf590c6428222ab91256e99fc27dbcac7f2a4bebd66de7390e35cc1",
+    "gds_sha256": "4e98390e7401cf0a92e3e828c01977689b87d9894f0f21c7c07dc770824bb800",
     "lef_path": "lef/tt_um_ece298a_counter.lef",
-    "lef_sha256": "d6ed88913c6d768e70256f50befbc9a6e9eb2b0f22632de93756dc9b4762af7f",
+    "lef_sha256": "0e02af726f19109d54f7e795d768f49e5e6ce57382d05816cc08dd3bc70f3855",
     "verilog_path": "gl/tt_um_ece298a_counter.v",
-    "verilog_sha256": "08eaacb8d560e114bf7dc624d5a48d2ae8653828bb9c54a2b1927b158bf8a0ad",
-    "glsim_sha256": "08eaacb8d560e114bf7dc624d5a48d2ae8653828bb9c54a2b1927b158bf8a0ad"
+    "verilog_sha256": "b98df4d5aaa3279c796e32d800dff71d9e755c14ca769b46cfd4771a87b66356",
+    "glsim_sha256": "b98df4d5aaa3279c796e32d800dff71d9e755c14ca769b46cfd4771a87b66356"
    }
   ],
   "manifest": "release/manifest.json",
-  "manifest_sha256": "3ccff48f5d9bf37b4735ab9acab29bb8173790322cfb971679418280490a39c7"
+  "manifest_sha256": "c1ee42ff703ae39827d0b5af54fde0a1ba2166839ff2eb9a566f4a5b5910fedd"
  },
- "attestation_sha256": "c0d448894f250b35be79d28b5fe966fbf5f1cd21fbabb499a018dff3585cc868"
+ "attestation_sha256": "fc6e6c37f31443e4f119f3402fc63e6dce6e2527050079a8dc9a34bebae0ee03"
 }

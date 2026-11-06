@@ -3,7 +3,7 @@
  "gate": "glsim",
  "phase": "P6",
  "tool": "glsim",
- "input_digest": "harden_signoff:4d718538b2e7f271af41031d0bcb0116a7a42974690a3901ca86c719ebce5c7e",
+ "input_digest": "harden_signoff:bba0c728de80ed1d73908601fbb85b1eaa19ec3b3c5955b037d72a1d738e5e77",
  "status": "pass",
  "criteria": {
   "fail_severities": [
@@ -48,24 +48,22 @@
    }
   },
   "sdf": {
-   "zero_interconnects_dropped": 95,
-   "sdf_unannotated": [
-    "_056_ (gf180mcu_fd_sc_mcu7t5v0__xor2_1)",
-    "_065_ (gf180mcu_fd_sc_mcu7t5v0__xor2_1)"
-   ],
+   "zero_interconnects_dropped": 98,
+   "sdf_unannotated": [],
    "instances_renamed": {}
   },
   "netlists": {
-   "nl_sha256": "97c130e0be7b2e9543721554319f8922c8b116a09dcf52162f1d42605bd7c93b",
-   "pnl_sha256": "08eaacb8d560e114bf7dc624d5a48d2ae8653828bb9c54a2b1927b158bf8a0ad"
+   "nl_sha256": "b2dec901f28a11149e2b6651597c7ddc08b60a9886fb2ca1f772018985293fa3",
+   "pnl_sha256": "b98df4d5aaa3279c796e32d800dff71d9e755c14ca769b46cfd4771a87b66356"
   }
  },
  "inputs_at_start": {
-  "harden": "harden_signoff:4d718538b2e7f271af41031d0bcb0116a7a42974690a3901ca86c719ebce5c7e",
-  "tb": "dir_text:44b914540eb555744ca22e68ecb3bfc12d4b674941a109098e2120116c7518de",
+  "harden": "harden_signoff:bba0c728de80ed1d73908601fbb85b1eaa19ec3b3c5955b037d72a1d738e5e77",
+  "tb": "dir_text:1a9e6faab6600130823e4ed8154e094fed3d16ebb98f4d6a474351cd134dddff",
   "spec_yaml_sans_formal": "json_canonical_sans_formal:ec426c58dd9f2334b09759284010f4068e5638e331ac28be8742ab3fee1e7b69",
   "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2"
  },
- "recorded_ts": "2026-11-05T00:15:33",
- "attempts": 5
+ "strength_at_start": 0,
+ "recorded_ts": "2026-11-06T02:24:20",
+ "attempts": 6
 }
