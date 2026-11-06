@@ -3,8 +3,8 @@
   "gate": "lvs",
   "phase": "P5",
   "tool": "analog_lvs",
-  "input_digest": "dir_text:f78a94124a00ffd93d5afc43316b74aa05535a0851cbd2ce6f3985831b140e0c",
-  "status": "fail",
+  "input_digest": "dir_text:7a954c277f279e0a8b3d75e97ed6833bf445cf7e04f4ec0eefae35be290d869d",
+  "status": "pass",
   "criteria": {
     "fail_severities": [
       "error"
@@ -12,77 +12,55 @@
     "max_count": 0
   },
   "counts": {
-    "total": 1,
-    "by_severity": {
-      "error": 1
-    },
-    "by_source": {
-      "netgen": 1
-    }
+    "total": 0,
+    "by_severity": {},
+    "by_source": {}
   },
-  "failing_count": 1,
-  "failing": [
-    {
-      "check": "analog_lvs",
-      "severity": "error",
-      "file": "netlist/r2r_dac.cir",
-      "module": "r2r_dac_analog",
-      "line": null,
-      "kind": "lvs_mismatch",
-      "refs": [],
-      "msg": "netgen LVS did not report a clean unique match:                                            |                                           \nInstance: ppolyf_u:135                     |Instance: ppolyf_u:rb1a                    \n  (1,2) = (3,3)                            |  (1,2) = (3,2)                            \n  3 = 49                                   |  3 = 33                                   \n                                           |                                           \nInstance: ppolyf_u:82                      |Instance: ppolyf_u:rb2a                    \n  (1,2) = (3,3)                            |  (1,2) = (3,2)                            \n  3 = 49                                   |  3 = 33                                   \n                                           |                                           \nInstance: ppolyf_u:71                      |Instance: ppolyf_u:rb3a                    \n  (1,2) = (3,3)                            |  (1,2) = (3,2)                            \n  3 = 49                                   |  3 = 33                                   \n                                           |                                           \nInstance: ppolyf_u:39                      |Instance: ppolyf_u:rb4a                    \n  (1,2) = (3,3)                            |  (1,2) = (3,2)                            \n  3 = 49                                   |  3 = 33                                   \n                                           |                                           \nInstance: ppolyf_u:30                      |Instance: ppolyf_u:rb5a                    \n  (1,2) = (3,3)                            |  (1,2) = (3,2)                            \n  3 = 49                                   |  3 = 33                                   \n                                           |                                           \nInstance: ppolyf_u:468                     |Instance: ppolyf_u:rb6a                    \n  (1,2) = (3,2)                            |  (1,2) = (3,2)                            \n  3 = 49                                   |  3 = 33                                   \n                                           |                                           \nInstance: ppolyf_u:52                      |Instance: ppolyf_u:rb7a                    \n  (1,2) = (3,2)                            |  (1,2) = (2,2)                            \n  3 = 49                                   |  3 = 33                                   \n---------------------------------------------------------------------------------------\nNetlists do not match.\nPort matching may fail to disambiguate symmetries.\n\nSubcircuit pins:\nCircuit 1: r2r_dac_analog                  |Circuit 2: r2r_dac_analog                  \n-------------------------------------------|-------------------------------------------\nCell pin lists are equivalent.\nDevice classes r2r_dac_analog and r2r_dac_analog are equivalent.\n\nFinal result: Netlists do not match.\nPort matching may fail to disambiguate symmetries.",
-      "source": "netgen",
-      "items": [
-        {
-          "msg": "netgen LVS did not report a clean unique match:                                            |                                           \nInstance: ppolyf_u:135                     |Instance: ppolyf_u:rb1a                    \n  (1,2) = (3,3)                            |  (1,2) = (3,2)                            \n  3 = 49                                   |  3 = 33                                   \n                                           |                                           \nInstance: ppolyf_u:82                      |Instance: ppolyf_u:rb2a                    \n  (1,2) = (3,3)                            |  (1,2) = (3,2)                            \n  3 = 49                                   |  3 = 33                                   \n                                           |                                           \nInstance: ppolyf_u:71                      |Instance: ppolyf_u:rb3a                    \n  (1,2) = (3,3)                            |  (1,2) = (3,2)                            \n  3 = 49                                   |  3 = 33                                   \n                                           |                                           \nInstance: ppolyf_u:39                      |Instance: ppolyf_u:rb4a                    \n  (1,2) = (3,3)                            |  (1,2) = (3,2)                            \n  3 = 49                                   |  3 = 33                                   \n                                           |                                           \nInstance: ppolyf_u:30                      |Instance: ppolyf_u:rb5a                    \n  (1,2) = (3,3)                            |  (1,2) = (3,2)                            \n  3 = 49                                   |  3 = 33                                   \n                                           |                                           \nInstance: ppolyf_u:468                     |Instance: ppolyf_u:rb6a                    \n  (1,2) = (3,2)                            |  (1,2) = (3,2)                            \n  3 = 49                                   |  3 = 33                                   \n                                           |                                           \nInstance: ppolyf_u:52                      |Instance: ppolyf_u:rb7a                    \n  (1,2) = (3,2)                            |  (1,2) = (2,2)                            \n  3 = 49                                   |  3 = 33                                   \n---------------------------------------------------------------------------------------\nNetlists do not match.\nPort matching may fail to disambiguate symmetries.\n\nSubcircuit pins:\nCircuit 1: r2r_dac_analog                  |Circuit 2: r2r_dac_analog                  \n-------------------------------------------|-------------------------------------------\nCell pin lists are equivalent.\nDevice classes r2r_dac_analog and r2r_dac_analog are equivalent.\n\nFinal result: Netlists do not match.\nPort matching may fail to disambiguate symmetries.",
-          "file": "netlist/r2r_dac.cir",
-          "line": null
-        }
-      ]
-    }
-  ],
-  "violations": [
-    {
-      "check": "analog_lvs",
-      "severity": "error",
-      "file": "netlist/r2r_dac.cir",
-      "module": "r2r_dac_analog",
-      "line": null,
-      "kind": "lvs_mismatch",
-      "refs": [],
-      "msg": "netgen LVS did not report a clean unique match:                                            |                                           \nInstance: ppolyf_u:135                     |Instance: ppolyf_u:rb1a                    \n  (1,2) = (3,3)                            |  (1,2) = (3,2)                            \n  3 = 49                                   |  3 = 33                                   \n                                           |                                           \nInstance: ppolyf_u:82                      |Instance: ppolyf_u:rb2a                    \n  (1,2) = (3,3)                            |  (1,2) = (3,2)                            \n  3 = 49                                   |  3 = 33                                   \n                                           |                                           \nInstance: ppolyf_u:71                      |Instance: ppolyf_u:rb3a                    \n  (1,2) = (3,3)                            |  (1,2) = (3,2)                            \n  3 = 49                                   |  3 = 33                                   \n                                           |                                           \nInstance: ppolyf_u:39                      |Instance: ppolyf_u:rb4a                    \n  (1,2) = (3,3)                            |  (1,2) = (3,2)                            \n  3 = 49                                   |  3 = 33                                   \n                                           |                                           \nInstance: ppolyf_u:30                      |Instance: ppolyf_u:rb5a                    \n  (1,2) = (3,3)                            |  (1,2) = (3,2)                            \n  3 = 49                                   |  3 = 33                                   \n                                           |                                           \nInstance: ppolyf_u:468                     |Instance: ppolyf_u:rb6a                    \n  (1,2) = (3,2)                            |  (1,2) = (3,2)                            \n  3 = 49                                   |  3 = 33                                   \n                                           |                                           \nInstance: ppolyf_u:52                      |Instance: ppolyf_u:rb7a                    \n  (1,2) = (3,2)                            |  (1,2) = (2,2)                            \n  3 = 49                                   |  3 = 33                                   \n---------------------------------------------------------------------------------------\nNetlists do not match.\nPort matching may fail to disambiguate symmetries.\n\nSubcircuit pins:\nCircuit 1: r2r_dac_analog                  |Circuit 2: r2r_dac_analog                  \n-------------------------------------------|-------------------------------------------\nCell pin lists are equivalent.\nDevice classes r2r_dac_analog and r2r_dac_analog are equivalent.\n\nFinal result: Netlists do not match.\nPort matching may fail to disambiguate symmetries.",
-      "source": "netgen",
-      "items": [
-        {
-          "msg": "netgen LVS did not report a clean unique match:                                            |                                           \nInstance: ppolyf_u:135                     |Instance: ppolyf_u:rb1a                    \n  (1,2) = (3,3)                            |  (1,2) = (3,2)                            \n  3 = 49                                   |  3 = 33                                   \n                                           |                                           \nInstance: ppolyf_u:82                      |Instance: ppolyf_u:rb2a                    \n  (1,2) = (3,3)                            |  (1,2) = (3,2)                            \n  3 = 49                                   |  3 = 33                                   \n                                           |                                           \nInstance: ppolyf_u:71                      |Instance: ppolyf_u:rb3a                    \n  (1,2) = (3,3)                            |  (1,2) = (3,2)                            \n  3 = 49                                   |  3 = 33                                   \n                                           |                                           \nInstance: ppolyf_u:39                      |Instance: ppolyf_u:rb4a                    \n  (1,2) = (3,3)                            |  (1,2) = (3,2)                            \n  3 = 49                                   |  3 = 33                                   \n                                           |                                           \nInstance: ppolyf_u:30                      |Instance: ppolyf_u:rb5a                    \n  (1,2) = (3,3)                            |  (1,2) = (3,2)                            \n  3 = 49                                   |  3 = 33                                   \n                                           |                                           \nInstance: ppolyf_u:468                     |Instance: ppolyf_u:rb6a                    \n  (1,2) = (3,2)                            |  (1,2) = (3,2)                            \n  3 = 49                                   |  3 = 33                                   \n                                           |                                           \nInstance: ppolyf_u:52                      |Instance: ppolyf_u:rb7a                    \n  (1,2) = (3,2)                            |  (1,2) = (2,2)                            \n  3 = 49                                   |  3 = 33                                   \n---------------------------------------------------------------------------------------\nNetlists do not match.\nPort matching may fail to disambiguate symmetries.\n\nSubcircuit pins:\nCircuit 1: r2r_dac_analog                  |Circuit 2: r2r_dac_analog                  \n-------------------------------------------|-------------------------------------------\nCell pin lists are equivalent.\nDevice classes r2r_dac_analog and r2r_dac_analog are equivalent.\n\nFinal result: Netlists do not match.\nPort matching may fail to disambiguate symmetries.",
-          "file": "netlist/r2r_dac.cir",
-          "line": null
-        }
-      ]
-    }
-  ],
+  "failing_count": 0,
+  "failing": [],
+  "violations": [],
   "facts": {
     "topcell": "r2r_dac_analog",
-    "gds": "layout/r2r_dac.gds",
-    "reference": "netlist/r2r_dac.cir",
+    "gds": "layout/r2r_dac_analog.gds",
+    "reference": "netlist/r2r_dac_analog.cir",
     "reference_cell": "r2r_dac_analog",
     "sizing_applied": {
       "ru_w": 2e-06,
       "ru_l": 0.00015,
       "rb_l": 0.00014836
     },
+    "std_cells_flattened": [
+      "gf180mcu_fd_sc_mcu7t5v0__buf_20"
+    ],
     "log": "log/lvs/netgen_lvs.log"
   },
+  "inputs_at_start": {
+    "layout": "dir_text:7a954c277f279e0a8b3d75e97ed6833bf445cf7e04f4ec0eefae35be290d869d",
+    "netlist": "dir_text:13970a2f19f36bd8aa49baa3a94132821e16917455715ba77b23b074b4551548",
+    "spec_yaml": "json_canonical:b9e53ef91f0292ed45f1b07aaad65e5fd2f9a72429ef84c86c5f15846cbe9cc8",
+    "sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
+    "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+    "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
+    "pdk_netgen": "dir_text:8164f65bb7d1bef6e27af4c13b1c6ede50973cec7aec482556abb23881aceb04",
+    "pdk_klayout": "dir_text:876da90e8aab65b830b36eca12bd720adfe8240a0952872419d9f2b4abda605d"
+  },
+  "strength_at_start": 0,
   "record_result": {
     "ok": true,
     "recorded": true,
     "workspace": "blocks/r2r_dac/analog",
     "gate": "lvs",
-    "status": "fail",
-    "attempts": 1,
+    "status": "pass",
+    "attempts": 10,
     "inputs": {
-      "layout": "dir_text:f78a94124a00ffd93d5afc43316b74aa05535a0851cbd2ce6f3985831b140e0c",
-      "netlist": "dir_text:1b6ee7b2d52b33fc582a6a8380a88d7291bdb3a8d705a420d02b1029e02d3d3c"
+      "layout": "dir_text:7a954c277f279e0a8b3d75e97ed6833bf445cf7e04f4ec0eefae35be290d869d",
+      "netlist": "dir_text:13970a2f19f36bd8aa49baa3a94132821e16917455715ba77b23b074b4551548",
+      "spec_yaml": "json_canonical:b9e53ef91f0292ed45f1b07aaad65e5fd2f9a72429ef84c86c5f15846cbe9cc8",
+      "sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
+      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+      "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
+      "pdk_netgen": "dir_text:8164f65bb7d1bef6e27af4c13b1c6ede50973cec7aec482556abb23881aceb04",
+      "pdk_klayout": "dir_text:876da90e8aab65b830b36eca12bd720adfe8240a0952872419d9f2b4abda605d"
     }
   }
 }

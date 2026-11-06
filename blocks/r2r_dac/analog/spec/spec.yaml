@@ -114,12 +114,15 @@ measures:
     bounds: {max: 1.5e-6}
     severity: error
   #    10-90 % rise/fall time, seconds: 2.2 tau = 0.42 us at tt, 0.5 us
-  #    at ss. [derived, owner trade-off above]
+  #    at ss, which left no margin: post-layout ss measured 504-512 ns.
+  #    The owner (2026-11-05) relaxed it to about 530 ns rather than resize
+  #    the 27k unit R: the time the 1.5 us settling limit above implies,
+  #    1.5 us x 2.197 / (9 ln2) = 0.528 us. [owner]
   - name: t_rise_10_90
-    bounds: {max: 0.5e-6}
+    bounds: {max: 0.53e-6}
     severity: warning
   - name: t_fall_10_90
-    bounds: {max: 0.5e-6}
+    bounds: {max: 0.53e-6}
     severity: warning
   # 6. Mid-code glitch, 127 <-> 128, all eight drivers switching at the
   #    same instant. Energy = integral of |vout - v_final| dt outside the
