@@ -203,10 +203,13 @@ On gate fail (exit 1, result JSON has `failing` with a `kind`/`file`/
 4. Spawn one agent per order, chosen by the order's `fixer` domain: a
    `testbench` order (every `mutate` finding, and every requirement-
    coverage gap - `requirement_no_test`, `untagged_holdout_test`, a
-   `cover` line/toggle gap) goes to the tb-writer in WORK-ORDER MODE
+   `cover` line/toggle gap - and `tb_ignores_pad_latency`, a bench that
+   never waits out the pad's reset latency) goes to the tb-writer in WORK-ORDER MODE
    (`skills/vde/agents/tb-writer.md`), never the generic fixer; a
    `holdout_stimulus` order (`holdout_stimulus_fault`: a held-out test
-   died in its own stimulus code, no RTL at fault) goes to the tb-writer
+   died in its own stimulus code, no RTL at fault;
+   `holdout_ignores_pad_latency`: a held-out bench that never waits out
+   the pad's reset latency) goes to the tb-writer
    too, with the snapshot label from step 2 so it can prove its edit left
    every assert, bound and expected value alone; a
    `formal` order (`property_failed`, `cover_not_reached`, a bounded

@@ -1,5 +1,5 @@
 {
- "composite": 0.8127,
+ "composite": 1.0,
  "gates": {
   "lint": {
    "status": "pass",
@@ -7,7 +7,7 @@
    "failing": 0,
    "kinds": [],
    "metrics": {},
-   "wall_s": 0.54
+   "wall_s": 0.12
   },
   "sim": {
    "status": "pass",
@@ -15,9 +15,9 @@
    "failing": 0,
    "kinds": [],
    "metrics": {
-    "tests_passed": 6
+    "tests_passed": 7
    },
-   "wall_s": 5.2
+   "wall_s": 1.61
   },
   "holdout": {
    "status": "pass",
@@ -25,34 +25,29 @@
    "failing": 0,
    "kinds": [],
    "metrics": {
-    "tests_passed": 5
+    "tests_passed": 6
    },
-   "wall_s": 7.81
+   "wall_s": 1.86
   },
   "mutate": {
-   "status": "fail",
-   "score": 0.8763,
-   "failing": 2,
-   "kinds": [
-    "kill_rate_below_threshold",
-    "survivor_condition_inverted"
-   ],
+   "status": "pass",
+   "score": 1.0,
+   "failing": 0,
+   "kinds": [],
    "metrics": {
-    "kill_rate": 0.7895,
+    "kill_rate": 1.0,
     "killed": 15,
-    "survived": 4
+    "survived": 0
    },
-   "wall_s": 104.69
+   "wall_s": 8.1
   },
   "formal": {
-   "status": "fail",
-   "score": 0.0,
-   "failing": 1,
-   "kinds": [
-    "property_failed"
-   ],
+   "status": "pass",
+   "score": 1.0,
+   "failing": 0,
+   "kinds": [],
    "metrics": {},
-   "wall_s": 6.3
+   "wall_s": 2.19
   },
   "cover": {
    "status": "pass",
@@ -63,8 +58,8 @@
     "line_pct": 100.0,
     "toggle_pct": 98.2759
    },
-   "wall_s": 9.64
+   "wall_s": 2.56
   }
  },
- "written": "2026-09-25"
+ "written": "2026-11-06"
 }

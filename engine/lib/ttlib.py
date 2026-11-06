@@ -68,7 +68,6 @@ no metal on it.
 """
 from __future__ import annotations
 
-import contextlib
 import importlib.util
 import json
 import os
@@ -867,22 +866,6 @@ def generate_macro_sim_model(macro: dict, spec: dict) -> str:
 
 
 SIM_FRAME_PREFIX = "tt_frame_"
-# Set only by block_level_sim(): bench.py's frozen eval fixtures that predate
-# the pad frame (fixture.json `sim_frame: block`). In-process only, so no
-# spec, workspace, CLI flag or environment variable can switch the frame off.
-_BLOCK_LEVEL_SIM: list[str] = []
-
-
-@contextlib.contextmanager
-def block_level_sim(why: str):
-    """Within this block, write_sim_frame() returns None: sim and holdout
-    drive the block directly, as they did before the pad frame. For
-    bench.py's pinned pre-pad-frame fixtures only; `why` names the pin."""
-    _BLOCK_LEVEL_SIM.append(why)
-    try:
-        yield
-    finally:
-        _BLOCK_LEVEL_SIM.pop()
 
 
 def write_sim_frame(spec: dict, out_dir: Path) -> tuple[list[Path], str] | None:
@@ -897,8 +880,8 @@ def write_sim_frame(spec: dict, out_dir: Path) -> tuple[list[Path], str] | None:
     macro side through the same frame. None when the tile has no pad reset
     synchroniser (pad_reset_latency() is 0): the bench then drives the
     block directly, as before, and the padreset helper reads a latency of
-    0. Also None inside block_level_sim()."""
-    if not pad_reset_latency(spec) or _BLOCK_LEVEL_SIM:
+    0."""
+    if not pad_reset_latency(spec):
         return None
     if wrapper_name(spec) == spec["top"]:
         return None

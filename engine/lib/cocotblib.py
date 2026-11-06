@@ -19,6 +19,7 @@ cannot silently stand in for a real pass.
 """
 from __future__ import annotations
 
+import ast
 import os
 import re
 import signal
@@ -289,3 +290,63 @@ def parse_results_xml(xml_path: Path) -> dict[str, dict]:
             "traceback": (bad.text or "") if bad is not None else "",
         }
     return out
+
+
+def reads_pad_reset_latency(modules: list[str], dirs: list[Path]) -> bool:
+    """Whether a bench's test modules, or a plain module they import from
+    `dirs`, import padreset or name the harness's latency net in code. A
+    comment doesn't count. An import that is never called does: this reads
+    the bench, it doesn't judge how it resets."""
+    from ttlib import PAD_RESET_LATENCY_NET
+    seen: set[str] = set()
+    todo = list(modules)
+    while todo:
+        name = todo.pop()
+        if name in seen:
+            continue
+        seen.add(name)
+        path = next((d / f"{name}.py" for d in dirs
+                     if (d / f"{name}.py").is_file()), None)
+        if path is None:
+            continue
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+        except (SyntaxError, UnicodeDecodeError):
+            continue
+        for node in ast.walk(tree):
+            imported = []
+            if isinstance(node, ast.Import):
+                imported = [a.name for a in node.names]
+            elif isinstance(node, ast.ImportFrom) and node.module:
+                imported = [node.module]
+            if "padreset" in imported:
+                return True
+            todo.extend(imported)
+            if (isinstance(node, ast.Attribute)
+                    and node.attr == PAD_RESET_LATENCY_NET) or (
+                    isinstance(node, ast.Constant)
+                    and node.value == PAD_RESET_LATENCY_NET):
+                return True
+    return False
+
+
+def ignore_pad_latency(results: dict, build_dir: Path, test_dir: Path,
+                       block_sources: list[Path], top: str,
+                       modules: list[str], search_dirs: list[Path]) -> set[str]:
+    """The failing tests of a run through the pad frame that fail because
+    their bench never waits out the pad's reset latency: the bench doesn't
+    read it (reads_pad_reset_latency) and the same test passes driving the
+    block directly. Costs a second simulation, only when a test failed and
+    the bench doesn't read the latency. A real design bug fails both runs,
+    and a bench that reads the latency keeps its plain failure, so a wrapper
+    with a wrong latency still reads as a failed test."""
+    failed = {name for name, res in results.items()
+              if not res["passed"] and not res.get("skipped")}
+    if not failed or reads_pad_reset_latency(modules, search_dirs):
+        return set()
+    direct_dir = Path(build_dir) / "no_pad"
+    direct_dir.mkdir(parents=True, exist_ok=True)
+    xml_path = run_cocotb(direct_dir, test_dir, block_sources, top, modules,
+                          direct_dir / "results.xml")
+    direct = parse_results_xml(xml_path)
+    return {name for name in failed if direct.get(name, {}).get("passed")}

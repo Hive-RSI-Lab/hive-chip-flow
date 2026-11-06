@@ -17,7 +17,9 @@ needed here the way check_lint.py needs one for verilator).
 
 Faults this gate must catch (gates.yaml): "counter wraps one early" (an RTL
 bug a real test catches) and, named separately in M2's done criteria, "a
-requirement without a test fails sim".
+requirement without a test fails sim". A bench that ignores the pad's reset
+latency fails too, as `tb_ignores_pad_latency` rather than `test_failed`, so
+it reaches the tb-writer and not the rtl fixer (cocotblib.ignore_pad_latency).
 """
 from __future__ import annotations
 
@@ -82,6 +84,7 @@ def run(argv=None):
     # through the tile's pad, as glsim runs it (ttlib.write_sim_frame):
     # a bench sees the same pad reset latency in both
     hdl_top = top
+    block_sources = sources
     frame = ttlib.write_sim_frame(spec, build_dir / "frame")
     if frame:
         sources, hdl_top = sources + frame[0], frame[1]
@@ -91,6 +94,10 @@ def run(argv=None):
     results = cocotblib.parse_results_xml(xml_path)
     if not results:
         raise CheckError(f"cocotb produced no test cases in {xml_path}")
+    ignored = set()
+    if frame:
+        ignored = cocotblib.ignore_pad_latency(
+            results, build_dir, tb_dir, block_sources, top, modules, [tb_dir])
 
     for name, res in sorted(results.items()):
         if res["passed"]:
@@ -101,6 +108,16 @@ def run(argv=None):
                 "sim", "error", None, name, "test_skipped", refs,
                 f"{name} was skipped - it never ran, so it cannot cover "
                 "the requirement(s) it is tagged with", "cocotb"))
+            continue
+        if name in ignored:
+            violations.append(checklib.violation(
+                "sim", "error", None, name, "tb_ignores_pad_latency", refs,
+                f"{name} fails through the tile's pad and passes driving the "
+                "block directly, and the bench never reads the pad's reset "
+                f"latency ({ttlib.pad_reset_latency(spec)} clocks after "
+                "release): reset through padreset.pad_reset (engine/lib/"
+                f"padreset.py). Failure: {res['message'] or 'see the sim log'}",
+                "cocotb"))
             continue
         violations.append(checklib.violation(
             "sim", "error", None, name, "test_failed", refs,

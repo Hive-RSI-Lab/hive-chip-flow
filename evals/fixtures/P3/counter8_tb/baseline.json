@@ -7,9 +7,9 @@
    "failing": 0,
    "kinds": [],
    "metrics": {
-    "tests_passed": 5
+    "tests_passed": 4
    },
-   "wall_s": 4.78
+   "wall_s": 2.44
   },
   "mutate": {
    "status": "pass",
@@ -21,7 +21,7 @@
     "killed": 19,
     "survived": 0
    },
-   "wall_s": 93.83
+   "wall_s": 9.21
   },
   "cover": {
    "status": "pass",
@@ -32,8 +32,8 @@
     "line_pct": 100.0,
     "toggle_pct": 100.0
    },
-   "wall_s": 10.16
+   "wall_s": 4.35
   }
  },
- "written": "2026-09-25"
+ "written": "2026-11-06"
 }

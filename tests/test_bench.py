@@ -15,6 +15,7 @@ sys.path.insert(0, str(REPO / "engine" / "lib"))
 import pytest  # noqa: E402
 
 import bench  # noqa: E402
+import cocotblib  # noqa: E402
 from checklib import CheckError  # noqa: E402
 
 
@@ -175,51 +176,20 @@ def test_committed_fixtures_match_their_pins():
         assert (meta_p.parent / "baseline.json").is_file(), meta_p.parent.name
 
 
-def test_only_the_pre_pad_frame_fixtures_bench_block_level():
-    """Every committed fixture is benched through the tile's pad frame except
-    the three recorded before it, which say so in fixture.json."""
-    block = set()
-    for meta_p in (REPO / "evals" / "fixtures").glob("*/*/fixture.json"):
+def test_every_committed_fixture_is_benched_through_the_pad():
+    """No fixture carries a block-level pin, and every vde bench with a tile
+    reads the pad's reset latency, so it passes through the pad on its own."""
+    fixtures = list((REPO / "evals" / "fixtures").glob("*/*/fixture.json"))
+    assert fixtures
+    for meta_p in fixtures:
         meta = json.loads(meta_p.read_text(encoding="utf-8"))
-        fx = meta_p.parent
-        if bench.sim_frame(fx, meta) == bench.SIM_FRAME_BLOCK:
-            block.add(f"{fx.parent.name}/{fx.name}")
-    assert block == bench.PRE_PAD_FRAME_FIXTURES
-    assert bench.PRE_PAD_FRAME_FIXTURES == {
-        "P3/counter8_tb", "P4/counter8_rtl", "P4/uart_rtl"}
-
-
-def test_sim_frame_pin_is_refused_on_any_other_fixture(tmp_path):
-    fx = tmp_path / "fixtures" / "P4" / "widget_rtl"
-    meta = bench.freeze(make_ws(tmp_path), fx, None, "P4")
-    assert bench.sim_frame(fx, meta) == "pad"
-    with pytest.raises(CheckError, match="not one of the pre-pad-frame"):
-        bench.sim_frame(fx, {**meta, "sim_frame": "block"})
-    with pytest.raises(CheckError, match="is not 'block'"):
-        bench.sim_frame(fx, {**meta, "sim_frame": "none"})
-
-
-def test_block_level_bench_switches_the_frame_off_and_reports_it(
-        tmp_path, monkeypatch):
-    fx = tmp_path / "fixtures" / "P4" / "counter8_rtl"
-    meta = {**bench.freeze(make_ws(tmp_path), fx, None, "P4"),
-            "sim_frame": "block"}
-    seen = []
-
-    def fake_run(row, ws):
-        seen.append(bool(bench.ttlib._BLOCK_LEVEL_SIM))
-        return {"status": "pass"}
-    monkeypatch.setattr(bench.gate, "run_report_for_gate", fake_run)
-    monkeypatch.setattr(bench.gate, "evaluate",
-                        lambda n, row, rep: {"status": "pass", "failing": []})
-    gates = {"vde": {"sim": {"phase": "P4", "tool": "sim", "name": "sim"}}}
-    score = bench.bench(fx, meta, gates)
-    assert seen == [True] and score["sim_frame"] == "block"
-    assert not bench.ttlib._BLOCK_LEVEL_SIM
-    meta.pop("sim_frame")
-    seen.clear()
-    assert bench.bench(fx, meta, gates)["sim_frame"] == "pad"
-    assert seen == [False]
+        assert "sim_frame" not in meta, meta_p.parent.name
+        ws = meta_p.parent / "ws"
+        for sub in ("tb", "holdout"):
+            d = ws / sub
+            modules = [p.stem for p in d.glob("test_*.py")]
+            assert not modules or cocotblib.reads_pad_reset_latency(
+                modules, [d]), f"{meta_p.parent.name}/{sub}"
 
 
 @pytest.mark.slow

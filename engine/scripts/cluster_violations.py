@@ -112,12 +112,14 @@ FIXER_HINTS: dict[str, str] = {
 
     # sim (check_sim.py)
     "test_failed": "rtl",
+    "tb_ignores_pad_latency": "testbench",
     "test_skipped": "testbench",
     "requirement_no_test": "testbench",
 
     # holdout (check_holdout.py) - "test_skipped" is shared with sim above.
     "holdout_failed": "rtl",
     "holdout_stimulus_fault": "holdout_stimulus",
+    "holdout_ignores_pad_latency": "holdout_stimulus",
     "untagged_holdout_test": "testbench",
 
     # mutate (check_mutate.py) - every mutate_runner.classify() class.

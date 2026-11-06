@@ -113,6 +113,7 @@ def run(argv=None):
     # through the tile's pad, as glsim runs it (ttlib.write_sim_frame):
     # a bench sees the same pad reset latency in both
     hdl_top = top
+    block_sources = sources
     frame = ttlib.write_sim_frame(spec, build_dir / "frame")
     if frame:
         sources, hdl_top = sources + frame[0], frame[1]
@@ -122,6 +123,11 @@ def run(argv=None):
     results = cocotblib.parse_results_xml(xml_path)
     if not results:
         raise CheckError(f"cocotb produced no test cases in {xml_path}")
+    ignored = set()
+    if frame:
+        ignored = cocotblib.ignore_pad_latency(
+            results, build_dir, holdout_dir, block_sources, top, modules,
+            [holdout_dir, ws / "tb"])
 
     violations = []
     for name, res in sorted(results.items()):
@@ -149,6 +155,16 @@ def run(argv=None):
                 refs, f"a held-out test for requirement(s) {', '.join(refs)} "
                 f"died in its own stimulus code ({etype}) before any assert "
                 "judged the design", "cocotb"))
+            continue
+        if name in ignored:
+            violations.append(checklib.violation(
+                "holdout", "error", None, None, "holdout_ignores_pad_latency",
+                refs, f"a held-out test for requirement(s) {', '.join(refs)} "
+                "fails through the tile's pad and passes driving the block "
+                "directly, and the held-out bench never reads the pad's reset "
+                f"latency ({ttlib.pad_reset_latency(spec)} clocks after "
+                "release): reset through padreset.pad_reset (engine/lib/"
+                "padreset.py)", "cocotb"))
             continue
         violations.append(checklib.violation(
             "holdout", "error", None, None, "holdout_failed", refs,
