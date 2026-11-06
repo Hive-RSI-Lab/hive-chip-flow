@@ -119,6 +119,15 @@ MODULE_RE = re.compile(r"^\s*module\s+(\w+)")
 SDF_SEGMENT_RE = re.compile(r"(?:[A-Za-z0-9_$]|\\\S)+")
 VERILOG_ESCAPED_RE = re.compile(r"\\(\S+)(?=\s)")
 SIMPLE_ID_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_$]*")
+# Timing-driven placement can leave a buffer driving both a port and a cell,
+# which the netlist writes as `assign uio_out[7] = net115;`. The SDF still
+# has `(INTERCONNECT place115.Z uio_out[7] ...)`, and Icarus finds no wire
+# path through an assign ("Could not find intermodpath!"). So the sdf pass
+# collapses each such alias onto the port. ALIAS_ASSIGN_RE is the assign with
+# a plain net on the right; a constant or a port there does not match.
+ALIAS_ASSIGN_RE = re.compile(
+    r"^[ \t]*assign\s+(\S+)\s*=\s*([A-Za-z_][A-Za-z0-9_$]*)\s*;[ \t]*\n",
+    re.MULTILINE)
 # The cells' power pins, and the module's own power ports: what final/pnl has
 # and final/nl does not.
 CELL_POWER_PIN_RE = re.compile(r"\.(?:VDD|VSS|VNW|VPW)\(\s*\w+\s*\)\s*,?")
@@ -177,11 +186,35 @@ def escaped_dot_renames(sdf_text: str, nl_text: str) -> dict[str, str]:
     return renames
 
 
+def collapse_port_aliases(text: str) -> str:
+    """text, a flat netlist, with each `assign port = net;` removed and net
+    replaced by port everywhere, so the driver and the net's other loads sit
+    on the port itself: the same connectivity, written so Icarus can apply
+    the SDF's INTERCONNECT. Only a declared `wire` collapses, and only into
+    the first port assigned from it; a second port keeps its assign, and if
+    the SDF has a delay to it the sdf pass still fails on it."""
+    taken: set[str] = set()
+    for m in ALIAS_ASSIGN_RE.finditer(text):
+        lhs, net = m.group(1), m.group(2)
+        decl = re.compile(rf"^[ \t]*wire\s+{re.escape(net)}\s*;[ \t]*\n",
+                          re.MULTILINE)
+        if net in taken or not decl.search(text):
+            continue
+        taken.add(net)
+        text = decl.sub("", text, count=1)
+        text = text.replace(m.group(0), "", 1)
+        text = re.sub(rf"(?<![\\\w$.]){re.escape(net)}(?![\w$])",
+                      lambda _: lhs, text)
+    return text
+
+
 def netlist_for_icarus(src: Path, dest: Path, renames: dict[str, str]) -> None:
-    """Copy src to dest with each escaped identifier in renames replaced by
-    its plain name. An instance shares its module's namespace with its nets,
-    so an exact match on the escaped name is that instance."""
-    text = src.read_text(encoding="utf-8", errors="replace")
+    """Copy src to dest with its port aliases collapsed and each escaped
+    identifier in renames replaced by its plain name. An instance shares its
+    module's namespace with its nets, so an exact match on the escaped name
+    is that instance."""
+    text = collapse_port_aliases(
+        src.read_text(encoding="utf-8", errors="replace"))
     dest.write_text(VERILOG_ESCAPED_RE.sub(
         lambda m: renames.get(m.group(1), m.group(0)), text), encoding="utf-8")
 

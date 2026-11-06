@@ -109,6 +109,30 @@ def test_an_undriven_input_is_refused_not_floated(tmp_path):
     assert bench.statics(mt, {"bias": "vdd"}, {"a"}) == {"bias": 3.3}
 
 
+def test_a_netlist_using_standard_cells_gets_their_spice_and_only_then(tmp_path):
+    lib = macrolib.STA_LIBRARY
+    spice = tmp_path / "libs.ref" / lib / "spice" / f"{lib}.spice"
+    spice.parent.mkdir(parents=True)
+    spice.write_text("* cells\n")
+    plain = tmp_path / "plain.spice"
+    plain.write_text(".subckt m a y\nM0 y a 0 0 nfet_03v3\n.ends\n")
+    cells = tmp_path / "cells.spice"
+    cells.write_text(f".subckt m a y\nX0 a y {lib}__buf_20\n.ends\n")
+    assert macrolib.stdcell_includes(plain, tmp_path) == []
+    assert macrolib.stdcell_includes(cells, tmp_path) == [spice]
+    spice.unlink()
+    with pytest.raises(macrolib.Refused, match="no standard-cell spice"):
+        macrolib.stdcell_includes(cells, tmp_path)
+
+
+def test_a_schematic_keeps_the_global_params_its_sizes_read():
+    text = ("* head\n.param ru_w=2e-6\n.subckt m a y\n"
+            "X0 a y 0 ppolyf_u r_width={ru_w}\n.ends\n.tran 1n 2n\n")
+    out = check_macro_lib.bench_schematic(text, "m")
+    assert out.startswith(".param ru_w=2e-6\n.subckt m a y\n")
+    assert ".tran" not in out
+
+
 # ---- ceilings and the period rule
 
 

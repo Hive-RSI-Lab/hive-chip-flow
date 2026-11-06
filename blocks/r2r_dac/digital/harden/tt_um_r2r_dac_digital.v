@@ -11,6 +11,19 @@ module tt_um_r2r_dac_digital (
     input  wire       clk,
     input  wire       rst_n
 );
+  // pad reset synchroniser: 2 flops on clk (ttlib.PAD_RESET_LATENCY),
+  // cleared at once by rst_n low, released through the chain
+  reg rst_n_sync_q1;
+  reg rst_n_sync_q2;
+  always @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      rst_n_sync_q1 <= 1'b0;
+      rst_n_sync_q2 <= 1'b0;
+    end else begin
+      rst_n_sync_q1 <= 1'b1;
+      rst_n_sync_q2 <= rst_n_sync_q1;
+    end
+  end
   wire w_clk;
   assign w_clk = clk;
   wire [7:0] w_dac_code;
@@ -19,7 +32,7 @@ module tt_um_r2r_dac_digital (
   wire [1:0] w_mode;
   assign w_mode = uio_in[1:0];
   wire w_rst_n;
-  assign w_rst_n = rst_n;
+  assign w_rst_n = rst_n_sync_q2;
   wire w_slow;
   assign w_slow = uio_in[2];
   wire [7:0] w_ui_in;

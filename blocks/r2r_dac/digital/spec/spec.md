@@ -109,25 +109,25 @@ are driven 0.
 ## Architecture
 
 Single module r2r_dac_digital, one clock domain clk (20 ns). State: code_reg[7:0], cnt[7:0],
-presc[7:0], dac_code register. Next dac_code = mux(mode: 00 -> ui_in, 01 -> cnt, 10 -> sine(cnt),
-11 -> code_reg). Sine table is a combinational case statement. uo_out = dac_code (wire).
+presc[7:0], dac_code register, and registers that only shorten paths: presc_tc (presc == 8'hFF),
+cnt_p1 (cnt + 1), sine_val (the table's entry for cnt). Next dac_code = mux(mode: 00 -> ui_in,
+01 -> cnt, 10 -> sine_val, 11 -> code_reg). Sine table is a combinational case statement read at
+cnt_p1, loaded into sine_val when cnt steps; reset gives the entry for 0, so sine_val equals
+sine(cnt) on every cycle and the code seen at dac_code is unchanged. uo_out = dac_code (wire).
 TT standalone pins: ui_in -> ui_in, mode -> uio_in[1:0], slow -> uio_in[2], dac_code -> uio_out[7:0]
 (uio_oe driven by the wrapper), uo_out -> uo_out[7:0], rst_n -> rst_n (active-low, no inversion).
 
-## Timing at the slow corner (accepted shortfall)
+## Timing at the slow corner
 
-The block meets 50 MHz at tt and ff but not at ss / 125 C / 3.0 V. After
-the last allowed fix (rst_n registered inside the block), the worst setup
-slack there is -0.87 ns with max parasitics (-0.55 ns nominal, -0.29 ns
-min). Hold is met at every corner. At tt the setup slack is +7.4 ns and at
-ff +11.0 ns.
+The block meets 50 MHz at every corner. Worst setup slack at ss / 125 C /
+3.0 V is +2.82 ns with max parasitics (+3.04 ns nominal, +3.23 ns min); tt
+is +11.37 ns and ff +13.62 ns. Hold is met at every corner (+0.18 ns at ff).
+That margin comes from timing-driven placement and post-route setup repair
+(harden/config.override.json): without them the wrapper's two reset flops
+alone moved the sine table path to -0.64 ns, so the slack before them was
+placement luck.
 
-The worst path starts at `slow` (uio_in[2]) and ends at an internal flop.
-Tiny Tapeout constrains inputs to arrive 20% of the period after the clock,
-so that path needs a period of about 21.1 ns: the block meets roughly
-47 MHz at ss / 125 C. That figure comes from the reported path, not from
-a rerun of timing at 21.1 ns.
-
-The owner accepted this on 2026-10-13. At 50 MHz the front end should
-be correct at typical and fast silicon, and may miss setup on a hot,
-slow die at low supply. Clock it at 47 MHz or below if that case matters.
+Earlier forms missed at ss / 125 C, the last by 0.87 ns, and the owner
+accepted that on 2026-10-13. Registering sine_val took the table off both
+dac_code's setup path and the path from `slow`, so that acceptance no longer
+applies and no waiver is held.

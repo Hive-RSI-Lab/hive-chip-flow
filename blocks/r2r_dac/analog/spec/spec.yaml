@@ -200,7 +200,39 @@ post_layout_bounds:
   glitch_energy_down_skew_m200p: {max: 0.5e-9}
   glitch_peak_skew_max: {max: 0.2}
 
+# The crossing pins' timing limits for the macro_lib gate. dac_code[7:0] are
+# the eight xd* buf_20 inputs, inputs only: there is no output arc, and vout
+# leaves on ua[0], not a crossing pin.
+#   max_transition_ns: 3.0 at every STA corner (tt 25 C 3.3 V, ss 125 C 3.0 V,
+#   ff -40 C 3.6 V). It is the PDK LibreLane config's MAX_TRANSITION_CONSTRAINT
+#   for this library, the number the top is hardened to, and dac_tile's digital
+#   inputs use it too. Each pin loads the driving net with one buf_20 input:
+#   0.045 pF in the PDK liberty at those corners (the .lib this gate writes
+#   measures 0.031 pF, the schematic with no cell parasitics). That input's own
+#   liberty limit is 8.6 ns at tt, 15.6 at ss and 5.2 at ff, so 3.0 sits inside
+#   the tightest of them.
+#   static: the bits not under test are held low; the cap is one gate's, so the
+#   level does not matter, but the gate refuses a floating pin.
+#   pad_caps_pf: vout's assumed pad load above, 7 pF (5 pad + 2 routing). The
+#   bench has no series R_pad: it measures input caps, which vout does not move.
+macro_timing:
+  pins:
+    dac_code: {max_transition_ns: 3.0}
+  static:
+    "dac_code[0]": 0
+    "dac_code[1]": 0
+    "dac_code[2]": 0
+    "dac_code[3]": 0
+    "dac_code[4]": 0
+    "dac_code[5]": 0
+    "dac_code[6]": 0
+    "dac_code[7]": 0
+  pad_caps_pf: {vout: 7.0}
+  arcs: []
+
 # ngspice time limit per gate (engine 84ea5df, breakage 34). The pex bench
-# runs the 5.5k-line magic RC extraction and needs ~5.6 min, past pex_sim's
-# 120 s default. A run past this limit is still a failure.
-sim_timeout_s: {pex_sim: 600}
+# runs the 5.5k-line magic RC extraction. One run at tt_25c took 1119 s of CPU
+# and 23 min on the clock on a busy machine (load about 50), past the 600 s this
+# used to hold; 2400 s leaves room for a slower corner and machine. A run past
+# this limit is still a failure.
+sim_timeout_s: {pex_sim: 2400}

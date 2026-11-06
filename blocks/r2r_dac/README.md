@@ -23,12 +23,11 @@ It's an msde block of three workspaces, each with its own `state.json`:
 
 ## Decisions carried with it
 
-- Timing misses at ss/125 °C/3.0 V only: worst setup slack is −0.87 ns at
-  50 MHz (max parasitics), about 47 MHz is met there, and tt (+7.4 ns), ff
-  (+11.0 ns) and hold at every corner pass. After four fix attempts the
-  person accepted it (`digital/reports/waivers.json`, `digital/state.json`
-  decisions). The waiver is bound to the hardened design's hash, so it holds
-  only while the harden it was approved over does.
+- Timing meets 50 MHz at every corner: worst setup slack at ss/125 °C/3.0 V
+  is +2.82 ns. The person's earlier acceptance of a −0.87 ns miss there no
+  longer applies, so `digital/reports/waivers.json` is gone (it's in git
+  history). The sine table now loads a register instead of feeding `dac_code`
+  directly, with the same code at `dac_code` on every cycle.
 - Two mutate survivors (prescaler bit inversions) are equivalent mutants:
   the prescaler is internal and its relabelling is unobservable at any port.
   The kill rate still clears the gate's 0.9 (0.913 on the old box), so no
@@ -64,3 +63,14 @@ gates write them again.
 - Under the new `harden` hash, the person's own waiver has to be approved
   again once, against the same numbers (`inputs_sha256` d5e263c9…4f55);
   that's theirs, and until then release refuses as it should.
+- 2026-11-05: the table's read moved one step earlier and `sine_val` became a
+  register, which closes 50 MHz at every corner (ss/125C setup +2.82 ns), so
+  the waiver above no longer applies and the file is gone (see git history).
+  The re-approval the entry above asks for isn't needed.
+- 2026-11-05: `pex_sim` now runs its bench at every corner it picks, and its
+  time limit is 2400 s. At ss the 10-90 % time misses its 0.5 us bound:
+  511.5 ns rise and 509.5 ns fall at ss_m40c, 507 and 504.5 ns at ss_125c,
+  while settling stays inside 1.5 us (1.451 us worst). `sim_pvt` already warns
+  of the same miss on the schematic (506 ns). Moving the bound or the 27k unit
+  R is a spec change for the person, so analog release and top release refuse
+  until they decide; every other gate passes.

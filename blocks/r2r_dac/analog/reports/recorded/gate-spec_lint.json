@@ -3,7 +3,7 @@
  "gate": "spec_lint",
  "phase": "P1",
  "tool": "spec_lint_ade",
- "input_digest": "json_canonical:99047ed51c88b1767b136d48e2c3832967daa1e22eec34905494620acacea45d",
+ "input_digest": "json_canonical:e501d6a76274910fb82ae99aa3d7190e0a89bf501faa94d88f2163f26372dc1b",
  "status": "pass",
  "criteria": {
   "fail_severities": [
@@ -19,9 +19,30 @@
  "failing_count": 0,
  "failing": [],
  "violations": [],
- "inputs_at_start": {
-  "spec_yaml": "json_canonical:99047ed51c88b1767b136d48e2c3832967daa1e22eec34905494620acacea45d"
+ "facts": {
+  "mc_waived": [
+   {
+    "measure": "dnl_max_abs",
+    "why": "GF180's ngspice poly resistors carry no per-instance mismatch (mis_r=0), so Monte Carlo would sample only the driver cells' FETs; resistor matching is bounded by inl_sens_1pct_max instead (see mc above)"
+   },
+   {
+    "measure": "inl_max_abs",
+    "why": "GF180's ngspice poly resistors carry no per-instance mismatch (mis_r=0), so Monte Carlo would sample only the driver cells' FETs; resistor matching is bounded by inl_sens_1pct_max instead (see mc above)"
+   },
+   {
+    "measure": "v_zero_offset",
+    "why": "the code-0 output above ground, set by the pull-down drivers' Ron into the ladder at every corner - not a matched-pair offset"
+   },
+   {
+    "measure": "inl_sens_1pct_max",
+    "why": "GF180's ngspice poly resistors carry no per-instance mismatch (mis_r=0), so Monte Carlo would sample only the driver cells' FETs; resistor matching is bounded by inl_sens_1pct_max instead (see mc above)"
+   }
+  ]
  },
- "recorded_ts": "2026-10-13T06:11:08",
- "attempts": 9
+ "inputs_at_start": {
+  "spec_yaml": "json_canonical:e501d6a76274910fb82ae99aa3d7190e0a89bf501faa94d88f2163f26372dc1b"
+ },
+ "strength_at_start": 0,
+ "recorded_ts": "2026-11-05T16:14:57",
+ "attempts": 12
 }

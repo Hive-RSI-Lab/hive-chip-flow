@@ -25,8 +25,13 @@
   "report": "log/analog_drc.lyrdb",
   "decks_skipped": {
    "density": "metal and poly density is a whole-chip figure; a lone block has no fill around it",
-   "antenna": "the gate-to-metal ratio depends on the routing the chip puts on the block's pins",
-   "dummy": "the dummy-fill decks (DCF/DPF/DMF, e.g. DCF.1a: the space between COMP must be filled) check fill a lone block does not have yet; the chip's fill step adds it, for the same reason density is off"
+   "dummy": "the dummy-fill decks (DCF/DPF/DMF, e.g. DCF.1a: the space between COMP must be filled) check fill a lone block does not have yet; the chip's fill step adds it (msde's top_harden fills an analog macro, which the chip's fill skips), for the same reason density is off"
+  },
+  "antenna": {
+   "report": "log/analog_drc_antenna.lyrdb",
+   "pins_from": "netlist",
+   "internal": 0,
+   "pin_nets": 0
   },
   "bbox_um": {
    "x0": -2.04,
@@ -40,8 +45,12 @@
  },
  "inputs_at_start": {
   "layout": "dir_text:7a954c277f279e0a8b3d75e97ed6833bf445cf7e04f4ec0eefae35be290d869d",
-  "spec_yaml": "json_canonical:99047ed51c88b1767b136d48e2c3832967daa1e22eec34905494620acacea45d"
+  "spec_yaml": "json_canonical:e501d6a76274910fb82ae99aa3d7190e0a89bf501faa94d88f2163f26372dc1b",
+  "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+  "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
+  "pdk_klayout": "dir_text:876da90e8aab65b830b36eca12bd720adfe8240a0952872419d9f2b4abda605d"
  },
- "recorded_ts": "2026-10-13T06:13:09",
- "attempts": 8
+ "strength_at_start": 0,
+ "recorded_ts": "2026-11-05T16:35:56",
+ "attempts": 11
 }

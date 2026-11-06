@@ -54,11 +54,14 @@
  },
  "inputs_at_start": {
   "interface": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
-  "tb": "dir_text:6d268ee04c3897081fd652d35a7650f962dbe6629ba0d6155c28e2b335149a8d",
-  "digital_rtl": "dir_text:08d2e63a30253fb8dcb71be29ca5aa7209711132e317fcb0e4bc99f0e226a305",
+  "tb": "dir_text:61ebd816d194d1ee1f65bd3ea5b8c4e4e9537593f9cb58d45b7172d9a87ed6b0",
+  "digital_rtl": "dir_text:5b5e3748612f45afdfaedc1d7e6daa228ca0e64c09072bc4ac8b8b6275a6d995",
   "analog_netlist": "dir_text:13970a2f19f36bd8aa49baa3a94132821e16917455715ba77b23b074b4551548",
-  "analog_sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df"
+  "analog_sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
+  "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+  "pdk_models": "dir_text:84e0f27991c27acae27ec5243fd0d1587f7bfb2655e802ed0eb92a811cf5f7f8"
  },
- "recorded_ts": "2026-10-13T06:23:32",
- "attempts": 3
+ "strength_at_start": 0,
+ "recorded_ts": "2026-11-05T20:01:39",
+ "attempts": 10
 }

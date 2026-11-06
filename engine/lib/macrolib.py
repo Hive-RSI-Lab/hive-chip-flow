@@ -256,6 +256,18 @@ def level(value, vdd: float) -> float:
     return float(value)
 
 
+def stdcell_includes(netlist: Path, pdk, library: str = STA_LIBRARY) -> list:
+    """The PDK's standard-cell spice, when the macro's netlist instantiates a
+    cell of it: the model files don't define those subcircuits, and a repo
+    can't name a PDK path in `macro_timing.includes`."""
+    if library not in Path(netlist).read_text(encoding="utf-8", errors="replace"):
+        return []
+    spice = Path(pdk) / "libs.ref" / library / "spice" / f"{library}.spice"
+    if not spice.is_file():
+        raise Refused("bad_template", f"no standard-cell spice at {spice}")
+    return [spice]
+
+
 class Bench:
     """One deck per simulation. Ports are renamed by position, so a bus bit
     `code[3]` never reaches a source name or a .meas."""
@@ -632,7 +644,8 @@ def characterize(mt: MacroTiming, *, netlist: Path, netlist_kind: str, ports,
         head = charlib.corner_header(header_text, lib_name, vdd,
                                      corner["temp_c"], False)
         bench = Bench(mt.cell, netlist, ports, power, ground, pdk, corner, vdd,
-                      work_dir / f"{mt.cell}__{name}.work", terms, includes=includes,
+                      work_dir / f"{mt.cell}__{name}.work", terms,
+                      includes=[*includes, *stdcell_includes(netlist, pdk, library)],
                       pad_caps=mt.pad_caps)
         caps = {pin: measure_input_cap(bench, mt, pin) for pin in mt.inputs}
         arcs_out = {pin: [] for pin in mt.outputs}

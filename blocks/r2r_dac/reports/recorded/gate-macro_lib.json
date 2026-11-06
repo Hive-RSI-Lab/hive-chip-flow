@@ -1,0 +1,189 @@
+{
+ "script": "gate",
+ "gate": "macro_lib",
+ "phase": "P3",
+ "tool": "macro_lib",
+ "input_digest": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
+ "status": "pass",
+ "criteria": {
+  "fail_severities": [
+   "error"
+  ],
+  "max_count": 0
+ },
+ "counts": {
+  "total": 0,
+  "by_severity": {},
+  "by_source": {}
+ },
+ "failing_count": 0,
+ "failing": [],
+ "violations": [],
+ "facts": {
+  "declared": true,
+  "cell": "r2r_dac_analog",
+  "netlist_kind": "schematic",
+  "corners": {
+   "tt_025C_3v30": {
+    "lib": "r2r_dac_analog__tt_025C_3v30.lib",
+    "vdd": 3.3,
+    "input_cap_pf": {
+     "dac_code[0]": {
+      "capacitance": 0.031147878787878787,
+      "rise_capacitance": 0.031146060606060604,
+      "fall_capacitance": 0.031147878787878787
+     },
+     "dac_code[1]": {
+      "capacitance": 0.031147878787878787,
+      "rise_capacitance": 0.031146060606060604,
+      "fall_capacitance": 0.031147878787878787
+     },
+     "dac_code[2]": {
+      "capacitance": 0.031147878787878787,
+      "rise_capacitance": 0.031146060606060604,
+      "fall_capacitance": 0.031147878787878787
+     },
+     "dac_code[3]": {
+      "capacitance": 0.031147878787878787,
+      "rise_capacitance": 0.031146060606060604,
+      "fall_capacitance": 0.031147878787878787
+     },
+     "dac_code[4]": {
+      "capacitance": 0.031147878787878787,
+      "rise_capacitance": 0.031146060606060604,
+      "fall_capacitance": 0.031147878787878787
+     },
+     "dac_code[5]": {
+      "capacitance": 0.031147878787878787,
+      "rise_capacitance": 0.031146060606060604,
+      "fall_capacitance": 0.031147878787878787
+     },
+     "dac_code[6]": {
+      "capacitance": 0.031147878787878787,
+      "rise_capacitance": 0.031146060606060604,
+      "fall_capacitance": 0.031147878787878787
+     },
+     "dac_code[7]": {
+      "capacitance": 0.031147878787878787,
+      "rise_capacitance": 0.031146060606060604,
+      "fall_capacitance": 0.031147878787878787
+     }
+    }
+   },
+   "ss_125C_3v00": {
+    "lib": "r2r_dac_analog__ss_125C_3v00.lib",
+    "vdd": 3.0,
+    "input_cap_pf": {
+     "dac_code[0]": {
+      "capacitance": 0.031079000000000002,
+      "rise_capacitance": 0.0310772,
+      "fall_capacitance": 0.031079000000000002
+     },
+     "dac_code[1]": {
+      "capacitance": 0.03107903333333333,
+      "rise_capacitance": 0.0310772,
+      "fall_capacitance": 0.03107903333333333
+     },
+     "dac_code[2]": {
+      "capacitance": 0.03107903333333333,
+      "rise_capacitance": 0.0310772,
+      "fall_capacitance": 0.03107903333333333
+     },
+     "dac_code[3]": {
+      "capacitance": 0.03107903333333333,
+      "rise_capacitance": 0.0310772,
+      "fall_capacitance": 0.03107903333333333
+     },
+     "dac_code[4]": {
+      "capacitance": 0.03107903333333333,
+      "rise_capacitance": 0.0310772,
+      "fall_capacitance": 0.03107903333333333
+     },
+     "dac_code[5]": {
+      "capacitance": 0.03107903333333333,
+      "rise_capacitance": 0.0310772,
+      "fall_capacitance": 0.03107903333333333
+     },
+     "dac_code[6]": {
+      "capacitance": 0.031079099999999995,
+      "rise_capacitance": 0.031077233333333332,
+      "fall_capacitance": 0.031079099999999995
+     },
+     "dac_code[7]": {
+      "capacitance": 0.031079099999999995,
+      "rise_capacitance": 0.031077266666666666,
+      "fall_capacitance": 0.031079099999999995
+     }
+    }
+   },
+   "ff_n40C_3v60": {
+    "lib": "r2r_dac_analog__ff_n40C_3v60.lib",
+    "vdd": 3.6,
+    "input_cap_pf": {
+     "dac_code[0]": {
+      "capacitance": 0.031899166666666666,
+      "rise_capacitance": 0.03189805555555555,
+      "fall_capacitance": 0.031899166666666666
+     },
+     "dac_code[1]": {
+      "capacitance": 0.031899166666666666,
+      "rise_capacitance": 0.03189805555555555,
+      "fall_capacitance": 0.031899166666666666
+     },
+     "dac_code[2]": {
+      "capacitance": 0.031899166666666666,
+      "rise_capacitance": 0.03189805555555555,
+      "fall_capacitance": 0.031899166666666666
+     },
+     "dac_code[3]": {
+      "capacitance": 0.031899166666666666,
+      "rise_capacitance": 0.03189805555555555,
+      "fall_capacitance": 0.031899166666666666
+     },
+     "dac_code[4]": {
+      "capacitance": 0.031899166666666666,
+      "rise_capacitance": 0.03189805555555555,
+      "fall_capacitance": 0.031899166666666666
+     },
+     "dac_code[5]": {
+      "capacitance": 0.031899166666666666,
+      "rise_capacitance": 0.03189805555555555,
+      "fall_capacitance": 0.031899166666666666
+     },
+     "dac_code[6]": {
+      "capacitance": 0.031899166666666666,
+      "rise_capacitance": 0.03189805555555555,
+      "fall_capacitance": 0.031899166666666666
+     },
+     "dac_code[7]": {
+      "capacitance": 0.031899166666666666,
+      "rise_capacitance": 0.03189805555555555,
+      "fall_capacitance": 0.031899166666666666
+     }
+    }
+   }
+  },
+  "slews_ns": [
+   0.1,
+   0.5
+  ],
+  "loads_pf": [
+   0.005,
+   0.02236,
+   0.1
+  ],
+  "clocks": {}
+ },
+ "inputs_at_start": {
+  "interface": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
+  "analog_netlist": "dir_text:13970a2f19f36bd8aa49baa3a94132821e16917455715ba77b23b074b4551548",
+  "analog_sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
+  "analog_spec": "json_canonical:e501d6a76274910fb82ae99aa3d7190e0a89bf501faa94d88f2163f26372dc1b",
+  "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+  "pdk_models": "dir_text:84e0f27991c27acae27ec5243fd0d1587f7bfb2655e802ed0eb92a811cf5f7f8",
+  "pdk_liberty": "dir_bytes:f09377f057ab484ec9e5a45b205c99a5de399e2bdca886531bf9eefa57783f32"
+ },
+ "strength_at_start": 1,
+ "recorded_ts": "2026-11-05T19:57:06",
+ "attempts": 8
+}

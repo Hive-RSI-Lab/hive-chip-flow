@@ -1,0 +1,157 @@
+{
+ "cell": "r2r_dac_analog",
+ "netlist": "r2r_dac_analog.schematic.sp",
+ "includes_sha256": {},
+ "schematic_sha256": "9a97dbe0ae6878436689649b4e30e1d353bc215516f804653b9956b575457731",
+ "netlist_kind": "schematic",
+ "slews_ns": [
+  0.1,
+  0.5
+ ],
+ "loads_pf": [
+  0.005,
+  0.02236,
+  0.1
+ ],
+ "corners": {
+  "tt_025C_3v30": {
+   "lib": "r2r_dac_analog__tt_025C_3v30.lib",
+   "vdd": 3.3,
+   "input_cap_pf": {
+    "dac_code[0]": {
+     "capacitance": 0.031147878787878787,
+     "rise_capacitance": 0.031146060606060604,
+     "fall_capacitance": 0.031147878787878787
+    },
+    "dac_code[1]": {
+     "capacitance": 0.031147878787878787,
+     "rise_capacitance": 0.031146060606060604,
+     "fall_capacitance": 0.031147878787878787
+    },
+    "dac_code[2]": {
+     "capacitance": 0.031147878787878787,
+     "rise_capacitance": 0.031146060606060604,
+     "fall_capacitance": 0.031147878787878787
+    },
+    "dac_code[3]": {
+     "capacitance": 0.031147878787878787,
+     "rise_capacitance": 0.031146060606060604,
+     "fall_capacitance": 0.031147878787878787
+    },
+    "dac_code[4]": {
+     "capacitance": 0.031147878787878787,
+     "rise_capacitance": 0.031146060606060604,
+     "fall_capacitance": 0.031147878787878787
+    },
+    "dac_code[5]": {
+     "capacitance": 0.031147878787878787,
+     "rise_capacitance": 0.031146060606060604,
+     "fall_capacitance": 0.031147878787878787
+    },
+    "dac_code[6]": {
+     "capacitance": 0.031147878787878787,
+     "rise_capacitance": 0.031146060606060604,
+     "fall_capacitance": 0.031147878787878787
+    },
+    "dac_code[7]": {
+     "capacitance": 0.031147878787878787,
+     "rise_capacitance": 0.031146060606060604,
+     "fall_capacitance": 0.031147878787878787
+    }
+   }
+  },
+  "ss_125C_3v00": {
+   "lib": "r2r_dac_analog__ss_125C_3v00.lib",
+   "vdd": 3.0,
+   "input_cap_pf": {
+    "dac_code[0]": {
+     "capacitance": 0.031079000000000002,
+     "rise_capacitance": 0.0310772,
+     "fall_capacitance": 0.031079000000000002
+    },
+    "dac_code[1]": {
+     "capacitance": 0.03107903333333333,
+     "rise_capacitance": 0.0310772,
+     "fall_capacitance": 0.03107903333333333
+    },
+    "dac_code[2]": {
+     "capacitance": 0.03107903333333333,
+     "rise_capacitance": 0.0310772,
+     "fall_capacitance": 0.03107903333333333
+    },
+    "dac_code[3]": {
+     "capacitance": 0.03107903333333333,
+     "rise_capacitance": 0.0310772,
+     "fall_capacitance": 0.03107903333333333
+    },
+    "dac_code[4]": {
+     "capacitance": 0.03107903333333333,
+     "rise_capacitance": 0.0310772,
+     "fall_capacitance": 0.03107903333333333
+    },
+    "dac_code[5]": {
+     "capacitance": 0.03107903333333333,
+     "rise_capacitance": 0.0310772,
+     "fall_capacitance": 0.03107903333333333
+    },
+    "dac_code[6]": {
+     "capacitance": 0.031079099999999995,
+     "rise_capacitance": 0.031077233333333332,
+     "fall_capacitance": 0.031079099999999995
+    },
+    "dac_code[7]": {
+     "capacitance": 0.031079099999999995,
+     "rise_capacitance": 0.031077266666666666,
+     "fall_capacitance": 0.031079099999999995
+    }
+   }
+  },
+  "ff_n40C_3v60": {
+   "lib": "r2r_dac_analog__ff_n40C_3v60.lib",
+   "vdd": 3.6,
+   "input_cap_pf": {
+    "dac_code[0]": {
+     "capacitance": 0.031899166666666666,
+     "rise_capacitance": 0.03189805555555555,
+     "fall_capacitance": 0.031899166666666666
+    },
+    "dac_code[1]": {
+     "capacitance": 0.031899166666666666,
+     "rise_capacitance": 0.03189805555555555,
+     "fall_capacitance": 0.031899166666666666
+    },
+    "dac_code[2]": {
+     "capacitance": 0.031899166666666666,
+     "rise_capacitance": 0.03189805555555555,
+     "fall_capacitance": 0.031899166666666666
+    },
+    "dac_code[3]": {
+     "capacitance": 0.031899166666666666,
+     "rise_capacitance": 0.03189805555555555,
+     "fall_capacitance": 0.031899166666666666
+    },
+    "dac_code[4]": {
+     "capacitance": 0.031899166666666666,
+     "rise_capacitance": 0.03189805555555555,
+     "fall_capacitance": 0.031899166666666666
+    },
+    "dac_code[5]": {
+     "capacitance": 0.031899166666666666,
+     "rise_capacitance": 0.03189805555555555,
+     "fall_capacitance": 0.031899166666666666
+    },
+    "dac_code[6]": {
+     "capacitance": 0.031899166666666666,
+     "rise_capacitance": 0.03189805555555555,
+     "fall_capacitance": 0.031899166666666666
+    },
+    "dac_code[7]": {
+     "capacitance": 0.031899166666666666,
+     "rise_capacitance": 0.03189805555555555,
+     "fall_capacitance": 0.031899166666666666
+    }
+   }
+  }
+ },
+ "warnings": []
+}

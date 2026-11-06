@@ -78,6 +78,17 @@
       "spice": [
         "dir::../macros/r2r_dac_analog.spice"
       ],
+      "lib": {
+        "*_tt_025C_3v30": [
+          "dir::../macros/r2r_dac_analog__tt_025C_3v30.lib"
+        ],
+        "*_ss_125C_3v00": [
+          "dir::../macros/r2r_dac_analog__ss_125C_3v00.lib"
+        ],
+        "*_ff_n40C_3v60": [
+          "dir::../macros/r2r_dac_analog__ff_n40C_3v60.lib"
+        ]
+      },
       "instances": {
         "u_analog": {
           "location": [
@@ -93,9 +104,14 @@
     "u_analog VPWR VGND vdd vss"
   ],
   "PDN_CFG": "dir::macro_pdn.tcl",
+  "PDN_HORIZONTAL_HALO": 10.0,
+  "PDN_VERTICAL_HALO": 10.0,
   "MAGIC_EXT_USE_GDS": true,
   "EXTRA_SPICE_MODELS": [
     "dir::../macros/r2r_dac_analog.spice"
   ],
-  "RSZ_DONT_TOUCH_RX": "^ua\\[\\d+\\]$"
+  "RSZ_DONT_TOUCH_RX": "^ua\\[\\d+\\]$",
+  "GRT_DESIGN_REPAIR_MAX_SLEW_PCT": 20,
+  "PL_TIMING_DRIVEN": true,
+  "RUN_POST_GRT_RESIZER_TIMING": true
 }

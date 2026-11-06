@@ -3,7 +3,7 @@
  "gate": "release",
  "phase": "P8",
  "tool": "release",
- "input_digest": "dir_text:08d2e63a30253fb8dcb71be29ca5aa7209711132e317fcb0e4bc99f0e226a305",
+ "input_digest": "dir_text:5b5e3748612f45afdfaedc1d7e6daa228ca0e64c09072bc4ac8b8b6275a6d995",
  "status": "pass",
  "criteria": {
   "fail_severities": [
@@ -21,16 +21,68 @@
  "violations": [],
  "facts": {
   "attestation": "reports/checks.json",
-  "attestation_sha256": "1ddef500575b5c0a40ae34767ddfd990b4c02367317851f7e9433260ac4ae500",
-  "disposition": "blocked",
-  "waived": [
-   "timing"
-  ]
+  "attestation_sha256": "74a1a48af3ce064eab6e2daf1d5e6a723a422174db2aaaa47957376ac3f55fb8",
+  "disposition": "gates-green",
+  "waived": [],
+  "tt_submission": {
+   "repo": "release/tt",
+   "staged": [
+    "gds/tt_um_r2r_dac_digital.gds",
+    "gl/tt_um_r2r_dac_digital.v",
+    "info.yaml",
+    "lef/tt_um_r2r_dac_digital.lef",
+    "src/config.json",
+    "src/r2r_dac_digital.v",
+    "src/tt_block_1x1_pgvdd.def",
+    "src/tt_um_r2r_dac_digital.v",
+    "test/Makefile",
+    "test/dac_model.py",
+    "test/glsim_harness.v",
+    "test/requirements.txt",
+    "test/test_r2r_dac_digital.py"
+   ],
+   "signoff": {
+    "top_module": "tt_um_r2r_dac_digital",
+    "librelane": "3.1.0.dev3",
+    "pdk": "gf180mcuD",
+    "open_pdks": "1689ac3f2dc763876eaf967227c7dfe831b031ae",
+    "librelane_pdk": "f6eeac7dad085ffcc829ccfd721f7b4ce39edcf7",
+    "tt_support_tools": "01d5d2814fa9dd61e9d211e0b235a4a592a9316a",
+    "gds": "harden/runs/run/final/gds/tt_um_r2r_dac_digital.gds",
+    "gds_sha256": "4616dc6e40df01a5078e452a69abb9e466d286522af5d683dbd01fdbcdde4292",
+    "lef": "harden/runs/run/final/lef/tt_um_r2r_dac_digital.lef",
+    "lef_sha256": "6182f566d93304f88698ec2c46832da1d2fbd8e3c2350cf541950bee17ba3a03",
+    "gl": "harden/runs/run/final/pnl/tt_um_r2r_dac_digital.pnl.v",
+    "gl_sha256": "0d9c2b9302933aabfd6e4ac05f1ae7a2ee39bb8ee09e6e94c26b0e7ecbe6a4c5",
+    "gl_is_shipped": true,
+    "glsim_gl_sha256": "0d9c2b9302933aabfd6e4ac05f1ae7a2ee39bb8ee09e6e94c26b0e7ecbe6a4c5"
+   },
+   "shipped": [
+    {
+     "workflow": ".github/workflows/gds.yaml",
+     "mode": "custom_gds",
+     "ref": "ttgf26c",
+     "top_module": "tt_um_r2r_dac_digital",
+     "pdk": "gf180mcuD",
+     "gds_path": "gds/tt_um_r2r_dac_digital.gds",
+     "gds_sha256": "4616dc6e40df01a5078e452a69abb9e466d286522af5d683dbd01fdbcdde4292",
+     "lef_path": "lef/tt_um_r2r_dac_digital.lef",
+     "lef_sha256": "6182f566d93304f88698ec2c46832da1d2fbd8e3c2350cf541950bee17ba3a03",
+     "verilog_path": "gl/tt_um_r2r_dac_digital.v",
+     "verilog_sha256": "0d9c2b9302933aabfd6e4ac05f1ae7a2ee39bb8ee09e6e94c26b0e7ecbe6a4c5",
+     "glsim_sha256": "0d9c2b9302933aabfd6e4ac05f1ae7a2ee39bb8ee09e6e94c26b0e7ecbe6a4c5"
+    }
+   ]
+  },
+  "manifest": "release/manifest.json",
+  "manifest_released": true
  },
  "inputs_at_start": {
-  "rtl": "dir_text:08d2e63a30253fb8dcb71be29ca5aa7209711132e317fcb0e4bc99f0e226a305",
-  "harden": "dir_text:5e0fc600709e3cc97c7324a97c0c78553ef21db49b5a2f1a7ca5465fd7d2b2f2"
+  "rtl": "dir_text:5b5e3748612f45afdfaedc1d7e6daa228ca0e64c09072bc4ac8b8b6275a6d995",
+  "harden": "harden_signoff:857853e12358b7137b1d3595ab578ac6079a9d2e0161f7469c877da78139ad68",
+  "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2"
  },
- "recorded_ts": "2026-10-13T04:21:56",
- "attempts": 1
+ "strength_at_start": 0,
+ "recorded_ts": "2026-11-05T19:51:51",
+ "attempts": 7
 }
