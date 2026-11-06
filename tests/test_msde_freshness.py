@@ -3,9 +3,9 @@
 #113: every msde gate hashes every file it reads. A planted edit to one input
 (a tt_pins entry in the digital spec.yaml, a W in analog/sizing/sizing.yaml,
 a width in the root digital_spec.yaml, ...) stales exactly the gates that read
-it and leaves the others fresh. The expected sets are written out here from
-what each check script opens, not read back from invalidation.yaml, so a row
-that drops an input fails this test.
+it and the gates after those (#147), and leaves the others fresh. The expected
+sets are written out here from what each check script opens, not read back
+from invalidation.yaml, so a row that drops an input fails this test.
 
 #138: gate records pin the PDK. A changed open_pdks commit, model file or
 liberty stales the gates that read it through PDK_ROOT and no other; a record
@@ -127,7 +127,12 @@ def _set(doc, keys, value):
     doc[keys[-1]] = value
 
 
-# (what is edited, the edit, the gates that read it - from the scripts)
+# the gates that read what top_harden writes (gate_writes, #147): an edit
+# that stales top_harden stales them too, before it has rewritten top/
+AFTER_TOP_HARDEN = {"top_drc", "top_lvs", "precheck"}
+
+# (what is edited, the edit, the gates that read it - from the scripts, plus
+# the gates after a stale one)
 PLANTED = {
     # check_top_harden.assemble copies tt_pins (minus interface signals)
     # into top/spec; release attests the nested spec; cosim builds the
@@ -135,13 +140,13 @@ PLANTED = {
     "tt_pins entry in digital/spec/spec.yaml": (
         lambda ws: _edit_yaml(ws / "digital" / "spec" / "spec.yaml",
                               lambda d: _set(d, ["tt_pins", "en"], "ui_in[1]")),
-        {"cosim", "top_harden", "release"}),
-    # the sized .subckt: cosim's bench, top_harden's macro, top_lvs's
-    # schematic side
+        {"cosim", "top_harden", "release"} | AFTER_TOP_HARDEN),
+    # the sized .subckt: cosim's bench and top_harden's macro, which
+    # top_lvs reads back from top/macros
     "W in analog/sizing/sizing.yaml": (
         lambda ws: _edit_yaml(ws / "analog" / "sizing" / "sizing.yaml",
                               lambda d: _set(d, ["w1", "value"], "4u")),
-        {"cosim", "top_harden", "top_lvs", "release"}),
+        {"cosim", "top_harden", "release"} | AFTER_TOP_HARDEN),
     # check_split.SIDE_SPECS
     "width in digital_spec.yaml": (
         lambda ws: _edit_yaml(ws / "digital_spec.yaml",
@@ -156,11 +161,17 @@ PLANTED = {
     "top in analog/spec/spec.yaml": (
         lambda ws: _edit_yaml(ws / "analog" / "spec" / "spec.yaml",
                               lambda d: _set(d, ["top"], "blk_ana")),
-        {"cosim", "top_harden"}),
+        {"cosim", "top_harden"} | AFTER_TOP_HARDEN),
     "analog netlist": (
         lambda ws: (lambda: _w(ws / "analog" / "netlist" / "blk_analog.cir",
                                ".subckt blk_analog ctrl vout\n.ends\n")),
-        {"cosim", "top_harden", "top_lvs", "release"}),
+        {"cosim", "top_harden", "release"} | AFTER_TOP_HARDEN),
+    # #147: the layout generator is read by top_harden alone; top_drc and
+    # top_lvs follow it, with no analog/layout row of their own
+    "analog/layout generator": (
+        lambda ws: (lambda: _w(ws / "analog" / "layout" / "gen_blk_analog.py",
+                               "def build(): return 1\n")),
+        {"top_harden", "release"} | AFTER_TOP_HARDEN),
     "top/macros .subckt": (
         lambda ws: (lambda: _w(ws / "top" / "macros" / "blk_analog.spice",
                                ".subckt blk_analog x\n.ends\n")),
@@ -237,7 +248,7 @@ def test_a_liberty_byte_stales_synth_timing_harden_not_lint(tmp_path, pdk):
                              "drc"))
     lib = next((pdk / "libs.ref").rglob("*.lib"))
     stale = stale_after(ws, lambda: lib.write_text("library (tt) { x }\n"))
-    assert stale == {"synth", "harden", "timing"}
+    assert stale == {"synth", "harden", "timing", "drc"}    # drc after harden
 
 
 def test_a_record_made_before_an_input_joined_its_row_reads_stale(

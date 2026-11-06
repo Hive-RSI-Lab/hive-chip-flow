@@ -10,7 +10,7 @@
 # engine/scripts/state.py (record-gate input capture, `edit` application,
 # `freshness` reports).
 #
-# Two-layer staleness semantics (statelib.freshness_report):
+# Three-layer staleness semantics (statelib.freshness_report):
 #   1. HASH layer - record-gate stores a normalized content hash of every
 #      input artifact; a gate is hash-valid iff every recorded input hash
 #      matches the artifact's current hash. This catches ANY edit, declared
@@ -20,8 +20,13 @@
 #      gates/artifacts with an explicit stale mark. This catches DERIVED
 #      artifacts whose files have not changed yet (a GDS after an RTL edit)
 #      and gates whose inputs an edit will change only after regeneration.
+#   3. UPSTREAM layer (#147) - gate_writes says which gate writes which
+#      kind, so which gates come after which. A gate after a gate that is
+#      not fresh, or after one that re-ran since this gate was recorded,
+#      is stale too, before the upstream has rewritten anything it reads.
 #   A gate is FRESH iff it has recorded input hashes, they all match, it
-#   carries no stale mark, and its recorded strength is not below the gate's
+#   carries no stale mark, every recorded gate upstream of it is fresh and
+#   ran no later than it, and its recorded strength is not below the gate's
 #   `strength` in gates.yaml (a stricter gate stales the weaker gate's passes;
 #   the gate's own code is not an input). Marks clear when the gate re-runs (record-gate) or
 #   the artifact is re-registered (artifact/rehash).
@@ -288,16 +293,32 @@ gate_inputs:
                  pdk_netgen]
     top_drc:  [top_gds, top_spec, pdk_version, pdk_magic, pdk_klayout]
     # top_lvs: the GDS, the powered netlist and the macro .subckt in
-    # top/macros; that .subckt derives from analog netlist + sizing, so
-    # those are inputs too - a sizing edit after top_harden stales top_lvs
-    # before top_harden has rewritten top/macros.
-    top_lvs:  [top_gds, analog_layout, top_spec, top_macros, top_pnl,
-               analog_netlist, analog_sizing, pdk_version, pdk_magic,
-               pdk_netgen]
+    # top/macros, all written by top_harden. The analog layout, netlist and
+    # sizing that .subckt derives from are not listed by hand (#147): an
+    # edit to them stales top_harden, and top_lvs follows it through
+    # gate_writes below.
+    top_lvs:  [top_gds, top_spec, top_macros, top_pnl, pdk_version,
+               pdk_magic, pdk_netgen]
     precheck: [top_gds, interface, pdk_version, pdk_magic, pdk_klayout]
     release:  [interface, digital_rtl, analog_layout, digital_spec,
                analog_netlist, analog_sizing, digital_side_spec,
                analog_side_spec, pdk_version]
+
+# What each gate writes that another gate reads, per skill (#147). It is
+# where the order of gates comes from: gate G is downstream of gate U when U
+# writes a kind G reads. A gate whose own hashes match still reads stale when
+# an upstream gate is not fresh, or re-ran after G was recorded (its `last.ts`
+# is later than G's). Without it an undeclared rtl/ edit stales harden while
+# timing, drc and lvs read fresh until harden rewrites harden/. A gate that
+# writes one of its own inputs (harden regenerates harden/config.json) is not
+# its own upstream. A skill with no entry has no gate-to-gate order: the ade
+# layout is the designer's generator, not a gate's output.
+gate_writes:
+  vde:
+    harden:     [harden, harden_config]
+  msde:
+    macro_lib:  [macro_lib]
+    top_harden: [top_gds, top_spec, top_macros, top_pnl]
 
 # Edit-class taxonomy -> what an edit of that class makes stale (docs/
 # design.md 1.6, one block per skill).

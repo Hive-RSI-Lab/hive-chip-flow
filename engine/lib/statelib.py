@@ -90,6 +90,23 @@ def load_map(path: Path | str | None = None) -> dict:
             if unknown:
                 raise ValueError(f"{p}: {skill}.gate_inputs[{gate!r}] names "
                                  f"unknown artifact kinds {unknown}")
+    writes = data.get("gate_writes") or {}
+    if not isinstance(writes, dict):
+        raise ValueError(f"{p}: gate_writes is not a mapping")
+    unknown_skills = set(writes) - set(SKILLS)
+    if unknown_skills:
+        raise ValueError(f"{p}: gate_writes names unknown skills "
+                         f"{sorted(unknown_skills)}")
+    for skill, rows in writes.items():
+        for gate, kinds in (rows or {}).items():
+            if gate not in data["gate_inputs"].get(skill, {}):
+                raise ValueError(f"{p}: {skill}.gate_writes names unknown "
+                                 f"gate {gate!r}")
+            unknown = [k for k in kinds if k not in data["artifact_kinds"]]
+            if unknown:
+                raise ValueError(f"{p}: {skill}.gate_writes[{gate!r}] names "
+                                 f"unknown artifact kinds {unknown}")
+        _check_gate_order(p, skill, data)
     for skill in data["edit_classes"]:
         gate_inputs = data["gate_inputs"].get(skill, {})
         for cls, ec in data["edit_classes"][skill].items():
@@ -107,6 +124,28 @@ def load_map(path: Path | str | None = None) -> dict:
                                  f"{unknown}")
     _MAP_CACHE[key] = data
     return data
+
+
+def _check_gate_order(p: Path, skill: str, data: dict) -> None:
+    """Raise when gate_writes puts a skill's gates in a cycle: then no gate
+    could ever read fresh after the other, and the order is not clean."""
+    order = {g: upstream_gates(skill, g, data)
+             for g in data["gate_inputs"].get(skill, {})}
+    state: dict[str, int] = {}
+
+    def visit(g: str, path: list[str]) -> None:
+        if state.get(g) == 2:
+            return
+        if state.get(g) == 1:
+            raise ValueError(f"{p}: {skill}.gate_writes puts gates in a "
+                             f"cycle: {' -> '.join(path + [g])}")
+        state[g] = 1
+        for u in order.get(g, []):
+            visit(u, path + [g])
+        state[g] = 2
+
+    for g in order:
+        visit(g, [])
 
 
 # ---------------------------------------------------------------------------
@@ -687,6 +726,51 @@ def gate_freshness(gate_entry: dict, current: dict[str, str | None],
     return verdict
 
 
+def upstream_gates(skill: str, gate: str, imap: dict) -> list[str]:
+    """The gates that write a kind this gate reads (gate_writes, #147),
+    itself left out: the gates it comes after."""
+    reads = set((imap["gate_inputs"].get(skill) or {}).get(gate) or [])
+    writes = (imap.get("gate_writes") or {}).get(skill) or {}
+    return sorted(u for u, kinds in writes.items()
+                  if u != gate and reads & set(kinds or []))
+
+
+def _propagate_upstream(gates_out: dict, data: dict, skill: str,
+                        imap: dict) -> None:
+    """Stale every recorded gate that comes after a recorded gate that is
+    not fresh, or after one whose last run is later than its own (#147).
+    A gate never recorded upstream has not re-run since, so it stales
+    nothing; a gate with no recorded inputs stays `unknown`. Each stale
+    gate gets `upstream_stale`: one reason per upstream gate."""
+    recorded = data.get("gates") or {}
+    done: dict[str, bool] = {}
+
+    def ts(g: str) -> str:
+        return str(((recorded.get(g) or {}).get("last") or {}).get("ts") or "")
+
+    def fresh(g: str, seen: frozenset) -> bool:
+        if g in done:
+            return done[g]
+        v = gates_out[g]
+        reasons = []
+        for u in upstream_gates(skill, g, imap):
+            if u not in gates_out or u in seen:
+                continue
+            if not fresh(u, seen | {g}):
+                reasons.append(f"upstream gate {u} is not fresh")
+            elif ts(u) > ts(g):
+                reasons.append(f"upstream gate {u} re-ran at {ts(u)}, after "
+                               f"this result was recorded at {ts(g)}")
+        if reasons and v["hash_valid"] is not None:
+            v["upstream_stale"] = reasons
+            v["fresh"] = False
+        done[g] = bool(v["fresh"])
+        return done[g]
+
+    for g in gates_out:
+        fresh(g, frozenset())
+
+
 def freshness_report(data: dict, ws: Path,
                      imap: dict | None = None) -> dict:
     """Full freshness view of a state.json v3 payload.
@@ -694,7 +778,8 @@ def freshness_report(data: dict, ws: Path,
     artifacts: every registered entry + every standard kind mapped for a
     recorded gate - {path, kind, exists, registered, current, changed,
     marks}. gates: per recorded gate the gate_freshness verdict + recorded/
-    current hashes. summary.human_hold_pending = max human_hold over all
+    current hashes, and `upstream_stale` on a gate that is stale because a
+    gate before it is (#147). summary.human_hold_pending = max human_hold over all
     outstanding marks (0 when everything is clean).
     """
     imap = imap or load_map()
@@ -712,6 +797,8 @@ def freshness_report(data: dict, ws: Path,
             "current_inputs": current,
             **verdict,
         }
+
+    _propagate_upstream(gates_out, data, skill, imap)
 
     # artifacts: registered entries first, then any standard kind a recorded
     # gate reads that is not registered (visibility without registration)
