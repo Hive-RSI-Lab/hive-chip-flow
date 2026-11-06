@@ -21,10 +21,11 @@ def _cache(tmp_path, monkeypatch):
     monkeypatch.setenv("CHIP_FLOW_CACHE", str(tmp_path / "cache"))
 
 
-def _block(tmp_path: Path, gates: dict, steps: dict | None) -> score.Block:
+def _block(tmp_path: Path, gates: dict, steps: dict | None, skill: str = "x") -> score.Block:
+    """Skill `x` registers no gate in gates.yaml: its steps are what it records."""
     d = tmp_path / "b"
     d.mkdir()
-    (d / "state.json").write_text(json.dumps({"skill": "vde", "block": "b", "gates": gates}))
+    (d / "state.json").write_text(json.dumps({"skill": skill, "block": "b", "gates": gates}))
     if steps is not None:
         (d / score.RECORD).write_text(json.dumps({"ran": "t", "toolchain": "x", "steps": steps}))
     return score.read_blocks(tmp_path)[0]
@@ -77,11 +78,72 @@ def test_the_cache_wins_over_the_seed(tmp_path, monkeypatch):
 
 
 def test_a_waived_gate_is_a_step_in_pipeline_order(tmp_path):
-    b = _block(tmp_path, {"release": {}, "lint": {}}, None)
+    b = _block(tmp_path, {"release": {}, "lint": {}}, None, skill="vde")
     (b.path / "reports").mkdir()
     (b.path / "reports" / "waivers.json").write_text(json.dumps([{"gate": "timing"}]))
-    steps = [(w.tag, g, waived) for w, g, waived in score.plan(b)]
-    assert steps == [("top", "lint", False), ("top", "timing", True), ("top", "release", False)]
+    steps = [(g, waived) for _, g, waived in score.plan(b)]
+    gates = [g for g, _ in steps]
+    assert gates.index("lint") < gates.index("timing") < gates.index("release")
+    assert [g for g, waived in steps if waived] == ["timing"]
+
+
+def _rows(skill: str) -> list[str]:
+    return [g for g, _, _ in score.gate_rows(ROOT / "engine" / "reference" / "gates.yaml")[skill]]
+
+
+def test_a_gate_with_no_record_is_owed_not_skipped(tmp_path, monkeypatch):
+    _now(monkeypatch)
+    b = _block(tmp_path, {"lint": {"status": "pass"}}, {"top/lint": "pass"}, skill="vde")
+    (b.path / score.RECORD).write_text(json.dumps(
+        {"steps": {"top/lint": "pass"}, "step_sources": {"top/lint": "h-top/lint"}}))
+    assert [g for _, g, _ in score.plan(b)] == _rows("vde")
+    assert score.owed(b) == {f"top/{g}" for g in _rows("vde")} - {"top/lint"}
+    got = score.outcomes(b)
+    assert got.pop("top/lint") == "pass" and set(got.values()) == {None}
+    share, line = score.block_share(b, {})
+    assert share == 1 / len(_rows("vde"))
+    assert "top/lec (owed: no record)" in line
+
+
+def test_an_owed_gate_a_run_covers_counts(tmp_path, monkeypatch):
+    _now(monkeypatch)
+    b = _block(tmp_path, {}, None, skill="ade")
+    for g in _rows("ade"):
+        score.cache_put("b", f"top/{g}", f"h-top/{g}", "pass", 1, "tree")
+    assert score.block_share(b, {})[0] == 1
+
+
+def test_a_gate_the_spec_declares_not_applicable_is_not_owed(tmp_path, monkeypatch):
+    monkeypatch.setattr(score, "not_applicable", lambda ws, skill, g: g == "mc")
+    b = _block(tmp_path, {}, None, skill="ade")
+    assert [g for _, g, _ in score.plan(b)] == [g for g in _rows("ade") if g != "mc"]
+
+
+def test_a_recorded_or_waived_gate_stays_a_step_even_if_not_applicable(tmp_path, monkeypatch):
+    monkeypatch.setattr(score, "not_applicable", lambda ws, skill, g: True)
+    b = _block(tmp_path, {"mc": {"status": "fail"}}, None, skill="ade")
+    (b.path / "reports").mkdir()
+    (b.path / "reports" / "waivers.json").write_text(json.dumps([{"gate": "drc"}]))
+    assert [(g, waived) for _, g, waived in score.plan(b)] == [("mc", False), ("drc", True)]
+
+
+def test_a_spec_that_cant_be_read_leaves_the_gate_owed(tmp_path):
+    b = _block(tmp_path, {}, None, skill="ade")   # no spec/spec.yaml
+    assert "top/mc" in score.owed(b)
+
+
+def test_an_engine_that_cant_be_imported_leaves_the_gate_owed(tmp_path, monkeypatch):
+    monkeypatch.setitem(sys.modules, "attest", None)   # import raises ImportError
+    assert score.not_applicable(tmp_path, "ade", "mc") is False
+
+
+def test_tracked_blocks_owe_every_registered_gate_but_declared_ones():
+    for b in score.read_blocks(ROOT / "blocks"):
+        got = {(w.tag, g) for w, g, _ in score.plan(b)}
+        for w in b.workspaces:
+            for g in _rows(w.skill):
+                na = score.not_applicable(b.path / w.rel, w.skill, g)
+                assert (w.tag, g) in got or na, (b.name, w.tag, g)
 
 
 def test_plan_orders_as_the_engine_does():

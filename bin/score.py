@@ -11,9 +11,12 @@ higher is better; 100 is every known block through every gate.
 A block under blocks/ is a workspace (a dir with state.json) and, for an
 msde block, its analog/ and digital/ sides, each a workspace of its own.
 Its gate steps (`plan`) are named `<side>/<gate>` (`top` for the block's own
-workspace): every gate its state.json records, passed or failed, and every
-gate its reports/waivers.json waives, in pipeline order. A step is clean
-when:
+workspace): every gate gates.yaml registers for the workspace's skill, unless
+the block's own spec declares it not applicable (attest.NOT_APPLICABLE), plus
+any other gate its state.json records and every gate its reports/waivers.json
+waives, in pipeline order. A registered gate with no record is owed: a step
+like any other, not clean until a run covers it, so a gate added after a block
+was imported can't go unrun unseen. A step is clean when:
 
 - a run of it on what it reads now passed it, or failed it under the
   block's waiver (release then judged that waiver, and is a step of its
@@ -324,21 +327,48 @@ def waivers(ws: Path) -> list[str]:
         if isinstance(data, list) else []
 
 
+def not_applicable(ws: Path, skill: str, gate: str) -> bool:
+    """Whether the block's own spec declares the gate not applicable, by the
+    engine's own rule (attest.not_applicable_reason, which release reads).
+    Doubt never counts as not applicable: an engine this python can't import
+    (the score runs on the host's, which may have no yaml) or a spec it can't
+    read leaves the gate owed."""
+    engine = Path(__file__).resolve().parent.parent / "engine"
+    for sub in ("lib", "scripts"):
+        if str(engine / sub) not in sys.path:
+            sys.path.insert(0, str(engine / sub))
+    try:
+        import attest
+        return bool(attest.not_applicable_reason(ws, skill, gate))
+    except (ImportError, OSError, ValueError, RuntimeError):
+        return False
+
+
 def plan(b: Block) -> list[tuple[Workspace, str, bool]]:
-    """The block's steps in the order check-all runs them: each workspace's
-    recorded gates and the gates its waivers name (a waived gate runs too:
-    release reads its result against the waiver), sides first, in pipeline
-    order; a gate gates.yaml doesn't order goes last, by name. Each is
-    (workspace, gate, waived)."""
+    """The block's steps in the order check-all runs them: every gate
+    gates.yaml registers for each workspace's skill, less those its spec
+    declares not applicable (one with no record is owed, `owed`), plus any
+    other gate it records and the gates its waivers name (a waived gate runs
+    too: release reads its result against the waiver), sides first, in
+    pipeline order; a gate gates.yaml doesn't order goes last, by name. Each
+    is (workspace, gate, waived)."""
     rows = gate_rows(ROOT / "engine" / "reference" / "gates.yaml")
     out = []
     for w in b.workspaces:
         order = [g for g, _, _ in rows.get(w.skill, [])]
-        waived = waivers(b.path / w.rel)
+        ws = b.path / w.rel
+        waived = waivers(ws)
+        taken = set(w.gates) | set(waived)
+        due = {g for g in order if g not in taken and not not_applicable(ws, w.skill, g)}
         out += [(w, g, g in waived) for g in sorted(
-            set(w.gates) | set(waived),
+            taken | due,
             key=lambda g: (order.index(g) if g in order else len(order), g))]
     return out
+
+
+def owed(b: Block) -> set[str]:
+    """The steps of the plan no record or waiver of the block's own names."""
+    return {f"{w.tag}/{g}" for w, g, waived in plan(b) if not waived and g not in w.gates}
 
 
 def cache_root() -> Path:
@@ -453,9 +483,11 @@ def block_share(b: Block, table: dict[str, Workaround]) -> tuple[float, str]:
     if not got:
         return 0.0, "no gate step: its state.json records no gate"
     bad = []
+    due = owed(b)
     unrun = [s for s, o in got.items() if o is None]
     for s, outcome in got.items():
-        why = [] if outcome in ("pass", "waived") else ["not run on these inputs"] \
+        why = [] if outcome in ("pass", "waived") else \
+            ["owed: no record" if s in due else "not run on these inputs"] \
             if outcome is None else [outcome]
         why += [w.id for w in table.values() if w.charges(b.name, s)]
         if why:
