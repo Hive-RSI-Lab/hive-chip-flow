@@ -83,8 +83,10 @@ splitnets
 opt_clean -purge
 write_verilog -noattr {synth}
 """, encoding="utf-8")
-    subprocess.run([str(EDA), "yosys", "-q", "-s", str(script)], check=True,
-                   capture_output=True)
+    # The log is where LibreLane keeps it: check_lec reads FSM maps there.
+    subprocess.run([str(EDA), "yosys", "-q", "-l",
+                    str(synth.parent / "yosys-synthesis.log"), "-s",
+                    str(script)], check=True, capture_output=True)
     final = final_path(ws)
     final.parent.mkdir(parents=True)
     final.write_text(pnr_edits(synth.read_text(encoding="utf-8")),

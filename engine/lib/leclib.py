@@ -328,12 +328,22 @@ def _privatise(lines: list[str], public: dict[str, str]) -> list[str]:
     return out
 
 
-def render(view: View, other_keys: set[str]) -> str:
+def points(view: View, other_keys: set[str]) -> list[str]:
+    """The names render() compares: key-point pins, then output ports."""
+    out = [f"{name}.{pin}" for name, kp in sorted(view.key_points.items())
+           if name in other_keys
+           for pin in ("C", "S", "R", "D", "E") if pin in kp.pins]
+    return out + [o[1:] for o in view.outputs]
+
+
+def render(view: View, other_keys: set[str],
+           compare: set[str] | None = None) -> str:
     """The view as a module of pure logic. A key point the other view lacks
     keeps its Q as an input, unbound there, and its own pins are not compared:
     if anything observable reads it, the cones that read it can't match, and
     that is the failure. A key point only the other view has appears as an
-    unused input so both views have the same ports."""
+    unused input so both views have the same ports. `compare`, if given,
+    keeps only those of points() as outputs (to name failures one by one)."""
     public: dict[str, str] = {}
     for ln in view.lines:
         w = _WIRE_RE.match(ln)
@@ -379,7 +389,8 @@ def render(view: View, other_keys: set[str]) -> str:
         if name not in other_keys:
             continue
         for pin in ("C", "S", "R", "D", "E"):
-            if pin in kp.pins:
+            if pin in kp.pins and (compare is None
+                                   or f"{name}.{pin}" in compare):
                 y = f"\\{name}.{pin}"
                 extra.append(f"  wire {y}")
                 outs.append(y)
@@ -389,6 +400,8 @@ def render(view: View, other_keys: set[str]) -> str:
         extra.append(f"  wire {q}")
         ports.append(q)
     for o in view.outputs:
+        if compare is not None and o[1:] not in compare:
+            continue
         extra.append(f"  wire {o}")
         outs.append(o)
         drive(public[o], o)
@@ -407,6 +420,332 @@ def render(view: View, other_keys: set[str]) -> str:
     rest = [ln for ln in body if not _WIRE_RE.match(ln)]
     return "\n".join(["autoidx 1", f"module \\{view.top}", *wires, *rest,
                       "end", ""])
+
+
+# ---- added logic -----------------------------------------------------------
+
+ZERO, ONE = "1'0", "1'1"
+
+
+class Logic:
+    """Gate-level cells appended to a view, on wires of their own."""
+
+    def __init__(self, view: View, tag: str):
+        self.view, self.tag, self.n = view, tag, 0
+
+    def _wire(self) -> str:
+        self.n += 1
+        w = f"$lec_{self.tag}${self.n}"
+        self.view.lines.append(f"  wire {w}")
+        return w
+
+    def _cell(self, kind: str, y: str | None = None, **pins: str) -> str:
+        y = y or self._wire()
+        self.n += 1
+        self.view.lines.append(f"  cell $_{kind}_ $lec_{self.tag}$c{self.n}")
+        self.view.lines.extend(f"    connect \\{p} {s}" for p, s in pins.items())
+        self.view.lines.extend([f"    connect \\Y {y}", "  end"])
+        return y
+
+    def drive(self, a: str, y: str) -> None:
+        self._cell("BUF", y, A=a)
+
+    def not_(self, a: str) -> str:
+        if a in (ZERO, ONE):
+            return ONE if a == ZERO else ZERO
+        return self._cell("NOT", A=a)
+
+    def and_(self, *xs: str) -> str:
+        xs = tuple(x for x in xs if x != ONE)
+        if ZERO in xs:
+            return ZERO
+        if not xs:
+            return ONE
+        y = xs[0]
+        for x in xs[1:]:
+            y = self._cell("AND", A=y, B=x)
+        return y
+
+    def or_(self, *xs: str) -> str:
+        xs = tuple(x for x in xs if x != ZERO)
+        if ONE in xs:
+            return ONE
+        if not xs:
+            return ZERO
+        y = xs[0]
+        for x in xs[1:]:
+            y = self._cell("OR", A=y, B=x)
+        return y
+
+    def eq(self, a: str, b: str) -> str:
+        if b in (ZERO, ONE):
+            return a if b == ONE else self.not_(a)
+        return self._cell("XNOR", A=a, B=b)
+
+    def input(self, name: str) -> str:
+        self.view.lines.append(f"  wire {name}")
+        self.view.inputs.append(name)
+        return name
+
+    def output(self, name: str, a: str) -> None:
+        self.view.lines.append(f"  wire {name}")
+        self.view.outputs.append(name)
+        self.drive(a, name)
+
+
+def fix_constant(view: View, name: str, value: int) -> None:
+    """Drop a key point proved constant and tie its Q to the constant."""
+    kp = view.key_points.pop(name)
+    if "Q" in kp.pins:
+        Logic(view, f"const{len(view.lines)}").drive(ONE if value else ZERO,
+                                                     kp.pins["Q"])
+
+
+def constants_script(il: str, top: str, guess: dict[str, int],
+                     view: View, timeout_s: int) -> str:
+    """One induction step for every candidate at once: with each candidate's
+    Q at its guessed value, its D gives the same value back and the reset
+    that would give the other value can't fire. Proved, the set holds those
+    values from the first time it has them on."""
+    sets, proves = [], []
+    for name, c in sorted(guess.items()):
+        v = ONE if c else ZERO
+        sets.append(f"-set {_q(name, 'Q')} {v}")
+        pins = view.key_points[name].pins
+        proves.append(f"-prove {_q(name, 'D')} {v}")
+        other = "R" if c else "S"
+        if other in pins:
+            proves.append(f"-prove {_q(name, other)} {ZERO}")
+    shown = [p.split()[1] for p in proves]
+    return "\n".join([
+        f"read_rtlil {il}", f"hierarchy -top {top}",
+        f"sat -enable_undef -set-def-inputs {' '.join(sets)} "
+        f"{' '.join(proves)} -show {','.join(shown)} -timeout {timeout_s} "
+        f"{top}", ""])
+
+
+def _q(name: str, pin: str) -> str:
+    return f"\\{name}.{pin}"
+
+
+def constants_failed(log: str, guess: dict[str, int]) -> set[str] | None:
+    """Candidates the failing step showed off their value (None: no model)."""
+    if "no model found: SUCCESS" in log:
+        return set()
+    if "model found: FAIL" not in log:
+        return None
+    vals = shown_values(log)
+    bad = set()
+    for name, c in guess.items():
+        if vals.get(f"{name}.D") != str(c):
+            bad.add(name)
+        if vals.get(f"{name}.{'R' if c else 'S'}", "0") != "0":
+            bad.add(name)
+    return bad
+
+
+SHOWN_RE = re.compile(r"^\s+\\(\S+)\s+(\S+)\s+\S+\s+\S+\s*$", re.M)
+
+
+def shown_values(log: str) -> dict[str, str]:
+    """{signal: decimal} from the table a failing sat run prints."""
+    head = log.rfind("Signal Name")
+    return dict(SHOWN_RE.findall(log[head:])) if head >= 0 else {}
+
+
+# ---- one miter per link ----------------------------------------------------
+
+def miter_script(top: str, gold_il: str, gate_il: str, timeout_s: int) -> str:
+    """Both views in one combinational miter, the way eqy's sat strategy
+    reads a partition: an x in gold is a don't-care, one in gate is any
+    value."""
+    return "\n".join([
+        f"read_rtlil {gold_il}", f"rename {top} gold",
+        f"read_rtlil {gate_il}", f"rename {top} gate",
+        "setundef -anyseq gate",
+        "miter -equiv -flatten -make_outcmp -ignore_gold_x gold gate miter",
+        "hierarchy -top miter", "opt_clean",
+        f"sat -prove trigger 0 -enable_undef -set-def-inputs -show-inputs "
+        f"-show-outputs -timeout {timeout_s} miter", ""])
+
+
+def abc_script(top: str, gold_il: str, gate_il: str, aig: str) -> str:
+    """The same miter as one 2-valued AIG for ABC's cec, which proves a large
+    one in seconds where sat takes hours. Gold's x bits are tied to 0: that
+    picks one of the circuits gold allows, so gate equal to it is a pass.
+    Gate's x bits stay free inputs, as in sat. Pass only: a miter ABC can't
+    prove goes to sat, which names what differs."""
+    return "\n".join([
+        f"read_rtlil {gold_il}", f"rename {top} gold",
+        f"read_rtlil {gate_il}", f"rename {top} gate",
+        "opt_expr -mux_undef gold", "setundef -zero gold",
+        "setundef -anyseq gate",
+        "miter -equiv -flatten gold gate miter",
+        "hierarchy -top miter", "flatten", "opt_clean", "techmap",
+        "opt -fast", "setundef -anyseq", "aigmap", "opt_clean",
+        f"write_aiger -zinit {aig}", ""])
+
+
+ABC_CEC = "read_aiger {aig}; print_stats; &get -n; &cec -m\n"
+
+
+def abc_verdict(output: str) -> bool:
+    """True only if ABC proved the single-output miter equivalent."""
+    return re.search(r"^Networks are equivalent\.", output, re.M) is not None
+
+
+def miter_verdict(log: str) -> tuple[str, list[str], dict]:
+    """("equal"|"different"|"unknown", points that differ, {point:
+    counterexample}). One model can't show every point that differs, only
+    those it makes differ: the caller asks again without them."""
+    if "no model found: SUCCESS" in log:
+        return "equal", [], {}
+    if "model found: FAIL" not in log:
+        return "unknown", [], {}
+    vals = shown_values(log)
+    inputs = {k[3:]: v for k, v in vals.items() if k.startswith("in_")}
+    differ = {k[4:]: {"inputs": inputs, "gold": vals.get(f"gold_{k[4:]}"),
+                      "gate": vals.get(f"gate_{k[4:]}")}
+              for k, v in sorted(vals.items())
+              if k.startswith("cmp_") and v != "1"}
+    return "different", sorted(differ), differ
+
+
+# ---- recoded FSMs ----------------------------------------------------------
+
+RECODE_RE = re.compile(
+    r"^Recoding FSM `\$fsm\$\\?(\S+?)\$\d+' from module `\\?(\S+?)' using "
+    r"`(\w+)' encoding:\n((?:  .*\n)*)", re.M)
+CODE_RE = re.compile(r"^\s+([01]+) -> ([01-]+)\s*$", re.M)
+
+
+@dataclass
+class Fsm:
+    register: str                 # the state register, as named in the view
+    encoding: str
+    old: list[str]                # each state's code in RTL, MSB first
+    new: list[str]                # its code after recoding
+
+
+def recoded_fsms(log: str) -> list[Fsm]:
+    """The state maps fsm_recode wrote in a synthesis log, last one wins."""
+    found: dict[str, Fsm] = {}
+    for reg, _module, enc, body in RECODE_RE.findall(log):
+        codes = CODE_RE.findall(body)
+        if not codes:
+            continue
+        old, new = [c[0] for c in codes], [c[1] for c in codes]
+        if old == new:
+            continue
+        found[reg] = Fsm(reg, enc, old, new)
+    return list(found.values())
+
+
+def _bit(reg: str, width: int, j: int) -> str:
+    return f"{reg}[{j}]" if width > 1 else reg
+
+
+def _find_bit(view: View, aliases: dict[str, set[str]], net: str) -> str | None:
+    if net in view.key_points:
+        return net
+    hits = sorted(n for n in aliases.get(net, set()) if n in view.key_points)
+    return hits[0] if hits else None
+
+
+def apply_fsm(fsm: Fsm, gold: View, gate: View,
+              aliases: dict[str, set[str]]) -> dict:
+    """Prove a recoded FSM against its RTL through the map, not by name.
+
+    Both views get the same free state index s. Gold's state flops take
+    old[s] and gate's take new[s], so every cone that reads the state is
+    compared state by state. Each gate state flop's pins are then compared
+    with gold's next state put through the map: D_j = new[old^-1(gold D)]_j,
+    its clock with gold's, and a reset to gold's reset value through the map.
+    An output only gold drives, `<register>.recoded.ok`, is 1 on the gate
+    side and says gold's D (and reset value) is a state in the map, and its
+    state flops share one clock and one reset. So a wrong map fails, and a
+    wrong transition fails on the gate flop whose D it changes."""
+    m, k, n = len(fsm.old[0]), len(fsm.new[0]), len(fsm.old)
+    record = {"register": fsm.register, "encoding": fsm.encoding,
+              "states": n, "gold_bits": [], "gate_bits": []}
+    gold_bits = [_find_bit(gold, aliases, _bit(fsm.register, m, j))
+                 for j in range(m)]
+    if None in gold_bits:
+        record["applied"] = False
+        record["why"] = "the RTL view has no flop on every state bit"
+        return record
+    named = [_bit(fsm.register, k, j) for j in range(k)]
+    gate_bits = [b if b in gate.key_points else None for b in named]
+    spare = sorted(set(gate.key_points) - set(gold.key_points)
+                   - {b for b in gate_bits if b})
+    missing = [j for j, b in enumerate(gate_bits) if b is None]
+    if missing and len(missing) == len(spare) == 1:
+        # The netlist named the flop after a net it drives (an output).
+        gate_bits[missing[0]] = spare[0]
+    elif missing:
+        record["applied"] = False
+        record["why"] = (f"the netlist's state flops {[named[j] for j in missing]} "
+                         "can't be told apart from its other unmatched flops")
+        return record
+    if any(gold.key_points[b].kind != "ff" for b in gold_bits) or any(
+            gate.key_points[b].kind != "ff" for b in gate_bits):
+        record["applied"] = False
+        record["why"] = "a state bit is a latch"
+        return record
+    record["gold_bits"], record["gate_bits"] = gold_bits, gate_bits
+    width = max(1, (n - 1).bit_length())
+    reg = fsm.register
+
+    def bitval(code: str, j: int) -> str:
+        return code[len(code) - 1 - j]
+
+    for view, bits, codes, tag in ((gold, gold_bits, fsm.old, "fsmg"),
+                                   (gate, gate_bits, fsm.new, "fsmh")):
+        lg = Logic(view, f"{tag}{len(view.lines)}")
+        s = [lg.input(f"\\{reg}.state_index[{i}]") for i in range(width)]
+        sel = [lg.and_(*(s[i] if (x >> i) & 1 else lg.not_(s[i])
+                         for i in range(width))) for x in range(n)]
+        # An index past the last state means state 0, so every index is one.
+        sel[0] = lg.not_(lg.or_(*sel[1:])) if n > 1 else ONE
+        pins = [view.key_points.pop(b).pins for b in bits]
+        for j, p in enumerate(pins):
+            lg.drive(lg.or_(*(sel[x] for x in range(n)
+                              if bitval(codes[x], j) == "1")), p["Q"])
+        point = f"\\{reg}.recoded"
+        if view is gate:
+            for j, p in enumerate(pins):
+                for pin in ("C", "S", "R", "D"):
+                    lg.output(f"{point}[{j}].{pin}", p.get(pin, ZERO))
+            lg.output(f"{point}.ok", ONE)
+            continue
+
+        def encode(vec: list[str]) -> tuple[list[str], str]:
+            match = [lg.and_(*(lg.eq(vec[j], ONE if bitval(fsm.old[x], j) == "1"
+                                     else ZERO) for j in range(m)))
+                     for x in range(n)]
+            return ([lg.or_(*(match[x] for x in range(n)
+                              if bitval(fsm.new[x], j) == "1"))
+                     for j in range(k)], lg.or_(*match))
+
+        d, d_ok = encode([p["D"] for p in pins])
+        sets = [p.get("S", ZERO) for p in pins]
+        resets = [lg.or_(p.get("S", ZERO), p.get("R", ZERO)) for p in pins]
+        fired = resets[0]
+        v, v_ok = encode(sets)
+        clock = pins[0]["C"]
+        ok = [d_ok, lg.or_(lg.not_(fired), v_ok)]
+        for p, r in zip(pins, resets):
+            ok.append(lg.eq(p["C"], clock))
+            ok.append(lg.eq(r, fired))
+            ok.append(lg.not_(lg.and_(p.get("S", ZERO), p.get("R", ZERO))))
+        for j in range(k):
+            lg.output(f"{point}[{j}].C", clock)
+            lg.output(f"{point}[{j}].S", lg.and_(fired, v[j]))
+            lg.output(f"{point}[{j}].R", lg.and_(fired, lg.not_(v[j])))
+            lg.output(f"{point}[{j}].D", d[j])
+        lg.output(f"{point}.ok", lg.and_(*ok))
+    record["applied"] = True
+    return record
 
 
 # ---- eqy -------------------------------------------------------------------
