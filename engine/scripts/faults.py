@@ -90,7 +90,8 @@ def make_scratch_workspace(tmp_root: Path, rung_dir: Path, skill: str,
     # design.md 1.1's corpus table); a workspace nests them under spec/
     # (state.py init's own SUBDIRS, docs/design.md 1.4) - this copy is
     # where the two layouts meet.
-    for name in ("spec.md", "spec.yaml"):
+    # cdc.yaml: a rung's own spec/cdc.yaml ports and waivers (check_cdc.py)
+    for name in ("spec.md", "spec.yaml", "cdc.yaml"):
         src = rung_dir / name
         if src.is_file():
             shutil.copy2(src, ws / "spec" / name)

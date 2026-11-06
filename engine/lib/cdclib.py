@@ -11,7 +11,8 @@ times their paths; only paths between domains are crossings.
 
 Input ports. A data input belongs to spec's clock.primary (the flow's SDC
 times it there), or to the only domain there is, unless spec/cdc.yaml's
-`ports` says otherwise (`async`, or a domain's name).
+`ports` says otherwise (`async`, or a domain's name). port_domains is keyed by
+a port's name or by one bit of it (`ui_in[7]`), the bit winning.
 
 Crossing. A flop whose D cone reads another domain's flop or port. It is
 SYNCHRONISED only when the D pin reads that one source through no logic and
@@ -274,6 +275,7 @@ class Analysis:
         self.primary = primary
         self.port_domains = port_domains or {}
         self.clock_ports = set(clock_ports or [])
+        self.assumed: set[str] = set()   # input ports given the default
         self.gates: dict[int, dict] = {}
         self._roots: dict[int, frozenset] = {}
         self.clock_like = self._find_clock_like()
@@ -442,14 +444,22 @@ class Analysis:
 
     # ---- crossings -------------------------------------------------------
 
+    def port_domain(self, label: str) -> str | None:
+        """The domain port_domains gives an input bit: by its own label
+        (`ui_in[7]`) first, then by its bus (`ui_in`)."""
+        return self.port_domains.get(label) or \
+            self.port_domains.get(base_name(label))
+
     def source_domain(self, leaf) -> frozenset | None:
-        """The leaf's domain; None for an input port with no domain known."""
+        """The leaf's domain; None for an input port with no domain known.
+        An input port given the default (clock.primary, or the one domain)
+        is recorded in self.assumed: nothing declared it."""
         nl = self.nl
         if leaf in nl.flops:
             return self.domains[leaf]
         if leaf in nl.in_ports:
             name = base_name(nl.in_ports[leaf])
-            declared = self.port_domains.get(name)
+            declared = self.port_domain(nl.in_ports[leaf])
             if declared == "async":
                 return frozenset({f"async:{name}"})
             if declared:
@@ -457,8 +467,10 @@ class Analysis:
             if name in self.all_roots:
                 return frozenset({name})
             if self.primary:
+                self.assumed.add(name)
                 return frozenset({self.primary})
             if len(self.all_roots) == 1:
+                self.assumed.add(name)
                 return frozenset(self.all_roots)
             return None
         if leaf in nl.icgs:
@@ -631,7 +643,7 @@ class Analysis:
         if stage:
             return "sync_stage"
         if leaf in nl.in_ports:
-            declared = self.port_domains.get(base_name(nl.in_ports[leaf]))
+            declared = self.port_domain(nl.in_ports[leaf])
             if declared and declared != "async" and dom == {declared}:
                 return "declared_synchronous"
         return "unsynced"

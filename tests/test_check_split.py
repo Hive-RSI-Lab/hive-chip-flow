@@ -317,3 +317,149 @@ def test_corpus_rungs_pass_split():
         ws = REPO / "corpus" / "msde" / rung
         payload, _out = check_split.run(["--workspace", str(ws)])
         assert payload["status"] == "pass", (rung, payload["violations"])
+
+
+# --- #169: the digital side's spec/cdc.yaml against the interface ---------
+
+def _nested_digital(ws: Path, clocks=("clk",), cdc=None) -> None:
+    spec = ws / "digital" / "spec"
+    spec.mkdir(parents=True)
+    (spec / "spec.yaml").write_text(
+        f"top: sensor_counted_digital\nclock:\n  domains: {list(clocks)}\n",
+        encoding="utf-8")
+    if cdc is not None:
+        (spec / "cdc.yaml").write_text(cdc, encoding="utf-8")
+
+
+def _cdc_kinds(payload) -> list[str]:
+    return sorted(v["kind"] for v in payload["violations"])
+
+
+def test_cdc_not_checked_before_the_digital_workspace(tmp_path):
+    ws = make_ws(tmp_path)
+    payload, _ = check_split.run(["--workspace", str(ws)])
+    assert payload["status"] == "pass"
+    assert payload["cdc"]["checked"] is False
+    assert "digital/spec/spec.yaml" in payload["cdc"]["reason"]
+    assert payload["cdc"]["async_ports"] == ["osc_out"]
+
+
+def test_async_a2d_signal_missing_from_cdc_yaml_fails(tmp_path):
+    ws = make_ws(tmp_path)
+    _nested_digital(ws)
+    payload, _ = check_split.run(["--workspace", str(ws)])
+    assert _cdc_kinds(payload) == ["cdc_async_undeclared"]
+    assert payload["cdc"] == {"checked": True, "file": "digital/spec/cdc.yaml",
+                              "async_ports": ["osc_out"]}
+
+
+def test_async_a2d_signal_given_a_clock_in_cdc_yaml_fails(tmp_path):
+    ws = make_ws(tmp_path)
+    _nested_digital(ws, cdc="ports: {osc_out: clk}\n")
+    payload, _ = check_split.run(["--workspace", str(ws)])
+    assert _cdc_kinds(payload) == ["cdc_async_undeclared"]
+
+
+def test_cdc_yaml_declaring_the_async_port_passes(tmp_path):
+    ws = make_ws(tmp_path)
+    _nested_digital(ws, cdc="ports: {osc_out: async}\nwaivers: []\n")
+    payload, _ = check_split.run(["--workspace", str(ws)])
+    assert payload["status"] == "pass", payload["violations"]
+
+
+def test_cdc_yaml_async_for_a_clocked_signal_contradicts(tmp_path):
+    """sar_adc's cmp_out is clk_sys in the interface: async in cdc.yaml
+    means the two files disagree."""
+    iface = INTERFACE.replace("domain: clk_free", "domain: clk_sys")
+    digital = DIGITAL_SPEC.replace("domain: clk_free", "domain: clk_sys")
+    ws = make_ws(tmp_path, digital=digital,
+                 analog=digital.replace("sensor_counted_digital",
+                                        "sensor_counted_analog"),
+                 interface=iface)
+    _nested_digital(ws, cdc="ports: {osc_out: async}\n")
+    payload, _ = check_split.run(["--workspace", str(ws)])
+    assert _cdc_kinds(payload) == ["cdc_async_contradicts_interface"]
+
+
+def test_a_clk_free_clock_root_is_not_an_async_port(tmp_path):
+    """A PLL's vco_out is clk_free and a digital clock domain: a clock, not
+    data to synchronise."""
+    ws = make_ws(tmp_path)
+    _nested_digital(ws, clocks=("clk", "osc_out"))
+    payload, _ = check_split.run(["--workspace", str(ws)])
+    assert payload["status"] == "pass", payload["violations"]
+    assert payload["cdc"]["async_ports"] == []
+
+
+def test_malformed_cdc_ports_is_refused(tmp_path):
+    ws = make_ws(tmp_path)
+    _nested_digital(ws, cdc="ports: [osc_out]\n")
+    try:
+        check_split.run(["--workspace", str(ws)])
+        assert False, "expected CheckError"
+    except CheckError:
+        pass
+
+
+def test_split_cdc_writes_the_async_ports_and_keeps_the_rest(tmp_path):
+    import split_cdc
+    import yaml
+    ws = make_ws(tmp_path)
+    _nested_digital(ws, cdc="ports: {en: clk}\nwaivers:\n  - {from: a, to: b, "
+                            "reason: r}\n")
+    payload, _ = split_cdc.run(["--workspace", str(ws)])
+    assert payload["written"] == ["osc_out"]
+    data = yaml.safe_load((ws / "digital/spec/cdc.yaml").read_text())
+    assert data["ports"] == {"en": "clk", "osc_out": "async"}
+    assert data["waivers"] == [{"from": "a", "to": "b", "reason": "r"}]
+    assert check_split.run(["--workspace", str(ws)])[0]["status"] == "pass"
+    # a second run writes nothing
+    assert split_cdc.run(["--workspace", str(ws)])[0]["written"] == []
+
+
+def test_split_cdc_refuses_a_conflicting_port(tmp_path):
+    import split_cdc
+    ws = make_ws(tmp_path)
+    _nested_digital(ws, cdc="ports: {osc_out: clk}\n")
+    try:
+        split_cdc.run(["--workspace", str(ws)])
+        assert False, "expected CheckError"
+    except CheckError:
+        pass
+
+
+def test_split_cdc_needs_the_digital_workspace(tmp_path):
+    import split_cdc
+    ws = make_ws(tmp_path)
+    try:
+        split_cdc.run(["--workspace", str(ws)])
+        assert False, "expected CheckError"
+    except CheckError:
+        pass
+
+
+def test_corpus_sensor_counted_scratch_ws_checks_its_cdc_ports(tmp_path):
+    """The rung as a workspace (nested digital/spec/ with its cdc.yaml):
+    split checks the cdc ports and passes; without the file it fails."""
+    import faults
+    ws = faults.make_scratch_workspace(
+        tmp_path, REPO / "corpus" / "msde" / "sensor_counted", "msde",
+        "sensor_counted")
+    payload, _ = check_split.run(["--workspace", str(ws)])
+    assert payload["cdc"]["checked"] is True
+    assert payload["status"] == "pass", payload["violations"]
+    (ws / "digital" / "spec" / "cdc.yaml").unlink()
+    payload, _ = check_split.run(["--workspace", str(ws)])
+    assert _cdc_kinds(payload) == ["cdc_async_undeclared"]
+
+
+def test_blocks_split_cdc_ports():
+    """In-repo blocks: r2r_dac has no a2d signal, the PLL's only one
+    (vco_out) is a digital clock domain - neither needs a cdc port."""
+    for blk in ("r2r_dac", "pll"):
+        payload, _ = check_split.run(["--workspace",
+                                      str(REPO / "blocks" / blk)])
+        assert payload["cdc"]["checked"] is True, blk
+        assert payload["cdc"]["async_ports"] == [], blk
+        assert not [v for v in payload["violations"]
+                    if v["kind"].startswith("cdc_")], blk

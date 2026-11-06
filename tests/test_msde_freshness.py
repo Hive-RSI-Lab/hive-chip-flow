@@ -136,11 +136,19 @@ AFTER_TOP_HARDEN = {"top_drc", "top_lvs", "precheck"}
 PLANTED = {
     # check_top_harden.assemble copies tt_pins (minus interface signals)
     # into top/spec; release attests the nested spec; cosim builds the
-    # same top's pad frame from it (#208)
+    # same top's pad frame from it (#208); split reads its clock domains
+    # (check_split.digital_clock_domains, #169)
     "tt_pins entry in digital/spec/spec.yaml": (
         lambda ws: _edit_yaml(ws / "digital" / "spec" / "spec.yaml",
                               lambda d: _set(d, ["tt_pins", "en"], "ui_in[1]")),
-        {"cosim", "top_harden", "release"} | AFTER_TOP_HARDEN),
+        {"split", "cosim", "top_harden", "release"} | AFTER_TOP_HARDEN),
+    # check_split.cdc_findings holds the digital side's cdc ports to the
+    # interface (#169); the digital side's own cdc gate is in its nested
+    # state, not here
+    "ports in digital/spec/cdc.yaml": (
+        lambda ws: (lambda: _y(ws / "digital" / "spec" / "cdc.yaml",
+                               {"ports": {"ctrl": "async"}})),
+        {"split"}),
     # the sized .subckt: cosim's bench and top_harden's macro, which
     # top_lvs reads back from top/macros
     "W in analog/sizing/sizing.yaml": (

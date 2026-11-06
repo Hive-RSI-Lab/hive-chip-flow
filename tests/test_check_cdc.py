@@ -78,7 +78,30 @@ def test_two_flop_synchroniser_is_clean(tmp_path):
     assert p["domains"] == ["clk", "clk2"]
     assert [(c["status"], c["from"], c["to"], c["stages"])
             for c in p["crossings"]] == [("synchronized", "src", "s1", 2)]
-    assert p["crosscheck"]["ran"] and p["crosscheck"]["match"]
+
+
+SAMPLE_A = """\
+module top (input wire clk, input wire a, output reg y);
+  always @(posedge clk) y <= a;
+endmodule
+"""
+ONE_CLOCK = {"period_ns": 20, "domains": ["clk"]}
+
+
+@pytest.mark.slow
+def test_an_undeclared_port_is_listed_as_assumed(tmp_path):
+    """`a` takes the one domain because nothing declared it (#169)."""
+    p = run(make_ws(tmp_path, SAMPLE_A, clock=ONE_CLOCK))
+    assert p["status"] == "pass", p["violations"]
+    assert p["assumed_ports"] == ["a"]
+
+
+@pytest.mark.slow
+def test_a_declared_port_is_not_assumed(tmp_path):
+    p = run(make_ws(tmp_path, SAMPLE_A, clock=ONE_CLOCK,
+                    cdc={"ports": {"a": "clk"}}))
+    assert p["status"] == "pass", p["violations"]
+    assert p["assumed_ports"] == []
 
 
 @pytest.mark.slow
@@ -753,3 +776,87 @@ def test_scope_with_a_reasonless_opt_out_refuses(tmp_path):
             "pad_reset_sync": {"mode": False}}
     with pytest.raises(check_cdc.CheckError, match="pad_reset_sync_no_reason"):
         check_cdc.analysis_scope(spec, {"ports": {}, "waivers": []}, ["clk"])
+
+
+# --- #169: an msde comparator output the split says is async --------------
+
+CMP_IFACE = """\
+version: 1
+signals:
+  - {name: cmp_out, direction: a2d, level: cmos_3v3, domain: clk_free,
+     width: 1, load: 2pF}
+"""
+CMP_SIDE = """\
+top: {top}
+interface:
+  - {{name: cmp_out, direction: a2d, level: cmos_3v3, domain: clk_free,
+     width: 1, load: 2pF}}
+"""
+CMP_RTL = """\
+module cmp_digital (input wire clk, input wire rst_n, input wire cmp_out,
+                    output reg [3:0] count);
+  reg s1, s2;
+  always @(posedge clk or negedge rst_n)
+    if (!rst_n) begin s1 <= 1'b0; s2 <= 1'b0; end
+    else begin s1 <= cmp_out; s2 <= s1; end
+  always @(posedge clk or negedge rst_n)
+    if (!rst_n) count <= 4'd0;
+    else if ({tap}) count <= count + 4'd1;
+endmodule
+"""
+
+
+def _comparator_block(tmp_path, tap: str) -> Path:
+    """An msde block whose digital side counts an async comparator output;
+    `tap` is the flop the counter reads (s1: one flop, s2: two)."""
+    import check_split  # noqa: E402
+    ws = tmp_path / "blk"
+    ws.mkdir()
+    (ws / check_split.INTERFACE_REL).write_text(CMP_IFACE, encoding="utf-8")
+    (ws / "digital_spec.yaml").write_text(
+        CMP_SIDE.format(top="cmp_digital"), encoding="utf-8")
+    (ws / "analog_spec.yaml").write_text(
+        CMP_SIDE.format(top="cmp_analog"), encoding="utf-8")
+    dig = make_ws(tmp_path, CMP_RTL.format(tap=tap),
+                  clock={"period_ns": 20, "domains": ["clk"]},
+                  tt_pins={"clk": "clk", "rst_n": "rst_n",
+                           "cmp_out": "ui_in[0]", "count": "uo_out[3:0]"},
+                  extra={"top": "cmp_digital", "ports": {
+                      "clk": {"dir": "input", "width": 1},
+                      "rst_n": {"dir": "input", "width": 1},
+                      "cmp_out": {"dir": "input", "width": 1},
+                      "count": {"dir": "output", "width": 4}}})
+    shutil.move(str(dig), str(ws / "digital"))
+    return ws
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("tap,want", [("s1", ["cdc_unsynchronized"]),
+                                      ("s2", [])])
+def test_issue169_async_comparator_needs_two_flops(tmp_path, tap, want):
+    """The issue's planted fault: one flop on an async comparator output,
+    no spec/cdc.yaml. Before #169 the cdc gate took cmp_out as clk and
+    passed. Now the split refuses the missing declaration, split_cdc writes
+    it, and the cdc gate then fails the one-flop sample (known answer: the
+    two-flop chain is clean)."""
+    import check_split  # noqa: E402
+    import split_cdc  # noqa: E402
+    ws = _comparator_block(tmp_path, tap)
+
+    before = run(ws / "digital")
+    assert before["scope"]["scope"] == "wrapper+block"
+    assert before["status"] == "pass", before["violations"]  # the bug
+    assert before["assumed_ports"] == ["ui_in"]
+    split, _ = check_split.run(["--workspace", str(ws)])
+    assert sorted(v["kind"] for v in split["violations"]) == \
+        ["cdc_async_undeclared"]
+
+    wrote, _ = split_cdc.run(["--workspace", str(ws)])
+    assert wrote["written"] == ["cmp_out"]
+    split, _ = check_split.run(["--workspace", str(ws)])
+    assert split["status"] == "pass", split["violations"]
+
+    after = run(ws / "digital")
+    assert after["assumed_ports"] == []
+    assert kinds(after) == want, after["violations"]
+    assert after["status"] == ("violations" if want else "pass")

@@ -43,7 +43,12 @@ crossing, and a one-flop sample of it fails like any other. A `ports` entry for
 it still overrides that, as an explicit claim. A tt_pins port on `ui_in` or
 `uio_in` keeps the clock.primary default, since what drives those pins is the
 board's: the report lists each one under `assumptions`. The report's
-`port_domains` says where every port's non-default domain came from.
+`port_domains` says where every port's non-default domain came from, and
+`assumed_ports` names every input a flop reads that took the default
+(clock.primary, or the one domain) with nothing declaring it (#169): the
+coverage gap a reviewer reads, since an async input left there reads clean.
+On a /msde block the split gate holds spec/cdc.yaml's `ports` to the
+interface's async a2d signals, so those are never among them.
 
 Scope (the report's `scope`). That default is for a block read on its own.
 A tile that ships through the generated TT wrapper with the pad reset
@@ -53,8 +58,12 @@ wrapper, with the wrapper's `rst_n` pin `async` and `clk` the one domain,
 so the block's reset is checked as the synchroniser's output
 (rst_n_sync_q1/q2) and a block that samples it once more is not flagged
 for a crossing the wrapper already closed. That needs the case the
-wrapper's names can carry: one clock domain, no `ports` or waivers in
-spec/cdc.yaml (they name block ports and nets) and no macros. Any other
+wrapper's names can carry: one clock domain, no waivers in spec/cdc.yaml
+(they name block nets) and no macros. A spec/cdc.yaml `ports` entry is
+carried onto the wrapper pin bits its tt_pins entry names (`osc_out:
+async` on `ui_in[7]` makes `ui_in[7]` async), when it is `async` or the
+one domain on a plain ui_in/uio_in pin; one the wrapper can't carry
+(inverted, or another pin) keeps the block-alone scope. Any other
 tile, and a tile that opts out (`pad_reset_sync: off`, whose wrapper
 passes rst_n straight through), is analysed alone with the async default
 above, so its rst_n is still checked, never skipped; `scope.why` says
@@ -320,6 +329,46 @@ def port_defaults(spec: dict, cfg_ports: dict, module_ports: dict) -> tuple:
     return domains, rows, board_inputs
 
 
+def _pin_bits(expr) -> set[str]:
+    """The wrapper pin bits a tt_pins expr names: {`ui_in[7]`, ...}."""
+    pin = ttlib.parse_pin_expr(expr)
+    if pin["hi"] is None:
+        return {pin["base"]}
+    return {f"{pin['base']}[{b}]" for b in range(pin["lo"], pin["hi"] + 1)}
+
+
+def wrapper_port_domains(spec: dict, cfg_ports: dict,
+                         declared: list) -> tuple[dict, list]:
+    """(pin_domains, blocked): spec/cdc.yaml's `ports` as the generated
+    wrapper's pins carry them, `async` or the block's one domain (the
+    wrapper's clk) per wrapper pin bit (`ui_in[7]`) its tt_pins entry names;
+    blocked lists each entry the wrapper's names can't carry (not on a
+    tt_pins input pad, inverted, or another domain)."""
+    tt_pins = spec.get("tt_pins") if isinstance(spec.get("tt_pins"), dict) \
+        else {}
+    pins, blocked = {}, []
+    for port, dom in sorted(cfg_ports.items()):
+        try:
+            pin = ttlib.parse_pin_expr(tt_pins[port]) if port in tt_pins \
+                else None
+        except ttlib.TTError:
+            pin = None
+        if dom == "async":
+            want = "async"
+        elif len(declared) == 1 and dom == declared[0]:
+            want = "clk"
+        else:
+            want = None
+        if pin is None or pin["invert"] or want is None \
+                or pin["base"] not in ("ui_in", "uio_in"):
+            blocked.append(f"{CDC_REL} ports {port}: {dom} is not on a "
+                           "ui_in/uio_in pin")
+            continue
+        for bit in range(pin["lo"], pin["hi"] + 1):
+            pins[f"{pin['base']}[{bit}]"] = want
+    return pins, blocked
+
+
 def analysis_scope(spec: dict, cfg: dict, declared: list) -> tuple:
     """(wrapper, why): wrapper True when the tile is analysed through the
     generated TT wrapper with its pad reset synchroniser (see the module
@@ -339,9 +388,9 @@ def analysis_scope(spec: dict, cfg: dict, declared: list) -> tuple:
                        "alone")
     blocked = [why for bad, why in (
         (len(declared) != 1, "more than one clock domain"),
-        (bool(cfg["ports"]), f"{CDC_REL} declares ports"),
         (bool(cfg["waivers"]), f"{CDC_REL} has waivers"),
         (bool(spec.get("macros")), "the tile has macros")) if bad]
+    blocked += wrapper_port_domains(spec, cfg["ports"], declared)[1]
     if blocked:
         return False, ("the block alone, rst_n async (the wrapper scope takes "
                        "one domain and block-free names; here: "
@@ -434,17 +483,25 @@ def run(argv=None):
         # the wrapper's pins: clk is the block's one domain (pad_reset_latency
         # says the primary clock enters there), rst_n the raw pad
         _, _, board_inputs = port_defaults(spec, {}, wrapper_ports(spec))
+        pins, _ = wrapper_port_domains(spec, cfg["ports"], declared)
         declared, primary = ["clk"], "clk"
-        port_domains = {"rst_n": "async"}
+        port_domains = {"rst_n": "async", **pins}
         port_rows = [{"port": "rst_n", "domain": "async",
                       "source": f"the tile's pad reset, into {top}'s "
                                 "synchroniser"}]
+        port_rows += [{"port": pin, "domain": pins[pin],
+                       "source": f"{CDC_REL} ports {port} -> tt_pins "
+                                 f"{spec['tt_pins'][port]}"}
+                      for port in sorted(cfg["ports"])
+                      for pin in sorted(_pin_bits(spec["tt_pins"][port]))]
     else:
         port_domains, port_rows, board_inputs = port_defaults(
             spec, cfg["ports"], module["ports"])
     an = cdclib.Analysis(module, primary=primary,
                          port_domains=port_domains, clock_ports=declared)
-    for port, dom in cfg["ports"].items():
+    # wrapped: wrapper_port_domains already held each entry to a tt_pins
+    # input pin and `async` or the one domain
+    for port, dom in ({} if wrapped else cfg["ports"]).items():
         if port not in module["ports"]:
             raise CheckError(f"{CDC_REL}: ports names {port!r}, not a port "
                              f"of {top}")
@@ -535,7 +592,8 @@ def run(argv=None):
         domains=an.all_roots, clocks=an.clocks(), crossings=crossings,
         clock_gates=gates, reset_trees=reset_trees,
         reset_syncs=an.reset_syncs(), waived=waived, crosscheck=xcheck,
-        port_domains=port_rows, assumptions=assumptions, scope=scope,
+        port_domains=port_rows, assumed_ports=sorted(an.assumed),
+        assumptions=assumptions, scope=scope,
         block=block_top,
         not_checked=NOT_CHECKED)
     return payload, args.out

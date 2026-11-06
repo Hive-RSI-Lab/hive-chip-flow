@@ -21,8 +21,10 @@ module sensor_counted_digital #(
 
   // 2-flop synchroniser bringing the asynchronous osc_out into the clk
   // domain, plus one more flop to edge-detect the synchronised signal.
+  // Reset is asynchronous here so osc_sync0's D is osc_out itself, no reset
+  // gating ahead of the first flop (the cdc gate's synchroniser rule).
   reg osc_sync0, osc_sync1, osc_sync1_d;
-  always @(posedge clk) begin
+  always @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
       osc_sync0   <= 1'b0;
       osc_sync1   <= 1'b0;

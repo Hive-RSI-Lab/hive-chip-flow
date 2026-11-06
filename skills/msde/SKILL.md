@@ -290,10 +290,13 @@ step up and record it; never silently drop a tier.
 - **`dac_spi` and `sar_adc` are specs only.** Those corpus rungs have
   interface files and `split` faults, no reference design or bench; they
   may stay red. `sensor_counted` and `ring_osc_div` are the working rungs.
-- **`split` reads the two root-level side specs**, not the nested runs'
-  own `spec.yaml` (`check_split.py`'s docstring). A nested spec-writer
-  that drifts from `digital_spec.yaml` is caught by `cosim` or `top_lvs`,
-  not by `split`.
+- **`split` compares the two root-level side specs**, not the nested
+  runs' own `spec.yaml` (`check_split.py`'s docstring). A nested
+  spec-writer that drifts from `digital_spec.yaml` is caught by `cosim` or
+  `top_lvs`, not by `split`. The one exception: once `digital/spec/spec.yaml`
+  exists, `split` reads its `clock.domains`. It also reads
+  `digital/spec/cdc.yaml`, which must declare every async a2d signal
+  `async`; `split_cdc.py` writes those ports (`recipes/split.md`).
 - **No msde fixer routing in the engine.** `cluster_violations.FIXER_HINTS`
   has no split or cosim kinds; the playbook routes every msde order to the
   msde fixer instead (see the fix loop above).
