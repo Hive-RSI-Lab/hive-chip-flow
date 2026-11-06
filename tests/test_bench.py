@@ -199,6 +199,29 @@ def test_uart_rtl_compare_passes_against_its_baseline(tmp_path):
     assert payload["status"] == "pass", payload["violations"]
 
 
+def test_a_committed_fixture_holds_a_real_failure():
+    """A change that should raise the mutate gate needs a fixture that fails
+    it today, or the rise has no score to show on."""
+    baseline = json.loads((REPO / "evals" / "fixtures" / "P4" / "uart_weak_spec"
+                           / "baseline.json").read_text(encoding="utf-8"))
+    mutate = baseline["gates"]["mutate"]
+    assert mutate["status"] == "fail"
+    assert mutate["metrics"]["kill_rate"] < 0.9
+    assert "survivor_condition_inverted" in mutate["kinds"]
+    assert baseline["composite"] < 1.0
+
+
+@pytest.mark.slow
+def test_uart_weak_spec_still_fails_at_its_baseline(tmp_path):
+    """--compare only catches a drop, so a failing score that went stale would
+    pass it, as uart_rtl's did. A real rise re-records this baseline."""
+    payload, _ = bench.run(["--stage", "P4", "--fixture", "uart_weak_spec",
+                            "--compare", "--results-dir", str(tmp_path)])
+    assert payload["status"] == "pass", payload["violations"]
+    assert payload["composite"] == payload["baseline_composite"]
+    assert payload["gates"]["mutate"]["status"] == "fail"
+
+
 def _fake_bench(tmp_path, monkeypatch, reports):
     """bench() over a fake gate runner: `reports` maps gate -> report dict,
     or an exception to raise (a gate that did not run)."""

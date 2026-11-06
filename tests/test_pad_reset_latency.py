@@ -57,6 +57,7 @@ SWEEP = {
     "evals/fixtures/P3/counter8_tb/ws": "framed in its bench (bench.py)",
     "evals/fixtures/P4/counter8_rtl/ws": "framed in its bench (bench.py)",
     "evals/fixtures/P4/uart_rtl/ws": "framed in its bench (bench.py)",
+    "evals/fixtures/P4/uart_weak_spec/ws": "framed in its bench (bench.py)",
 }
 
 
