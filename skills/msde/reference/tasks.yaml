@@ -136,7 +136,7 @@ verbs:
               interface.yaml - what no single gate sees"
       - gate: release
         why: "strict - every msde gate fresh-pass AND both nested
-              workspaces released (check_release.py nested_problems)"
+              workspaces released (attest.py nested_problems)"
       - do: "scripts/attest.py build --workspace {ws}"
         why: "assembles reports/checks.json only once release is
               fresh-pass"

@@ -4,6 +4,7 @@
 checks.json, and a derived (never hand-set) disposition."""
 from __future__ import annotations
 
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -189,7 +190,7 @@ def test_verify_with_no_checks_json():
 
 
 def test_verify_roundtrip_after_build(tmp_path):
-    ws = make_ws(tmp_path)
+    ws = make_msde_with_released_sides(tmp_path)
     pass_every_gate(ws, "msde")
     att, _ = attest_mod.build(ws)
     attest_mod.write_attestation(ws, att)
@@ -257,7 +258,7 @@ def test_disposition_in_progress_when_some_gates_ran(tmp_path):
 # ------------------------------------------------------------------- CLI
 
 def test_cli_build_exit_1_then_0(tmp_path, capsys):
-    ws = make_ws(tmp_path)
+    ws = make_msde_with_released_sides(tmp_path)
     code1 = attest_mod.main(["build", "--workspace", str(ws)])
     assert code1 == 1
     capsys.readouterr()
@@ -316,7 +317,7 @@ def test_the_release_record_pins_the_pdk_and_verify_refuses_another(
     pin = {"name": "gf180mcuD", "open_pdks": "1689ac3f", "ciel": "1689ac3f",
            "root": "/t"}
     monkeypatch.setattr(attest_mod.statelib, "pdk_version", lambda: dict(pin))
-    ws = make_ws(tmp_path)
+    ws = make_msde_with_released_sides(tmp_path)
     pass_every_gate(ws, "msde")
     att, problems = attest_mod.build(ws)
     assert problems == []
@@ -327,3 +328,100 @@ def test_the_release_record_pins_the_pdk_and_verify_refuses_another(
     pin["open_pdks"] = "deadbeef"
     v = attest_mod.verify(ws)
     assert v["valid"] is False and "PDK" in v["reason"]
+
+
+# ------------------------------------------------- what "released" holds for
+
+def make_released_side(ws: Path, side: str, skill: str) -> Path:
+    sub = ws / side
+    state_mod.State.init(sub, skill, statelib.split_block_name(sub))
+    pass_every_gate(sub, skill)
+    att, problems = attest_mod.build(sub)
+    assert att is not None, problems
+    attest_mod.write_attestation(sub, att)
+    return sub
+
+
+def make_msde_with_released_sides(tmp_path: Path) -> Path:
+    ws = make_ws(tmp_path)
+    for side, skill in attest_mod.NESTED.items():
+        make_released_side(ws, side, skill)
+    return ws
+
+
+def make_released_msde(tmp_path: Path) -> Path:
+    ws = make_msde_with_released_sides(tmp_path)
+    pass_every_gate(ws, "msde")
+    att, problems = attest_mod.build(ws)
+    assert att is not None, problems
+    attest_mod.write_attestation(ws, att)
+    return ws
+
+
+def fail_gate(ws: Path, gate: str) -> None:
+    st = state_mod.State.load(ws / "state.json")
+    st.record_gate(gate, {"status": "fail"})
+    st.save()
+
+
+def test_a_recorded_fail_is_a_violation_on_a_released_side(tmp_path):
+    ws = make_released_msde(tmp_path)
+    assert attest_mod.verify(ws / "analog")["valid"]
+    fail_gate(ws / "analog", "pex_sim")
+    verdict = attest_mod.verify(ws / "analog")
+    assert not verdict["valid"]
+    assert "pex_sim: last recorded result is FAIL" in verdict["reason"]
+
+
+def test_an_msde_record_does_not_verify_with_a_failing_side(tmp_path):
+    """All the top's own gates green and its record current, its analog side
+    failing: not released, and the reason names the side's gate."""
+    ws = make_released_msde(tmp_path)
+    assert attest_mod.verify(ws)["valid"]
+    fail_gate(ws / "analog", "pex_sim")
+    assert attest_mod.disposition(ws)["disposition"] == "gates-green"
+    verdict = attest_mod.verify(ws)
+    assert not verdict["valid"]
+    assert verdict["reason"].startswith("nested_analog: not released: ")
+    assert "pex_sim" in verdict["reason"]
+
+
+def test_an_msde_record_does_not_verify_with_a_side_missing(tmp_path):
+    ws = make_released_msde(tmp_path)
+    (ws / "digital" / "state.json").unlink()
+    verdict = attest_mod.verify(ws)
+    assert not verdict["valid"]
+    assert "nested_digital: no nested workspace" in verdict["reason"]
+
+
+def test_attest_build_cannot_turn_a_failing_side_into_a_valid_top(tmp_path,
+                                                                  capsys):
+    """verify's remedy for a stale record is `attest build`: following it
+    with a side failing must not leave a record that reads as released."""
+    ws = make_released_msde(tmp_path)
+    before = (ws / "reports" / "checks.json").read_text(encoding="utf-8")
+    fail_gate(ws / "analog", "pex_sim")
+    code = attest_mod.main(["build", "--workspace", str(ws)])
+    out = json.loads(capsys.readouterr().out)
+    assert code == 1
+    assert out["status"] == "violations"
+    assert any(p.startswith("nested_analog") for p in out["problems"])
+    assert (ws / "reports" / "checks.json").read_text(encoding="utf-8") == before
+
+
+def test_a_record_older_than_the_pdk_pin_does_not_verify(tmp_path, monkeypatch):
+    """A record written before checks.json named its PDK (#138): verify
+    refuses it once the toolchain names one, sides released or not."""
+    pin = {"name": "gf180mcuD", "open_pdks": "1689ac3f", "ciel": "1689ac3f",
+           "root": "/nowhere"}
+    monkeypatch.setattr(attest_mod.statelib, "pdk_version", lambda: dict(pin))
+    ws = make_released_msde(tmp_path)
+    path = ws / "reports" / "checks.json"
+    old = json.loads(path.read_text(encoding="utf-8"))
+    del old["pdk"], old["attestation_sha256"]
+    old["attestation_sha256"] = hashlib.sha256(
+        json.dumps(old, sort_keys=True).encode("utf-8")).hexdigest()
+    path.write_text(json.dumps(old), encoding="utf-8")
+    verdict = attest_mod.verify(ws)
+    assert not verdict["valid"]
+    assert "signed off on PDK None" in verdict["reason"]
