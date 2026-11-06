@@ -4,7 +4,7 @@
  "block": "r2r_dac",
  "workspace": "blocks/r2r_dac/digital",
  "created": "2026-09-25T08:51:49",
- "updated": "2026-11-05T21:08:04",
+ "updated": "2026-11-05T23:42:04",
  "phase": "P8",
  "toolchain": null,
  "gates": {
@@ -3974,9 +3974,9 @@
   "release": {
    "phase": "P8",
    "status": "pass",
-   "attempts": 7,
+   "attempts": 8,
    "last": {
-    "ts": "2026-11-05T19:51:51",
+    "ts": "2026-11-05T23:42:04",
     "status": "pass",
     "failing_count": 0,
     "total": 0,
@@ -4067,6 +4067,19 @@
     },
     {
      "ts": "2026-11-05T19:51:51",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:5b5e3748612f45afdfaedc1d7e6daa228ca0e64c09072bc4ac8b8b6275a6d995",
+      "harden": "harden_signoff:857853e12358b7137b1d3595ab578ac6079a9d2e0161f7469c877da78139ad68",
+      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2"
+     },
+     "strength": 0,
+     "job": null
+    },
+    {
+     "ts": "2026-11-05T23:42:04",
      "status": "pass",
      "failing_count": 0,
      "total": 0,
@@ -4517,7 +4530,7 @@
    "path": "rtl",
    "kind": "rtl",
    "sha256": "dir_text:5b5e3748612f45afdfaedc1d7e6daa228ca0e64c09072bc4ac8b8b6275a6d995",
-   "hashed": "2026-11-05T21:08:04"
+   "hashed": "2026-11-05T23:42:03"
   },
   "tb": {
    "path": "tb",
@@ -4585,7 +4598,7 @@
    "path": "harden",
    "kind": "harden",
    "sha256": "harden_signoff:857853e12358b7137b1d3595ab578ac6079a9d2e0161f7469c877da78139ad68",
-   "hashed": "2026-11-05T19:51:51"
+   "hashed": "2026-11-05T23:42:04"
   },
   "cdc_waivers": {
    "path": "spec/cdc.yaml",
@@ -4597,7 +4610,7 @@
    "path": "${PDK_ROOT}/SOURCES",
    "kind": "pdk_version",
    "sha256": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
-   "hashed": "2026-11-05T21:08:04"
+   "hashed": "2026-11-05T23:42:04"
   },
   "pdk_liberty": {
    "path": "${PDK_ROOT}/libs.ref/gf180mcu_fd_sc_mcu7t5v0/lib",
@@ -7200,6 +7213,14 @@
    "gate": "cdc",
    "status": "pass",
    "attempt": 9,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-11-05T23:42:04",
+   "event": "gate",
+   "gate": "release",
+   "status": "pass",
+   "attempt": 8,
    "failing_count": 0
   }
  ]
