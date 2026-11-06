@@ -80,16 +80,19 @@ Three sby TASKS, same model; smt and pdr at `depth`, cov at `cover_depth`:
        per-property breakdown of THIS, only of which property failed, so a
        property that fails do so together at the task level; see
        _parse_task_status).
-  pdr  mode prove, engine abc pdr        - the second complete engine
-       (gates.yaml: "abc pdr as the second opinion"). PDR gives no
-       per-property breakdown at all (proved empirically: its own XML
-       collapses every property into one "default" testcase) - only a
-       design-level PASS/FAIL, applied to every property: a PASS is an
-       unbounded proof of every assert in the model (PDR is complete for
-       safety), a FAIL a counterexample to at least one. A pdr
-       task whose DONE is ERROR only because yosys-witness crashed
-       converting abc's counterexample to a trace still counts as FAIL
-       (pdr_done_status).
+  pdr  mode prove, engine abc --keep-going pdr - the second complete
+       engine (gates.yaml: "abc pdr as the second opinion"). Keep-going
+       (abc's `pdr -a`) settles each assert on its own instead of stopping
+       at the first counterexample. Its XML still collapses every property
+       into one "default" testcase, so each assert's verdict comes off
+       abc's own "Proved output N" and "Writing CEX for output N" lines,
+       with N mapped to the assert through the model's .ywa (pdr_verdicts):
+       PASS an unbounded proof of that assert (PDR is complete for safety),
+       FAIL a counterexample to it, neither UNKNOWN. A pdr task that ends
+       in DONE ERROR only because yosys-witness crashed converting a
+       counterexample to a trace, or in DONE TIMEOUT, still counts as FAIL
+       if abc found a counterexample first (pdr_done_status), and whatever
+       abc had not settled by then is UNKNOWN.
   cov  mode cover, engine smtbmc yices   - "every cover reached": a COVER
        testcase with no <failure> in THIS task's XML was reached; one that
        IS present but not reached carries a <failure> here (proved
@@ -105,29 +108,39 @@ Three sby TASKS, same model; smt and pdr at `depth`, cov at `cover_depth`:
        vacuous below.
 
 Per-property (ASSERT-kind) verdict, applied per `property:` label:
-  proven   smt's basecase reports "pass", pdr did not FAIL, AND any
-           complete engine closed the proof: smt's induction step reports
-           "pass" (proven_by k-induction) OR the pdr task's own DONE is
-           PASS (proven_by pdr - e.g. a non-inductive invariant whose
-           unreachable states keep the induction step from closing). The
-           report's `proven_by` names the engine per requirement.
+  proven   pdr did not FAIL this assert AND any complete engine closed the
+           proof: smt's basecase and induction step both report "pass"
+           (proven_by k-induction) OR pdr proved this assert (proven_by pdr
+           - e.g. a non-inductive invariant whose unreachable states keep
+           the induction step from closing). smt's proof is joint - its
+           induction step assumes every assert - so a counterexample to any
+           assert, from either engine, voids it (joint_smt_sub) and only
+           pdr's own proof can still prove the others. The report's
+           `proven_by` names the engine per requirement.
   bounded  smt's basecase reports "pass" (no counterexample within `depth`
            steps) but no complete engine closed: induction did not (an
            inconclusive/unproven induction step, not a counterexample -
            sby also puts a <failure> on the property whose induction step
            failed, with trace_induct.vcd, and that is still bounded, never
-           failed) and pdr gave up (DONE UNKNOWN). A pdr ERROR is refused,
+           failed) and pdr did not settle this assert. A pdr ERROR is refused,
            never folded into bounded. Recorded with `depth` - "the
            gate never reports it as proven" (docs/design.md section 2) -
            a severity "info" finding, visible but never counted toward the
            gate's fail_severities: bounded to the spec's own asked depth is
            this gate's OWN passing outcome, just never claimed as a proof.
   failed   this property's own testcase carries a <failure> in the smt
-           task and smt's basecase did not pass, OR the pdr task's overall DONE is FAIL while smt did not
-           already fail it (an engine disagreement - PDR is a sound method
-           for a safety property, so a PDR counterexample the k-induction
-           run did not also find is treated as a real failure, not
-           dismissed).
+           task and smt's basecase did not pass, OR pdr found a counterexample
+           to this assert while smt did not already fail it (an engine
+           disagreement - PDR is a sound method for a safety property, so a
+           PDR counterexample the k-induction run did not also find is
+           treated as a real failure, not dismissed). A counterexample fails
+           only the assert it disproves; one to an assert no requirement
+           names is its own finding with no requirement on it.
+  undecided smt's basecase stopped at another assert's counterexample before
+           reaching `depth`, and pdr did not settle this one (it ran out of
+           time, or the trace crash above ended it). An error
+           property_undecided: no bound was reached, so it cannot read as
+           bounded, and nothing disproved it, so it is not failed.
   vacuous  smt/pdr passed it (proven or bounded), but the cov task never
            reached it as a cover: no trace within `cover_depth` enables the
            assert (an `assume` or a gate condition rules out every state it
@@ -200,6 +213,7 @@ async_reset_loop_undeclared - see Async self-reset loops above).
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import subprocess
 import sys
@@ -225,7 +239,7 @@ TIMEOUT_BASE_S = 180.0       # sby: base + per-step * depth, unless
 TIMEOUT_PER_STEP_S = 1.0     # formal.timeout_s says otherwise
 TIMEOUT_MAX_S = 7200.0       # hard ceiling on one sby task either way
 
-DONE_RE = re.compile(r"DONE \((PASS|FAIL|ERROR|UNKNOWN)\b")
+DONE_RE = re.compile(r"DONE \((PASS|FAIL|ERROR|UNKNOWN|TIMEOUT)\b")
 TASK_STATUS_RE = re.compile(
     r"returned (pass|FAIL|UNKNOWN) for (basecase|induction)")
 IMPLICIT_HIER_RE = re.compile(
@@ -254,7 +268,15 @@ CUT_IL_NAME = "cut.il"
 LOGIC_LOOP_RE = re.compile(r"(?i)found logic loop in module (\S+?)[:!]")
 # abc pdr's own verdict, and the yosys-witness crash that can follow it when
 # sby converts pdr's counterexample to a trace (see pdr_done_status)
-PDR_FAIL_RE = re.compile(r"summary: engine_\d+ \(abc pdr\) returned FAIL\b")
+PDR_ENGINE = "abc --keep-going pdr"
+PDR_FAIL_RE = re.compile(
+    r"summary: engine_\d+ \(abc(?: --keep-going)? pdr\) returned FAIL\b")
+# abc's verdict on one output, as `pdr -a` logs them
+PDR_PROVED_RE = re.compile(r"engine_\d+: Proved output +(\d+) in frame\b")
+PDR_CEX_RE = re.compile(r"engine_\d+: Writing CEX for output +(\d+) to\b")
+# sby stops the pdr task itself at the timeout, so what abc settled by then
+# is kept; the launcher's own limit is only the backstop, this much later
+SBY_TIMEOUT_GRACE_S = 60.0
 AIW2YW_CRASH_RE = re.compile(r"yosys-witness\", line \d+, in aiw2yw\b")
 ASYNC_CUT_FIX = (" (spec.yaml formal.async_reset_cuts: [{signal, why}, ...] "
                  "- see check_formal.py's own docstring, 'Async self-reset "
@@ -801,14 +823,16 @@ def write_sby(path: Path, sv_files: list[Path], rtl_files: list[Path],
              formal_top: str, mode: str, engine: str, depth: int,
              frontend: str = "native", slang_so: Path | None = None,
              multiclock: bool = False, vacuity: bool = False,
-             cut_il: Path | None = None) -> None:
+             cut_il: Path | None = None,
+             timeout_s: float | None = None) -> None:
     """One task's .sby. `multiclock` turns sby's multiclock mode on (see
     Clocks above); `vacuity` turns every assert into a cover of itself
     (the cov task's non-vacuity check, see vacuous above). `cut_il`
     (build_cut_il's output) reads that already-prepped, already-cut RTLIL
     directly instead of the source files and skips `prep` (it was already
     prepped, and flattened, to make the cut) - the declared
-    formal.async_reset_cuts route."""
+    formal.async_reset_cuts route. `timeout_s` has sby stop the task itself
+    and report DONE (TIMEOUT)."""
     files = "\n".join(str(f.resolve()) for f in (*sv_files, *rtl_files))
     if cut_il is not None:
         reads = f"read_rtlil {cut_il.resolve()}"
@@ -817,12 +841,13 @@ def write_sby(path: Path, sv_files: list[Path], rtl_files: list[Path],
         reads = yosys_reads(frontend, sv_files, rtl_files, formal_top, slang_so)
         prep = f"prep -top {formal_top}" + (
             "\nchformal -assert2cover" if vacuity else "")
+    limit = "" if timeout_s is None else f"timeout {int(timeout_s)}\n"
     path.write_text(f"""\
 [options]
 mode {mode}
 depth {depth}
 multiclock {"on" if multiclock else "off"}
-
+{limit}
 [engines]
 {engine}
 
@@ -1078,18 +1103,61 @@ def done_status(output: str) -> str:
 
 def pdr_done_status(output: str) -> str:
     """The pdr task's verdict: its DONE status, except that DONE (ERROR) is
-    read as FAIL when abc pdr itself returned FAIL and the only crash is
-    yosys-witness's aiw2yw turning that counterexample into a trace. On
+    read as FAIL when abc pdr itself found a counterexample and the only
+    crash is yosys-witness's aiw2yw turning it into a trace, and DONE
+    (TIMEOUT) as FAIL when abc found one before the time ran out. On
     corpus/vde/riscv (iic-osic-tools-2026.09) aiw2yw dies on
-    `assert isinstance(key, WitnessSig)` after abc logs "Output 0 ... was
-    asserted in frame 2" - the solver found the counterexample, only the
-    trace was lost, and this gate never reads pdr's trace. Any other ERROR
-    stays ERROR. Pure."""
+    `assert isinstance(key, WitnessSig)` after abc logs its counterexample -
+    the solver found it, only the trace was lost, and this gate never reads
+    pdr's trace. Any other ERROR or TIMEOUT stays what it is. Pure."""
     status = done_status(output)
-    if status == "ERROR" and PDR_FAIL_RE.search(output) \
-            and AIW2YW_CRASH_RE.search(output):
+    found = PDR_FAIL_RE.search(output) or PDR_CEX_RE.search(output)
+    if status == "ERROR" and found and AIW2YW_CRASH_RE.search(output):
+        return "FAIL"
+    if status == "TIMEOUT" and found:
         return "FAIL"
     return status
+
+
+def pdr_verdicts(output: str, output_ids: list[str]) -> dict[str, str]:
+    """{sby id: "PASS"|"FAIL"} for each assert `abc --keep-going pdr` settled,
+    off its own log lines. `output_ids` is the model's assert order, which
+    is abc's output numbering (see pdr_output_ids); an assert abc did not
+    settle is absent, never guessed. Pure."""
+    verdicts: dict[str, str] = {}
+    for regex, verdict in ((PDR_PROVED_RE, "PASS"), (PDR_CEX_RE, "FAIL")):
+        for m in regex.finditer(output):
+            index = int(m.group(1))
+            if index >= len(output_ids):
+                raise CheckError(
+                    f"abc pdr settled output {index} but the model has only "
+                    f"{len(output_ids)} asserts - its verdicts cannot be "
+                    "tied to asserts")
+            verdicts[output_ids[index]] = verdict
+    return verdicts
+
+
+def pdr_output_ids(ywa_path: Path) -> list[str]:
+    """abc's outputs in order, as sby ids: the .ywa sby writes with the aiger
+    model lists each assert's path (`\\LABEL`, `\\dut`, `\\u_chk`,
+    `\\LABEL`), and sby itself reads abc's output numbers through it."""
+    if not ywa_path.is_file():
+        raise CheckError(f"sby produced no {ywa_path.name} - abc pdr's "
+                         "verdicts cannot be tied to asserts")
+    asserts = json.loads(ywa_path.read_text(encoding="utf-8"))["asserts"]
+    return [".".join(part.removeprefix("\\") for part in path)
+            for path in asserts]
+
+
+def joint_smt_sub(smt_sub: dict[str, str | None],
+                  verdicts: dict[str, str]) -> dict[str, str | None]:
+    """smt_sub with its induction result dropped when a counterexample voids
+    it. k-induction's "pass" covers every assert together (its step assumes
+    them all) and stands only with a passing basecase, so any assert with a
+    counterexample takes it away from all of them. Pure."""
+    if smt_sub.get("basecase") == "FAIL" or "FAIL" in verdicts.values():
+        return {**smt_sub, "induction": None}
+    return smt_sub
 
 
 def task_substatus(output: str) -> dict[str, str | None]:
@@ -1107,7 +1175,8 @@ def task_substatus(output: str) -> dict[str, str | None]:
 
 
 def check_cut_model(signal: str, smt_cases: dict[str, dict],
-                    smt_sub: dict[str, str | None]) -> None:
+                    smt_sub: dict[str, str | None],
+                    verdicts: dict[str, str] | None = None) -> None:
     """Refuse unless the smt task ran the cut's own self-check assert
     (`<signal>` + ASYNC_CUT_CHECK_SUFFIX, see cut_async_reset_nets) and
     found no counterexample to it: a failed one means clk2fflogic models
@@ -1119,7 +1188,9 @@ def check_cut_model(signal: str, smt_cases: dict[str, dict],
             f"formal.async_reset_cuts: the cut of {signal!r} carries a "
             "self-check assert sby never reported - the cut model did not "
             "run as built" + ASYNC_CUT_FIX)
-    if case["failed"] and smt_sub["basecase"] != "pass":
+    check = signal + ASYNC_CUT_CHECK_SUFFIX
+    if (case["failed"] and smt_sub["basecase"] != "pass") \
+            or (verdicts or {}).get(check) == "FAIL":
         raise CheckError(
             f"formal.async_reset_cuts: the cut of {signal!r} no longer "
             "matches how this yosys's clk2fflogic models the flop (its "
@@ -1130,9 +1201,8 @@ def check_cut_model(signal: str, smt_cases: dict[str, dict],
 
 def proven_by(smt_sub: dict[str, str | None], pdr_status: str) -> str | None:
     """Which complete engine closed the proof: "k-induction" (smtbmc's
-    induction step passed), else "pdr" (abc pdr PASSed - PDR is complete for
-    safety properties and its PASS is design-level: no assert in the model
-    fails at any depth), else None. Like a commercial multi-engine run, a
+    induction step passed), else "pdr" (abc pdr PASSed this assert - PDR is
+    complete for safety properties, so it fails at no depth), else None. Like a commercial multi-engine run, a
     property is proven as soon as ANY complete engine proves it: a
     non-inductive invariant (unreachable states that keep the k-induction
     step from closing) that pdr proves is proven, not bounded. Only says
@@ -1148,12 +1218,13 @@ def proven_by(smt_sub: dict[str, str | None], pdr_status: str) -> str | None:
 def classify_property(label: str, rid: str, smt_case: dict,
                       smt_sub: dict[str, str | None], pdr_status: str,
                       depth: int) -> tuple[str, dict | None]:
-    """One property's verdict - "proven"/"bounded"/"failed" - and the
-    violation (if any) to report it with. Pure (no I/O, no sby, no XML
-    parsing of its own) so the classification RULES are testable without a
-    real solver run - see this module's own header for what each rule
-    means; CheckError here is the "sby genuinely never reached a verdict at
-    all" case, never silently folded into any of the three outcomes."""
+    """One property's verdict - "proven"/"bounded"/"failed"/"undecided" -
+    and the violation (if any) to report it with, given smt's task-level
+    status and pdr_status, pdr's verdict on THIS assert. Pure (no I/O, no
+    sby, no XML parsing of its own) so the classification RULES are testable
+    without a real solver run - see this module's own header for what each
+    rule means; CheckError here is the "sby genuinely never reached a verdict
+    at all" case, never silently folded into any of the outcomes."""
     # sby marks the property <failure> for an induction-step trace too
     # (trace_induct.vcd): an arbitrary, possibly unreachable start state,
     # not a counterexample. Only a basecase that did not pass is one.
@@ -1179,6 +1250,17 @@ def classify_property(label: str, rid: str, smt_case: dict,
             "counterexample smtbmc's k-induction did not", "sby-abc-pdr")
     if smt_sub["basecase"] == "pass" and proven_by(smt_sub, pdr_status):
         return "proven", None
+    if smt_sub["basecase"] == "FAIL":
+        # the counterexample that stopped smt's basecase is another assert's
+        # (this one's own testcase has no <failure>, see above)
+        if pdr_status == "PASS":
+            return "proven", None
+        return "undecided", checklib.violation(
+            "formal", "error", None, None, "property_undecided", [rid],
+            f"requirement {rid} (property {label}): no verdict - smtbmc "
+            "stopped at another assert's counterexample before reaching "
+            f"depth {depth}, and abc pdr did not settle this one. Fix that "
+            "counterexample and rerun", "sby-smtbmc", depth=depth)
     if smt_sub["basecase"] == "pass":
         # no complete engine closed: induction did not converge and pdr
         # gave up (UNKNOWN) - only the basecase's bounded result stands
@@ -1203,7 +1285,7 @@ def vacuity_verdict(label: str, rid: str, verdict: str, violation,
     reached it). Pure."""
     # brief: "a vacuous pass must not read as a pass" - cov_case["failed"]
     # is the assert's cover NOT reached
-    if verdict == "failed" or not cov_case["failed"]:
+    if verdict in ("failed", "undecided") or not cov_case["failed"]:
         return verdict, violation
     return "vacuous", checklib.violation(
         "formal", "error", None, None, "vacuous_pass", [rid],
@@ -1325,7 +1407,7 @@ def run(argv=None):
 
     tasks = {
         "smt": ("prove", "smtbmc yices"),
-        "pdr": ("prove", "abc pdr"),
+        "pdr": ("prove", PDR_ENGINE),
         "cov": ("cover", "smtbmc yices"),
     }
     outputs: dict[str, str] = {}
@@ -1333,23 +1415,37 @@ def run(argv=None):
     for name, (mode, engine) in tasks.items():
         config = sby_dir / f"{name}.sby"
         cover = mode == "cover"
+        limit = settings["cover_timeout_s" if cover else "prove_timeout_s"]
+        # keep-going can outlast a counterexample by the rest of the time,
+        # and what it found by then must survive that: sby stops pdr itself
+        own_limit = limit if name == "pdr" else None
         write_sby(config, sv_files, rtl_files, formal_top, mode, engine,
                   cover_depth if cover else depth, frontend, slang_so,
-                  multiclock=multiclock, vacuity=cover, cut_il=cut_il)
+                  multiclock=multiclock, vacuity=cover, cut_il=cut_il,
+                  timeout_s=own_limit)
         output, workdir = run_sby(
             sby_dir, config, name,
-            settings["cover_timeout_s" if cover else "prove_timeout_s"])
+            limit if own_limit is None else limit + SBY_TIMEOUT_GRACE_S)
+        if name == "pdr":
+            pdr_workdir = workdir
         # DONE (ERROR) still matches DONE_RE - run_sby's own check only
         # catches a launcher that never reached DONE at all - but a task
         # that DID reach DONE and reached it as ERROR (a solver crash, an
         # unusable model) is refused here too, before any per-property
         # classification gets a chance to fold it into bounded/proven.
-        # pdr_done_status's one exception (a FAIL whose trace crashed) is
-        # kept, without the XML of a task that never finished writing it.
-        if name == "pdr" and done_status(output) == "ERROR" \
+        # pdr_done_status's exceptions (a FAIL whose trace crashed, or that
+        # ran out of time afterwards) are kept, without the XML of a task
+        # that never finished writing it.
+        if name == "pdr" and done_status(output) in ("ERROR", "TIMEOUT") \
                 and pdr_done_status(output) == "FAIL":
             outputs[name] = output
             continue
+        if done_status(output) == "TIMEOUT":
+            raise CheckError(
+                f"sby ({name}) timed out after {limit:g}s with no "
+                "counterexample - raise spec.yaml formal.timeout_s (at most "
+                f"{TIMEOUT_MAX_S:g}) or shorten the sequences the properties "
+                "need")
         if done_status(output) == "ERROR":
             loop = LOGIC_LOOP_RE.search(output)
             if loop is not None:
@@ -1370,8 +1466,16 @@ def run(argv=None):
     smt_cases, pdr_status = testcases["smt"], pdr_done_status(outputs["pdr"])
     smt_status = done_status(outputs["smt"])
     smt_sub = task_substatus(outputs["smt"])
+    verdicts = {} if pdr_status == "PASS" else pdr_verdicts(
+        outputs["pdr"],
+        pdr_output_ids(pdr_workdir / "model" / "design_aiger.ywa"))
+    if pdr_status == "FAIL" and "FAIL" not in verdicts.values():
+        raise CheckError("sby (pdr task) reported FAIL but abc named no "
+                         "output with a counterexample - its verdict cannot "
+                         "be tied to an assert")
     for cut in applied_cuts or []:
-        check_cut_model(cut["signal"], smt_cases, smt_sub)
+        check_cut_model(cut["signal"], smt_cases, smt_sub, verdicts)
+    joint_sub = joint_smt_sub(smt_sub, verdicts)
 
     ids, ambiguous = resolve_labels(props, smt_cases)
     if ambiguous:
@@ -1427,11 +1531,16 @@ def run(argv=None):
     cover_key = ("cover_depth" if (spec.get("formal") or {}).get(
         "cover_depth") is not None else "depth")
     violations = []
-    proven, bounded, failed, vacuous = [], [], [], []
+    proven, bounded, failed, vacuous, undecided = [], [], [], [], []
     proven_engine: dict[str, str] = {}
+    pdr_by_label: dict[str, str] = {}
     for label, rid in sorted(props.items()):
+        # design-level PASS/ERROR are every assert's; else pdr's own verdict
+        own_pdr = (pdr_status if pdr_status not in ("FAIL", "UNKNOWN")
+                   else verdicts.get(ids[label], "UNKNOWN"))
+        pdr_by_label[label] = own_pdr
         verdict, violation = classify_property(
-            label, rid, smt_cases[label], smt_sub, pdr_status, depth)
+            label, rid, smt_cases[label], joint_sub, own_pdr, depth)
         cov_case = cov_cases.get(ids[label])
         if cov_case is None:
             raise CheckError(f"assert {ids[label]} appears in the smt model "
@@ -1440,11 +1549,29 @@ def run(argv=None):
         verdict, violation = vacuity_verdict(
             label, rid, verdict, violation, cov_case, cover_depth, cover_key)
         {"proven": proven, "bounded": bounded, "failed": failed,
-         "vacuous": vacuous}[verdict].append(rid)
+         "vacuous": vacuous, "undecided": undecided}[verdict].append(rid)
         if verdict == "proven":
-            proven_engine[rid] = proven_by(smt_sub, pdr_status)
+            proven_engine[rid] = proven_by(joint_sub, own_pdr)
         if violation is not None:
             violations.append(violation)
+    # A counterexample to an assert no requirement names fails no requirement
+    # but still fails the gate.
+    named = set(ids.values())
+    smt_found = sorted(
+        pid for pid, case in testcases["smt"].items()
+        if pid not in named and case["type"] == "ASSERT" and case["failed"]
+        and smt_sub["basecase"] != "pass")
+    for pid in smt_found:
+        violations.append(checklib.violation(
+            "formal", "error", None, None, "property_failed", [],
+            f"assert {pid}, which no requirement names: sby found a "
+            "counterexample", "sby-smtbmc"))
+    for pid, own in sorted(verdicts.items()):
+        if own == "FAIL" and pid not in named and pid not in smt_found:
+            violations.append(checklib.violation(
+                "formal", "error", None, None, "engine_disagreement", [],
+                f"assert {pid}, which no requirement names: abc pdr found a "
+                "counterexample smtbmc's k-induction did not", "sby-abc-pdr"))
 
     covers = {pid: c for pid, c in testcases["smt"].items()
               if c["type"] == "COVER"}
@@ -1494,7 +1621,9 @@ def run(argv=None):
         multiclock=multiclock, multiclock_why=multiclock_why,
         proven=sorted(proven), proven_by=dict(sorted(proven_engine.items())),
         bounded=sorted(bounded), failed=sorted(failed), vacuous=sorted(vacuous),
+        undecided=sorted(undecided),
         smt_status=smt_status, pdr_status=pdr_status,
+        pdr_by_property=dict(sorted(pdr_by_label.items())),
         cover_points=sorted(covers),
         async_reset_cuts=applied_cuts or [],
         async_reset_cuts_note=async_note)

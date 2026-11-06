@@ -6,23 +6,30 @@ P4 pass.
 
 ## Reading the result
 
-`check_formal.py` classifies every `check: formal|both` requirement as
-one of three things, never a plain pass/fail:
+`check_formal.py` classifies every `check: formal|both` requirement on its
+own, never one plain pass/fail for the design:
 
-- **proven** - full k-induction proof (smtbmc) AND pdr corroborates. This
-  is the only verdict that means "holds for all time."
+- **proven** - a complete engine closed it: smtbmc's k-induction (with no
+  counterexample to any assert, since its step assumes them all) or abc pdr's
+  own proof of this assert. `proven_by` names the engine. This is the only
+  verdict that means "holds for all time."
 - **bounded** - no counterexample within the spec's own `formal: {depth}`,
-  but induction did not converge. Recorded, never reported as proven -
+  but neither engine closed it. Recorded, never reported as proven -
   read the depth before trusting it for anything beyond "nothing broke in
   the first N cycles."
-- **failed** - a real counterexample (smtbmc), OR pdr disagrees with a
-  smtbmc pass (`engine_disagreement` - PDR is sound for a safety property,
-  so its own counterexample is trusted even when k-induction did not also
-  find one).
+- **failed** - a real counterexample to this assert (smtbmc), OR pdr's
+  counterexample to it where smtbmc found none (`engine_disagreement` - PDR
+  is sound for a safety property, so its own counterexample is trusted even
+  when k-induction did not also find one). A counterexample fails only the
+  assert it disproves.
+- **undecided** - an error with no verdict: smtbmc stopped at another assert's
+  counterexample before `depth`, and pdr did not settle this one
+  (`property_undecided`). Fix that counterexample and rerun.
 
 ## Where a failure routes
 
-`property_failed`, `engine_disagreement` and `cover_not_reached` ->
+`property_failed`, `engine_disagreement`, `property_undecided` and
+`cover_not_reached` ->
 `formal`, the property-writer (`fix_dispatch.DOMAINS["formal"]`). It reads
 the counterexample against the spec, never the RTL. If the property
 misstates the spec it fixes `formal/*.sv` (never weakening); if the

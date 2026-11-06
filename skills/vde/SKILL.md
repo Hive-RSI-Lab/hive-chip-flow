@@ -212,7 +212,8 @@ On gate fail (exit 1, result JSON has `failing` with a `kind`/`file`/
    the pad's reset latency) goes to the tb-writer
    too, with the snapshot label from step 2 so it can prove its edit left
    every assert, bound and expected value alone; a
-   `formal` order (`property_failed`, `cover_not_reached`, a bounded
+   `formal` order (`property_failed`, `property_undecided`,
+   `cover_not_reached`, a bounded
    property, a formal depth to set) goes to the property-writer in
    WORK-ORDER MODE (`skills/vde/agents/property-writer.md`). When it
    reports a `property_failed` property correct (left as is, said so in

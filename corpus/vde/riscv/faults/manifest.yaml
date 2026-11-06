@@ -22,7 +22,8 @@ faults:
   # On this core sby's abc pdr task finds the counterexample, then
   # yosys-witness's aiw2yw crashes converting it to a trace, so the task
   # reaches DONE (ERROR). check_formal.py's pdr_done_status reads that
-  # case as pdr's FAIL, and smtbmc's basecase reports property_failed.
+  # case as pdr's FAIL, keeps abc's verdict for each output, and smtbmc's
+  # basecase reports property_failed on the assert abc disproved.
   - name: formal_register_with_no_reset
     gate: formal
     plant: plant_formal.py

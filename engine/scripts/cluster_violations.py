@@ -136,6 +136,7 @@ FIXER_HINTS: dict[str, str] = {
     # a correct property goes on to rtl via its OPEN note
     "property_failed": "formal",
     "engine_disagreement": "formal",
+    "property_undecided": "formal",
     "bounded_not_proven": "formal",
     "cover_not_reached": "formal",
     # spec.yaml's formal.depth unset: the property-writer's to set

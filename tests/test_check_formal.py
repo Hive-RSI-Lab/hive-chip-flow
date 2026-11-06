@@ -1388,3 +1388,304 @@ def test_non_inductive_invariant_with_a_real_bug_still_fails(tmp_path, capsys):
     assert code == 1, out
     assert out["failed"] == ["REQ-P"] and out["proven"] == [], out
     assert out["pdr_status"] == "FAIL", out
+
+
+# Issue #141: abc pdr used to give one verdict for the whole design, so one
+# false assert failed every other one. `a` wraps at 9; `b` wraps at 255.
+RTL_TWO_COUNTERS = """\
+module top (input wire clk, input wire rst,
+            output reg [7:0] a, output reg [7:0] b);
+  always @(posedge clk)
+    if (rst) begin a <= 8'd0; b <= 8'd0; end
+    else begin
+      a <= (a == 8'd9) ? 8'd0 : a + 8'd1;
+      b <= (b == 8'd255) ? 8'd0 : b + 8'd1;
+    end
+endmodule
+"""
+
+FORMAL_TWO_ASSERTS = """\
+module top_formal (input wire clk, input wire rst,
+                   output wire [7:0] a, output wire [7:0] b);
+  top dut (.clk(clk), .rst(rst), .a(a), .b(b));
+`ifdef FORMAL
+  reg init = 1;
+  always @(posedge clk) init <= 0;
+  always @* if (init) assume (rst);
+  always @(posedge clk)
+    if (!init) begin
+      P_A: assert (%s);
+      P_B: assert (%s);
+    end
+`endif
+endmodule
+"""
+
+SPEC_TWO_ASSERTS = """\
+top: top
+requirements:
+  - id: REQ-A
+    text: x
+    check: formal
+    property: P_A
+  - id: REQ-B
+    text: x
+    check: formal
+    property: P_B
+formal:
+  depth: 12
+"""
+
+
+def _two_assert_run(tmp_path, capsys, p_a, p_b, spec=SPEC_TWO_ASSERTS):
+    ws = _ws_with(tmp_path, RTL_TWO_COUNTERS,
+                  FORMAL_TWO_ASSERTS % (p_a, p_b), "P_A")
+    (ws / "spec" / "spec.yaml").write_text(spec, encoding="utf-8")
+    code = check_formal.main(["--workspace", str(ws)])
+    return code, json.loads(capsys.readouterr().out)
+
+
+def _kinds(out):
+    return {(v["kind"], tuple(v["refs"])) for v in out["violations"]
+            if v["severity"] == "error"}
+
+
+@pytest.mark.slow
+def test_pdr_fail_fails_only_the_assert_it_disproves(tmp_path, capsys):
+    # A holds but is not k-inductive; B is false only past smt's depth
+    code, out = _two_assert_run(tmp_path, capsys, "a != 8'd200", "b != 8'd200")
+    assert code == 1, out
+    assert out["proven"] == ["REQ-A"], out
+    assert out["proven_by"] == {"REQ-A": "pdr"}, out
+    assert out["failed"] == ["REQ-B"], out
+    assert out["bounded"] == [] and out["undecided"] == [], out
+    assert _kinds(out) == {("engine_disagreement", ("REQ-B",))}, out
+    assert out["pdr_status"] == "FAIL", out
+    assert out["pdr_by_property"] == {"P_A": "PASS", "P_B": "FAIL"}, out
+
+
+@pytest.mark.slow
+def test_pdr_both_asserts_false_fails_both(tmp_path, capsys):
+    code, out = _two_assert_run(tmp_path, capsys, "b != 8'd201", "b != 8'd200")
+    assert code == 1, out
+    assert out["failed"] == ["REQ-A", "REQ-B"] and out["proven"] == [], out
+    assert out["pdr_by_property"] == {"P_A": "FAIL", "P_B": "FAIL"}, out
+
+
+@pytest.mark.slow
+def test_shallow_counterexample_keeps_the_other_asserts_pdr_proof(
+        tmp_path, capsys):
+    # smt's basecase stops at B's counterexample, before depth, and A is not
+    # inductive: only pdr's own proof can settle A.
+    code, out = _two_assert_run(tmp_path, capsys, "a != 8'd200", "b != 8'd3")
+    assert code == 1, out
+    assert out["proven"] == ["REQ-A"], out
+    assert out["proven_by"] == {"REQ-A": "pdr"}, out
+    assert out["failed"] == ["REQ-B"], out
+    assert _kinds(out) == {("property_failed", ("REQ-B",))}, out
+
+
+@pytest.mark.slow
+def test_k_induction_does_not_prove_beside_a_counterexample(tmp_path, capsys):
+    # A is plainly inductive, but pdr settles it, and the name on the
+    # proof is pdr's: smt's joint step assumed B too.
+    code, out = _two_assert_run(tmp_path, capsys, "a == a", "b != 8'd200")
+    assert code == 1, out
+    assert out["proven"] == ["REQ-A"], out
+    assert out["proven_by"] == {"REQ-A": "pdr"}, out
+    assert out["failed"] == ["REQ-B"], out
+
+
+@pytest.mark.slow
+def test_counterexample_to_an_unnamed_assert_fails_no_requirement(
+        tmp_path, capsys):
+    spec = SPEC_TWO_ASSERTS.replace(
+        "  - id: REQ-B\n    text: x\n    check: formal\n    property: P_B\n",
+        "")
+    code, out = _two_assert_run(tmp_path, capsys, "a != 8'd200", "b != 8'd200",
+                                spec=spec)
+    assert code == 1, out
+    assert out["proven"] == ["REQ-A"] and out["failed"] == [], out
+    assert _kinds(out) == {("engine_disagreement", ())}, out
+    assert any("P_B" in v["msg"] for v in out["violations"]), out
+
+
+@pytest.mark.slow
+def test_per_assert_verdicts_reach_asserts_a_bind_put_in_the_dut(
+        tmp_path, capsys):
+    # sby ids these dut.u_chk.P_A / dut.u_chk.P_B
+    formal = """\
+module chk (input wire clk, input wire rst, input wire [7:0] a,
+            input wire [7:0] b);
+  reg init = 1;
+  always @(posedge clk) init <= 0;
+  always @* if (init) assume (rst);
+  P_A: assert property (@(posedge clk) init || a != 8'd200);
+  P_B: assert property (@(posedge clk) init || b != 8'd200);
+endmodule
+bind top chk u_chk (.clk(clk), .rst(rst), .a(a), .b(b));
+module top_formal (input wire clk, input wire rst,
+                   output wire [7:0] a, output wire [7:0] b);
+  top dut (.clk(clk), .rst(rst), .a(a), .b(b));
+endmodule
+"""
+    ws = _ws_with(tmp_path, RTL_TWO_COUNTERS, formal, "P_A")
+    (ws / "spec" / "spec.yaml").write_text(SPEC_TWO_ASSERTS, encoding="utf-8")
+    code = check_formal.main(["--workspace", str(ws)])
+    out = json.loads(capsys.readouterr().out)
+    assert code == 1, out
+    assert out["frontend"] == "slang", out
+    assert out["proven"] == ["REQ-A"] and out["failed"] == ["REQ-B"], out
+    assert out["proven_by"] == {"REQ-A": "pdr"}, out
+
+
+# abc --keep-going pdr's own log, through sby
+PDR_KEEP_GOING_LOG = """\
+SBY  3:18:52 [pdr] engine_0: Proved output 0 in frame 57.
+SBY  3:18:52 [pdr] engine_0: Writing CEX for output 1 to engine_0/trace_1.aiw
+SBY  3:18:52 [pdr] summary: engine_0 (abc --keep-going pdr) returned FAIL
+SBY  3:18:52 [pdr] DONE (FAIL, rc=2)
+"""
+
+
+def test_pdr_verdicts_ties_each_output_to_its_assert():
+    assert check_formal.pdr_verdicts(PDR_KEEP_GOING_LOG, ["P_A", "dut.P_B"]) \
+        == {"P_A": "PASS", "dut.P_B": "FAIL"}
+
+
+def test_pdr_verdicts_leaves_an_unsettled_assert_out():
+    log = PDR_KEEP_GOING_LOG.replace("Proved output 0 in frame 57.\n", "x\n")
+    assert check_formal.pdr_verdicts(log, ["P_A", "P_B"]) == {"P_B": "FAIL"}
+
+
+def test_pdr_verdicts_refuses_an_output_the_model_does_not_have():
+    with pytest.raises(check_formal.CheckError, match="output 1"):
+        check_formal.pdr_verdicts(PDR_KEEP_GOING_LOG, ["P_A"])
+
+
+def test_pdr_output_ids_reads_the_models_assert_order(tmp_path):
+    ywa = tmp_path / "design_aiger.ywa"
+    ywa.write_text(json.dumps({"asserts": [
+        ["\\P_A"], ["\\dut", "\\u_chk", "\\P_B"]]}), encoding="utf-8")
+    assert check_formal.pdr_output_ids(ywa) == ["P_A", "dut.u_chk.P_B"]
+    with pytest.raises(check_formal.CheckError, match="no missing.ywa"):
+        check_formal.pdr_output_ids(tmp_path / "missing.ywa")
+
+
+def test_pdr_done_status_timeout_keeps_a_counterexample_found_before_it():
+    found = ("SBY [pdr] engine_0: Writing CEX for output 1 to engine_0/t\n"
+             "SBY [pdr] DONE (TIMEOUT, rc=8)\n")
+    assert check_formal.pdr_done_status(found) == "FAIL"
+    assert check_formal.pdr_done_status(
+        "SBY [pdr] engine_0: Proved output 0 in frame 2.\n"
+        "SBY [pdr] DONE (TIMEOUT, rc=8)\n") == "TIMEOUT"
+
+
+def test_joint_smt_sub_drops_induction_beside_any_counterexample():
+    sub = {"basecase": "pass", "induction": "pass"}
+    assert check_formal.joint_smt_sub(sub, {"P": "PASS"}) == sub
+    void = {"basecase": "pass", "induction": None}
+    assert check_formal.joint_smt_sub(sub, {"P": "FAIL"}) == void
+    assert check_formal.joint_smt_sub(
+        {"basecase": "FAIL", "induction": "pass"}, {}
+    ) == {"basecase": "FAIL", "induction": None}
+
+
+def test_classify_property_stopped_basecase_defers_to_pdrs_own_verdict():
+    classify = check_formal.classify_property
+    case = {"failed": False, "skipped": True, "type": "ASSERT"}
+    sub = {"basecase": "FAIL", "induction": None}
+    assert classify("P", "R", case, sub, "PASS", 12) == ("proven", None)
+    verdict, violation = classify("P", "R", case, sub, "UNKNOWN", 12)
+    assert verdict == "undecided"
+    assert violation["kind"] == "property_undecided"
+    assert violation["severity"] == "error"
+    assert classify("P", "R", case, sub, "FAIL", 12)[1]["kind"] \
+        == "engine_disagreement"
+
+
+# corpus/vde/riscv's planted fault under keep-going: the crash ends the task
+# before sby's "returned FAIL" line, and abc's own lines are what is left.
+PDR_KEEP_GOING_CRASH_LOG = """\
+SBY  6:50:26 [pdr] engine_0: Writing CEX for output 0 to engine_0/trace_0.aiw
+SBY  6:50:26 [pdr] engine_0: Proved output 1 in frame 2.
+SBY  6:50:26 [pdr] engine_0: File "/opt/eda/tools/bin/yosys-witness", line 270, in aiw2yw
+SBY  6:50:26 [pdr] engine_0: assert isinstance(key, WitnessSig)
+SBY  6:50:26 [pdr] engine_0: AssertionError
+SBY  6:50:26 [pdr] engine_0: task failed. ERROR.
+SBY  6:50:26 [pdr] DONE (ERROR, rc=16)
+"""
+
+
+def test_keep_going_crash_keeps_both_verdicts():
+    log = PDR_KEEP_GOING_CRASH_LOG
+    assert check_formal.pdr_done_status(log) == "FAIL"
+    assert check_formal.pdr_verdicts(log, ["P_A", "P_B"]) \
+        == {"P_A": "FAIL", "P_B": "PASS"}
+
+
+def _fake_pdr_output(monkeypatch, pdr_output):
+    """_fake_sby_run, with this log for the pdr task and a model whose one
+    assert is abc's output 0."""
+    _fake_sby_run(monkeypatch, cov_failed=False)
+    passing = check_formal.run_sby
+
+    def run_sby(sby_dir, config, name, timeout_s):
+        if name != "pdr":
+            return passing(sby_dir, config, name, timeout_s)
+        workdir = Path(sby_dir) / name
+        (workdir / "model").mkdir(parents=True)
+        (workdir / "model" / "design_aiger.ywa").write_text(
+            json.dumps({"asserts": [["\\REQ_RESET"]]}), encoding="utf-8")
+        return pdr_output, workdir
+    monkeypatch.setattr(check_formal, "run_sby", run_sby)
+
+
+def test_counterexample_survives_the_pdr_task_timing_out(
+        tmp_path, capsys, monkeypatch):
+    _fake_pdr_output(monkeypatch,
+                     "engine_0: Writing CEX for output 0 to engine_0/t\n"
+                     "DONE (TIMEOUT, rc=8)\n")
+    code = check_formal.main(["--workspace", str(make_ws(tmp_path, RTL_OK))])
+    out = json.loads(capsys.readouterr().out)
+    assert code == 1, out
+    assert out["pdr_status"] == "FAIL", out
+    assert out["failed"], out
+
+
+def test_pdr_timeout_with_no_counterexample_is_still_a_refusal(
+        tmp_path, capsys, monkeypatch):
+    _fake_pdr_output(monkeypatch, "engine_0: Proved output 0 in frame 2.\n"
+                                  "DONE (TIMEOUT, rc=8)\n")
+    code = check_formal.main(["--workspace", str(make_ws(tmp_path, RTL_OK))])
+    out = json.loads(capsys.readouterr().out)
+    assert code == 2, out
+    assert "timed out" in out["error"], out
+
+
+def test_pdr_task_gets_its_own_timeout_and_a_later_backstop(
+        tmp_path, capsys, monkeypatch):
+    seen = _fake_sby_run(monkeypatch, cov_failed=False)
+    limits = {}
+    fake_write = check_formal.write_sby
+
+    def write_sby(path, *a, **kw):
+        limits[Path(path).stem] = kw.get("timeout_s")
+        fake_write(path, *a, **kw)
+    monkeypatch.setattr(check_formal, "write_sby", write_sby)
+    assert check_formal.main(
+        ["--workspace", str(make_ws(tmp_path, RTL_OK))]) == 0, \
+        capsys.readouterr().out
+    assert limits["smt"] is None and limits["cov"] is None
+    assert limits["pdr"] == seen["smt"][1]
+    assert seen["pdr"][1] == limits["pdr"] + check_formal.SBY_TIMEOUT_GRACE_S
+
+
+def test_write_sby_passes_the_timeout_to_sby_only_when_given(tmp_path):
+    for limit, expect in ((90.0, True), (None, False)):
+        path = tmp_path / "t.sby"
+        check_formal.write_sby(path, [], [], "top", "prove", "abc pdr", 5,
+                               "native", None, timeout_s=limit)
+        text = path.read_text(encoding="utf-8")
+        assert ("timeout 90\n" in text) is expect
+        assert "\n\n[engines]" in text
