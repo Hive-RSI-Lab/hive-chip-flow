@@ -532,6 +532,8 @@ def main(argv: list[str] | None = None) -> int:
                 inputs_at_start = hash_inputs_at_start(
                     skill, args.gate, Path(args.workspace))
                 strength_at_start = statelib.gate_strength(skill, args.gate)
+                statelib.drop_harden_records(Path(args.workspace).resolve(), skill,
+                                             args.gate, statelib.load_map())
             try:
                 report = run_report_for_gate(
                     gate, Path(args.workspace).resolve(),
@@ -544,6 +546,10 @@ def main(argv: list[str] | None = None) -> int:
                 raise
 
         result = evaluate(args.gate, gate, report)
+        if (result["status"] == "pass" and args.workspace
+                and not args.report and not args.no_record):
+            statelib.write_harden_records(Path(args.workspace).resolve(), skill,
+                                          args.gate, statelib.load_map())
         if args.workspace:
             # what the gate writes and records names the workspace's files
             # relative to it, and holds nothing State.save would scrub

@@ -23,7 +23,7 @@
   "top": "r2r_dac_digital",
   "run_tag": "run",
   "resumed": false,
-  "wall_s": 97.88,
+  "wall_s": 114.84,
   "run_dir": "harden/runs/run",
   "metrics": {
    "design__instance__count": 2095,
@@ -220,8 +220,8 @@
     }
    },
    "config_sha256": "ab14269c69db89715552ce0dd70eaa0b41c7bb91ada8983289e759db57718239",
-   "resolved_sha256": "d42957a233c259ac051a3a30ac3d3176c9c6f86bfbcd7b2f5f89631ba24b12b0",
-   "wall_s": 97.88
+   "resolved_sha256": "f068e6d35896cc479140abe21acd44e5ae2ba91211d82f0bed3d9327da3c9784",
+   "wall_s": 114.84
   },
   "signoff_metrics": {
    "antenna__violating__nets": {
@@ -301,6 +301,6 @@
   "pdk_netgen": "dir_text:8164f65bb7d1bef6e27af4c13b1c6ede50973cec7aec482556abb23881aceb04"
  },
  "strength_at_start": 1,
- "recorded_ts": "2026-11-06T02:57:31",
- "attempts": 22
+ "recorded_ts": "2026-11-06T03:54:44",
+ "attempts": 23
 }

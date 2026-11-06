@@ -45,7 +45,7 @@
   "top": "r2r_dac_digital",
   "run_tag": "run",
   "resumed": false,
-  "wall_s": 111.52,
+  "wall_s": 138.92,
   "signoff_metrics": {
    "antenna__violating__nets": {
     "value": 0,
@@ -299,8 +299,8 @@
     }
    },
    "config_sha256": "b6391c473a095d48222946cc6b374c35a7bf30529570b5734ef42bb3bad49e85",
-   "resolved_sha256": "f32c32832d8fe5d53f229f00f4c584c3b8ebdfcbe8060b70fef43b373b147c77",
-   "wall_s": 111.52
+   "resolved_sha256": "6ec3904324ef5268ebab0b5734785b93f1a5d4297546bc94a1066d4cce1f4ee1",
+   "wall_s": 138.92
   },
   "drv_metrics": {
    "design__max_slew_violation__count": {
@@ -489,6 +489,6 @@
   "pdk_netgen": "dir_text:8164f65bb7d1bef6e27af4c13b1c6ede50973cec7aec482556abb23881aceb04"
  },
  "strength_at_start": 2,
- "recorded_ts": "2026-11-06T03:25:57",
- "attempts": 17
+ "recorded_ts": "2026-11-06T04:52:43",
+ "attempts": 18
 }

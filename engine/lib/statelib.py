@@ -304,7 +304,12 @@ _RUN_STAMP = re.compile(r"^\s*(\(DATE \".*\"\)|\*DATE \".*\"|timestamp \d+)\s*$"
 _HARDEN_SKIP = ("odb", "json_h", "metrics.csv", "metrics.json")
 
 
-def _norm_harden_signoff(path: Path) -> bytes:
+# The committed record of what a harden handed on, in its harden/ dir (#239).
+# Never part of the hash it holds.
+HARDEN_RECORD = "outputs.json"
+
+
+def _norm_harden_signoff(path: Path, with_runs: bool = True) -> bytes:
     """A harden/ dir as the gates after harden read it: its own files (the
     generated config through json_canonical_sans_roots), and of its runs only
     each run's final/ outputs, with the time each export ran and the
@@ -314,7 +319,9 @@ def _norm_harden_signoff(path: Path) -> bytes:
     and magic views but for those stamps (r2r_dac, 2026-10-28), so its
     recorded results and the person's waivers over them hold; any change to
     the geometry, netlist, timing views or config moves the hash. Logs and
-    the step directories LibreLane leaves are not inputs of anything."""
+    the step directories LibreLane leaves are not inputs of anything.
+    with_runs=False is the own files alone, which a harden record vouches
+    for (harden_record_hash)."""
     if not path.is_dir():
         raise ValueError(f"{path} is not a directory")
     cfg = path / "config.json"
@@ -331,9 +338,10 @@ def _norm_harden_signoff(path: Path) -> bytes:
         return "\n".join(l for l in t.split("\n")
                          if not _RUN_STAMP.match(l)).encode("utf-8")
 
-    files = [f for f in path.iterdir() if f.is_file()]
+    files = [f for f in path.iterdir()
+             if f.is_file() and f.name != HARDEN_RECORD]
     runs = path / "runs"
-    if runs.is_dir():
+    if with_runs and runs.is_dir():
         for final in sorted(runs.glob("*/final")):
             files += [f for f in final.rglob("*") if f.is_file()
                       and not any(part in _HARDEN_SKIP
@@ -553,10 +561,16 @@ def hash_artifact(path: Path | str, norm: str) -> str | None:
     file/dir does not exist. Any normalizer failure (unparsable YAML/JSON,
     binary content) falls back to raw bytes under the 'raw' prefix - fail-safe:
     a raw hash only ever matches an identical file, so staleness can be
-    over-reported but never missed."""
+    over-reported but never missed. A harden output whose runs/ git doesn't
+    carry answers from the harden's committed record (harden_record_hash)."""
     p = Path(path)
     if not p.exists():
-        return None
+        where = _in_harden_runs(p)
+        return harden_record_hash(*where, norm) if where else None
+    if norm == "harden_signoff" and p.is_dir():
+        recorded = harden_record_hash(p, ".", norm)
+        if recorded:
+            return recorded
     fn = NORMALIZERS.get(norm)
     if fn is None:
         raise ValueError(f"unknown normalizer {norm!r}")
@@ -622,6 +636,86 @@ def split_block_name(ws: Path | str) -> str | None:
     if parent.get("skill") != "msde" or not parent.get("block"):
         return None
     return parent["block"] + suffix
+
+
+def _in_harden_runs(path: Path) -> tuple[Path, str] | None:
+    """(harden dir, path relative to it) for a path under some harden/runs/,
+    None for any other path."""
+    parts = path.parts
+    for i in range(len(parts) - 1, 0, -1):
+        if parts[i] == "runs" and parts[i - 1] == "harden":
+            return Path(*parts[:i]), Path(*parts[i:]).as_posix()
+    return None
+
+
+def _harden_own_sha(harden_dir: Path) -> str:
+    """Digest of a harden dir's own files, as harden_signoff folds them in."""
+    return hashlib.sha256(
+        _norm_harden_signoff(harden_dir, with_runs=False)).hexdigest()
+
+
+def harden_record_hash(harden_dir: Path, rel: str, norm: str) -> str | None:
+    """The hash a harden recorded for its output `rel` ("." for the harden
+    dir as harden_signoff), so a clone, which has no runs/, reads the outputs
+    the harden handed on (#239). Only with no runs/ at all, since real files
+    are always what gets hashed, and only while the dir's own files are the
+    ones that harden ran with. Any other case is None, and the caller hashes
+    what is there: a hand-edited or missing record reads stale, never fresh."""
+    if (harden_dir / "runs").exists():
+        return None
+    try:
+        doc = json.loads((harden_dir / HARDEN_RECORD).read_text(encoding="utf-8"))
+        if doc["own"] != _harden_own_sha(harden_dir):
+            return None
+        value = doc["outputs"][rel]
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+    return value if (isinstance(value, str)
+                     and value.startswith(norm + ":")) else None
+
+
+def harden_record_targets(ws: Path, skill: str, gate: str, imap: dict,
+                          registry: dict | None = None) -> dict[Path, dict]:
+    """{harden dir: {rel: norm}} for the harden outputs `gate` writes, per
+    gate_writes; {} for a gate that writes none."""
+    out: dict[Path, dict] = {}
+    for kind in (imap.get("gate_writes", {}).get(skill) or {}).get(gate) or []:
+        norm = imap["artifact_kinds"][kind]["norm"]
+        p = ws / kind_path(kind, imap, registry)
+        where = (p, ".") if norm == "harden_signoff" else _in_harden_runs(p)
+        if where:
+            out.setdefault(where[0], {})[where[1]] = norm
+    return out
+
+
+def drop_harden_records(ws: Path, skill: str, gate: str, imap: dict,
+                        registry: dict | None = None) -> None:
+    """A harden is starting: the record of the last one vouches for nothing
+    if this one doesn't pass."""
+    for harden_dir in harden_record_targets(ws, skill, gate, imap, registry):
+        (harden_dir / HARDEN_RECORD).unlink(missing_ok=True)
+
+
+def write_harden_records(ws: Path, skill: str, gate: str, imap: dict,
+                         registry: dict | None = None) -> list[str]:
+    """The gate passed: record, next to its config, the hashes of the outputs
+    it hands on and of the own files they came from. Deterministic and free
+    of paths and times, so an unchanged re-harden leaves it as it was. An
+    output the run didn't make gets no entry, and reads stale in a clone."""
+    written = []
+    targets = harden_record_targets(ws, skill, gate, imap, registry)
+    for harden_dir, outputs in targets.items():
+        if not (harden_dir / "runs").is_dir():
+            continue
+        hashes = {rel: hash_artifact(harden_dir / rel, norm)
+                  for rel, norm in outputs.items()}
+        record = harden_dir / HARDEN_RECORD
+        record.write_text(json.dumps(
+            {"own": _harden_own_sha(harden_dir),
+             "outputs": {r: h for r, h in hashes.items() if h}},
+            indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        written.append(record.relative_to(ws).as_posix())
+    return written
 
 
 def kind_path(kind: str, imap: dict, registry: dict | None = None) -> str:

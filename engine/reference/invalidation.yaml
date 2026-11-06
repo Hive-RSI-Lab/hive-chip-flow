@@ -73,6 +73,11 @@
 #                    out; LibreLane's logs and step dirs are not hashed. An
 #                    unchanged re-harden elsewhere reproduces it, so the
 #                    gates after harden, and waivers over them, stay fresh.
+#   Harden outputs in a clone (#239): git ignores runs/, so a passing harden
+#   or top_harden commits harden/outputs.json, the hashes of the kinds here
+#   it writes under runs/ and of the harden dir's own files. With no runs/ at
+#   all and those own files unchanged, statelib.harden_record_hash answers
+#   from it; real runs/ are always what gets hashed when they exist.
 # `gds_geometry` (a GDS hashed through klayout's python module) is not built;
 # `layout` and `top_gds` still hash as dir_text, which is fail-safe (over-
 # invalidates on export-only churn, never under-invalidates).
