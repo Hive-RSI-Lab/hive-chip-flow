@@ -3,7 +3,7 @@
   "gate": "spec_lint",
   "phase": "P1",
   "tool": "spec_lint_ade",
-  "input_digest": "json_canonical:81b818f72a717007e48d3bfa522cf52678dae5ce1d13cbd0b90f250170f027d9",
+  "input_digest": "json_canonical:b9e53ef91f0292ed45f1b07aaad65e5fd2f9a72429ef84c86c5f15846cbe9cc8",
   "status": "pass",
   "criteria": {
     "fail_severities": [
@@ -19,15 +19,39 @@
   "failing_count": 0,
   "failing": [],
   "violations": [],
+  "facts": {
+    "mc_waived": [
+      {
+        "measure": "dnl_max_abs",
+        "why": "GF180's ngspice poly resistors carry no per-instance mismatch (mis_r=0), so Monte Carlo would sample only the driver cells' FETs; resistor matching is bounded by inl_sens_1pct_max instead (see mc above)"
+      },
+      {
+        "measure": "inl_max_abs",
+        "why": "GF180's ngspice poly resistors carry no per-instance mismatch (mis_r=0), so Monte Carlo would sample only the driver cells' FETs; resistor matching is bounded by inl_sens_1pct_max instead (see mc above)"
+      },
+      {
+        "measure": "v_zero_offset",
+        "why": "the code-0 output above ground, set by the pull-down drivers' Ron into the ladder at every corner - not a matched-pair offset"
+      },
+      {
+        "measure": "inl_sens_1pct_max",
+        "why": "GF180's ngspice poly resistors carry no per-instance mismatch (mis_r=0), so Monte Carlo would sample only the driver cells' FETs; resistor matching is bounded by inl_sens_1pct_max instead (see mc above)"
+      }
+    ]
+  },
+  "inputs_at_start": {
+    "spec_yaml": "json_canonical:b9e53ef91f0292ed45f1b07aaad65e5fd2f9a72429ef84c86c5f15846cbe9cc8"
+  },
+  "strength_at_start": 0,
   "record_result": {
     "ok": true,
     "recorded": true,
     "workspace": "blocks/r2r_dac/analog",
     "gate": "spec_lint",
     "status": "pass",
-    "attempts": 1,
+    "attempts": 13,
     "inputs": {
-      "spec_yaml": "json_canonical:81b818f72a717007e48d3bfa522cf52678dae5ce1d13cbd0b90f250170f027d9"
+      "spec_yaml": "json_canonical:b9e53ef91f0292ed45f1b07aaad65e5fd2f9a72429ef84c86c5f15846cbe9cc8"
     }
   }
 }

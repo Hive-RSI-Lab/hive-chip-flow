@@ -3,7 +3,7 @@
   "gate": "split",
   "phase": "P1",
   "tool": "split",
-  "input_digest": "json_canonical:0264be9adb7ef8a932e05c9a834a698949080311628757850f1688217c914be0",
+  "input_digest": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
   "status": "pass",
   "criteria": {
     "fail_severities": [
@@ -24,15 +24,23 @@
       "dac_code"
     ]
   },
+  "inputs_at_start": {
+    "interface": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
+    "digital_side_spec": "json_canonical:e52fd5cabc96bf3cfe80463861809e640516e763ffe6d5ad341dd19366f87352",
+    "analog_side_spec": "json_canonical:61734e544be2b0cd5fb5d3373df1e39f971c980f0e71decd49621c97736c30bd"
+  },
+  "strength_at_start": 0,
   "record_result": {
     "ok": true,
     "recorded": true,
     "workspace": "blocks/r2r_dac",
     "gate": "split",
     "status": "pass",
-    "attempts": 1,
+    "attempts": 9,
     "inputs": {
-      "interface": "json_canonical:0264be9adb7ef8a932e05c9a834a698949080311628757850f1688217c914be0"
+      "interface": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
+      "digital_side_spec": "json_canonical:e52fd5cabc96bf3cfe80463861809e640516e763ffe6d5ad341dd19366f87352",
+      "analog_side_spec": "json_canonical:61734e544be2b0cd5fb5d3373df1e39f971c980f0e71decd49621c97736c30bd"
     }
   }
 }

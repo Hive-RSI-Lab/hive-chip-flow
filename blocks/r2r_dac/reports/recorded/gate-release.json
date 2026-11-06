@@ -4,7 +4,7 @@
  "phase": "P4",
  "tool": "release",
  "input_digest": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
- "status": "fail",
+ "status": "pass",
  "criteria": {
   "fail_severities": [
    "error"
@@ -12,56 +12,18 @@
   "max_count": 0
  },
  "counts": {
-  "total": 1,
-  "by_severity": {
-   "error": 1
-  },
-  "by_source": {
-   "attest": 1
-  }
+  "total": 0,
+  "by_severity": {},
+  "by_source": {}
  },
- "failing_count": 1,
- "failing": [
-  {
-   "check": "release",
-   "severity": "error",
-   "file": null,
-   "module": "nested_analog",
-   "line": null,
-   "kind": "nested_not_released",
-   "refs": [],
-   "msg": "nested_analog: not released: pex_sim: last recorded result is FAIL",
-   "source": "attest",
-   "items": [
-    {
-     "msg": "nested_analog: not released: pex_sim: last recorded result is FAIL",
-     "file": null,
-     "line": null
-    }
-   ]
-  }
- ],
- "violations": [
-  {
-   "check": "release",
-   "severity": "error",
-   "file": null,
-   "module": "nested_analog",
-   "line": null,
-   "kind": "nested_not_released",
-   "refs": [],
-   "msg": "nested_analog: not released: pex_sim: last recorded result is FAIL",
-   "source": "attest",
-   "items": [
-    {
-     "msg": "nested_analog: not released: pex_sim: last recorded result is FAIL",
-     "file": null,
-     "line": null
-    }
-   ]
-  }
- ],
+ "failing_count": 0,
+ "failing": [],
+ "violations": [],
  "facts": {
+  "attestation": "reports/checks.json",
+  "attestation_sha256": "bc13b34b5970fc77060acb77b626b81a619d44269bcf411a2fc675aa534aff9d",
+  "disposition": "gates-green",
+  "waived": [],
   "tt_submission": {
    "repo": "release/tt",
    "staged": [
@@ -80,7 +42,7 @@
     "librelane_pdk": "f6eeac7dad085ffcc829ccfd721f7b4ce39edcf7",
     "tt_support_tools": "01d5d2814fa9dd61e9d211e0b235a4a592a9316a",
     "gds": "top/harden/runs/run/final/gds/tt_um_r2r_dac_digital.gds",
-    "gds_sha256": "15bfc3a6e6d9fc4787b57d88da367f9fb889eeb88502970bd21d9d5a928505d6",
+    "gds_sha256": "298e5b9883d3b5927365155dd33c7aa854e8d060cc73d83578e7c8b0719fb4ce",
     "lef": "top/harden/runs/run/final/lef/tt_um_r2r_dac_digital.lef",
     "lef_sha256": "b50dc910d16c3e4f12517c477d2a4e9f4f139fdd4eb6d9e0a449b32ac292f864",
     "gl": "top/harden/runs/run/final/pnl/tt_um_r2r_dac_digital.pnl.v",
@@ -96,7 +58,7 @@
      "top_module": "tt_um_r2r_dac_digital",
      "pdk": "gf180mcuD",
      "gds_path": "gds/tt_um_r2r_dac_digital.gds",
-     "gds_sha256": "15bfc3a6e6d9fc4787b57d88da367f9fb889eeb88502970bd21d9d5a928505d6",
+     "gds_sha256": "298e5b9883d3b5927365155dd33c7aa854e8d060cc73d83578e7c8b0719fb4ce",
      "lef_path": "lef/tt_um_r2r_dac_digital.lef",
      "lef_sha256": "b50dc910d16c3e4f12517c477d2a4e9f4f139fdd4eb6d9e0a449b32ac292f864",
      "verilog_path": "src/project.v",
@@ -105,7 +67,7 @@
    ]
   },
   "manifest": "release/manifest.json",
-  "manifest_released": false
+  "manifest_released": true
  },
  "inputs_at_start": {
   "interface": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
@@ -119,6 +81,6 @@
   "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2"
  },
  "strength_at_start": 0,
- "recorded_ts": "2026-11-05T20:08:14",
- "attempts": 9
+ "recorded_ts": "2026-11-05T23:33:46",
+ "attempts": 10
 }

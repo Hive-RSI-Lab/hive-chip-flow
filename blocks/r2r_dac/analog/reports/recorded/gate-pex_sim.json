@@ -4,7 +4,7 @@
  "phase": "P5",
  "tool": "pex_sim",
  "input_digest": "dir_text:7a954c277f279e0a8b3d75e97ed6833bf445cf7e04f4ec0eefae35be290d869d",
- "status": "fail",
+ "status": "pass",
  "criteria": {
   "fail_severities": [
    "error"
@@ -12,187 +12,13 @@
   "max_count": 0
  },
  "counts": {
-  "total": 4,
-  "by_severity": {
-   "error": 4
-  },
-  "by_source": {
-   "ngspice": 4
-  }
+  "total": 0,
+  "by_severity": {},
+  "by_source": {}
  },
- "failing_count": 4,
- "failing": [
-  {
-   "check": "pex_sim",
-   "severity": "error",
-   "file": "layout_ref/r2r_dac_analog_pex_tb.bounds.json",
-   "module": "r2r_dac_analog",
-   "line": null,
-   "kind": "measure_out_of_bounds",
-   "refs": [
-    "ss_m40c",
-    "t_rise_10_90"
-   ],
-   "msg": "t_rise_10_90 @ ss_m40c = 5.115e-07, outside bound [None, 5e-07]",
-   "source": "ngspice",
-   "items": [
-    {
-     "msg": "t_rise_10_90 @ ss_m40c = 5.115e-07, outside bound [None, 5e-07]",
-     "file": "layout_ref/r2r_dac_analog_pex_tb.bounds.json",
-     "line": null
-    }
-   ]
-  },
-  {
-   "check": "pex_sim",
-   "severity": "error",
-   "file": "layout_ref/r2r_dac_analog_pex_tb.bounds.json",
-   "module": "r2r_dac_analog",
-   "line": null,
-   "kind": "measure_out_of_bounds",
-   "refs": [
-    "ss_m40c",
-    "t_fall_10_90"
-   ],
-   "msg": "t_fall_10_90 @ ss_m40c = 5.095e-07, outside bound [None, 5e-07]",
-   "source": "ngspice",
-   "items": [
-    {
-     "msg": "t_fall_10_90 @ ss_m40c = 5.095e-07, outside bound [None, 5e-07]",
-     "file": "layout_ref/r2r_dac_analog_pex_tb.bounds.json",
-     "line": null
-    }
-   ]
-  },
-  {
-   "check": "pex_sim",
-   "severity": "error",
-   "file": "layout_ref/r2r_dac_analog_pex_tb.bounds.json",
-   "module": "r2r_dac_analog",
-   "line": null,
-   "kind": "measure_out_of_bounds",
-   "refs": [
-    "ss_125c",
-    "t_rise_10_90"
-   ],
-   "msg": "t_rise_10_90 @ ss_125c = 5.07e-07, outside bound [None, 5e-07]",
-   "source": "ngspice",
-   "items": [
-    {
-     "msg": "t_rise_10_90 @ ss_125c = 5.07e-07, outside bound [None, 5e-07]",
-     "file": "layout_ref/r2r_dac_analog_pex_tb.bounds.json",
-     "line": null
-    }
-   ]
-  },
-  {
-   "check": "pex_sim",
-   "severity": "error",
-   "file": "layout_ref/r2r_dac_analog_pex_tb.bounds.json",
-   "module": "r2r_dac_analog",
-   "line": null,
-   "kind": "measure_out_of_bounds",
-   "refs": [
-    "ss_125c",
-    "t_fall_10_90"
-   ],
-   "msg": "t_fall_10_90 @ ss_125c = 5.045e-07, outside bound [None, 5e-07]",
-   "source": "ngspice",
-   "items": [
-    {
-     "msg": "t_fall_10_90 @ ss_125c = 5.045e-07, outside bound [None, 5e-07]",
-     "file": "layout_ref/r2r_dac_analog_pex_tb.bounds.json",
-     "line": null
-    }
-   ]
-  }
- ],
- "violations": [
-  {
-   "check": "pex_sim",
-   "severity": "error",
-   "file": "layout_ref/r2r_dac_analog_pex_tb.bounds.json",
-   "module": "r2r_dac_analog",
-   "line": null,
-   "kind": "measure_out_of_bounds",
-   "refs": [
-    "ss_m40c",
-    "t_rise_10_90"
-   ],
-   "msg": "t_rise_10_90 @ ss_m40c = 5.115e-07, outside bound [None, 5e-07]",
-   "source": "ngspice",
-   "items": [
-    {
-     "msg": "t_rise_10_90 @ ss_m40c = 5.115e-07, outside bound [None, 5e-07]",
-     "file": "layout_ref/r2r_dac_analog_pex_tb.bounds.json",
-     "line": null
-    }
-   ]
-  },
-  {
-   "check": "pex_sim",
-   "severity": "error",
-   "file": "layout_ref/r2r_dac_analog_pex_tb.bounds.json",
-   "module": "r2r_dac_analog",
-   "line": null,
-   "kind": "measure_out_of_bounds",
-   "refs": [
-    "ss_m40c",
-    "t_fall_10_90"
-   ],
-   "msg": "t_fall_10_90 @ ss_m40c = 5.095e-07, outside bound [None, 5e-07]",
-   "source": "ngspice",
-   "items": [
-    {
-     "msg": "t_fall_10_90 @ ss_m40c = 5.095e-07, outside bound [None, 5e-07]",
-     "file": "layout_ref/r2r_dac_analog_pex_tb.bounds.json",
-     "line": null
-    }
-   ]
-  },
-  {
-   "check": "pex_sim",
-   "severity": "error",
-   "file": "layout_ref/r2r_dac_analog_pex_tb.bounds.json",
-   "module": "r2r_dac_analog",
-   "line": null,
-   "kind": "measure_out_of_bounds",
-   "refs": [
-    "ss_125c",
-    "t_rise_10_90"
-   ],
-   "msg": "t_rise_10_90 @ ss_125c = 5.07e-07, outside bound [None, 5e-07]",
-   "source": "ngspice",
-   "items": [
-    {
-     "msg": "t_rise_10_90 @ ss_125c = 5.07e-07, outside bound [None, 5e-07]",
-     "file": "layout_ref/r2r_dac_analog_pex_tb.bounds.json",
-     "line": null
-    }
-   ]
-  },
-  {
-   "check": "pex_sim",
-   "severity": "error",
-   "file": "layout_ref/r2r_dac_analog_pex_tb.bounds.json",
-   "module": "r2r_dac_analog",
-   "line": null,
-   "kind": "measure_out_of_bounds",
-   "refs": [
-    "ss_125c",
-    "t_fall_10_90"
-   ],
-   "msg": "t_fall_10_90 @ ss_125c = 5.045e-07, outside bound [None, 5e-07]",
-   "source": "ngspice",
-   "items": [
-    {
-     "msg": "t_fall_10_90 @ ss_125c = 5.045e-07, outside bound [None, 5e-07]",
-     "file": "layout_ref/r2r_dac_analog_pex_tb.bounds.json",
-     "line": null
-    }
-   ]
-  }
- ],
+ "failing_count": 0,
+ "failing": [],
+ "violations": [],
  "facts": {
   "topcell": "r2r_dac_analog",
   "gds": "layout/r2r_dac_analog.gds",
@@ -206,8 +32,8 @@
    "t_settle_fall": 1.19706e-06,
    "t_rise_10_90": 4.235e-07,
    "t_fall_10_90": 4.215e-07,
-   "glitch_energy_up": 2.33973e-11,
-   "glitch_energy_down": 1.4992e-11,
+   "glitch_energy_up": 2.33927e-11,
+   "glitch_energy_down": 1.49663e-11,
    "glitch_peak_up": 0.0209081,
    "glitch_peak_down": 0.0259907
   },
@@ -224,8 +50,8 @@
     "t_settle_fall": 1.19706e-06,
     "t_rise_10_90": 4.235e-07,
     "t_fall_10_90": 4.215e-07,
-    "glitch_energy_up": 2.33973e-11,
-    "glitch_energy_down": 1.4992e-11,
+    "glitch_energy_up": 2.33927e-11,
+    "glitch_energy_down": 1.49663e-11,
     "glitch_peak_up": 0.0209081,
     "glitch_peak_down": 0.0259907
    },
@@ -234,8 +60,8 @@
     "t_settle_fall": 9.58467e-07,
     "t_rise_10_90": 3.395e-07,
     "t_fall_10_90": 3.375e-07,
-    "glitch_energy_up": 5.77733e-11,
-    "glitch_energy_down": 1.62115e-11,
+    "glitch_energy_up": 5.78393e-11,
+    "glitch_energy_down": 1.62168e-11,
     "glitch_peak_up": 0.0253628,
     "glitch_peak_down": 0.0252885
    },
@@ -255,7 +81,7 @@
     "t_rise_10_90": 5.07e-07,
     "t_fall_10_90": 5.045e-07,
     "glitch_energy_up": 2.43146e-11,
-    "glitch_energy_down": 1.21838e-11,
+    "glitch_energy_down": 1.22116e-11,
     "glitch_peak_up": 0.0162695,
     "glitch_peak_down": 0.016345
    }
@@ -264,16 +90,16 @@
  },
  "inputs_at_start": {
   "layout": "dir_text:7a954c277f279e0a8b3d75e97ed6833bf445cf7e04f4ec0eefae35be290d869d",
-  "tb": "dir_text:e5a359b2d658003e3b76ce72b73d627908fccf2a6240daaf8d3dd8e2eb33423d",
-  "layout_ref": "dir_text:1cf144385fa2f7be03b229a0473f728123320ecc33b3c9ec077c102b81b3d7a5",
+  "tb": "dir_text:f39ddda9f2efd5463da75d99f486ff1ea8d2038b91027869426db82f0bf513e4",
+  "layout_ref": "dir_text:c4aa1a8579f2b576c7bbfb34464926cef64b1f078bacd41d28ec3e82650f2e7e",
   "netlist": "dir_text:13970a2f19f36bd8aa49baa3a94132821e16917455715ba77b23b074b4551548",
-  "spec_yaml": "json_canonical:e501d6a76274910fb82ae99aa3d7190e0a89bf501faa94d88f2163f26372dc1b",
+  "spec_yaml": "json_canonical:b9e53ef91f0292ed45f1b07aaad65e5fd2f9a72429ef84c86c5f15846cbe9cc8",
   "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
   "pdk_models": "dir_text:84e0f27991c27acae27ec5243fd0d1587f7bfb2655e802ed0eb92a811cf5f7f8",
   "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
   "pdk_klayout": "dir_text:876da90e8aab65b830b36eca12bd720adfe8240a0952872419d9f2b4abda605d"
  },
  "strength_at_start": 0,
- "recorded_ts": "2026-11-05T17:58:35",
- "attempts": 3
+ "recorded_ts": "2026-11-05T23:21:54",
+ "attempts": 4
 }

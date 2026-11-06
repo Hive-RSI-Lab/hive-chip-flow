@@ -74,3 +74,6 @@ gates write them again.
   of the same miss on the schematic (506 ns). Moving the bound or the 27k unit
   R is a spec change for the person, so analog release and top release refuse
   until they decide; every other gate passes.
+- 2026-11-05: the owner relaxed the 10-90 % bound to 0.53 us, which is what the
+  1.5 us settling bound implies for a single pole (1.5 us x 2.197 / (9 ln2) =
+  0.528 us). `pex_sim`, analog release and top release all pass.
