@@ -4,7 +4,7 @@
  "block": "counter",
  "workspace": "blocks/counter",
  "created": "2026-10-29T09:54:57",
- "updated": "2026-11-05T08:27:30",
+ "updated": "2026-11-05T11:17:23",
  "phase": "P0",
  "toolchain": null,
  "gates": {
@@ -1627,9 +1627,9 @@
   "cdc": {
    "phase": "P5",
    "status": "pass",
-   "attempts": 4,
+   "attempts": 5,
    "last": {
-    "ts": "2026-11-01T11:10:41",
+    "ts": "2026-11-05T11:17:23",
     "status": "pass",
     "failing_count": 0,
     "total": 0,
@@ -1640,6 +1640,7 @@
      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
      "pdk_liberty": "dir_bytes:f09377f057ab484ec9e5a45b205c99a5de399e2bdca886531bf9eefa57783f32"
     },
+    "strength": 1,
     "job": null
    },
    "history": [
@@ -1697,6 +1698,21 @@
       "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
       "pdk_liberty": "dir_bytes:f09377f057ab484ec9e5a45b205c99a5de399e2bdca886531bf9eefa57783f32"
      },
+     "job": null
+    },
+    {
+     "ts": "2026-11-05T11:17:23",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "rtl": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
+      "spec_yaml_sans_formal": "json_canonical_sans_formal:ec426c58dd9f2334b09759284010f4068e5638e331ac28be8742ab3fee1e7b69",
+      "cdc_waivers": null,
+      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+      "pdk_liberty": "dir_bytes:f09377f057ab484ec9e5a45b205c99a5de399e2bdca886531bf9eefa57783f32"
+     },
+     "strength": 1,
      "job": null
     }
    ]
@@ -1758,13 +1774,13 @@
    "path": "rtl",
    "kind": "rtl",
    "sha256": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
-   "hashed": "2026-11-05T08:27:30"
+   "hashed": "2026-11-05T11:17:23"
   },
   "spec_yaml_sans_formal": {
    "path": "spec/spec.yaml",
    "kind": "spec_yaml_sans_formal",
    "sha256": "json_canonical_sans_formal:ec426c58dd9f2334b09759284010f4068e5638e331ac28be8742ab3fee1e7b69",
-   "hashed": "2026-11-05T08:27:30"
+   "hashed": "2026-11-05T11:17:23"
   },
   "tb": {
    "path": "tb",
@@ -1824,19 +1840,19 @@
    "path": "spec/cdc.yaml",
    "kind": "cdc_waivers",
    "sha256": null,
-   "hashed": "2026-11-01T11:10:41"
+   "hashed": "2026-11-05T11:17:23"
   },
   "pdk_version": {
    "path": "${PDK_ROOT}/SOURCES",
    "kind": "pdk_version",
    "sha256": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
-   "hashed": "2026-11-05T07:22:59"
+   "hashed": "2026-11-05T11:17:23"
   },
   "pdk_liberty": {
    "path": "${PDK_ROOT}/libs.ref/gf180mcu_fd_sc_mcu7t5v0/lib",
    "kind": "pdk_liberty",
    "sha256": "dir_bytes:f09377f057ab484ec9e5a45b205c99a5de399e2bdca886531bf9eefa57783f32",
-   "hashed": "2026-11-05T07:22:33"
+   "hashed": "2026-11-05T11:17:23"
   },
   "pdk_librelane": {
    "path": "${PDK_ROOT}/libs.tech/librelane",
@@ -2518,6 +2534,14 @@
    "gate": "holdout",
    "status": "pass",
    "attempt": 4,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-11-05T11:17:23",
+   "event": "gate",
+   "gate": "cdc",
+   "status": "pass",
+   "attempt": 5,
    "failing_count": 0
   }
  ]

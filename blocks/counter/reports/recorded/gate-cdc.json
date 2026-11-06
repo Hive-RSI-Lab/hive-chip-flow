@@ -20,7 +20,7 @@
  "failing": [],
  "violations": [],
  "facts": {
-  "top": "ece298a_counter",
+  "top": "tt_um_ece298a_counter",
   "applicable": true,
   "checked": true,
   "domains": [
@@ -28,15 +28,17 @@
   ],
   "clocks": [
    {
-    "net": "clk",
+    "net": "u_ece298a_counter.clk",
     "aliases": [
-     "clk"
+     "clk",
+     "u_ece298a_counter.clk",
+     "w_clk"
     ],
     "domain": [
      "clk"
     ],
     "kind": "port",
-    "flops": 10,
+    "flops": 12,
     "edges": [
      "pos"
     ]
@@ -55,22 +57,39 @@
     ],
     "flops": 2,
     "clock_nets": [
-     "clk"
+     "u_ece298a_counter.clk"
     ],
     "status": "sync_stage",
     "through_logic": false
    },
    {
-    "net": "rst_n_sync",
+    "net": "u_ece298a_counter.rst_n",
     "aliases": [
-     "rst_n_sync"
+     "rst_n_sync_q2",
+     "u_ece298a_counter.rst_n",
+     "w_rst_n"
+    ],
+    "domain": [
+     "clk"
+    ],
+    "flops": 2,
+    "clock_nets": [
+     "u_ece298a_counter.clk"
+    ],
+    "status": "sync_stage",
+    "through_logic": false
+   },
+   {
+    "net": "u_ece298a_counter.rst_n_sync",
+    "aliases": [
+     "u_ece298a_counter.rst_n_sync"
     ],
     "domain": [
      "clk"
     ],
     "flops": 8,
     "clock_nets": [
-     "clk"
+     "u_ece298a_counter.clk"
     ],
     "status": "synchronized",
     "through_logic": false
@@ -78,14 +97,27 @@
   ],
   "reset_syncs": [
    {
-    "net": "rst_n_sync",
+    "net": "u_ece298a_counter.rst_n",
     "stages": 2,
     "stage_nets": [
-     "rst_meta",
-     "rst_n_sync"
+     "rst_n_sync_q1",
+     "u_ece298a_counter.rst_n"
     ],
     "reset": "rst_n",
-    "clock": "clk",
+    "clock": "u_ece298a_counter.clk",
+    "domain": [
+     "clk"
+    ]
+   },
+   {
+    "net": "u_ece298a_counter.rst_n_sync",
+    "stages": 2,
+    "stage_nets": [
+     "u_ece298a_counter.rst_meta",
+     "u_ece298a_counter.rst_n_sync"
+    ],
+    "reset": "u_ece298a_counter.rst_n",
+    "clock": "u_ece298a_counter.clk",
     "domain": [
      "clk"
     ]
@@ -96,20 +128,36 @@
    "tool": "opensta",
    "ran": true,
    "sta": {
-    "clk": 10
+    "clk": 12
    },
    "cdclib": {
-    "clk": 10
+    "clk": 12
    },
    "match": true
   },
+  "port_domains": [
+   {
+    "port": "rst_n",
+    "domain": "async",
+    "source": "the tile's pad reset, into tt_um_ece298a_counter's synchroniser"
+   }
+  ],
+  "assumptions": [
+   "ui_in (tt_pins ui_in[7:0]) is taken as synchronous to clock.primary (clk): what drives it is the board's; declare it in spec/cdc.yaml ports if it is not",
+   "uio_in (tt_pins uio_in[7:0]) is taken as synchronous to clock.primary (clk): what drives it is the board's; declare it in spec/cdc.yaml ports if it is not"
+  ],
+  "scope": {
+   "scope": "wrapper+block",
+   "why": "the generated wrapper tt_um_ece298a_counter and the block: rst_n through the wrapper's 2-flop pad reset synchroniser on clk"
+  },
+  "block": "ece298a_counter",
   "not_checked": [
    "bus coherence (gray, handshake, multi-cycle)",
    "reconvergence of separately synchronised bits",
    "reset release order between domains",
    "recovery/removal timing of a synchronised release (STA's)",
    "a data path from a flop with no reset into a flop with one",
-   "a raw reset read synchronously (a data input: declare it `async` in ports to check it)"
+   "a raw reset read synchronously, other than tt_pins's pad reset (a data input: declare it `async` in ports to check it)"
   ]
  },
  "inputs_at_start": {
@@ -119,6 +167,7 @@
   "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
   "pdk_liberty": "dir_bytes:f09377f057ab484ec9e5a45b205c99a5de399e2bdca886531bf9eefa57783f32"
  },
- "recorded_ts": "2026-11-01T11:10:41",
- "attempts": 4
+ "strength_at_start": 1,
+ "recorded_ts": "2026-11-05T11:17:23",
+ "attempts": 5
 }

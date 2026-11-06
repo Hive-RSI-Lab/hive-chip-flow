@@ -11,3 +11,7 @@ If the signal really is quasi-static, or the single-flop sample is the design,
 that is a decision for the person: a `{from, to, reason}` waiver in
 `spec/cdc.yaml`. If an input port is simply in another domain than
 `clock.primary`, declare it under `ports` there (`async` or the domain).
+A Tiny Tapeout tile's pad reset (the port `tt_pins` maps to `rst_n` or
+`~rst_n`) is `async` by default: a flop that samples it once and drives a
+synchronous reset needs the second flop. `ports: {rst_n: clk}` overrides
+that, and is a claim for the person.

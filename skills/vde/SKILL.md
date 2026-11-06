@@ -143,7 +143,17 @@ Sidecars: `rtl/lint_allow.yaml` (optional, lint's allowlist) lives inside
 `spec/cdc.yaml` (optional, the cdc gate's input-port domains and waivers) is
 its own artifact, so a waiver re-runs cdc and release, not every gate that
 reads spec.yaml. Any input that is not synchronous to `clock.primary` must be
-declared there: the gate cannot tell from the netlist.
+declared there: the gate cannot tell from the netlist. The one default it
+does not need: a port `tt_pins` maps to the tile's pad reset (`rst_n` or
+`~rst_n`) is `async` unless `ports` says otherwise, so it needs a 2-flop
+sampler or a reset synchroniser; `ui_in`/`uio_in` ports stay on
+`clock.primary` and are listed in the report's `assumptions`.
+A tile that ships through the generated wrapper with its `rst_n`
+synchroniser (one clock domain, no `spec/cdc.yaml` ports or waivers, no
+macros) is analysed as wrapper plus block, so the gate sees the
+synchroniser the tile really has; any other block, an opted-out tile
+included, is analysed alone with `rst_n` async. The report's `scope` says
+which and why.
 
 ## Run start / resume
 

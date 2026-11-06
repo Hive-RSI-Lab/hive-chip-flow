@@ -36,6 +36,30 @@ Reset checks read `ports` too, but only as written: `ports: {rst_n: clk}` says
 that port is already synchronous to clk. The clock.primary default a data input
 gets is not assumed for a reset.
 
+A Tiny Tapeout tile's pad reset is raw and asynchronous (it comes from the
+RP2040), so a port spec.yaml's `tt_pins` maps to `rst_n` or `~rst_n` defaults
+to `async` here, with no claim from anyone (#179): read synchronously it is a
+crossing, and a one-flop sample of it fails like any other. A `ports` entry for
+it still overrides that, as an explicit claim. A tt_pins port on `ui_in` or
+`uio_in` keeps the clock.primary default, since what drives those pins is the
+board's: the report lists each one under `assumptions`. The report's
+`port_domains` says where every port's non-default domain came from.
+
+Scope (the report's `scope`). That default is for a block read on its own.
+A tile that ships through the generated TT wrapper with the pad reset
+synchroniser on (ttlib.pad_reset_latency() > 0) is analysed as it ships:
+the wrapper (ttlib.generate_tt_wrapper) and the block together, top the
+wrapper, with the wrapper's `rst_n` pin `async` and `clk` the one domain,
+so the block's reset is checked as the synchroniser's output
+(rst_n_sync_q1/q2) and a block that samples it once more is not flagged
+for a crossing the wrapper already closed. That needs the case the
+wrapper's names can carry: one clock domain, no `ports` or waivers in
+spec/cdc.yaml (they name block ports and nets) and no macros. Any other
+tile, and a tile that opts out (`pad_reset_sync: off`, whose wrapper
+passes rst_n straight through), is analysed alone with the async default
+above, so its rst_n is still checked, never skipped; `scope.why` says
+which case it is.
+
 A waiver's names are globs over any alias of the net (buses without their
 index); a waived finding stays in the report under `waived`.
 
@@ -69,6 +93,7 @@ import cdclib  # noqa: E402
 import check_synth  # noqa: E402
 import checklib  # noqa: E402
 import speclib  # noqa: E402
+import ttlib  # noqa: E402
 import yaml  # noqa: E402
 from checklib import CheckError  # noqa: E402
 
@@ -81,8 +106,8 @@ NOT_CHECKED = ["bus coherence (gray, handshake, multi-cycle)",
                "reset release order between domains",
                "recovery/removal timing of a synchronised release (STA's)",
                "a data path from a flop with no reset into a flop with one",
-               "a raw reset read synchronously (a data input: declare it "
-               "`async` in ports to check it)"]
+               "a raw reset read synchronously, other than tt_pins's pad "
+               "reset (a data input: declare it `async` in ports to check it)"]
 FLOP_CELL_RE = re.compile(r"__s?(?:dff|lat)")
 XCHECK_RE = re.compile(r"^CDC_XCHECK (\S+) (\d+)$", re.M)
 
@@ -133,11 +158,13 @@ def load_cdc_yaml(ws: Path) -> dict:
     return {"ports": ports, "waivers": waivers}
 
 
-def run_yosys(ws: Path, top: str, liberty: Path, work: Path) -> dict:
-    """The bit-level netlist as JSON; also writes the mapped work/mapped.v."""
+def run_yosys(ws: Path, top: str, liberty: Path, work: Path,
+              extra: tuple = ()) -> dict:
+    """The bit-level netlist as JSON; also writes the mapped work/mapped.v.
+    extra: more sources (the generated wrapper), read after rtl/."""
     work.mkdir(parents=True, exist_ok=True)
     reads = []
-    for f in check_synth.collect_sources(ws):
+    for f in [*check_synth.collect_sources(ws), *extra]:
         flag = "-sv " if f.suffix == ".sv" else ""
         reads.append(f"read_verilog {flag}{f.relative_to(ws)}")
     rel = work.relative_to(ws)
@@ -261,6 +288,94 @@ def apply_waivers(findings: list[dict], waivers: list[dict]) -> tuple:
     return still, waived, [w for i, w in enumerate(waivers) if i not in used]
 
 
+def _tt_pin(expr) -> str:
+    """A tt_pins expr's pad, without its `~` and bit range: rst_n, ui_in..."""
+    return str(expr).strip().lstrip("~").strip().split("[")[0].strip()
+
+
+def port_defaults(spec: dict, cfg_ports: dict, module_ports: dict) -> tuple:
+    """(port_domains, rows, board_inputs) from tt_pins and spec/cdc.yaml.
+
+    port_domains is cfg_ports plus `async` for each tt_pins pad reset it does
+    not name; rows says where each entry came from; board_inputs maps each
+    tt_pins input on ui_in/uio_in left on the default to its pin."""
+    tt_pins = spec.get("tt_pins") if isinstance(spec.get("tt_pins"), dict) \
+        else {}
+    domains = dict(cfg_ports)
+    rows = [{"port": p, "domain": d, "source": CDC_REL}
+            for p, d in sorted(cfg_ports.items())]
+    board_inputs = {}
+    for port, expr in sorted(tt_pins.items()):
+        info = module_ports.get(port)
+        if not info or info.get("direction") != "input" or port in cfg_ports:
+            continue
+        pad = _tt_pin(expr)
+        if pad == "rst_n":
+            domains[port] = "async"
+            rows.append({"port": port, "domain": "async",
+                         "source": f"tt_pins: {port} -> {str(expr).strip()} "
+                                   "(the tile's pad reset)"})
+        elif pad in ("ui_in", "uio_in"):
+            board_inputs[port] = str(expr).strip()
+    return domains, rows, board_inputs
+
+
+def analysis_scope(spec: dict, cfg: dict, declared: list) -> tuple:
+    """(wrapper, why): wrapper True when the tile is analysed through the
+    generated TT wrapper with its pad reset synchroniser (see the module
+    docstring's Scope), else False and the block alone."""
+    try:
+        latency = ttlib.pad_reset_latency(spec)
+        opt_out = ttlib.pad_reset_opt_out(spec)
+    except ttlib.TTError as exc:
+        raise CheckError(f"spec.yaml: {exc}") from exc
+    if opt_out is not None:
+        return False, ("the tile opts out of the pad reset synchroniser "
+                       f"(pad_reset_sync off: {opt_out}): its rst_n reaches "
+                       "the block raw, checked as an async input")
+    if not latency:
+        return False, ("no pad reset synchroniser in a generated wrapper (no "
+                       "input on rst_n, or no clk to sample it): the block "
+                       "alone")
+    blocked = [why for bad, why in (
+        (len(declared) != 1, "more than one clock domain"),
+        (bool(cfg["ports"]), f"{CDC_REL} declares ports"),
+        (bool(cfg["waivers"]), f"{CDC_REL} has waivers"),
+        (bool(spec.get("macros")), "the tile has macros")) if bad]
+    if blocked:
+        return False, ("the block alone, rst_n async (the wrapper scope takes "
+                       "one domain and block-free names; here: "
+                       f"{', '.join(blocked)})")
+    return True, (f"the generated wrapper {ttlib.wrapper_name(spec)} and the "
+                  "block: rst_n through the wrapper's "
+                  f"{ttlib.pad_reset_latency(spec)}-flop pad reset "
+                  "synchroniser on clk")
+
+
+def wrapper_ports(spec: dict) -> dict:
+    """spec.yaml's ports as port_defaults reads a netlist's: name ->
+    {direction}, for the ports tt_pins wires to a pin."""
+    return {n: {"direction": "input" if p.get("dir") == "input" else "output"}
+            for n, p in (spec.get("ports") or {}).items()
+            if isinstance(p, dict)}
+
+
+def board_assumptions(board_inputs: dict, an) -> list[str]:
+    """The report's line for each ui_in/uio_in data input taken as
+    synchronous to the default domain (a clock root is not a data input)."""
+    if an.primary:
+        where = f"clock.primary ({an.primary})"
+    elif len(an.all_roots) == 1:
+        where = f"the only clock domain ({an.all_roots[0]})"
+    else:
+        return []   # no default: cdc_port_no_domain reports a read one
+    return [f"{port} (tt_pins {pin}) is taken as synchronous to {where}: "
+            f"what drives it is the board's; declare it in {CDC_REL} ports "
+            "if it is not"
+            for port, pin in sorted(board_inputs.items())
+            if port not in an.all_roots]
+
+
 def run(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--workspace", required=True, help="block workspace")
@@ -274,16 +389,32 @@ def run(argv=None):
         raise CheckError("spec.yaml has no non-empty 'top' - run spec_lint "
                          "first")
     cfg = load_cdc_yaml(ws)
+    clock = spec.get("clock") if isinstance(spec.get("clock"), dict) else None
+    if clock is not None and not clock.get("domains"):
+        clock = None
+    declared = [d for d in (clock or {}).get("domains") or []
+                if isinstance(d, str)]
+    wrapped, scope_why = analysis_scope(spec, cfg, declared)
     liberty = check_synth.liberty_path(check_synth.toolchain_root(),
                                        check_synth.choose_std_cell(spec))
     if not liberty.is_file():
         raise CheckError(f"liberty file not found: {liberty}")
     work = ws / "log" / "cdc"
-    module = run_yosys(ws, top, liberty, work)
-
-    clock = spec.get("clock") if isinstance(spec.get("clock"), dict) else None
-    if clock is not None and not clock.get("domains"):
-        clock = None
+    block_top = top
+    scope = {"scope": "wrapper+block" if wrapped else "block",
+             "why": scope_why}
+    extra = ()
+    if wrapped:
+        top = ttlib.wrapper_name(spec)
+        work.mkdir(parents=True, exist_ok=True)
+        wrapper = work / f"{top}.v"
+        try:
+            wrapper.write_text(ttlib.generate_tt_wrapper(spec),
+                               encoding="utf-8")
+        except ttlib.TTError as exc:
+            raise CheckError(f"spec.yaml: {exc}") from exc
+        extra = (wrapper,)
+    module = run_yosys(ws, top, liberty, work, extra)
     if not has_sequential_cells(module):
         reason = "no sequential cell in the netlist: nothing to check"
     elif clock is None:
@@ -295,12 +426,24 @@ def run(argv=None):
     if reason:
         payload = checklib.report(SCRIPT, ws / "rtl", [], top=top,
                                   applicable=False, checked=False,
-                                  reason=reason)
+                                  reason=reason, scope=scope)
         return payload, args.out
 
-    declared = [d for d in clock.get("domains") or [] if isinstance(d, str)]
-    an = cdclib.Analysis(module, primary=clock.get("primary"),
-                         port_domains=cfg["ports"], clock_ports=declared)
+    primary = clock.get("primary")
+    if wrapped:
+        # the wrapper's pins: clk is the block's one domain (pad_reset_latency
+        # says the primary clock enters there), rst_n the raw pad
+        _, _, board_inputs = port_defaults(spec, {}, wrapper_ports(spec))
+        declared, primary = ["clk"], "clk"
+        port_domains = {"rst_n": "async"}
+        port_rows = [{"port": "rst_n", "domain": "async",
+                      "source": f"the tile's pad reset, into {top}'s "
+                                "synchroniser"}]
+    else:
+        port_domains, port_rows, board_inputs = port_defaults(
+            spec, cfg["ports"], module["ports"])
+    an = cdclib.Analysis(module, primary=primary,
+                         port_domains=port_domains, clock_ports=declared)
     for port, dom in cfg["ports"].items():
         if port not in module["ports"]:
             raise CheckError(f"{CDC_REL}: ports names {port!r}, not a port "
@@ -309,6 +452,7 @@ def run(argv=None):
             raise CheckError(f"{CDC_REL}: port {port!r} is in domain {dom!r}, "
                              f"not one of {an.all_roots} or 'async'")
 
+    assumptions = board_assumptions(board_inputs, an)
     crossings, no_domain = an.crossings()
     gates = an.gate_rows()
     violations = []
@@ -391,6 +535,8 @@ def run(argv=None):
         domains=an.all_roots, clocks=an.clocks(), crossings=crossings,
         clock_gates=gates, reset_trees=reset_trees,
         reset_syncs=an.reset_syncs(), waived=waived, crosscheck=xcheck,
+        port_domains=port_rows, assumptions=assumptions, scope=scope,
+        block=block_top,
         not_checked=NOT_CHECKED)
     return payload, args.out
 
