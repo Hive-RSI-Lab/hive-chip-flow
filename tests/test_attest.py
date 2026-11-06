@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shutil
 import sys
 from pathlib import Path
 
@@ -232,7 +233,7 @@ def test_disposition_draft_on_fresh_workspace(tmp_path):
 
 
 def test_disposition_gates_green(tmp_path):
-    ws = make_ws(tmp_path)
+    ws = make_msde_with_released_sides(tmp_path)
     pass_every_gate(ws, "msde")
     assert attest_mod.disposition(ws)["disposition"] == "gates-green"
 
@@ -404,13 +405,47 @@ def test_a_recorded_fail_is_a_violation_on_a_released_side(tmp_path):
     assert "pex_sim: last recorded result is FAIL" in verdict["reason"]
 
 
+def test_a_failing_side_blocks_a_green_top(tmp_path):
+    ws = make_released_msde(tmp_path)
+    assert attest_mod.disposition(ws)["disposition"] == "gates-green"
+    fail_gate(ws / "analog", "pex_sim")
+    got = attest_mod.disposition(ws)
+    assert got["disposition"] == "blocked"
+    assert got["failing"] == ["analog/pex_sim"]
+
+
+def test_a_failing_side_blocks_a_top_with_gates_still_to_run(tmp_path):
+    ws = make_msde_with_released_sides(tmp_path)
+    fail_gate(ws / "digital", "sim")
+    got = attest_mod.disposition(ws)
+    assert got["disposition"] == "blocked"
+    assert got["failing"] == ["digital/sim"]
+
+
+def test_a_green_top_with_a_side_missing_is_not_gates_green(tmp_path):
+    ws = make_msde_with_released_sides(tmp_path)
+    shutil.rmtree(ws / "analog")
+    pass_every_gate(ws, "msde")
+    got = attest_mod.disposition(ws)
+    assert got["disposition"] == "in-progress"
+    assert any(p.startswith("nested_analog") for p in got["nested"])
+
+
+def test_a_green_top_with_an_unreleased_side_is_not_gates_green(tmp_path):
+    ws = make_msde_with_released_sides(tmp_path)
+    pass_every_gate(ws, "msde")
+    (ws / "digital" / "reports" / "checks.json").unlink()
+    got = attest_mod.disposition(ws)
+    assert got["disposition"] == "in-progress"
+    assert any(p.startswith("nested_digital") for p in got["nested"])
+
+
 def test_an_msde_record_does_not_verify_with_a_failing_side(tmp_path):
     """All the top's own gates green and its record current, its analog side
     failing: not released, and the reason names the side's gate."""
     ws = make_released_msde(tmp_path)
     assert attest_mod.verify(ws)["valid"]
     fail_gate(ws / "analog", "pex_sim")
-    assert attest_mod.disposition(ws)["disposition"] == "gates-green"
     verdict = attest_mod.verify(ws)
     assert not verdict["valid"]
     assert verdict["reason"].startswith("nested_analog: not released: ")
