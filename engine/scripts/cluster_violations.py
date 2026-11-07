@@ -288,6 +288,9 @@ FIXER_HINTS: dict[str, str] = {
     # lvs (check_analog_lvs.py) and pex_sim (check_pex_sim.py) - a pex
     # bench that never printed a value is the bench-writer's, not the layout's
     "lvs_mismatch": "layout",
+    # lvs_extractors_disagree stays unmapped ("review"): netgen and klayout
+    # read the same GDS differently, an extraction question before it is
+    # the generator's
     "measure_out_of_bounds": "layout",
     "measure_missing": "testbench",
     "pex_bench_not_corner_aware": "testbench",

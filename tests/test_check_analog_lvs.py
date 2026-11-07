@@ -305,3 +305,125 @@ def test_wrong_ppolyf_u_length_fails_lvs(tmp_path):
     matched, text = results["100e-6"]
     assert matched is False
     assert "r_length" in text and "property errors" in text
+
+
+# ---- klayout second opinion (#117)
+
+def test_split_verdict_is_its_own_violation_carrying_both_reports():
+    for ng, kl in ((True, False), (False, True)):
+        out = check_analog_lvs.lvs_violations(
+            "netlist/m.cir", "m", ng, "NG TAIL", "log/lvs/netgen_lvs.log",
+            kl, "KL SUMMARY", [{"what": "net"}], "log/lvs/klayout/m.lvsdb")
+        assert [v["kind"] for v in out] == ["lvs_extractors_disagree"]
+        v = out[0]
+        assert v["severity"] == "error"
+        assert "NG TAIL" in v["msg"] and "KL SUMMARY" in v["msg"]
+        assert v["netgen"]["matched"] is ng
+        assert v["klayout"]["matched"] is kl
+        assert v["klayout"]["findings"] == [{"what": "net"}]
+
+
+def test_both_failing_is_a_mismatch_from_each_and_both_passing_is_clean():
+    args = ("netlist/m.cir", "m")
+    both = check_analog_lvs.lvs_violations(
+        *args, False, "NG", "l", False, "KL", [{"what": "net"}], "db")
+    assert [(v["kind"], v["source"]) for v in both] == [
+        ("lvs_mismatch", "netgen"), ("lvs_mismatch", "klayout")]
+    assert both[1]["locations"] == [{"what": "net"}]
+    assert check_analog_lvs.lvs_violations(
+        *args, True, "", "l", True, "", [], "db") == []
+
+
+KL_DECK_CLASSES = {"nfet_03v3": ("M", "nfet_03v3"),
+                   "ppolyf_u": ("R", "ppolyf_u"),
+                   "np_3p3": ("D", "np_3p3")}
+
+
+def test_klayout_reference_turns_device_calls_into_its_classes(monkeypatch):
+    import layoutlib
+    monkeypatch.setattr(layoutlib, "klayout_device_classes",
+                        lambda deck: KL_DECK_CLASSES)
+    text = """.param wn=2u
+.subckt top a b vss w=wn l=0.5u
+X1 a b vss vss nfet_03v3 W={w*2} L=l
+X2 a b vss ppolyf_u r_width=1u r_length=10u
+X3 a vss np_3p3 area=1p pj=4u
+X5 a b sub
+.ends
+"""
+    out = layoutlib.klayout_reference(text, Path("deck"))
+    lines = {ln.split()[0]: ln.split() for ln in out.splitlines()
+             if ln.strip()}
+    assert ".param" not in lines
+    assert lines[".subckt"] == [".subckt", "top", "a", "b", "vss"]
+    assert lines["M1"] == ["M1", "a", "b", "vss", "vss", "nfet_03v3",
+                           "W=4e-06", "L=5e-07"]
+    assert lines["R2"][-2:] == ["W=1e-06", "L=1e-05"]
+    assert lines["D3"][-2:] == ["A=1e-12", "P=4e-06"]
+    assert lines["X5"] == ["X5", "a", "b", "sub"]
+
+
+def test_klayout_reference_refuses_an_expression_it_cannot_resolve(monkeypatch):
+    import layoutlib
+    monkeypatch.setattr(layoutlib, "klayout_device_classes",
+                        lambda deck: KL_DECK_CLASSES)
+    with pytest.raises(layoutlib.LayoutError):
+        layoutlib.klayout_reference(
+            ".subckt top a b\nX1 a b a a nfet_03v3 W={nosuch*2} L=1u\n.ends\n",
+            Path("deck"))
+
+
+def _kl(out):
+    return next(v for v in out["violations"] if v.get("source") == "klayout")
+
+
+def _inside(bbox, box, slack=0.02):
+    return (bbox[0] >= box[0] - slack and bbox[1] >= box[1] - slack
+            and bbox[2] <= box[2] + slack and bbox[3] <= box[3] + slack)
+
+
+@pytest.mark.slow
+def test_clean_mirror_matches_on_both_extractors(tmp_path):
+    ws = make_ws(tmp_path, "mirror")
+    code, out = run_json(["--workspace", str(ws)], tmp_path)
+    assert code == 0, out
+    assert out["extractors"] == {"netgen": "match", "klayout": "match"}
+    assert (ws / out["lvsdb"]).is_file()
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("plant_name", ["plant_lvs_missing_via1.py",
+                                        "plant_lvs_metal2_short.py"])
+def test_planted_open_and_short_fail_on_both_and_are_located(tmp_path,
+                                                             plant_name):
+    import importlib.util
+    path = CORPUS / "mirror" / "faults" / plant_name
+    spec = importlib.util.spec_from_file_location("p", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    planted = getattr(mod, "BRIDGE", None) or mod.STRAP
+    ws = make_ws(tmp_path, "mirror")
+    mod.plant(ws)
+    code, out = run_json(["--workspace", str(ws)], tmp_path)
+    assert code == 1, out
+    assert out["extractors"] == {"netgen": "mismatch", "klayout": "mismatch"}
+    kl = _kl(out)
+    assert kl["kind"] == "lvs_mismatch"
+    metal2 = [s["bbox"] for f in kl["locations"] if f["what"] == "net"
+              for s in f["shapes"] if s["layer"] == "metal2"]
+    assert any(_inside(b, planted) for b in metal2), (planted, metal2)
+    assert str(planted[0]) in kl["msg"] or any(
+        _inside(b, planted) for b in metal2)
+
+
+@pytest.mark.slow
+def test_device_sized_differently_is_located_by_klayout(tmp_path):
+    ws = make_ws(tmp_path, "mirror")
+    import_plant("mirror", "plant_lvs_sized_differently.py")(ws)
+    code, out = run_json(["--workspace", str(ws)], tmp_path)
+    assert code == 1, out
+    devs = [f for f in _kl(out)["locations"] if f["what"] == "device"]
+    widths = {(f.get("layout_params") or {}).get("W") for f in devs} | {
+        (f.get("reference_params") or {}).get("W") for f in devs}
+    assert {6.0, 8.0} <= widths, devs
+    assert any(f.get("position") for f in devs)

@@ -1008,6 +1008,304 @@ def run_netgen_lvs(work_dir, extracted_spice, extracted_cell: str,
     return (matched and not failed), text
 
 
+# ------------------------------------------------------- klayout LVS (#117)
+
+KLAYOUT_LVS_REL = "libs.tech/klayout/tech/lvs"
+# extract_devices(<kind>('<name>', ...)) in the deck's rule_decks: the kind
+# fixes the SPICE letter its schematic reader wants for that device
+_KL_KIND_PREFIX = {"mos3": "M", "mos4": "M", "resistor": "R",
+                   "resistor_with_bulk": "R", "capacitor": "C",
+                   "diode": "D", "bjt3": "Q", "bjt4": "Q"}
+_KL_EXTRACT_RE = re.compile(r"extract_devices\(\s*(\w+)\(\s*'(\w+)'")
+# the PDK's own xschem-to-klayout converter
+# (gf180_xschem_klayout_spice_convert.py) renames these per device letter
+_KL_PARAM_RENAME = {"R": {"r_width": "W", "r_length": "L"},
+                    "C": {"c_width": "W", "c_length": "L"},
+                    "D": {"area": "A", "pj": "P"},
+                    "Q": {"m": "NE"}}
+_SPICE_SCALE = {"t": 1e12, "g": 1e9, "meg": 1e6, "k": 1e3, "m": 1e-3,
+                "u": 1e-6, "n": 1e-9, "p": 1e-12, "f": 1e-15}
+_SPICE_NUM_RE = re.compile(
+    r"([-+]?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?)(meg|[tgkmunpf])?[a-z]*")
+_KL_PASS = "Congratulations! Netlists match."
+_KL_FAIL = "Netlists don't match"
+
+
+def klayout_lvs_dir() -> Path:
+    deck = pdk_root() / KLAYOUT_LVS_REL
+    if not (deck / "run_lvs.py").is_file() or not (deck / "gf180mcu.lvs").is_file():
+        raise LayoutError(f"no klayout GF180 LVS deck (run_lvs.py, "
+                          f"gf180mcu.lvs) under {deck}")
+    return deck
+
+
+def klayout_device_classes(deck: Path) -> dict[str, tuple[str, str]]:
+    """{model lowercased: (SPICE letter, the deck's own spelling)} for every
+    device the deck extracts."""
+    classes: dict[str, tuple[str, str]] = {}
+    for f in sorted((deck / "rule_decks").glob("*_extraction.lvs")):
+        for kind, name in _KL_EXTRACT_RE.findall(
+                f.read_text(encoding="utf-8", errors="replace")):
+            if kind in _KL_KIND_PREFIX:
+                classes[name.lower()] = (_KL_KIND_PREFIX[kind], name)
+    if not classes:
+        raise LayoutError(f"{deck}/rule_decks names no extract_devices "
+                          "classes - the deck's layout changed")
+    return classes
+
+
+def _spice_value(expr: str, env: dict[str, float]) -> float:
+    """A SPICE parameter value as a number: a literal with its scale suffix
+    (2u, 1meg, 0.5), or +-*/** arithmetic over literals and names in env.
+    Anything else is a LayoutError, never a guess."""
+    import ast
+    import operator as op
+
+    ops = {ast.Add: op.add, ast.Sub: op.sub, ast.Mult: op.mul,
+           ast.Div: op.truediv, ast.Pow: op.pow, ast.USub: op.neg,
+           ast.UAdd: op.pos}
+    text = expr.strip().strip("{}'\"")
+    m = _SPICE_NUM_RE.fullmatch(text.lower())
+    if m:
+        return float(m.group(1)) * _SPICE_SCALE.get(m.group(2) or "", 1.0)
+
+    def ev(node):
+        if isinstance(node, ast.Expression):
+            return ev(node.body)
+        if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
+            return float(node.value)
+        if isinstance(node, ast.Name) and node.id.lower() in env:
+            return env[node.id.lower()]
+        if isinstance(node, ast.BinOp) and type(node.op) in ops:
+            return ops[type(node.op)](ev(node.left), ev(node.right))
+        if isinstance(node, ast.UnaryOp) and type(node.op) in ops:
+            return ops[type(node.op)](ev(node.operand))
+        raise ValueError(text)
+
+    try:
+        return ev(ast.parse(text.lower(), mode="eval"))
+    except (SyntaxError, ValueError, ZeroDivisionError) as exc:
+        raise LayoutError(
+            f"cannot resolve the parameter value {expr!r} to a number for "
+            "klayout LVS (a literal, or arithmetic over .param and subckt "
+            "defaults)") from exc
+
+
+_PARAM_RE = re.compile(r"(\w+)\s*=\s*(\S+)")
+
+
+def klayout_reference(text: str, deck: Path) -> str:
+    """The sized LVS reference (log/lvs/) as the klayout deck's schematic
+    reader takes it. The reader drops X-prefixed device calls (so a
+    reference written for netgen reads as an empty circuit), fails on a
+    parameter given by name, and on a .subckt header with defaults; the
+    PDK's own converter only handles an upper-case X and matches models by
+    substring. Here: every .param and subckt default is resolved to a
+    number, the header defaults and .param lines go, and each X call of a
+    device the deck extracts becomes that device's letter (M/R/C/D/Q), its
+    model spelt as the deck spells it, its parameters renamed as the PDK's
+    converter renames them. Std-cell calls stay X: the deck flattens
+    them."""
+    classes = klayout_device_classes(deck)
+    lines: list[str] = []
+    for line in text.splitlines():
+        if line.lstrip().startswith("+") and lines:
+            lines[-1] += " " + line.lstrip()[1:]
+        else:
+            lines.append(line)
+    env: dict[str, float] = {}
+    local = env
+    out: list[str] = []
+    for line in lines:
+        tok = line.split()
+        if not tok or tok[0].startswith("*"):
+            out.append(line)
+            continue
+        head = tok[0].lower()
+        if head == ".param":
+            for k, v in _PARAM_RE.findall(line[len(tok[0]):]):
+                env[k.lower()] = _spice_value(v, env)
+            continue
+        if head == ".subckt":
+            local = dict(env)
+            for k, v in _PARAM_RE.findall(line):
+                local[k.lower()] = _spice_value(v, local)
+            out.append(" ".join(w for w in tok if "=" not in w))
+            continue
+        if head == ".ends":
+            local = env
+            out.append(line)
+            continue
+        if head[0] in "xmrcdq":
+            pos = [i for i, w in enumerate(tok) if "=" not in w]
+            letter = None
+            model = tok[pos[-1]].lower()
+            if head[0] == "x" and model in classes:
+                letter, canon = classes[model]
+                tok[pos[-1]] = canon
+                tok[0] = letter + tok[0][1:]
+            for i, w in enumerate(tok):
+                if "=" in w:
+                    k, v = w.split("=", 1)
+                    k = _KL_PARAM_RENAME.get(letter or "", {}).get(k.lower(), k)
+                    tok[i] = f"{k}={_spice_value(v, local):.12g}"
+            out.append(" ".join(tok))
+            continue
+        out.append(line)
+    return "\n".join(out) + "\n"
+
+
+def run_klayout_lvs(work_dir, gds_path, topcell: str, ref_spice,
+                    timeout: float = 240.0) -> tuple[bool, str, Path]:
+    """The PDK's klayout LVS deck (run_lvs.py, variant D, gf180mcu_gnd
+    substrate) on gds_path against ref_spice, already in klayout_reference()
+    form. Returns (matched, the run's log, the .lvsdb). A run with neither
+    verdict line, or no .lvsdb, is a LayoutError."""
+    deck = klayout_lvs_dir()
+    work_dir = Path(work_dir).resolve()
+    if work_dir.exists():
+        for p in work_dir.iterdir():
+            if p.is_file():
+                p.unlink()
+    work_dir.mkdir(parents=True, exist_ok=True)
+    gds = Path(gds_path).resolve()
+    proc = run_eda(
+        ["python3", str(deck / "run_lvs.py"), f"--layout={gds}",
+         f"--netlist={Path(ref_spice).resolve()}", "--variant=D",
+         f"--run_dir={work_dir}", f"--topcell={topcell}", "--run_mode=deep"],
+        cwd=work_dir, timeout=timeout)
+    out = (proc.stdout or "") + (proc.stderr or "")
+    logs = sorted(work_dir.glob("*.log"))
+    log = out + "".join(p.read_text(encoding="utf-8", errors="replace")
+                        for p in logs)
+    lvsdb = work_dir / f"{gds.name.split('.')[0]}.lvsdb"
+    if _KL_PASS in log:
+        matched = True
+    elif _KL_FAIL in log:
+        matched = False
+    else:
+        raise LayoutError(
+            f"klayout LVS gave no verdict (exit {proc.returncode}) - the "
+            f"run did not complete: {log[-2000:]}")
+    if not lvsdb.is_file():
+        raise LayoutError(f"klayout LVS wrote no report at {lvsdb}")
+    return matched, log, lvsdb
+
+
+# drawn layers a net's extracted shapes are reported on, most telling
+# first: the metals and cuts an open or a short is drawn in, then poly and
+# diffusion
+_KL_LOCATE_LAYERS = [*reversed(_NET_STACK[2:]), _NET_STACK[1], _NET_STACK[0],
+                     ("comp", (22, 0))]
+
+
+def _um_box(box, dbu: float) -> list[float]:
+    return [round(box.left * dbu, 3), round(box.bottom * dbu, 3),
+            round(box.right * dbu, 3), round(box.top * dbu, 3)]
+
+
+def klayout_lvs_findings(lvsdb, gds_path, topcell: str,
+                         max_shapes: int = 40) -> list[dict]:
+    """Every pin, net and device the klayout cross-reference did not match,
+    each with where it is in the layout: a net carries its drawn shapes
+    as {layer, bbox (um)}, metals and cuts first, a device its class, both
+    sides' parameters and its position. An open shows as the split net's
+    pieces, a short as the joined net's shapes - the shorting shape among
+    them. The lvsdb names its layers only by index, so each of its layers
+    is put on the drawn GDS layer that wholly contains it."""
+    import klayout.db as kdb
+
+    lvs = kdb.LayoutVsSchematic()
+    lvs.read(str(lvsdb))
+    xref = lvs.xref()
+    if xref is None:
+        raise LayoutError(f"{lvsdb} holds no cross-reference")
+    layout = kdb.Layout()
+    layout.read(str(gds_path))
+    cell = layout.cell(topcell)
+    if cell is None:
+        raise LayoutError(f"{gds_path} has no cell named {topcell!r}")
+    dbu = layout.dbu
+    drawn = [(name, kdb.Region(cell.begin_shapes_rec(layout.layer(*ld))))
+             for name, ld in _KL_LOCATE_LAYERS]
+    on_layer: dict[str, list] = {}  # drawn layer name: the lvsdb layers on it
+    for i in lvs.layer_indexes():
+        region = lvs.layer_by_index(i)
+        if region.is_empty():
+            continue
+        for name, shapes in drawn:
+            if (region - shapes).is_empty():
+                on_layer.setdefault(name, []).append(region)
+                break
+    ok = {kdb.NetlistCrossReference.Match,
+          kdb.NetlistCrossReference.MatchWithWarning,
+          kdb.NetlistCrossReference.Skipped}
+
+    def where(net) -> list[dict]:
+        if net is None:
+            return []
+        shapes = []
+        for name, _shapes in drawn:
+            mine = kdb.Region()
+            for region in on_layer.get(name, []):
+                mine += lvs.shapes_of_net(net, region, True)
+            for poly in mine.merged().each():
+                shapes.append({"layer": name,
+                               "bbox": _um_box(poly.bbox(), dbu)})
+        return shapes[:max_shapes]
+
+    def name(obj):
+        return None if obj is None else (obj.name or obj.expanded_name())
+
+    findings: list[dict] = []
+    for cp in xref.each_circuit_pair():
+        if cp.status() in ok:
+            continue
+        circuit = name(cp.first()) or name(cp.second())
+        for np_ in xref.each_net_pair(cp):
+            if np_.status() in ok:
+                continue
+            findings.append({
+                "what": "net", "circuit": circuit,
+                "layout_net": name(np_.first()),
+                "reference_net": name(np_.second()),
+                "status": str(np_.status()).split(".")[-1],
+                "shapes": where(np_.first())})
+        for dp in xref.each_device_pair(cp):
+            if dp.status() in ok:
+                continue
+            lay, ref = dp.first(), dp.second()
+            entry = {"what": "device", "circuit": circuit,
+                     "layout_device": name(lay), "reference_device": name(ref),
+                     "status": str(dp.status()).split(".")[-1]}
+            for side, dev in (("layout", lay), ("reference", ref)):
+                if dev is not None:
+                    entry[f"{side}_class"] = dev.device_class().name
+                    entry[f"{side}_params"] = {
+                        p.name: round(dev.parameter(p.id()), 6)
+                        for p in dev.device_class().parameter_definitions()
+                        if p.is_primary}
+            # a paired device of the same class and sizes only mismatches
+            # through its terminals' nets, which are reported themselves
+            if (lay is not None and ref is not None
+                    and entry["layout_class"] == entry["reference_class"]
+                    and entry["layout_params"] == entry["reference_params"]):
+                continue
+            if lay is not None:
+                t = lay.trans.disp
+                entry["position"] = [round(t.x, 3), round(t.y, 3)]
+            findings.append(entry)
+        for pp in xref.each_pin_pair(cp):
+            if pp.status() in ok:
+                continue
+            findings.append({
+                "what": "pin", "circuit": circuit,
+                "layout_pin": name(pp.first()),
+                "reference_pin": name(pp.second()),
+                "status": str(pp.status()).split(".")[-1]})
+    return findings
+
+
 # ---------------------------------------------------------------- ngspice
 
 _MEASURE_RE = re.compile(

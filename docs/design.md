@@ -126,7 +126,7 @@ Analog (`/ade`):
 | bench_strength | faults.py device mutants (size doubled, connection removed, type flipped, bias halved; a B source output stuck, gain halved) | every mutant pushes a measure out of bounds, bar a survivor the owner rules on one by one in `spec/mutant_rulings.yaml` (equivalent, or a checked below-spread effect), and every declared device gets at least one mutant | bounds wide enough to pass anything |
 | mc | ngspice Monte Carlo, only when the spec asks | yield at or above the spec | a window typical meets but mismatch misses (not applicable when the spec asks for no MC) |
 | drc | magic and klayout | 0 | a planted spacing violation |
-| lvs | netgen, extracted layout versus the sized netlist | match | a device sized differently in the generator than in the netlist |
+| lvs | netgen, extracted layout versus the sized netlist, and the PDK's klayout LVS deck as a second opinion | both match; a split verdict is `lvs_extractors_disagree` | a device sized differently in the generator than in the netlist |
 | pex_sim | magic ext2spice with parasitics (klayout_pex second), then the bench at typical and the worst corners (`pex_corners`), plus any opted-in scaled R and C runs (`pex_rc_knobs`) and real RC corners (`pex_rc_corners`: one extraction per magic variant, each at its paired process, each hashed in the gate's record as its own view) | every measure inside `post_layout_bounds` at each | an output routed on a long minimum-width metal1 line |
 | release | attest, strict | as digital | as digital |
 

@@ -342,13 +342,17 @@ gates:
       # (docs/spikes/glayout.md: the spike's own LVS only compared
       # gLayout's output with itself). A PDK std cell is compared flat on
       # both sides; a cell netgen can only black-box is a refusal.
+      # Second opinion (#117): the PDK's klayout LVS deck on the same GDS
+      # and sized reference; both must match, and a split verdict is its
+      # own lvs_extractors_disagree violation. klayout's findings locate
+      # opens and shorts by layer and bbox.
       # `analog_lvs`, not `lvs` - see drc's own note above.
       phase: P5
       tool: analog_lvs
       strength: 0
       fail_severities: [error]
       max_count: 0
-      fault: "a device sized differently in the generator than in the netlist (also: a swapped net)"
+      fault: "a device sized differently in the generator than in the netlist (also: a swapped net, a missing via1, a metal2 short)"
       description: "Match."
     pex_sim:
       # M9: magic's extraction with every capacitor and extresist's wire
