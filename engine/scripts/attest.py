@@ -40,7 +40,12 @@ Subcommands:
                at once. Also refuses over a record `release` sealed: only
                release writes that seal, so re-run release to replace it.
   verify       Re-verify the written checks.json against the current tree
-               and state. Read-only. Exit 0 valid / 1 invalid.
+               and state. Read-only. Exit 0 valid / 1 invalid. An invalid
+               record names the gates that changed since it was written.
+  verify-tree  Verify every block committed at a revision, from its tracked
+               files only (git archive: what a clone sees). Exit 1 names
+               each block that does not attest valid and its stale gates.
+               blocks/pll is the known exception (KNOWN_STALE, #212).
   disposition  Print the DERIVED release disposition (never hand-set):
                draft (nothing has passed yet), in-progress (some gates
                green), gates-green (every applicable gate fresh-pass),
@@ -54,6 +59,7 @@ CLI: JSON to stdout or --out; exit 0 ok / 1 refused-or-invalid /
   attest.py build --workspace DIR [--max-report-age-h H] [--out FILE]
   attest.py verify --workspace DIR [--out FILE]
   attest.py disposition --workspace DIR [--out FILE]
+  attest.py verify-tree [--repo DIR] [--rev REV] [--out FILE]
 """
 from __future__ import annotations
 
@@ -445,6 +451,60 @@ def nested_problems(ws: Path) -> list[str]:
     return problems
 
 
+def changed_checks(recorded: list[dict], current: list[dict]) -> list[str]:
+    """The gates whose check entry differs between the release record and
+    the gate results now: re-run, re-recorded, added or dropped."""
+    was = {c.get("gate"): c for c in recorded}
+    now = {c.get("gate"): c for c in current}
+    order = [c.get("gate") for c in current] + [
+        g for g in was if g not in now]
+    return [str(g) for g in order if was.get(g) != now.get(g)]
+
+
+# Committed blocks that verify_tree does not hold to a valid record, each
+# with the reason. blocks/pll's tile is stale while #212 (its tb releases
+# rst_n with clk stopped) is open: its gates are not re-run until that is
+# settled, and its staleness is tracked in thread pll-paper-update. Every
+# other block must attest valid from a clean checkout (#248).
+KNOWN_STALE = {"pll": "#212: PLL tile left stale until its reset tb is "
+                      "settled (see pll-paper-update)"}
+
+
+def verify_tree(repo: Path, rev: str = "HEAD") -> dict:
+    """Verify every block committed at `rev` as a clean checkout sees it.
+
+    `git archive` gives the tracked files only (no runs/, no release/), the
+    same tree a clone has, so a block whose record holds only because of
+    files left on this machine fails here as it would in CI. A gate re-run
+    and committed without a new `release` fails, naming the gate (#248)."""
+    import subprocess
+    import tarfile
+    import tempfile
+    repo = Path(repo)
+    blocks: dict[str, dict] = {}
+    with tempfile.TemporaryDirectory(prefix="attest-tree-") as tmp:
+        tar = Path(tmp) / "blocks.tar"
+        with open(tar, "wb") as fh:
+            subprocess.run(["git", "-C", str(repo), "archive", "--format=tar",
+                            rev, "--", "blocks"], stdout=fh, check=True)
+        with tarfile.open(tar) as tf:
+            tf.extractall(tmp, filter="data")
+        root = Path(tmp) / "blocks"
+        for st in sorted(root.glob("*/state.json")):
+            name = st.parent.name
+            if name in KNOWN_STALE:
+                blocks[name] = {"valid": None, "known_stale": KNOWN_STALE[name]}
+                continue
+            v = verify(st.parent)
+            row = {"valid": bool(v.get("valid"))}
+            if not row["valid"]:
+                row["reason"] = v.get("reason")
+                row["stale_gates"] = v.get("stale_gates", [])
+            blocks[name] = row
+    invalid = sorted(n for n, r in blocks.items() if r["valid"] is False)
+    return {"rev": rev, "blocks": blocks, "invalid": invalid}
+
+
 def verify(ws: Path) -> dict:
     path = ws / CHECKS_PATH
     if not path.is_file():
@@ -482,7 +542,10 @@ def verify(ws: Path) -> dict:
     if att["checks"] != recorded["checks"]:
         return {"valid": False,
                 "reason": "recorded checks no longer match the current "
-                          "gate results - re-run the `release` gate",
+                          "gate results (changed since the release record: "
+                          f"{', '.join(changed_checks(recorded['checks'], att['checks']))})"
+                          " - re-run the `release` gate",
+                "stale_gates": changed_checks(recorded["checks"], att["checks"]),
                 "attestation_sha256": recorded["attestation_sha256"]}
     return {"valid": True, "attestation_sha256": recorded["attestation_sha256"]}
 
@@ -542,10 +605,23 @@ def run(argv=None) -> tuple[dict, str | None, int]:
     p.add_argument("--max-report-age-h", type=float, default=24.0)
 
     common(sub.add_parser("verify", help="re-verify checks.json (read-only)"))
+    p = sub.add_parser("verify-tree", help="verify every committed block "
+                       "from a clean checkout of REV (read-only)")
+    p.add_argument("--repo", default=".", help="git repository (default .)")
+    p.add_argument("--rev", default="HEAD")
+    p.add_argument("--out", help="write result JSON here too")
     common(sub.add_parser("disposition",
                           help="derived release disposition (read-only)"))
 
     args = ap.parse_args(argv)
+    if args.cmd == "verify-tree":
+        t = verify_tree(Path(args.repo), args.rev)
+        problems = [f"{n}: not released: {t['blocks'][n]['reason']}"
+                    for n in t["invalid"]]
+        return ({"script": SCRIPT, "cmd": args.cmd,
+                 "status": "violations" if problems else "pass",
+                 "problems": problems, **t},
+                args.out, 1 if problems else 0)
     ws = Path(args.workspace)
     result: dict = {"script": SCRIPT, "cmd": args.cmd,
                     "workspace": str(ws).replace("\\", "/")}
