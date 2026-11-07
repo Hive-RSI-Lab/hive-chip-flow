@@ -124,7 +124,7 @@ DOMAINS: dict[str, dict] = {
         "guidance": [
             "Edit the layout GENERATOR code (layout/gen_<block>.py), never "
             "the GDS by hand - there is no analog autorouter here.",
-            "drc/lvs/pex_sim each regenerate the GDS from the generator on "
+            "drc/lvs/pex_sim/em_ir each regenerate the GDS from the generator on "
             "every run; an LVS mismatch is fixed in the generator to match "
             "netlist/ and sizing/, never the other way round.",
         ],

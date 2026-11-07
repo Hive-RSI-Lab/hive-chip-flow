@@ -1,0 +1,30 @@
+* comparator_emir_tb.cir - the operating point the em_ir gate (
+* engine/scripts/check_analog_em_ir.py) reads EM and IR drop from, run on
+* the extracted netlist at every corner of the spec's sweep. The gate fills
+* in the pdk path, the extracted netlist and the corner's process,
+* temperature and supply; no .control block, the gate adds `op` and
+* `print all`.
+*
+* A StrongARM draws no static current: in reset (clk low) every path to
+* vss is off, and once the latch has decided (clk high, inputs apart) the
+* conducting side's devices have no voltage across them. That decided state
+* is the DC current the gate's limits (the DRM's DC column) are for, so it
+* is the state held here: clk high, inp 0.1 V over inn. The balance point
+* (both inputs equal, the latch held at mid-supply by a nodeset) draws
+* ~0.38 mA, but only for the picoseconds of each decision: a peak, not a
+* DC current, and outside what a DC limit judges. Without a hint the op
+* lands on that balance point (both outputs mid-supply, 0.27 mA a side), so
+* the nodeset puts the latch on the side these inputs decide: inp > inn
+* drives outp high (netlist/comparator.cir).
+.include '{pdk}/libs.tech/ngspice/design.spice'
+.lib '{pdk}/libs.tech/ngspice/sm141064.spice' {corner}
+.include '{extracted}'
+.temp {temp_c}
+
+vdd vdd 0 dc {vdd}
+vclk clk 0 dc {vdd}
+vinp inp 0 dc {{{vdd}/2+0.05}}
+vinn inn 0 dc {{{vdd}/2-0.05}}
+xdut inp inn clk outp outn vdd 0 strongarm_comparator
+.nodeset v(outp)={vdd} v(outn)=0
+.end

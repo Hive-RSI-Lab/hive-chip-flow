@@ -471,7 +471,7 @@ def _stale_by_hash(ws, kind):
 
 
 ADE_GATES = ["netlist_lint", "sim_tt", "sim_pvt", "bench_strength", "mc",
-             "drc", "lvs", "pex_sim", "release"]
+             "drc", "lvs", "pex_sim", "em_ir", "release"]
 
 
 def test_ade_sizing_edit_stales_every_gate_that_loads_sizing(tmp_path):
@@ -493,7 +493,7 @@ def test_ade_layout_ref_edit_stales_pex_sim(tmp_path):
     ws = _ade_ws_with_passes(tmp_path, ADE_GATES)
     (ws / "layout_ref" / "mirror_pex_tb.bounds.json").write_text(
         '{"measures": {}}\n', encoding="utf-8")
-    assert _stale_by_hash(ws, "layout_ref") == {"pex_sim"}
+    assert _stale_by_hash(ws, "layout_ref") == {"pex_sim", "em_ir"}
 
 
 def test_ade_spec_yaml_footprint_edit_stales_drc(tmp_path):
@@ -508,6 +508,7 @@ def test_ade_layout_code_edit_covers_layout_ref():
     imap = statelib.load_map()
     cls = imap["edit_classes"]["ade"]["layout_code_edit"]
     assert "layout_ref" in cls["mutates"] and "pex_sim" in cls["gates"]
+    assert "em_ir" in cls["gates"]
 
 
 # --------------------------------------------------------- gate recording

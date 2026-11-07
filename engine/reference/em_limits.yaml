@@ -1,0 +1,60 @@
+# em_limits.yaml - the electromigration limits the em_ir gate
+# (engine/scripts/check_analog_em_ir.py) holds every extracted wire and cut
+# to, and the layer facts it needs to read magic's FastHenry geometry.
+# Consumed by engine/lib/emirlib.py. Never edited per block: a block that
+# fails it gets wider wire or more cuts, not a bigger number here.
+#
+# Source: the GF180MCU design rule manual, section 14.2 (electromigration),
+# tables 14.3 (wire, per um of drawn width) and 14.4 (contact and via, per
+# cut), the unidirectional (DC) column at 125 C junction. The gate runs an
+# operating point, so every current it sees is DC; 125 C is the hottest the
+# PDK states, and one table for every corner keeps the limit a single number
+# per layer. metal5 is the 11K top metal of gf180mcuD: the table's 9K top
+# metal row (1.21 mA/um) is used for it, the lower and so safer of the two.
+#
+# thick is the thickness magic's FastHenry writer (`extresist fasthenry`)
+# gives a wire segment on the layer, in um, as its `h`: the tech file's
+# `height` lines (libs.tech/magic/gf180mcuD.tech, extract style ngspice)
+# give metal1-4 0.55, metal5 1.0025, poly 0.2, diffusion 0.3 and the wells
+# 0.0145, and the writer prints two decimals. A cut segment has its cut's
+# edge as both w and h. The node heights (z) are not used: the writer gives
+# a node the height of the last wire it met, and a node that only meets
+# cuts keeps the one before it. A thickness not in this table is a refusal:
+# the gate cannot tell what layer it is. metal1-4 share one thickness, so a
+# wire on them is held to the lowest of their limits.
+#
+# sheet_ohm and cut_ohm are the same tech file's extraction values (metal1-4
+# 90 mohm/sq, metal5 40, contacts 5.2-8 ohm, vias 4.5 ohm per cut). They only
+# share the current out between parallel paths of a net; how much current a
+# net carries comes from the operating point, never from these.
+temperature_c: 125
+
+# wires: limit in mA per um of drawn width
+wires:
+  metal1: {thick: 0.55, limit_ma_per_um: 0.67, sheet_ohm: 0.090}
+  metal2: {thick: 0.55, limit_ma_per_um: 0.67, sheet_ohm: 0.090}
+  metal3: {thick: 0.55, limit_ma_per_um: 0.67, sheet_ohm: 0.090}
+  metal4: {thick: 0.55, limit_ma_per_um: 0.67, sheet_ohm: 0.090}
+  metal5: {thick: 1.00, limit_ma_per_um: 1.21, sheet_ohm: 0.040}
+
+# layers under metal1 a net runs in but the DRM gives no wire limit for
+# (diffusion, poly, wells): the solve needs their resistance, EM skips them
+under_metal1:
+  diff:   {thick: 0.30, sheet_ohm: 6.3}
+  poly:   {thick: 0.20, sheet_ohm: 7.3}
+  well:   {thick: 0.01, sheet_ohm: 1000.0}
+
+# cuts: limit in mA per cut. `between` is the pair of layers it joins (a
+# name from wires or under_metal1); gds is its drawn layer, whose shapes the
+# gate counts; pads are the drawn metal layers it lands on (metal1 for a
+# contact, the metal below and above for a via), whose shape over an array
+# tells the gate which nets can reach it. One drawn layer serving several
+# pairs is held to the lowest of their limits
+cuts:
+  contact_comp: {gds: [33, 0], pads: [[34, 0]], between: [diff, metal1], limit_ma: 0.18, cut_ohm: 6.3}
+  contact_well: {gds: [33, 0], pads: [[34, 0]], between: [well, metal1], limit_ma: 0.18, cut_ohm: 6.3}
+  contact_poly: {gds: [33, 0], pads: [[34, 0]], between: [poly, metal1], limit_ma: 0.14, cut_ohm: 8.0}
+  via1: {gds: [35, 0], pads: [[34, 0], [36, 0]], between: [metal1, metal2], limit_ma: 0.18, cut_ohm: 4.5}
+  via2: {gds: [38, 0], pads: [[36, 0], [42, 0]], between: [metal2, metal3], limit_ma: 0.18, cut_ohm: 4.5}
+  via3: {gds: [40, 0], pads: [[42, 0], [46, 0]], between: [metal3, metal4], limit_ma: 0.18, cut_ohm: 4.5}
+  via4: {gds: [41, 0], pads: [[46, 0], [81, 0]], between: [metal4, metal5], limit_ma: 0.18, cut_ohm: 4.5}

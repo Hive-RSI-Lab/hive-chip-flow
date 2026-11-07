@@ -1,7 +1,7 @@
 {
  "skill": "msde",
  "block": "r2r_dac",
- "ts": "2026-11-07T14:01:36",
+ "ts": "2026-11-07T17:41:17",
  "pdk": {
   "name": "gf180mcuD",
   "open_pdks": "1689ac3f2dc763876eaf967227c7dfe831b031ae",
@@ -207,7 +207,7 @@
    }
   ],
   "manifest": "release/manifest.json",
-  "manifest_sha256": "4233d089801d469d14e1218d081f2e9ad177a1b09ef1c703653109479aac0fd9"
+  "manifest_sha256": "025015eeb56a772b05f6fbd70929fba56d2058570f6352a1f3afe1a2df1dbcf4"
  },
- "attestation_sha256": "44469ada5c9f862a58fb251e48944814a0e047309f89791a0d0acd93cf35337c"
+ "attestation_sha256": "6d07e606bd8ef3e826a43f611e49ed64bfa218df6b9767e1a0dc80196758fa2b"
 }

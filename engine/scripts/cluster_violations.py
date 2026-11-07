@@ -314,6 +314,9 @@ CHECK_HINTS: dict[str, str] = {
     # the generator (or the netlist it must match, which lvs then checks)
     "analog_erc": "layout",
     "pex_sim": "layout",
+    # em_ir (#120): a narrow wire, too few cuts or a long rail is the
+    # generator's; a missing operating-point bench is a refusal, not a kind
+    "analog_em_ir": "layout",
 }
 
 

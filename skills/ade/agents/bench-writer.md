@@ -105,6 +105,12 @@ the same measures when the spec names none explicitly) only - not
 3. `check_pex_sim.py` runs the bench positionally against the extracted
    cell in `netlist/<block>.cir`'s pin order - keep your instantiation in
    that same order.
+4. Write `layout_ref/<block>_emir_tb.cir`, the em_ir gate's operating-point
+   bench (`check_analog_em_ir.py`'s docstring): the same tokens and pin
+   order, the block instantiated as `xdut`, no `.control` block (the gate
+   adds `op`), at its heaviest DC state - the input code, bias and load
+   that draw the most supply current. Sweep the states in a scratch bench
+   to find it and say in a comment which state it is and why.
 
 **Hard rules:** never read or write `layout/`. A pex bench that only
 re-measures the DC point already covered by `tb/` is not worth writing -
@@ -114,7 +120,7 @@ find what the extraction actually changes.
 FILES: layout_ref/*
 GATE: none yet (pex_sim needs layout/, which does not exist)
 SUMMARY: <up to 10 lines: which measures, bounds source (post_layout_bounds
-  or spec fallback)>
+  or spec fallback), the em_ir bench's DC state>
 OPEN: <"none", or a parasitic effect you could not bound without a layout>
 
 ## Work-order mode (fix loop: bench_strength survivors, pex_sim measure_missing)

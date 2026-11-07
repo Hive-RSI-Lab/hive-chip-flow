@@ -392,6 +392,26 @@ gates:
       max_count: 0
       fault: "an output routed on a long minimum-width metal1 line"
       description: "Every measure inside post_layout_bounds at every corner run."
+    em_ir:
+      # #120: the same regenerated GDS, extracted by magic with extresist's
+      # FastHenry geometry (every wire piece's layer, width and ends), under
+      # the block's operating-point bench (<block>_emir_tb.cir: its heaviest
+      # DC state, as xdut, no .control) at every corner of the sweep. EM:
+      # every wire's mA/um and every cut array's mA a cut (cuts counted on
+      # the GDS) against engine/reference/em_limits.yaml, the GF180MCU DRM's
+      # DC limits at 125 C, never edited per block. A net whose total current
+      # over its narrowest wire and one cut is under the limit passes without
+      # a solve. IR: each supply rail's worst drop from its pin against
+      # spec.yaml's ir_drop_mv (default 2 % of supply.vdd); ir_rails: [] is a
+      # block with no supply pin, EM alone. A current magic's geometry cannot
+      # place, or a cut it draws where the GDS has none, is a refusal.
+      phase: P5
+      tool: analog_em_ir
+      strength: 0
+      fail_severities: [error]
+      max_count: 0
+      fault: "a supply strap narrowed to minimum width (also: a via array cut to one cut)"
+      description: "0 wires or cuts over the DC EM limit; every rail's IR drop inside the bound."
     release:
       # Real now, the same tool as vde's row (check_release.py ->
       # attest.build()): every ade gate above needs a fresh recorded pass or

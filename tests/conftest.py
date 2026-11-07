@@ -65,7 +65,8 @@ def unlaunchable_eda(tmp_path, monkeypatch):
     monkeypatch.setattr(layoutlib, "EDA_BIN", tmp_path / "no-such-eda")
 
     ws = tmp_path / "ws"
-    for d in ("layout", "netlist", "layout_ref", "log/lvs", "log/pex_sim"):
+    for d in ("layout", "netlist", "layout_ref", "log/lvs", "log/pex_sim",
+              "log/em_ir"):
         (ws / d).mkdir(parents=True)
     (ws / "state.json").write_text('{"block": "blk"}', encoding="utf-8")
     (ws / "netlist" / "blk.cir").write_text(
