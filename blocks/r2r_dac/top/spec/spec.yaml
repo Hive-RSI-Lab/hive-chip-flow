@@ -98,10 +98,10 @@ macros:
     lib_ss_125C_3v00: macros/r2r_dac_analog__ss_125C_3v00.lib
     lib_ff_n40C_3v60: macros/r2r_dac_analog__ff_n40C_3v60.lib
   location:
-  - 68.32
-  - 94.08
+  - 59.92
+  - 86.24
   size_um:
-  - 210.52
-  - 139.56
+  - 226.52
+  - 155.56
   dont_touch_pins: []
   clock_pins: []

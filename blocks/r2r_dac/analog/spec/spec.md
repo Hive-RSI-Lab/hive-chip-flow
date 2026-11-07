@@ -215,6 +215,15 @@ in the macro pin conventions the ade flow uses. netgen LVS clean against
 the netlist including the driver cells; DRC clean; the macro must fit in
 a fraction of the TT GF180 tile alongside the (tiny) digital front end.
 
+The ladder's resistors sit in two matched rows (spec.yaml `matching`):
+the 17 full-length units, and the eight 2R trims. Each row is drawn by
+`layoutlib.matched_row` with one dummy at each end. The four dummies
+(`xrdum1`, `xrdum2`, `xrdumt1`, `xrdumt2`) are in the netlist so LVS
+sees them, but they are deliberately left out of spec.yaml `devices`.
+Their two ends and body all sit on vss, so no mutant of one changes any
+node a bench measures. bench_strength reports them as
+`device_undeclared` warnings, and its kill tally does not cover them.
+
 ## Round 2 revision (2026-09-25, owner decision)
 
 - Settling: the owner kept the accurate 27k unit R and accepted ~1.2 us

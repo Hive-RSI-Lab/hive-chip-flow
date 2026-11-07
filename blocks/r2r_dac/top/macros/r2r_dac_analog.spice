@@ -62,4 +62,11 @@ xrs0 n1   n0 vss ppolyf_u r_width={ru_w} r_length={ru_l}
 xrta n0 mt  vss ppolyf_u r_width={ru_w} r_length={ru_l}
 xrtb mt vss vss ppolyf_u r_width={ru_w} r_length={ru_l}
 
+* dummies (spec.yaml matching): one at each end of each matched row of the
+* layout, both ends and the body on vss; one length per row
+xrdum1 vss vss vss ppolyf_u r_width={ru_w} r_length={ru_l}
+xrdum2 vss vss vss ppolyf_u r_width={ru_w} r_length={ru_l}
+xrdumt1 vss vss vss ppolyf_u r_width={ru_w} r_length={rb_l}
+xrdumt2 vss vss vss ppolyf_u r_width={ru_w} r_length={rb_l}
+
 .ends r2r_dac_analog

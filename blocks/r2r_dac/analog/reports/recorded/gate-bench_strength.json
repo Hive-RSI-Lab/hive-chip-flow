@@ -3,7 +3,7 @@
  "gate": "bench_strength",
  "phase": "P4",
  "tool": "bench_strength",
- "input_digest": "dir_text:13970a2f19f36bd8aa49baa3a94132821e16917455715ba77b23b074b4551548",
+ "input_digest": "dir_text:2c6d358ba4c3ec93f5dc910e1777df9a3f5418293791a715229fa1b8d22d1e4e",
  "status": "pass",
  "criteria": {
   "fail_severities": [
@@ -12,22 +12,128 @@
   "max_count": 0
  },
  "counts": {
-  "total": 0,
-  "by_severity": {},
-  "by_source": {}
+  "total": 4,
+  "by_severity": {
+   "warning": 4
+  },
+  "by_source": {
+   "netlistlib": 4
+  }
  },
  "failing_count": 0,
  "failing": [],
- "violations": [],
+ "violations": [
+  {
+   "check": "bench_strength",
+   "severity": "warning",
+   "file": null,
+   "module": null,
+   "line": null,
+   "kind": "device_undeclared",
+   "refs": [
+    "xrdum1"
+   ],
+   "msg": "xrdum1 (subckt_instance) is in the netlist but not in spec.yaml devices, so it was never mutated - the kill tally does not cover it",
+   "source": "netlistlib",
+   "items": [
+    {
+     "msg": "xrdum1 (subckt_instance) is in the netlist but not in spec.yaml devices, so it was never mutated - the kill tally does not cover it",
+     "file": null,
+     "line": null
+    }
+   ]
+  },
+  {
+   "check": "bench_strength",
+   "severity": "warning",
+   "file": null,
+   "module": null,
+   "line": null,
+   "kind": "device_undeclared",
+   "refs": [
+    "xrdum2"
+   ],
+   "msg": "xrdum2 (subckt_instance) is in the netlist but not in spec.yaml devices, so it was never mutated - the kill tally does not cover it",
+   "source": "netlistlib",
+   "items": [
+    {
+     "msg": "xrdum2 (subckt_instance) is in the netlist but not in spec.yaml devices, so it was never mutated - the kill tally does not cover it",
+     "file": null,
+     "line": null
+    }
+   ]
+  },
+  {
+   "check": "bench_strength",
+   "severity": "warning",
+   "file": null,
+   "module": null,
+   "line": null,
+   "kind": "device_undeclared",
+   "refs": [
+    "xrdumt1"
+   ],
+   "msg": "xrdumt1 (subckt_instance) is in the netlist but not in spec.yaml devices, so it was never mutated - the kill tally does not cover it",
+   "source": "netlistlib",
+   "items": [
+    {
+     "msg": "xrdumt1 (subckt_instance) is in the netlist but not in spec.yaml devices, so it was never mutated - the kill tally does not cover it",
+     "file": null,
+     "line": null
+    }
+   ]
+  },
+  {
+   "check": "bench_strength",
+   "severity": "warning",
+   "file": null,
+   "module": null,
+   "line": null,
+   "kind": "device_undeclared",
+   "refs": [
+    "xrdumt2"
+   ],
+   "msg": "xrdumt2 (subckt_instance) is in the netlist but not in spec.yaml devices, so it was never mutated - the kill tally does not cover it",
+   "source": "netlistlib",
+   "items": [
+    {
+     "msg": "xrdumt2 (subckt_instance) is in the netlist but not in spec.yaml devices, so it was never mutated - the kill tally does not cover it",
+     "file": null,
+     "line": null
+    }
+   ]
+  }
+ ],
  "facts": {
   "top": "r2r_dac_analog",
   "total_mutants": 58,
   "killed": 58,
   "survived": 0,
   "reused_mutants": 0,
-  "devices_total": 33,
+  "devices_total": 37,
   "devices_mutated": 33,
-  "unmutated": [],
+  "unmutated": [
+   {
+    "device": "xrdum1",
+    "kind": "subckt_instance",
+    "reason": "not in spec.yaml devices"
+   },
+   {
+    "device": "xrdum2",
+    "kind": "subckt_instance",
+    "reason": "not in spec.yaml devices"
+   },
+   {
+    "device": "xrdumt1",
+    "kind": "subckt_instance",
+    "reason": "not in spec.yaml devices"
+   },
+   {
+    "device": "xrdumt2",
+    "kind": "subckt_instance",
+    "reason": "not in spec.yaml devices"
+   }
+  ],
   "killed_by_sensitivity": 4,
   "killed_by_sensitivity_kind": {
    "relative": 4,
@@ -422,15 +528,15 @@
   }
  },
  "inputs_at_start": {
-  "netlist": "dir_text:13970a2f19f36bd8aa49baa3a94132821e16917455715ba77b23b074b4551548",
+  "netlist": "dir_text:2c6d358ba4c3ec93f5dc910e1777df9a3f5418293791a715229fa1b8d22d1e4e",
   "tb": "dir_text:f39ddda9f2efd5463da75d99f486ff1ea8d2038b91027869426db82f0bf513e4",
   "mutant_rulings": null,
-  "spec_yaml": "json_canonical:b9e53ef91f0292ed45f1b07aaad65e5fd2f9a72429ef84c86c5f15846cbe9cc8",
+  "spec_yaml": "json_canonical:8c9cd25a18e9f52cb3d6890c8bb10c49e0fd4727727abbe712a4ce5fc7367fb4",
   "sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
   "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
   "pdk_models": "dir_text:84e0f27991c27acae27ec5243fd0d1587f7bfb2655e802ed0eb92a811cf5f7f8"
  },
  "strength_at_start": 0,
- "recorded_ts": "2026-11-05T21:52:01",
- "attempts": 8
+ "recorded_ts": "2026-11-07T17:18:12",
+ "attempts": 9
 }

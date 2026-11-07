@@ -3,7 +3,7 @@
  "gate": "netlist_lint",
  "phase": "P4",
  "tool": "netlist_lint",
- "input_digest": "dir_text:13970a2f19f36bd8aa49baa3a94132821e16917455715ba77b23b074b4551548",
+ "input_digest": "dir_text:2c6d358ba4c3ec93f5dc910e1777df9a3f5418293791a715229fa1b8d22d1e4e",
  "status": "pass",
  "criteria": {
   "fail_severities": [
@@ -24,10 +24,10 @@
   "netlist": "netlist/r2r_dac_analog.cir"
  },
  "inputs_at_start": {
-  "netlist": "dir_text:13970a2f19f36bd8aa49baa3a94132821e16917455715ba77b23b074b4551548",
-  "spec_yaml": "json_canonical:b9e53ef91f0292ed45f1b07aaad65e5fd2f9a72429ef84c86c5f15846cbe9cc8"
+  "netlist": "dir_text:2c6d358ba4c3ec93f5dc910e1777df9a3f5418293791a715229fa1b8d22d1e4e",
+  "spec_yaml": "json_canonical:8c9cd25a18e9f52cb3d6890c8bb10c49e0fd4727727abbe712a4ce5fc7367fb4"
  },
  "strength_at_start": 0,
- "recorded_ts": "2026-11-05T21:44:42",
- "attempts": 11
+ "recorded_ts": "2026-11-07T16:52:21",
+ "attempts": 12
 }

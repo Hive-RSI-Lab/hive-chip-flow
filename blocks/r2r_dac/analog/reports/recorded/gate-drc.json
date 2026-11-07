@@ -3,7 +3,7 @@
  "gate": "drc",
  "phase": "P5",
  "tool": "analog_drc",
- "input_digest": "dir_text:7a954c277f279e0a8b3d75e97ed6833bf445cf7e04f4ec0eefae35be290d869d",
+ "input_digest": "dir_text:889449a57e56e4c2cab666ce1481936e988d284cf7e8717638791f7715a62c67",
  "status": "pass",
  "criteria": {
   "fail_severities": [
@@ -36,21 +36,21 @@
   "bbox_um": {
    "x0": -2.04,
    "y0": -3.2,
-   "x1": 208.48,
-   "y1": 136.36,
-   "width": 210.52,
-   "height": 139.56
+   "x1": 224.48,
+   "y1": 152.36,
+   "width": 226.52,
+   "height": 155.56
   },
   "footprint": null
  },
  "inputs_at_start": {
-  "layout": "dir_text:7a954c277f279e0a8b3d75e97ed6833bf445cf7e04f4ec0eefae35be290d869d",
-  "spec_yaml": "json_canonical:b9e53ef91f0292ed45f1b07aaad65e5fd2f9a72429ef84c86c5f15846cbe9cc8",
+  "layout": "dir_text:889449a57e56e4c2cab666ce1481936e988d284cf7e8717638791f7715a62c67",
+  "spec_yaml": "json_canonical:8c9cd25a18e9f52cb3d6890c8bb10c49e0fd4727727abbe712a4ce5fc7367fb4",
   "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
   "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
   "pdk_klayout": "dir_text:876da90e8aab65b830b36eca12bd720adfe8240a0952872419d9f2b4abda605d"
  },
  "strength_at_start": 0,
- "recorded_ts": "2026-11-05T21:52:47",
- "attempts": 12
+ "recorded_ts": "2026-11-07T17:19:06",
+ "attempts": 14
 }

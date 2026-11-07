@@ -89,8 +89,8 @@ def test_parse_ext_refuses_a_hierarchical_extraction():
 
 
 def test_schematic_devices_reads_continuations_and_lowercases():
-    assert SCHEM["xmout"] == {"model": "nfet_03v3", "d": "iout",
-                              "g": "iref_node", "s": "vss"}
+    assert SCHEM["xmout"] == {"kind": "fet", "model": "nfet_03v3",
+                              "d": "iout", "g": "iref_node", "s": "vss"}
     assert set(SCHEM) == {"xmref", "xmout", "xmdum1"}
 
 
@@ -236,3 +236,97 @@ def test_mirror_passes_the_real_layout_match(tmp_path):
     assert g["units"] == {"xmref": 1, "xmout": 2}
     assert g["centroid_offset_um"] == 0.0
     assert report["dummies"] == 2
+
+
+# resistor units: two lines of r2r_dac's own extraction, and a ladder
+# excerpt (one 2R branch's halves, a trim, a dummy, a buffer to skip)
+REXT = """\
+tech gf180mcuD
+scale 1000 1 0.5
+device rsubckt ppolyf_u 0 7272 1 7273 l=30000 w=400 "vss" "a_0_7272#" 0 0 "a_n132_7272#" 400 52800,1064 "vss" 400 52800,1064
+device rsubckt ppolyf_u 0 8872 1 8873 l=29672 w=400 "vss" "a_0_8872#" 0 0 "a_n132_8072#" 400 52800,1064 "a_29672_8872#" 400 52800,1064
+"""
+
+RCIR = """\
+.subckt ladder d0 vout vdd vss
+xd0 code0 d0 vdd vss vdd vss buf_20
+xra d0 mb vss ppolyf_u r_width=2e-6 r_length=150e-6
+xrs vout mb vss ppolyf_u r_width=2e-6 r_length=150e-6
+xrt mb nt vss ppolyf_u r_width=2e-6 r_length=148.36e-6
+xrdum vss vss vss ppolyf_u r_width=2e-6 r_length=150e-6
+.ends
+"""
+RSCHEM = lm.schematic_devices(RCIR)
+RGROUP = [{"devices": ["xra", "xrs"], "style": "interdigitate"}]
+
+
+def res_unit(y, kind, flip=False):
+    """A resistor in a column at 4 um pitch: A = xra, S = xrs, T = the
+    148.36 um trim, D = a vss dummy."""
+    terms = {"A": ["d0", "mb"], "S": ["mb", "vout"], "T": ["mb", "nt"],
+             "D": ["vss", "vss"]}[kind]
+    if flip:
+        terms = terms[::-1]
+    return {"kind": "res", "model": "ppolyf_u", "gate": None, "terms": terms,
+            "w": 2.0, "l": 148.36 if kind == "T" else 150.0,
+            "centre": (75.0, y), "axis": "x"}
+
+
+def res_run(pattern, extra=()):
+    units = [res_unit(i * 4.0, k) for i, k in enumerate(pattern)] + list(extra)
+    lm.assign(units, RSCHEM, RGROUP)
+    violations, facts = lm.check(units, RGROUP, "ladder")
+    return [(v["kind"], sorted(v["refs"])) for v in violations], facts, units
+
+
+def test_parse_ext_reads_resistor_units():
+    units = lm.parse_ext(REXT)
+    assert [u["kind"] for u in units] == ["res", "res"]
+    u, t = units
+    assert u["gate"] is None and u["terms"] == ["a_n132_7272#", "vss"]
+    assert (u["w"], u["l"]) == (2.0, 150.0)
+    assert u["at"] == pytest.approx((0.0, 36.36))
+    assert t["l"] == pytest.approx(148.36)
+
+
+def test_schematic_devices_reads_resistors_and_skips_buffers():
+    assert RSCHEM["xra"] == {"kind": "res", "model": "ppolyf_u", "a": "d0",
+                             "b": "mb", "sub": "vss"}
+    assert set(RSCHEM) == {"xra", "xrs", "xrt", "xrdum"}
+
+
+def test_a_resistor_row_with_end_dummies_passes():
+    kinds, facts, units = res_run("DASD")
+    assert kinds == []
+    assert [u["dev"] for u in units] == [None, "xra", "xrs", None]
+    assert facts["dummies"] == 2
+
+
+def test_a_resistor_fits_either_way_round():
+    flipped = [res_unit(-4.0, "D"), res_unit(0.0, "A", flip=True),
+               res_unit(4.0, "S"), res_unit(8.0, "D")]
+    lm.assign(flipped, RSCHEM, RGROUP)
+    assert [u["dev"] for u in flipped] == [None, "xra", "xrs", None]
+    violations, _ = lm.check(flipped, RGROUP, "ladder")
+    assert violations == []  # a resistor has no current direction
+
+
+def test_a_resistor_row_without_dummies_fails_at_both_ends():
+    kinds, _facts, _ = res_run("AS")
+    assert sorted(kinds) == [("match_end_no_dummy", ["xra"]),
+                             ("match_end_no_dummy", ["xrs"])]
+
+
+def test_a_trim_length_neighbour_is_not_a_dummy():
+    kinds, facts, _ = res_run("TAST")
+    assert sorted(kinds) == [("match_end_no_dummy", ["xra"]),
+                             ("match_end_no_dummy", ["xrs"])]
+    assert facts["dummies"] == 0
+
+
+def test_dummies_count_only_devices_equal_to_a_matched_unit():
+    buffer_fet = {"kind": "fet", "model": "nfet_03v3", "gate": "code0",
+                  "terms": ["vss", "d0"], "w": 4.0, "l": 0.5,
+                  "centre": (10.0, -20.0), "axis": "x"}
+    _kinds, facts, _ = res_run("DASD", extra=[buffer_fet])
+    assert facts["dummies"] == 2
