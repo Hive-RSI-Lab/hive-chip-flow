@@ -399,14 +399,18 @@ gates:
       # and at each `pex_rc_corners` variant: a separate extraction at magic's
       # hrhc, lrlc, hrlc or lrhc, paired with its process in pex_rc_variants.yaml
       # and hashed in the gate's record as its own view.
-      # klayout_pex as a second extractor is not wired up yet.
+      # klayout_pex 2.5D extracts the same GDS as a second opinion on C:
+      # each labelled net's total C and each probed pair's coupling C within
+      # 20% of the smaller, else pex_extractors_disagree (kpex is never
+      # benched; wire R stays magic's). A dropped net label (extresist
+      # loses its coupling C) is caught there even with lost_couplings off.
       phase: P5
       tool: pex_sim
       strength: 0
       fail_severities: [error]
       max_count: 0
       fault: "an output routed on a long minimum-width metal1 line"
-      description: "Every measure inside post_layout_bounds at every corner run."
+      description: "Every measure inside post_layout_bounds at every corner run, and magic's C within 20% of klayout_pex 2.5D's on every labelled net and probed pair."
     em_ir:
       # #120: the same regenerated GDS, extracted by magic with extresist's
       # FastHenry geometry (every wire piece's layer, width and ends), under

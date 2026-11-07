@@ -47,8 +47,11 @@ hashed inputs, so only the mark stales it.
 
 ## Honest limits
 
-`pex_sim` runs its corners on magic's extractor only. klayout_pex is not
-wired in, and a `pex_corners` corner does not move wire R and C (it moves the
+`pex_sim` runs its corners on magic's extractor only. klayout_pex 2.5D only
+checks magic's capacitance (each labelled net's total C and each probed
+pair's coupling within 20%, else `pex_extractors_disagree`); it models no
+N-well, so a net over a well is not compared, and its netlist is never
+benched. A `pex_corners` corner does not move wire R and C (it moves the
 devices, the passives, the temperature and the supply). `pex_rc_knobs: [c_high]`
 or `all` in spec.yaml adds a run per knob with every R and C scaled by a pinned
 factor, at the slow/hot corner for a `_high` knob and fast/cold for a `_low`

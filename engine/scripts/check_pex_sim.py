@@ -13,8 +13,19 @@ refuses a netlist that came back with no R and no C line at all, since a
 coupling C of a net with no label, so run_magic_extract labels each net
 magic would name itself (a_x_y#) before extresist runs, and refuses a
 netlist in which a pair of nets still lost the coupling C magic's .ext
-gives it: an optimistic netlist is never benched. klayout_pex as the second
-extractor is not wired up at M9.
+gives it: an optimistic netlist is never benched.
+
+A second extractor checks magic's capacitance (#116, kpexlib): klayout_pex
+2.5D extracts the same GDS, and each labelled net's total C and the
+coupling C of each pair of nets the bench probes must agree within
+kpexlib.TOLERANCE (20% of the smaller; the corpus blocks agree within 13%,
+a dropped label on the comparator's tail net puts its inputs 28% apart).
+A net past it, or a net only one extractor names, is a
+`pex_extractors_disagree` finding with both values; the bench still runs.
+kpex's netlist is never benched (#60): the wire R and the bench stay
+magic's. A net over an N-well, and the substrate of a block with a well,
+are not compared (kpex models no well); the report lists them, and every
+row, in `extractor_crosscheck`. kpex failing to run is a refusal.
 
 Then it runs the block's post-layout bench, `tb/<block>_pex_tb.cir` or
 `layout_ref/<block>_pex_tb.cir`, against the extracted netlist at each
@@ -154,6 +165,7 @@ sys.path.insert(0, str(SCRIPTS))
 sys.path.insert(0, str(ENGINE / "lib"))
 import checklib  # noqa: E402
 import corners as corners_mod  # noqa: E402
+import kpexlib  # noqa: E402
 import layoutlib  # noqa: E402
 import layout_gen  # noqa: E402
 import netlistlib  # noqa: E402
@@ -311,6 +323,108 @@ def probe_findings(bench_text: str, ref_text: str, extracted_text: str,
         f"\"{net}\" on that net's drawing layer (e.g. metal1 34/0), not on "
         "a pin/label layer, which would add a port and change the pin set",
         "magic") for net in sorted(missing)]
+
+
+def probed_dut_nets(bench_text: str, topcell: str,
+                    ref_pins: list[str] | None) -> set[str]:
+    """The top cell's nets (lowercased) the bench reads: each net it probes
+    inside an instance of `topcell` (probed_nets), and each pin of the cell
+    whose top-level node the bench probes - `v(out)` where `xdut ... out
+    ... cell` binds `out` to a pin, by position in the reference's pin
+    order."""
+    nets = set(probed_nets(bench_text, topcell))
+    lines = netlistlib.join_continuations(bench_text)
+    bound: dict[str, set[str]] = {}
+    for line in lines:
+        tokens = [t for t in line.split() if "=" not in t]
+        if (ref_pins and len(tokens) > 1 and tokens[0][0] in "xX"
+                and tokens[-1].lower() == topcell.lower()):
+            for node, pin in zip(tokens[1:-1], ref_pins):
+                bound.setdefault(node.lower(), set()).add(pin.lower())
+    in_control = False
+    for line in lines:
+        low = line.split()[0].lower()
+        if low.startswith(".control"):
+            in_control = True
+        elif low.startswith(".endc"):
+            in_control = False
+        elif in_control:
+            for m in PROBE_RE.finditer(line):
+                for arg in m.group(1).split(","):
+                    nets |= bound.get(arg.strip().lower(), set())
+    return nets
+
+
+def _auto_name(net: str) -> bool:
+    # a name an extractor made up: magic's a_x_y (labelled by
+    # name_unlabelled_nets) or kpex's $N
+    return net.startswith(("a_", "$", "\\$"))
+
+
+def extractor_crosscheck(ws: Path, gds_path: Path, topcell: str,
+                         rel_gds: str, ref_text: str, ref_pins, bench_text: str,
+                         magic_text: str, ext_path: Path
+                         ) -> tuple[list[dict], dict]:
+    """magic against kpex 2.5D (kpexlib) on the same GDS: each labelled
+    net's total C and the coupling of each pair of probed nets. Returns the
+    `pex_extractors_disagree` findings and the report's
+    `extractor_crosscheck`. kpex failing is a refusal. `ext_path` is
+    magic's .ext of the same extraction (its substrate and well nets)."""
+    ext_text = Path(ext_path).read_text(encoding="utf-8", errors="replace")
+    kdir = ws / "log" / "pex_sim" / "kpex"
+    try:
+        netlist, log = kpexlib.run_kpex(kdir, gds_path.resolve(), topcell)
+    except kpexlib.KpexError as exc:
+        raise CheckError(
+            f"the second extractor (kpex 2.5D) did not run on {rel_gds}: "
+            f"{exc} - pex_sim cross-checks magic's capacitance against it, "
+            "so the gate cannot pass without it") from exc
+    substrate = kpexlib.substrate_net(ext_text)
+    if substrate is None:
+        raise CheckError("magic's .ext names no substrate net, so kpex's "
+                         "VSUBS has nothing to compare against")
+    kpex_text = kpexlib.rename_substrate(
+        netlist.read_text(encoding="utf-8", errors="replace"), substrate)
+
+    def names(text):
+        return {_net_of(n) for n in element_nodes(text)}
+    magic_names, kpex_names = names(magic_text), names(kpex_text)
+    labelled = {n for n in element_nodes(ref_text) if not _auto_name(n)}
+    labelled.discard(topcell.lower())
+    wells = kpexlib.well_nets(ext_text)
+    skip = {n: "N-well under it: kpex models no well, so its metal-over-well "
+            "C goes to VSUBS, not to this net" for n in wells}
+    if wells:
+        skip[substrate] = ("the substrate of a block with an N-well: kpex "
+                           "gives it the metal-over-well C magic gives the "
+                           "well's net")
+    probed = probed_dut_nets(bench_text, topcell, ref_pins)
+    want = labelled | probed
+    pm = net_parasitics(magic_text, want & magic_names)
+    pk = net_parasitics(kpex_text, want & kpex_names)
+    result = kpexlib.compare(pm, pk, labelled, probed, skip)
+    tol = result["tolerance"]
+    findings = []
+    for row in result.pop("disagree"):
+        if "net" in row:
+            what, refs = f"net {row['net']}'s total C", [row["net"]]
+        else:
+            what, refs = (f"the coupling C between {row['nets'][0]} and "
+                          f"{row['nets'][1]}"), list(row["nets"])
+        m, k = row["magic_ff"], row["kpex_ff"]
+        diff = (row["why"] if row.get("why") else
+                "one of them is zero" if row["off"] is None else
+                f"{row['off'] * 100:.0f}% apart")
+        findings.append(checklib.violation(
+            "pex_sim", "error", rel_gds, topcell, "pex_extractors_disagree",
+            refs, f"{what}: magic {m} fF, kpex 2.5D {k} fF ({diff}; the "
+            f"tolerance is {tol * 100:.0f}% of the smaller) - one extractor "
+            "reads this layout wrong, so magic's netlist cannot be trusted "
+            "for the bench", "kpex", magic_ff=m, kpex_ff=k))
+    result.update(
+        netlist=str(netlist.relative_to(ws)), log=str(log.relative_to(ws)),
+        substrate=substrate, probed=sorted(probed))
+    return findings, result
 
 
 # ---- symmetric nets ----------------------------------------------------------
@@ -800,6 +914,11 @@ def run(argv=None):
             parasitics=parasitics, measured={}, symmetry=symmetry)
         return payload, args.out
 
+    crossed, crosscheck = extractor_crosscheck(
+        ws, gds_path, topcell, rel_gds, ref_text, ref_pins, bench_text,
+        raw_text, work_dir / f"{topcell}.ext")
+    violations += crossed
+
     corner_names = [c["name"] for c in corner_list]
     rel_bounds = str(bounds_path.relative_to(ws))
     rel_bench = str(bench_tpl.relative_to(ws))
@@ -832,7 +951,8 @@ def run(argv=None):
             SCRIPT, ws / "layout", violations + refused, topcell=topcell,
             gds=rel_gds,
             extracted=str(extracted.relative_to(ws)), parasitics=parasitics,
-            measured={}, corners=corner_names, corner_source=source)
+            measured={}, corners=corner_names, corner_source=source,
+            extractor_crosscheck=crosscheck)
         return payload, args.out
 
     def run_bench(corner: dict, scored: list[dict], stem: str, where: str,
@@ -1001,7 +1121,8 @@ def run(argv=None):
         extracted=str(extracted.relative_to(ws)),
         parasitics=parasitics, measured=measured, corners=corner_names,
         corner_source=source, measured_by_corner=by_corner,
-        not_scored=not_scored, **({"symmetry": symmetry} if symmetry else {}),
+        not_scored=not_scored, extractor_crosscheck=crosscheck,
+        **({"symmetry": symmetry} if symmetry else {}),
         **({"rc_knobs": rc_runs} if rc_runs else {}),
         **({"rc_variants": variant_rows} if variant_rows else {}))
     return payload, args.out

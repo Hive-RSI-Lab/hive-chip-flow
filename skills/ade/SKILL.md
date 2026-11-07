@@ -292,8 +292,10 @@ layout-fixer read `netlist/` and `sizing/` and edit only `layout/`.
   rm1 resistor as a short. `layoutlib` writes a per-run copy with that
   line fixed and refuses if the line has moved (docs/spikes/glayout.md,
   "M9 note"). A PDK update shows up as that refusal.
-- **`pex_sim` is magic only, and RC corners are opt-in.** klayout_pex is not
-  wired in. The bench runs at the spec's `pex_corners`, default typical,
+- **`pex_sim` benches magic only, and RC corners are opt-in.** klayout_pex
+  2.5D checks magic's C (labelled nets and probed pairs within 20%, else
+  `pex_extractors_disagree`) but is never benched, and it skips a net over
+  an N-well, where it models no well. The bench runs at the spec's `pex_corners`, default typical,
   slow/hot and sim_pvt's worst per measure, so those corners move the devices,
   not the extracted wire R and C. `pex_rc_corners` opts into the PDK's real RC
   corners: one extraction per magic variant (hrhc, lrlc, hrlc, lrhc), each run
