@@ -330,3 +330,95 @@ def test_a_bench_without_the_placeholder_is_untouched(tmp_path, monkeypatch):
     res = sim_run.run_bench_at_corner(Path("eda"), "p.cir", ".end\n", BOUNDS,
                                       {"VDD": "3.3"}, corner, tmp_path, 1.0)
     assert res["violations"] == [] and list(tmp_path.glob("*.ramp")) == []
+
+
+# ---------------------------------------------------------- sim_run {{TONE_FILE}}
+
+TONE_N = 1024
+TONE_FS = 1e6
+TONE = convlib.coherent_tone(TONE_FS, TONE_N, 0.1 * TONE_FS)
+TONE_BENCH = f"""\
+* tone: fs={TONE_FS:g} fin={TONE['fin']!r} nbits=8 n={TONE_N}
+.include '{{{{NETLIST}}}}'
+.control
+wrdata {{{{TONE_FILE}}}} code
+.endc
+.end
+"""
+TONE_BOUNDS = [{"measure": "enob", "min": 7.9, "severity": "error"}]
+
+
+def tone_record(fin=TONE["fin"], n=TONE_N, bits=8, time=False):
+    """An ideal `bits`-bit quantizer's full-scale sine, as wrdata lines."""
+    k = np.arange(n)
+    top = 2 ** bits - 1
+    x = np.clip(np.round(top / 2 * (1 + np.sin(2 * np.pi * fin * k / TONE_FS
+                                               + 0.3))), 0, top)
+    xs = 3e-6 + k / TONE_FS if time else k
+    return "".join(f"{float(a)!r} {float(b)!r}\n" for a, b in zip(xs, x))
+
+
+def run_tone(tmp_path, monkeypatch, record, bench=TONE_BENCH, bounds=TONE_BOUNDS):
+    def fake(eda_bin, deck_path, cwd, timeout):
+        deck = Path(deck_path).read_text(encoding="utf-8")
+        target = Path(deck_path).with_suffix(".tone")
+        assert f"wrdata {target.name} code" in deck
+        if record is not None:
+            target.write_text(record, encoding="utf-8")
+        return "", "", 0
+    monkeypatch.setattr(sim_run.simlib, "run_ngspice", fake)
+    corner = {"name": "tt", "process": "typical", "temp_c": 27, "supply_pct": 0}
+    return sim_run.run_bench_at_corner(
+        Path("eda"), "t.cir", bench, bounds, {"NETLIST": "n.cir", "VDD": "3.3"},
+        corner, tmp_path, 1.0)
+
+
+@pytest.mark.parametrize("time", [False, True])
+def test_ideal_8bit_tone_scores_enob_8(tmp_path, monkeypatch, time):
+    res = run_tone(tmp_path, monkeypatch, tone_record(time=time))
+    assert res["violations"] == []
+    m = res["measures"]
+    assert m["enob"] == pytest.approx(8.0, abs=0.05)
+    assert set(convlib.DYNAMIC_MEASURES) <= set(m)
+    assert m["sndr"] == pytest.approx(6.02 * 8 + 1.76, abs=0.3)
+
+
+def test_a_coarser_quantizer_fails_its_enob_bound(tmp_path, monkeypatch):
+    res = run_tone(tmp_path, monkeypatch, tone_record(bits=6))
+    assert kinds(res) == {"sim_bound_fail"}
+    assert res["measures"]["enob"] == pytest.approx(6.0, abs=0.1)
+
+
+@pytest.mark.parametrize("record, kind", [
+    (None, "no_record"),                                         # missing
+    ("", "bad_input"),                                           # empty
+    (tone_record(fin=TONE["fin"] * 1.003), "not_coherent"),        # off a bin
+    (tone_record(n=TONE_N - 1), "bad_input"),                      # short
+    (tone_record().replace("\n3.0 ", "\n3.5 ", 1), "bad_input"),     # uneven
+])
+def test_no_usable_tone_is_a_refusal_never_a_pass(tmp_path, monkeypatch,
+                                                  record, kind):
+    res = run_tone(tmp_path, monkeypatch, record)
+    refused = [v for v in res["violations"] if v["kind"] == "sim_tone_refused"]
+    assert refused and refused[0]["refs"][0] == kind, res["violations"]
+    assert "enob" not in res["measures"]
+
+
+def test_a_non_coherent_tone_is_refused_even_with_no_enob_bound(tmp_path,
+                                                               monkeypatch):
+    res = run_tone(tmp_path, monkeypatch, tone_record(fin=TONE["fin"] * 1.003),
+                   bounds=[])
+    assert kinds(res) == {"sim_tone_refused"}
+
+
+@pytest.mark.parametrize("line", ["", f"* tone: fs={TONE_FS:g} nbits=8 n={TONE_N}\n",
+                                  f"* tone: fs={TONE_FS:g} fin=x nbits=8 n={TONE_N}\n"])
+def test_a_tone_without_a_full_declaration_is_refused(tmp_path, monkeypatch, line):
+    bench = line + TONE_BENCH.split("\n", 1)[1]
+    assert "sim_tone_refused" in kinds(run_tone(tmp_path, monkeypatch,
+                                                tone_record(), bench=bench))
+
+
+def test_a_previous_runs_tone_is_not_scored(tmp_path, monkeypatch):
+    (tmp_path / "t__tt.tone").write_text(tone_record(), encoding="utf-8")
+    assert "sim_tone_refused" in kinds(run_tone(tmp_path, monkeypatch, None))

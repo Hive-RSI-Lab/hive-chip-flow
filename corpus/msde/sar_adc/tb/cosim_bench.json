@@ -1,0 +1,6 @@
+{
+  "top": "sar_adc_cosim_top",
+  "bounds": "sar_adc.bounds.json",
+  "analog_netlist": "sar_adc_ideal.sp",
+  "analog_kind": "ideal"
+}

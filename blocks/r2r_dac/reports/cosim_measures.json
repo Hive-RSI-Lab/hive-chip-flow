@@ -1,7 +1,9 @@
 {
   "dnl_max_abs": 0.005710884825676055,
   "inl_max_abs": 0.005717054271620669,
-  "monotonic": 1,
+  "inl_best_fit_max_abs": 0.005815299126526629,
+  "missing_code_count": 0.0,
+  "monotonic": 1.0,
   "v_zero": 0.0,
   "v_full_scale": 3.287042581305734,
   "fs_gain_err_lsb": -0.005181571433984738,

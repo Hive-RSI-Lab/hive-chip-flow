@@ -287,9 +287,11 @@ step up and record it; never silently drop a tier.
   pitch where that lets the tile's power stripes reach its supplies. A
   macro too large for the tile, or one that leaves the standard cells no
   room to route, is an analog layout fix, not a floorplan knob msde owns.
-- **`dac_spi` and `sar_adc` are specs only.** Those corpus rungs have
-  interface files and `split` faults, no reference design or bench; they
-  may stay red. `sensor_counted` and `ring_osc_div` are the working rungs.
+- **`dac_spi` is a spec only and `sar_adc` has no tile.** `dac_spi` has
+  interface files and `split` faults, no reference design or bench.
+  `sar_adc` adds a bench-only `cosim` (SAR logic against an ideal analog
+  side, scored for ENOB by `convlib`) with one plant. Both may stay red.
+  `sensor_counted` and `ring_osc_div` are the working rungs.
 - **`split` compares the two root-level side specs**, not the nested
   runs' own `spec.yaml` (`check_split.py`'s docstring). A nested
   spec-writer that drifts from `digital_spec.yaml` is caught by `cosim` or

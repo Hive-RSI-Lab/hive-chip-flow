@@ -14,7 +14,8 @@ Measures, with bounds from the brief (../brief/spec.md), not the design:
       00 dac_code is the ui_in loaded the edge before (digital REQ-CAPTURE)]
 
 The DNL/INL sweep loads every code through ui_in in register mode and
-samples the ngspice vout after the code has settled. Settling uses full-
+samples the ngspice vout after the code has settled; engine/lib/convlib.py
+(static_ramp, ramp_measures) scores the 256 levels. Settling uses full-
 scale 0 <-> 255 steps, timed from the clk edge that changed dac_code, in
 ngspice's own time. reports/cosim_measures.json is written before any
 assertion can raise.
@@ -30,6 +31,7 @@ from cocotb.clock import Clock
 from cocotb.triggers import FallingEdge, RisingEdge, Timer, ValueChange
 from cocotb.utils import get_sim_time
 from cocotbext.ams import AnalogBlock, DigitalPin
+from convlib import ramp_measures, static_ramp
 from cosimlib import CosimBridge
 from padreset import latency
 
@@ -152,16 +154,10 @@ async def test_r2r_dac_cosim(dut):
                 sink.append(settle_time_ns(trace, t0, trace[-1][1]))
     finally:
         if len(vcode) == 256:
-            lsb_ep = (vcode[255] - vcode[0]) / 255.0
-            dnl = [(vcode[k] - vcode[k - 1]) / lsb_ep - 1.0
-                   for k in range(1, 256)]
-            inl = [(vcode[k] - (vcode[0] + k * lsb_ep)) / lsb_ep
-                   for k in range(256)]
+            # dnl/inl (endpoint line), inl_best_fit_max_abs, monotonic and
+            # missing_code_count, as every converter bench scores them.
+            measures.update(ramp_measures(static_ramp(vcode, nbits=8)))
             measures.update({
-                "dnl_max_abs": max(abs(x) for x in dnl),
-                "inl_max_abs": max(abs(x) for x in inl),
-                "monotonic": int(all(vcode[k] > vcode[k - 1]
-                                     for k in range(1, 256))),
                 "v_zero": vcode[0],
                 "v_full_scale": vcode[255],
                 "fs_gain_err_lsb": ((vcode[255] - vcode[0])

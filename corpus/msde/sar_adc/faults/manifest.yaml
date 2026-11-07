@@ -1,6 +1,6 @@
 # faults manifest (docs/design.md section 3, "### M10."): one entry per
-# fault the `split` gate must catch (gates.yaml's msde.split row, plus the
-# CLAUDE.md rule that every branch a builder adds gets a selfcheck case).
+# fault the `split` or `cosim` gate must catch (gates.yaml's msde rows, plus
+# the CLAUDE.md rule that every branch a builder adds gets a selfcheck case).
 version: 1
 faults:
   - name: split_width_mismatch
@@ -19,3 +19,7 @@ faults:
     gate: split
     plant: plant_domain_mismatch.py
     expect: {status: fail, kind: domain_mismatch}
+  - name: cosim_dac_msb_weight_low_enob
+    gate: cosim
+    plant: plant_dac_msb_weight.py
+    expect: {status: fail, kind: measure_out_of_bounds}
