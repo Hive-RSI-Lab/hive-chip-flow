@@ -12,7 +12,10 @@ A's threshold against B's and the mirror ratio drifts. Routes to `layout`
 units sit symmetrically about one shared centre: ABBA (or BAAB) for two
 devices of equal count, ABA-style mirrored rows for 1:2, ABBA/BAAB stacked
 for a 2-D array. Every device's units must be spread about the same
-point, not just interleaved. The report's `groups` block lists each
+point, not just interleaved. `layoutlib.matched_row(top, cell, {device:
+units}, pattern="common_centroid" or "ABBA", dummies=1, pitch=...)`
+places such a row of one unit cell, dummies included, and returns the
+slots and pads to wire. The report's `groups` block lists each
 device's centroid, so you can see which one moved.
 
 **Trap:** never widen `tol_um` or drop the group from `matching` to clear

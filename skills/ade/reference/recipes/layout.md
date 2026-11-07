@@ -22,6 +22,12 @@ If it doesn't, spawn the bench-writer in PEX MODE first.
 - Pin labels: the netlist's subckt pin names, written in subckt order
   (magic numbers extracted ports in label order, and the pex bench binds
   them by position).
+- Matched groups (spec.yaml `matching:`): place each row with
+  `layoutlib.matched_row(top, unit_cell, {device: units}, pitch=...,
+  pattern="ABBA" | "common_centroid" | "interdigitate", dummies=1)`. It
+  returns each device's slots, the dummy slots and the pad boxes to wire.
+  The dummies need netlist instances, with every terminal on the rail.
+  `blocks/r2r_dac/analog` is the worked example.
 - `layoutlib.finalize()` last, which snaps to the grid and flattens.
 
 ## The five gates, and who fixes what

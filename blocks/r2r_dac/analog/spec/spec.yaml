@@ -52,6 +52,17 @@ devices: [xd7, xd6, xd5, xd4, xd3, xd2, xd1, xd0,
           xrs6, xrs5, xrs4, xrs3, xrs2, xrs1, xrs0,
           xrta, xrtb]
 
+# Matched units (#118): every full unit is one row of one cell, and so is
+# every trim unit, each row with a dummy at both ends (netlist xrdum*, not
+# listed in devices: they carry no current). One unit per device, so
+# interdigitate checks unit size, orientation and the end dummies.
+matching:
+  - devices: [xrb7a, xrs6, xrb6a, xrs5, xrb5a, xrs4, xrb4a, xrs3, xrb3a,
+              xrs2, xrb2a, xrs1, xrb1a, xrs0, xrb0a, xrta, xrtb]
+    style: interdigitate
+  - devices: [xrb7b, xrb6b, xrb5b, xrb4b, xrb3b, xrb2b, xrb1b, xrb0b]
+    style: interdigitate
+
 # Corners (owner round 2, chip-flow #19 fixed-VDD grid): the brief's nine,
 # tt/ff/ss x -40/25/125 C, all at the nominal 3.3 V. Replaces the engine's
 # default five, whose +/-10 % VDD points the brief never asked for.

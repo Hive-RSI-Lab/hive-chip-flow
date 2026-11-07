@@ -3,7 +3,7 @@
  "gate": "pex_sim",
  "phase": "P5",
  "tool": "pex_sim",
- "input_digest": "dir_text:7a954c277f279e0a8b3d75e97ed6833bf445cf7e04f4ec0eefae35be290d869d",
+ "input_digest": "dir_text:889449a57e56e4c2cab666ce1481936e988d284cf7e8717638791f7715a62c67",
  "status": "pass",
  "criteria": {
   "fail_severities": [
@@ -24,18 +24,18 @@
   "gds": "layout/r2r_dac_analog.gds",
   "extracted": "log/pex_sim/r2r_dac_analog.pex.ordered.spice",
   "parasitics": {
-   "r": 2926,
-   "c": 2311
+   "r": 2934,
+   "c": 2450
   },
   "measured": {
-   "t_settle_rise": 1.2019e-06,
-   "t_settle_fall": 1.19706e-06,
-   "t_rise_10_90": 4.235e-07,
-   "t_fall_10_90": 4.215e-07,
-   "glitch_energy_up": 2.33927e-11,
-   "glitch_energy_down": 1.49663e-11,
-   "glitch_peak_up": 0.0209081,
-   "glitch_peak_down": 0.0259907
+   "t_settle_rise": 1.20421e-06,
+   "t_settle_fall": 1.1996e-06,
+   "t_rise_10_90": 4.24e-07,
+   "t_fall_10_90": 4.225e-07,
+   "glitch_energy_up": 3.31983e-11,
+   "glitch_energy_down": 9.71645e-12,
+   "glitch_peak_up": 0.0165725,
+   "glitch_peak_down": 0.019806
   },
   "corners": [
    "tt_25c",
@@ -46,60 +46,60 @@
   "corner_source": "typical, slow/hot, and sim_pvt's worst per measure",
   "measured_by_corner": {
    "tt_25c": {
-    "t_settle_rise": 1.2019e-06,
-    "t_settle_fall": 1.19706e-06,
-    "t_rise_10_90": 4.235e-07,
-    "t_fall_10_90": 4.215e-07,
-    "glitch_energy_up": 2.33927e-11,
-    "glitch_energy_down": 1.49663e-11,
-    "glitch_peak_up": 0.0209081,
-    "glitch_peak_down": 0.0259907
+    "t_settle_rise": 1.20421e-06,
+    "t_settle_fall": 1.1996e-06,
+    "t_rise_10_90": 4.24e-07,
+    "t_fall_10_90": 4.225e-07,
+    "glitch_energy_up": 3.31983e-11,
+    "glitch_energy_down": 9.71645e-12,
+    "glitch_peak_up": 0.0165725,
+    "glitch_peak_down": 0.019806
    },
    "ff_125c": {
-    "t_settle_rise": 9.63048e-07,
-    "t_settle_fall": 9.58467e-07,
-    "t_rise_10_90": 3.395e-07,
-    "t_fall_10_90": 3.375e-07,
-    "glitch_energy_up": 5.78393e-11,
-    "glitch_energy_down": 1.62168e-11,
-    "glitch_peak_up": 0.0253628,
-    "glitch_peak_down": 0.0252885
+    "t_settle_rise": 9.64832e-07,
+    "t_settle_fall": 9.60109e-07,
+    "t_rise_10_90": 3.4e-07,
+    "t_fall_10_90": 3.385e-07,
+    "glitch_energy_up": 5.49162e-11,
+    "glitch_energy_down": 1.94583e-11,
+    "glitch_peak_up": 0.0192768,
+    "glitch_peak_down": 0.0158066
    },
    "ss_m40c": {
-    "t_settle_rise": 1.45143e-06,
-    "t_settle_fall": 1.44701e-06,
-    "t_rise_10_90": 5.115e-07,
-    "t_fall_10_90": 5.095e-07,
-    "glitch_energy_up": 1.73691e-11,
-    "glitch_energy_down": 5.88226e-12,
-    "glitch_peak_up": 0.0214965,
-    "glitch_peak_down": 0.0221406
+    "t_settle_rise": 1.45459e-06,
+    "t_settle_fall": 1.44972e-06,
+    "t_rise_10_90": 5.125e-07,
+    "t_fall_10_90": 5.105e-07,
+    "glitch_energy_up": 2.39332e-11,
+    "glitch_energy_down": 5.12908e-12,
+    "glitch_peak_up": 0.018281,
+    "glitch_peak_down": 0.0170905
    },
    "ss_125c": {
-    "t_settle_rise": 1.43998e-06,
-    "t_settle_fall": 1.43273e-06,
-    "t_rise_10_90": 5.07e-07,
-    "t_fall_10_90": 5.045e-07,
-    "glitch_energy_up": 2.43146e-11,
-    "glitch_energy_down": 1.22116e-11,
-    "glitch_peak_up": 0.0162695,
-    "glitch_peak_down": 0.016345
+    "t_settle_rise": 1.44262e-06,
+    "t_settle_fall": 1.43529e-06,
+    "t_rise_10_90": 5.08e-07,
+    "t_fall_10_90": 5.055e-07,
+    "glitch_energy_up": 4.05991e-11,
+    "glitch_energy_down": 8.62933e-12,
+    "glitch_peak_up": 0.0122178,
+    "glitch_peak_down": 0.0141393
    }
   },
   "not_scored": []
  },
  "inputs_at_start": {
-  "layout": "dir_text:7a954c277f279e0a8b3d75e97ed6833bf445cf7e04f4ec0eefae35be290d869d",
+  "layout": "dir_text:889449a57e56e4c2cab666ce1481936e988d284cf7e8717638791f7715a62c67",
   "tb": "dir_text:f39ddda9f2efd5463da75d99f486ff1ea8d2038b91027869426db82f0bf513e4",
   "layout_ref": "dir_text:c4aa1a8579f2b576c7bbfb34464926cef64b1f078bacd41d28ec3e82650f2e7e",
-  "netlist": "dir_text:13970a2f19f36bd8aa49baa3a94132821e16917455715ba77b23b074b4551548",
-  "spec_yaml": "json_canonical:b9e53ef91f0292ed45f1b07aaad65e5fd2f9a72429ef84c86c5f15846cbe9cc8",
+  "netlist": "dir_text:2c6d358ba4c3ec93f5dc910e1777df9a3f5418293791a715229fa1b8d22d1e4e",
+  "spec_yaml": "json_canonical:8c9cd25a18e9f52cb3d6890c8bb10c49e0fd4727727abbe712a4ce5fc7367fb4",
   "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
   "pdk_models": "dir_text:84e0f27991c27acae27ec5243fd0d1587f7bfb2655e802ed0eb92a811cf5f7f8",
   "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
   "pdk_klayout": "dir_text:876da90e8aab65b830b36eca12bd720adfe8240a0952872419d9f2b4abda605d"
  },
  "strength_at_start": 0,
- "recorded_ts": "2026-11-05T23:21:54",
- "attempts": 4
+ "recorded_ts": "2026-11-07T17:17:52",
+ "attempts": 5
 }

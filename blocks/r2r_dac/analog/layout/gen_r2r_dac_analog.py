@@ -5,11 +5,14 @@ this file as gen_analog.py; the cell it draws is the netlist's own subckt,
 r2r_dac_analog (spec.yaml's `top`).
 
 Devices, sizes from sizing/sizing.yaml (ru_w 2u, ru_l 150u, rb_l 148.36u):
-  25 ppolyf_u units (draw_ppolyf_res, res_type ppolyf_u), one per row,
-     bodies horizontal, left ends aligned at x=0, each with the vendor
-     cell's own P+ substrate tap on its left (the resistor's 3rd terminal,
-     vss). Rows, top-down in bit order: a_k, b_k, rs_(k-1) for k=7..0,
-     then the termination rta, rtb.
+  25 ppolyf_u units and 4 dummies (draw_ppolyf_res, res_type ppolyf_u),
+     one per row, bodies horizontal, left ends aligned at x=0, each with
+     the vendor cell's own P+ substrate tap on its left (the resistor's
+     3rd terminal, vss). Two matched rows (spec.yaml `matching:`), each a
+     layoutlib.matched_row of one cell, so every unit of a row is one
+     size and one way round, with a dummy (both ends on vss) at each end:
+     top-down, the 17 full units (a_k then rs_(k-1) for k=7..0, then the
+     termination rta, rtb), then the 8 trim units b_7..b_0.
   8 gf180mcu_fd_sc_mcu7t5v0__buf_20, one per bit, stacked in rows that
      share rails (odd rows mirrored), a filltie at both ends of every row
      for the well and substrate taps (DF.13/DF.14 within 20um).
@@ -19,6 +22,9 @@ Routing, one scheme for every net:
     its net's vertical metal1 track, right of the array (the left-end stub
     rides over its own body at the pad's upper half, the right-end stub at
     the lower half, so the two never meet);
+  - a dummy's two ends are stubbed to the vss track the same way;
+  - every internal net is labelled on its metal1 track (34/0 text: a net
+    name for the extraction, never a pin);
   - each buffer's Z gets a via1 inside its Z metal1 and a metal2 stub left
     to its d_k track; the buffer stack sits below the resistor rows so no
     Z stub crosses a resistor stub;
@@ -89,19 +95,32 @@ BR_X1 = 5.0            # second bridge via1, past the row's end
 EDGE_DX = 6.0          # the cell's right edge, past the row's end
 
 
-def resistor_rows():
-    """(refdes, length, left net, right net), top row first."""
-    rows = []
+def resistor_nets():
+    """{refdes: (left net, right net)} for every unit resistor."""
+    nets = {}
     for k in range(7, -1, -1):
         n = "vout" if k == 7 else f"n{k}"
-        rows.append((f"xrb{k}a", RU_L, f"d{k}", f"mb{k}"))
-        rows.append((f"xrb{k}b", RB_L, n, f"mb{k}"))
+        nets[f"xrb{k}a"] = (f"d{k}", f"mb{k}")
+        nets[f"xrb{k}b"] = (n, f"mb{k}")
         if k > 0:
-            nn = f"n{k-1}"
-            rows.append((f"xrs{k-1}", RU_L, n, nn))
-    rows.append(("xrta", RU_L, "n0", "mt"))
-    rows.append(("xrtb", RU_L, "mt", "vss"))
-    return rows
+            nets[f"xrs{k-1}"] = (n, f"n{k-1}")
+    nets["xrta"] = ("n0", "mt")
+    nets["xrtb"] = ("mt", "vss")
+    return nets
+
+
+def matched_rows():
+    """[(unit length, refdes top-down)]: spec.yaml's two matching groups,
+    the full units in bit order (each 2R branch's 'a' half next to the
+    series R below its rung) and the trim units."""
+    full = []
+    for k in range(7, -1, -1):
+        full.append(f"xrb{k}a")
+        if k > 0:
+            full.append(f"xrs{k-1}")
+    full += ["xrta", "xrtb"]
+    trims = [f"xrb{k}b" for k in range(7, -1, -1)]
+    return [(RU_L, full), (RB_L, trims)]
 
 
 def via2(top, cx, cy):
@@ -133,34 +152,38 @@ def generate():
     n_bufs = 8
     buf_block_h = n_bufs * CELL_H
     y_res0 = buf_block_h + 5.0          # lowest resistor row
-    rows = resistor_rows()
-    n_rows = len(rows)
+    nets = resistor_nets()
+    groups = matched_rows()
+    n_rows = sum(len(devs) + 2 for _l, devs in groups)
 
     # net -> list of y where a stub lands on its track; side stubs drawn later
     pts: dict[str, list[float]] = {}
     stubs = []  # (net, y, x_from) metal2 stub from x_from to the track
 
-    cache = {}
     max_right = 0.0
     sub_x = None
-    for i, (ref, length, ln, rn) in enumerate(rows):
-        y0 = y_res0 + (n_rows - 1 - i) * ROW_PITCH
-        if length not in cache:
-            cache[length] = draw_res.draw_ppolyf_res(
-                l_res=length, w_res=RU_W, res_type="ppolyf_u")
-        rc = cache[length]
-        top.add_ref(rc).move((0.0, y0))
-        m1 = layoutlib.layer_boxes(rc, L1)
+    pads = []
+    y_row = y_res0 + (n_rows - 1) * ROW_PITCH   # the top row
+    for length, devs in groups:
+        rc = draw_res.draw_ppolyf_res(l_res=length, w_res=RU_W,
+                                      res_type="ppolyf_u")
+        row = layoutlib.matched_row(top, rc, dict.fromkeys(devs, 1),
+                                    pitch=-ROW_PITCH, pattern="interdigitate",
+                                    dummies=1, axis="y", origin=(0.0, y_row))
+        y_row -= len(row["sequence"]) * ROW_PITCH
+        pads += row["pads"]
+    for pad in pads:
+        m1 = pad["boxes"]
         if len(m1) != 3:
             raise layoutlib.LayoutError(
                 f"expected 3 metal1 pads on a ppolyf_u cell, got {len(m1)}")
-        m1 = sorted(m1)
         sub, lp, rp = m1
+        ln, rn = nets[pad["device"]] if pad["device"] else ("vss", "vss")
         sub_x = ((sub[0] + sub[2]) / 2, sub[0], sub[2])
         max_right = max(max_right, rp[2])
         # left end: via at the pad's upper half; right end: lower half
-        ly = y0 + lp[3] - 0.25
-        ry = y0 + rp[1] + 0.25
+        ly = lp[3] - 0.25
+        ry = rp[1] + 0.25
         lx = round((lp[0] + lp[2]) / 2 / 0.005) * 0.005
         rx = round((rp[0] + rp[2]) / 2 / 0.005) * 0.005
         layoutlib.via1(top, lx, ly)
@@ -315,6 +338,11 @@ def generate():
     labels.append(("vdd", x_l + 1.0, (vdd_y0 + vdd_y1) / 2, L3LBL))
 
     labels.sort(key=lambda lbl: PINS.index(lbl[0]))
+    # every internal net named on its own metal1 track (a drawing-layer
+    # text: a plain magic label, never a pin, out of the abstract), so the
+    # extraction names the nets layout_match fits each unit by
+    for net in sorted(set(track_x) - set(PINS)):
+        labels.append((net, track_x[net], min(pts[net]), L1))
     return layoutlib.finalize(top, CELL, labels)
 
 
