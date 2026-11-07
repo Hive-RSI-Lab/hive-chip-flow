@@ -8,7 +8,8 @@ run. Routes to `layout` (the layout-fixer).
 
 **Fix:** in `layout/gen_<block>.py`, alternate the units: ABAB for 1:1,
 ABBBABBB-style for 1:3, so each device's units are spread across the
-whole row.
+whole row. `layoutlib.matched_row(..., pattern="interdigitate")`
+spreads the units by ratio and returns the slots and pads to wire.
 
 **Trap:** don't change the group's `style` to `common_centroid` to clear
 this: that is the spec's author's call.

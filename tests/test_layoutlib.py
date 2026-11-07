@@ -706,3 +706,85 @@ def test_setup_spelling_respells_setup_devices_only(tmp_path):
     empty = tmp_path / "empty.tcl"
     empty.write_text("# no devices\n", encoding="utf-8")
     assert layoutlib.setup_spelling(text, empty) == text
+
+
+def test_match_sequence_abba_with_dummies():
+    seq = layoutlib.match_sequence({"a": 4, "b": 4}, "ABBA")
+    assert seq == [None, "a", "b", "b", "a", "a", "b", "b", "a", None]
+    assert layoutlib.match_sequence({"a": 2, "b": 2}, "ABBA", 0) == ["a", "b", "b", "a"]
+
+
+@pytest.mark.parametrize("units", [{"a": 3, "b": 3}, {"a": 2, "b": 4},
+                                   {"a": 2, "b": 2, "c": 2}])
+def test_match_sequence_abba_refuses_what_it_cannot_make(units):
+    with pytest.raises(layoutlib.LayoutError, match="common_centroid"):
+        layoutlib.match_sequence(units, "ABBA")
+
+
+def _centroid(seq, name):
+    at = [i for i, n in enumerate(seq) if n == name]
+    return sum(at) / len(at)
+
+
+@pytest.mark.parametrize("units", [{"a": 2, "b": 2}, {"a": 4, "b": 2, "c": 1},
+                                   {"a": 1, "b": 6}, {"a": 8, "b": 1}])
+def test_match_sequence_common_centroid_shares_the_rows_centroid(units):
+    seq = layoutlib.match_sequence(units, "common_centroid", dummies=2)
+    assert seq[:2] == seq[-2:] == [None, None]
+    assert seq == seq[::-1]
+    for n, k in units.items():
+        assert seq.count(n) == k
+        assert _centroid(seq, n) == (len(seq) - 1) / 2
+
+
+def test_match_sequence_common_centroid_refuses_two_odd_counts():
+    with pytest.raises(layoutlib.LayoutError, match="a, b all have odd"):
+        layoutlib.match_sequence({"a": 3, "b": 1}, "common_centroid")
+
+
+def test_match_sequence_interdigitate_spreads_each_device():
+    assert layoutlib.match_sequence({"a": 2, "b": 2}, "interdigitate", 0) == \
+        ["a", "b", "a", "b"]
+    seq = layoutlib.match_sequence({"a": 6, "b": 2}, "interdigitate", 0)
+    assert seq.count("a") == 6 and seq.count("b") == 2
+    assert "aaaa" not in "".join(seq)
+    # one unit per device keeps the order given
+    assert layoutlib.match_sequence({"c": 1, "a": 1, "b": 1}, "interdigitate") \
+        == [None, "c", "a", "b", None]
+
+
+@pytest.mark.parametrize("args, msg", [
+    (({"a": 2}, "ABBA"), "two or more devices"),
+    (({"a": 0, "b": 2}, "interdigitate"), "two or more devices"),
+    (({"a": 2, "b": 2}, "spiral"), "one of ABBA"),
+    (({"a": 2, "b": 2}, "ABBA", -1), "dummies"),
+])
+def test_match_sequence_refusals(args, msg):
+    with pytest.raises(layoutlib.LayoutError, match=msg):
+        layoutlib.match_sequence(*args)
+
+
+def test_matched_row_places_one_cell_per_slot_and_maps_its_pads():
+    pytest.importorskip("gdsfactory")
+    import gdsfactory as gf
+
+    layoutlib.gf180_cells()
+    L = layoutlib.GF180_LAYER
+    cell = gf.Component()
+    cell.add_polygon([(0, 0), (1, 0), (1, 1), (0, 1)], layer=L["metal1"])
+    cell.add_polygon([(3, 0), (4, 0), (4, 1), (3, 1)], layer=L["metal1"])
+    top = gf.Component()
+    row = layoutlib.matched_row(top, cell, {"a": 2, "b": 2}, pitch=-2.0,
+                                pattern="ABBA", axis="y", origin=(5.0, 10.0))
+    assert row["sequence"] == [None, "a", "b", "b", "a", None]
+    assert len(row["refs"]) == 6
+    assert row["units"] == {"a": [(5.0, 8.0), (5.0, 2.0)],
+                            "b": [(5.0, 6.0), (5.0, 4.0)]}
+    assert row["dummies"] == [(5.0, 10.0), (5.0, 0.0)]
+    pad = row["pads"][1]
+    assert (pad["device"], pad["slot"], pad["origin"]) == ("a", 1, (5.0, 8.0))
+    assert pad["boxes"] == [(5.0, 8.0, 6.0, 9.0), (8.0, 8.0, 9.0, 9.0)]
+    got = layoutlib.layer_boxes(top, L["metal1"])
+    assert len(got) == 12
+    with pytest.raises(layoutlib.LayoutError, match="non-zero pitch"):
+        layoutlib.matched_row(top, cell, {"a": 1, "b": 1}, pitch=0)

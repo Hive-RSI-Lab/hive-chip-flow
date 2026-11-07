@@ -1,0 +1,209 @@
+{
+ "script": "gate",
+ "gate": "layout_match",
+ "phase": "P5",
+ "tool": "layout_match",
+ "input_digest": "dir_text:889449a57e56e4c2cab666ce1481936e988d284cf7e8717638791f7715a62c67",
+ "status": "pass",
+ "criteria": {
+  "fail_severities": [
+   "error"
+  ],
+  "max_count": 0
+ },
+ "counts": {
+  "total": 0,
+  "by_severity": {},
+  "by_source": {}
+ },
+ "failing_count": 0,
+ "failing": [],
+ "violations": [],
+ "facts": {
+  "topcell": "r2r_dac_analog",
+  "gds": "layout/r2r_dac_analog.gds",
+  "extraction": "log/layout_match/r2r_dac_analog.ext",
+  "groups": [
+   {
+    "devices": [
+     "xrb7a",
+     "xrs6",
+     "xrb6a",
+     "xrs5",
+     "xrb5a",
+     "xrs4",
+     "xrb4a",
+     "xrs3",
+     "xrb3a",
+     "xrs2",
+     "xrb2a",
+     "xrs1",
+     "xrb1a",
+     "xrs0",
+     "xrb0a",
+     "xrta",
+     "xrtb"
+    ],
+    "style": "interdigitate",
+    "units": {
+     "xrb7a": 1,
+     "xrs6": 1,
+     "xrb6a": 1,
+     "xrs5": 1,
+     "xrb5a": 1,
+     "xrs4": 1,
+     "xrb4a": 1,
+     "xrs3": 1,
+     "xrb3a": 1,
+     "xrs2": 1,
+     "xrb2a": 1,
+     "xrs1": 1,
+     "xrb1a": 1,
+     "xrs0": 1,
+     "xrb0a": 1,
+     "xrta": 1,
+     "xrtb": 1
+    },
+    "centroids_um": {
+     "xrb7a": [
+      75.0,
+      145.36
+     ],
+     "xrs6": [
+      75.0,
+      141.36
+     ],
+     "xrb6a": [
+      75.0,
+      137.36
+     ],
+     "xrs5": [
+      75.0,
+      133.36
+     ],
+     "xrb5a": [
+      75.0,
+      129.36
+     ],
+     "xrs4": [
+      75.0,
+      125.36
+     ],
+     "xrb4a": [
+      75.0,
+      121.36
+     ],
+     "xrs3": [
+      75.0,
+      117.36
+     ],
+     "xrb3a": [
+      75.0,
+      113.36
+     ],
+     "xrs2": [
+      75.0,
+      109.36
+     ],
+     "xrb2a": [
+      75.0,
+      105.36
+     ],
+     "xrs1": [
+      75.0,
+      101.36
+     ],
+     "xrb1a": [
+      75.0,
+      97.36
+     ],
+     "xrs0": [
+      75.0,
+      93.36
+     ],
+     "xrb0a": [
+      75.0,
+      89.36
+     ],
+     "xrta": [
+      75.0,
+      85.36
+     ],
+     "xrtb": [
+      75.0,
+      81.36
+     ]
+    }
+   },
+   {
+    "devices": [
+     "xrb7b",
+     "xrb6b",
+     "xrb5b",
+     "xrb4b",
+     "xrb3b",
+     "xrb2b",
+     "xrb1b",
+     "xrb0b"
+    ],
+    "style": "interdigitate",
+    "units": {
+     "xrb7b": 1,
+     "xrb6b": 1,
+     "xrb5b": 1,
+     "xrb4b": 1,
+     "xrb3b": 1,
+     "xrb2b": 1,
+     "xrb1b": 1,
+     "xrb0b": 1
+    },
+    "centroids_um": {
+     "xrb7b": [
+      74.18,
+      69.36
+     ],
+     "xrb6b": [
+      74.18,
+      65.36
+     ],
+     "xrb5b": [
+      74.18,
+      61.36
+     ],
+     "xrb4b": [
+      74.18,
+      57.36
+     ],
+     "xrb3b": [
+      74.18,
+      53.36
+     ],
+     "xrb2b": [
+      74.18,
+      49.36
+     ],
+     "xrb1b": [
+      74.18,
+      45.36
+     ],
+     "xrb0b": [
+      74.18,
+      41.36
+     ]
+    }
+   }
+  ],
+  "dummies": 4
+ },
+ "inputs_at_start": {
+  "layout": "dir_text:889449a57e56e4c2cab666ce1481936e988d284cf7e8717638791f7715a62c67",
+  "netlist": "dir_text:2c6d358ba4c3ec93f5dc910e1777df9a3f5418293791a715229fa1b8d22d1e4e",
+  "spec_yaml": "json_canonical:8c9cd25a18e9f52cb3d6890c8bb10c49e0fd4727727abbe712a4ce5fc7367fb4",
+  "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+  "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
+  "pdk_klayout": "dir_text:876da90e8aab65b830b36eca12bd720adfe8240a0952872419d9f2b4abda605d"
+ },
+ "strength_at_start": 0,
+ "recorded_ts": "2026-11-07T16:53:47",
+ "attempts": 1
+}

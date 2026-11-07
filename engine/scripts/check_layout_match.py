@@ -16,16 +16,21 @@ spec/spec.yaml declares the groups (speclib.matching):
       - {devices: [xmref, xmout], style: common_centroid, tol_um: 0.05}
 
 The GDS is regenerated (layout_gen.build, never a stale GDS) and extracted
-with magic. Each extracted transistor is a unit. A unit belongs to the
-schematic device in netlist/<block>.cir with the same model, gate net and
-source/drain nets (an unnamed magic net matches any). A unit whose nets fit
+with magic. Each extracted transistor, and each three-terminal resistor
+(magic's rsubckt: ppolyf_u and the other res_mk-marked units), is a unit. A
+transistor belongs to the schematic device in netlist/<block>.cir with the
+same model, gate net and source/drain nets; a resistor to the one with the
+same model and terminal nets, either way round (an unnamed magic net
+matches any, so a generator labels the internal nets of a matched group on
+a drawing layer - a plain magic label, never a pin). A unit whose nets fit
 only devices outside every group is a dummy or another device; one whose
 nets fit devices of two groups is a refusal, since its group cannot be told
 (label the nets). Each unit's centre and channel direction come from its
 gate (poly2 over comp) in the GDS, its current direction from magic's
 terminal order: the first diffusion magic lists is the left (or bottom) one,
 so a unit whose first terminal is its schematic drain is drawn the other
-way round.
+way round. A resistor's centre and direction come from its body (res_mk)
+and it has no current direction.
 
 Findings, each an error naming the devices:
 
@@ -83,7 +88,8 @@ def _params(tokens) -> dict:
 
 
 def parse_ext(ext_text: str) -> list[dict]:
-    """magic .ext transistors in magic's own terminal order: {model, gate,
+    """magic .ext transistors (msubckt) and resistors (rsubckt) in magic's
+    own terminal order: {kind: fet|res, model, gate (None for a resistor),
     terms: [first, second], w, l, at: (x, y)} in um (`scale R C L`: one
     unit is L/100 um). A dummy whose diffusions are one net has one term."""
     if re.search(r"^use\s", ext_text, re.M):
@@ -97,7 +103,7 @@ def parse_ext(ext_text: str) -> list[dict]:
         if not line.startswith("device "):
             continue
         t = line.split()
-        if len(t) < 7 or t[1] != "msubckt":
+        if len(t) < 7 or t[1] not in ("msubckt", "rsubckt"):
             continue
         try:
             x0, y0 = int(t[3]), int(t[4])
@@ -107,16 +113,19 @@ def parse_ext(ext_text: str) -> list[dict]:
         names = re.findall(r'"([^"]*)"', line)
         if len(names) < 3 or "w" not in p or "l" not in p:
             continue
-        out.append({"model": t[2], "gate": names[1], "terms": names[2:4],
+        res = t[1] == "rsubckt"
+        out.append({"kind": "res" if res else "fet", "model": t[2],
+                    "gate": None if res else names[1], "terms": names[2:4],
                     "w": round(float(p["w"]) * unit, 4),
                     "l": round(float(p["l"]) * unit, 4),
                     "at": (x0 * unit, y0 * unit)})
     return out
 
 
-def gate_rects(gds_path, topcell: str) -> list[tuple[float, float, float, float]]:
-    """Every transistor gate (poly2 AND comp) of `topcell`, flattened, as
-    (x0, y0, x1, y1) in um."""
+def gate_rects(gds_path, topcell: str) -> dict[str, list[tuple[float, float, float, float]]]:
+    """Every transistor gate (poly2 AND comp) and resistor body (res_mk) of
+    `topcell`, flattened, as {"fet": [...], "res": [...]} of (x0, y0, x1,
+    y1) in um."""
     import klayout.db as kdb
 
     layout = kdb.Layout()
@@ -132,20 +141,27 @@ def gate_rects(gds_path, topcell: str) -> list[tuple[float, float, float, float]
         return kdb.Region(cell.begin_shapes_rec(li)).merged()
 
     dbu = layout.dbu
-    gates = region("poly2") & region("comp")
-    return [(b.left * dbu, b.bottom * dbu, b.right * dbu, b.top * dbu)
-            for b in (p.bbox() for p in gates.each())]
+
+    def boxes(reg):
+        return [(b.left * dbu, b.bottom * dbu, b.right * dbu, b.top * dbu)
+                for b in (p.bbox() for p in reg.each())]
+
+    return {"fet": boxes(region("poly2") & region("comp")),
+            "res": boxes(region("res_mk"))}
 
 
-def place_units(devs: list[dict], rects) -> None:
-    """Give each extracted unit its gate's centre and channel direction:
-    axis 'x' when current runs along x (the gate is L wide in x)."""
+def place_units(devs: list[dict], rects: dict) -> None:
+    """Give each extracted unit its gate's (a resistor's body's) centre and
+    direction: axis 'x' when current runs along x (the shape is L long in
+    x)."""
     for d in devs:
         x, y = d["at"]
-        hit = [r for r in rects
+        res = d.get("kind") == "res"
+        hit = [r for r in rects["res" if res else "fet"]
                if r[0] - EPS <= x <= r[2] + EPS and r[1] - EPS <= y <= r[3] + EPS]
         if not hit:
-            raise CheckError(f"no gate shape under magic's {d['model']} at "
+            raise CheckError(f"no {'res_mk body' if res else 'gate shape'} "
+                             f"under magic's {d['model']} at "
                              f"({x:.3f}, {y:.3f}) um: the GDS and the "
                              "extraction disagree")
         r = min(hit, key=lambda r: (r[2] - r[0]) * (r[3] - r[1]))
@@ -155,8 +171,10 @@ def place_units(devs: list[dict], rects) -> None:
 
 
 def schematic_devices(cir_text: str) -> dict[str, dict]:
-    """netlist/<block>.cir transistors: {name: {model, d, g, s}} (an
-    `x... d g s b model ...` subckt call or an `m...` line)."""
+    """netlist/<block>.cir transistors, {name: {kind: fet, model, d, g, s}}
+    (an `x... d g s b model ...` subckt call or an `m...` line), and
+    three-terminal resistors, {name: {kind: res, model, a, b, sub}} (an
+    `x... a b sub model ...` call)."""
     lines = []
     for raw in cir_text.splitlines():
         if raw.startswith("+") and lines:
@@ -168,11 +186,13 @@ def schematic_devices(cir_text: str) -> dict[str, dict]:
         t = line.split("$")[0].split()
         if not t or t[0][0].lower() not in "xm" or t[0].startswith("*"):
             continue
-        pos = [x for x in t[1:] if "=" not in x]
-        if len(pos) < 5:
-            continue
-        out[t[0].lower()] = {"model": pos[4].lower(), "d": pos[0].lower(),
-                             "g": pos[1].lower(), "s": pos[2].lower()}
+        pos = [x.lower() for x in t[1:] if "=" not in x]
+        if len(pos) == 5:
+            out[t[0].lower()] = {"kind": "fet", "model": pos[4], "d": pos[0],
+                                 "g": pos[1], "s": pos[2]}
+        elif len(pos) == 4 and t[0][0].lower() == "x":
+            out[t[0].lower()] = {"kind": "res", "model": pos[3], "a": pos[0],
+                                 "b": pos[1], "sub": pos[2]}
     return out
 
 
@@ -183,12 +203,16 @@ def _net_fits(ext_net: str, net: str) -> bool:
 
 
 def _fits(unit: dict, dev: dict) -> bool:
-    if unit["model"].lower() != dev["model"] or not _net_fits(unit["gate"], dev["g"]):
+    res = unit.get("kind") == "res"
+    if res != (dev["kind"] == "res") or unit["model"].lower() != dev["model"]:
+        return False
+    if not res and not _net_fits(unit["gate"], dev["g"]):
         return False
     terms = unit["terms"] if len(unit["terms"]) == 2 else unit["terms"] * 2
     a, b = terms
-    return ((_net_fits(a, dev["s"]) and _net_fits(b, dev["d"]))
-            or (_net_fits(a, dev["d"]) and _net_fits(b, dev["s"])))
+    p, q = (dev["a"], dev["b"]) if res else (dev["s"], dev["d"])
+    return ((_net_fits(a, p) and _net_fits(b, q))
+            or (_net_fits(a, q) and _net_fits(b, p)))
 
 
 def assign(units: list[dict], schem: dict, groups: list[dict]) -> None:
@@ -198,7 +222,8 @@ def assign(units: list[dict], schem: dict, groups: list[dict]) -> None:
         for name in g["devices"]:
             if name not in schem:
                 raise CheckError(f"spec.yaml matching names {name}, but the "
-                                 "netlist has no transistor of that name")
+                                 "netlist has no transistor or resistor of "
+                                 "that name")
             owner[name] = gi
     for u in units:
         cand = [n for n, dev in schem.items() if _fits(u, dev)]
@@ -214,8 +239,8 @@ def assign(units: list[dict], schem: dict, groups: list[dict]) -> None:
         # within one group a unit that fits more than one device (equal
         # nets) is told apart by its drain
         if len(matched) > 1:
-            by_drain = [n for n in matched
-                        if schem[n]["d"] in [x.lower() for x in u["terms"]]]
+            by_drain = [n for n in matched if schem[n].get("d")
+                        in [x.lower() for x in u["terms"]]]
             matched = by_drain if len(by_drain) == 1 else matched
         if len(matched) > 1:
             raise CheckError(f"the {u['model']} at {_um(u['centre'])} fits "
@@ -223,7 +248,8 @@ def assign(units: list[dict], schem: dict, groups: list[dict]) -> None:
         u["dev"] = matched[0]
         dev = schem[matched[0]]
         first = u["terms"][0].lower()
-        u["drain_first"] = (first == dev["d"]) if dev["d"] != dev["s"] else None
+        u["drain_first"] = ((first == dev["d"]) if dev["kind"] == "fet"
+                            and dev["d"] != dev["s"] else None)
 
 
 def _um(p) -> str:
@@ -269,7 +295,7 @@ def check(units: list[dict], groups: list[dict], topcell: str) -> tuple[list, di
         empty = [n for n in names if not per[n]]
         for n in empty:
             find("match_no_units", [n], f"{n} is in a matching group but no "
-                 "extracted transistor is a unit of it")
+                 "extracted transistor or resistor is a unit of it")
         if empty:
             continue
         mine = [u for n in names for u in per[n]]
@@ -353,8 +379,13 @@ def check(units: list[dict], groups: list[dict], topcell: str) -> tuple[list, di
                      f"interdigitated allows {allowed}",
                      sequence=seq, longest_run=longest, allowed=allowed)
         facts.append(row)
+    # a dummy: an unassigned device equal to some matched unit (not every
+    # other device on the cell, e.g. a block's buffers)
+    grouped = {n for g in groups for n in g["devices"]}
+    matched = [u for u in units if u["dev"] in grouped]
     return v, {"groups": facts,
-               "dummies": sum(1 for u in units if u["dev"] is None)}
+               "dummies": sum(1 for u in units if u["dev"] is None
+                              and any(_equal(u, m) for m in matched))}
 
 
 def not_applicable_at_release(ws: Path) -> str | None:

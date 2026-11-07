@@ -310,6 +310,105 @@ def layer_boxes(comp, layer: tuple[int, int]) -> list[tuple[float, ...]]:
     return sorted(boxes)
 
 
+MATCH_PATTERNS = ("ABBA", "common_centroid", "interdigitate")
+
+
+def _spread(counts: dict[str, int]) -> list[str]:
+    """`counts`' units in one sequence, each device's spread evenly: slot t
+    goes to the device furthest behind its share (ties to the earlier
+    name in `counts`), so no device runs longer than ceil(max/min)."""
+    total = sum(counts.values())
+    placed = dict.fromkeys(counts, 0)
+    seq = []
+    for t in range(total):
+        name = max(counts, key=lambda n: (counts[n] * (t + 1) / total - placed[n],
+                                          -list(counts).index(n)))
+        placed[name] += 1
+        seq.append(name)
+    return seq
+
+
+def match_sequence(units: dict[str, int], pattern: str = "common_centroid",
+                   dummies: int = 1) -> list[str | None]:
+    """The order of a matched row's units, a dummy as None at both ends
+    (`dummies` each). `units` maps each matched device to its unit count.
+
+    - ABBA: two devices of equal, even counts, as ABBA ABBA ...
+    - common_centroid: a row symmetric about its middle, so every device's
+      centroid is the row's: each count even, except at most one device
+      with an odd count, whose odd unit takes the middle.
+    - interdigitate: every device spread evenly along the row (runs no
+      longer than the ratio of counts). One unit per device keeps the
+      order given.
+
+    Raises LayoutError for a pattern the counts cannot make; the gate that
+    reads the row is check_layout_match.py."""
+    if pattern not in MATCH_PATTERNS:
+        raise LayoutError(f"matched row pattern {pattern!r}: one of "
+                          f"{', '.join(MATCH_PATTERNS)}")
+    if len(units) < 2 or any(not isinstance(n, int) or isinstance(n, bool)
+                             or n < 1 for n in units.values()):
+        raise LayoutError(f"a matched row needs two or more devices of one "
+                          f"or more units each, got {units}")
+    if not isinstance(dummies, int) or dummies < 0:
+        raise LayoutError(f"dummies must be a count >= 0, got {dummies!r}")
+    names = list(units)
+    if pattern == "ABBA":
+        a, b = (names + [None])[:2] if len(names) == 2 else (None, None)
+        if a is None or units[a] != units[b] or units[a] % 2:
+            raise LayoutError(f"ABBA takes two devices of equal, even unit "
+                              f"counts, got {units}: use common_centroid")
+        seq = [a, b, b, a] * (units[a] // 2)
+    elif pattern == "common_centroid":
+        odd = [n for n in names if units[n] % 2]
+        if len(odd) > 1:
+            raise LayoutError(f"no one-row common centroid for {units}: "
+                              f"{', '.join(odd)} all have odd unit counts "
+                              "(at most one may); double the units or "
+                              "draw a 2-D array")
+        half = {n: units[n] // 2 for n in names if units[n] // 2}
+        left = _spread(half) if half else []
+        seq = left + odd + left[::-1]
+    else:
+        seq = _spread(units)
+    return [None] * dummies + seq + [None] * dummies
+
+
+def matched_row(top, cell, units: dict[str, int], *, pitch: float,
+                pattern: str = "common_centroid", dummies: int = 1,
+                axis: str = "x", origin: tuple[float, float] = (0.0, 0.0),
+                pad_layer: tuple[int, int] = GF180_LAYER["metal1"]) -> dict:
+    """Place a row of equal unit cells in `top`: match_sequence(units,
+    pattern, dummies), slot i at `origin` + i * `pitch` along `axis` (a
+    negative pitch runs the row down or left). Every slot is one `cell`
+    (the unit device, so the units and the dummies are one size and one
+    orientation by construction); the caller wires them.
+
+    Returns {sequence: [device or None], refs: [ref per slot], units:
+    {device: [slot origins]}, dummies: [slot origins], pads: [{device,
+    slot, origin, boxes}]} with `boxes` the cell's `pad_layer` shapes
+    (layer_boxes order) moved to the slot, in `top`'s frame: the pad map a
+    caller routes each unit's terminals and ties each dummy's from."""
+    if axis not in ("x", "y"):
+        raise LayoutError(f"matched row axis {axis!r}: 'x' or 'y'")
+    if not pitch:
+        raise LayoutError("a matched row needs a non-zero pitch")
+    seq = match_sequence(units, pattern, dummies)
+    local = layer_boxes(cell, pad_layer)
+    out = {"sequence": seq, "refs": [], "units": {n: [] for n in units},
+           "dummies": [], "pads": []}
+    for i, name in enumerate(seq):
+        dx, dy = (i * pitch, 0.0) if axis == "x" else (0.0, i * pitch)
+        at = (round(origin[0] + dx, 4), round(origin[1] + dy, 4))
+        out["refs"].append(top.add_ref(cell).move(at))
+        (out["units"][name] if name else out["dummies"]).append(at)
+        out["pads"].append({"device": name, "slot": i, "origin": at,
+                            "boxes": [(round(b[0] + at[0], 4), round(b[1] + at[1], 4),
+                                       round(b[2] + at[0], 4), round(b[3] + at[1], 4))
+                                      for b in local]})
+    return out
+
+
 def gds_bbox_um(gds_path, topcell: str) -> dict:
     """The bounding box of `topcell` in the GDS at `gds_path`, hierarchy
     included, as {x0, y0, x1, y1, width, height} in um. Raises LayoutError
