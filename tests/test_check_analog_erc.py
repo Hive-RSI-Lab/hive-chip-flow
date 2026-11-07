@@ -3,8 +3,10 @@ ERC on the magic extraction, GitHub issue 122).
 
 Fast tests read canned CVC output (tests/fixtures/analog_erc, from a real
 cvc_rv run on corpus mirror with a PMOS whose nwell tap is on vss). Slow
-tests run magic and cvc_rv for real: the clean mirror passes, and the
-nwell-on-vss MOS cap fixture fails without its waiver and passes with it.
+tests run magic and cvc_rv for real: the clean mirror passes, the
+nwell-on-vss MOS cap fixture fails without its waiver and passes with it,
+the Q class's PNP toys fail by junction, and the bandgap's schematic
+passes (--schematic: it has no layout yet).
 The mirror's planted faults run in test_corpus_faults.py."""
 from __future__ import annotations
 
@@ -212,6 +214,85 @@ def test_check_expect_refs_must_all_be_on_one_finding():
 
 # --- real magic + cvc_rv -----------------------------------------------------
 
+PNP_ON_VBAT = """.subckt t vbat vss
+X0 vss vss vbat pnp_10p00x10p00
+.ends
+"""
+
+
+def test_to_cdl_splits_a_bjt_into_rated_junctions():
+    devices, _ports, cdl = erc.to_cdl(
+        PNP_ON_VBAT.replace(".ends", "X1 c b e vss npn_05p00x05p00\n.ends"), "t")
+    # PNP: collector = substrate, base = nwell, emitter = P+
+    assert "DQ0_eb vbat vss pnp_10p00x10p00_eb" in cdl
+    assert "DQ0_ce vss vbat pnp_10p00x10p00_ce" in cdl
+    assert "DQ0_cb vss vss pnp_10p00x10p00_cb" in cdl
+    assert "RQ0_eb vbat vss pnp_10p00x10p00_on w=1u l=1u" in cdl
+    assert "DQ1_sc vss c npn_05p00x05p00_sc" in cdl
+    assert "X0" not in cdl
+    assert {d["name"] for d in devices.values()} == {"X0", "X1"}
+    assert devices["DQ0_eb"]["nets"] == {"c": "vss", "b": "vss", "e": "vbat"}
+    assert devices["RQ0_eb"]["path"] is True
+
+
+def test_to_cdl_refuses_a_bjt_with_the_wrong_terminal_count():
+    with pytest.raises(CheckError, match="no voltage rating"):
+        erc.to_cdl(".subckt t a b\nX0 a b pnp_10p00x10p00\n.ends\n", "t")
+
+
+def test_model_file_rates_each_junction_and_forward_checks_the_substrate():
+    devices, _ports, _cdl = erc.to_cdl(PNP_ON_VBAT, "t")
+    models = erc.model_file(devices).splitlines()
+    assert "D pnp_10p00x10p00_eb diode=(1-1) Vds=3.63" in models
+    assert "D pnp_10p00x10p00_ce diode=(1-1) Vds=3.63" in models
+    assert "D pnp_10p00x10p00_cb Vds=3.63" in models
+    assert "R pnp_10p00x10p00_on R=l/w*1000" in models
+
+
+def test_volts_reads_a_resistively_reached_voltage():
+    assert erc._volts("Max: vss@0(5000) r=1000") == 5.0
+    assert erc._volts("vss@0") == 0.0
+    assert erc._volts("Vds=3300") == 3.3
+
+
+def test_schematic_netlist_substitutes_subckt_defaults():
+    top, body = erc.schematic_netlist(
+        "* x\n.param w0=2e-6\n.subckt b a vss rl=11e-6\n"
+        "xr1 a vss ppolyf_u_1k r_width={w0}\n+r_length={ rl }\n.ends b\n")
+    assert top == "b"
+    assert ".subckt b a vss\n" in body
+    assert "xr1 a vss ppolyf_u_1k r_width=2e-6 r_length=11e-6" in body
+
+
+@pytest.mark.parametrize("text, match", [
+    (".subckt b a\nxr1 a b ppolyf_u_1k r_length={rl}\n.ends\n", "not a .subckt default"),
+    (".subckt a x\n.ends\n.subckt b y\n.ends\n", "more than one"),
+    ("xr1 a b ppolyf_u_1k\n", "no .subckt"),
+])
+def test_schematic_netlist_refuses(text, match):
+    with pytest.raises(CheckError, match=match):
+        erc.schematic_netlist(text)
+
+
+@pytest.mark.parametrize("collector, pins, on", [
+    ("vss", {"vss": {"power": 0.0}}, None),
+    ("vdd", {"vdd": {"power": 3.3}}, "a 3.3 V supply pin"),
+    ("n1", {}, "an internal net"),
+    ("io", {"io": {"min": 0.0, "max": 3.3}}, "a pin that swings 0..3.3 V"),
+])
+def test_substrate_findings_need_the_collector_on_ground(collector, pins, on):
+    devices, _ports, _cdl = erc.to_cdl(
+        f".subckt t e\nX0 {collector} vss e pnp_05p00x05p00\n.ends\n", "t")
+    found = erc.substrate_findings("t", devices, pins)
+    if on is None:
+        assert found == []
+        return
+    assert [(v["kind"], v["severity"], v["terminal"]) for v in found] == [
+        ("substrate_not_ground", "error", "collector")]
+    assert on in found[0]["msg"]
+    assert found[0]["refs"][0] == "X0"
+
+
 MOS_CAP = """* a PLL-style MOS cap: a pfet's gate, source and drain on one net and its
 * nwell tied to vss, so the nwell to diffusion junction can forward bias
 .subckt mos_cap f vss
@@ -245,3 +326,32 @@ def test_nwell_on_vss_mos_cap_needs_its_waiver(tmp_path):
     violations, _facts = run("waived")
     assert [(v["kind"], v["severity"]) for v in violations] == [("bulk_tie", "info")]
     assert violations[0]["waived"]["owner"] == "block owner"
+
+
+@pytest.mark.slow
+def test_pnp_emitter_on_a_5v_net_is_a_junction_overvoltage(tmp_path):
+    violations, _facts = erc.check(tmp_path, "t", PNP_ON_VBAT, "", 3.3,
+                                   {"vbat": {"min": 0, "max": 5.0}}, tmp_path / "w")
+    assert sorted((v["kind"], v["junction"]) for v in violations) == [
+        ("overvoltage_junction", "ce"), ("overvoltage_junction", "eb")]
+    eb = next(v for v in violations if v["junction"] == "eb")
+    assert eb["refs"] == ["X0", "vbat", "vss"]
+    assert eb["terminals"]["emitter"] == {"net": "vbat", "min_v": 0.0, "max_v": 5.0}
+
+
+@pytest.mark.slow
+def test_pnp_collector_on_vdd_is_not_a_substrate(tmp_path):
+    violations, _facts = erc.check(
+        tmp_path, "t", ".subckt t vdd e vss\nX0 vdd vss e pnp_05p00x05p00\n.ends\n",
+        "", 3.3, {}, tmp_path / "w")
+    assert sorted(v["kind"] for v in violations) == [
+        "substrate_not_ground", "substrate_tie"]
+
+
+@pytest.mark.slow
+def test_bandgap_schematic_passes_the_real_erc(tmp_path):
+    ws = make_ws(tmp_path, "bandgap")
+    payload, _out = erc.run(["--workspace", str(ws), "--schematic"])
+    assert payload["status"] == "pass", payload
+    assert payload["netlist"] == "netlist/bandgap.cir"
+    assert "pnp_10p00x10p00" in payload["models"]

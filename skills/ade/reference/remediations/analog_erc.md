@@ -6,7 +6,9 @@ extracted device (`device`, e.g. `X3`), its schematic `refdes` when one
 netlist device matches it, its `model`, every terminal's net with the
 min..max voltage CVC propagated to it (`terminals`), and its `position` in
 um in the layout. The full report is `log/erc/cvc.error.gz`; the netlist CVC
-read is `log/erc/<top>.cdl`, the pin voltages `log/erc/cvc.power`.
+read is `log/erc/<top>.cdl`, the pin voltages `log/erc/cvc.power`. With
+`--schematic` (a block with no layout yet) the same files are under
+`log/erc_schematic/` and a finding names the netlist/<block>.cir device.
 
 By kind, cheapest fix first:
 
@@ -27,6 +29,17 @@ By kind, cheapest fix first:
   via or wire to the gate, or a gate the netlist also leaves open.
 - **forward_bias_diode**: a diode (often a well or junction diode) whose
   anode can sit above its cathode. Check its two nets.
+- **overvoltage_junction** (a BJT, `junction` names it, e.g. `eb`): one of
+  a bipolar transistor's junctions can see more than the 3.3 V LV rating
+  (3.63 V). GF180's BJTs are all LV devices: keep the emitter, base and
+  collector inside 0..3.63 V of each other, or move the BJT to a
+  lower-voltage net. A wrong pin range is an `erc_nets` fix.
+- **substrate_not_ground / substrate_tie** (a BJT): a vertical PNP's
+  collector, or an NPN's substrate terminal, is the p-substrate and must
+  be the ground net. In layout, a collector off vss means no psub tap
+  reaches it, or the netlist draws a collector the silicon cannot have.
+  Tie the substrate to vss, and keep the base from going below it
+  (substrate_tie: the substrate junction can forward bias).
 - **voltage_conflict**: a pin range that the circuit contradicts, e.g. a
   current input on a diode-connected device given a 0..vdd range. Set that
   pin's real range in `erc_nets` (spec.yaml).
