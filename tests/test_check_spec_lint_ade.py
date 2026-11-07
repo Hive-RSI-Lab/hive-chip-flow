@@ -219,6 +219,21 @@ def test_pex_corners_field(tmp_path, capsys, field, ok):
         assert code == 1 and "bad_pex_corners" in out, out
 
 
+@pytest.mark.parametrize("field, ok", [
+    ("all", True), ("[c_high]", True), ("[rc_high, rc_low]", True),
+    ("c_high", False), ("[]", False), ("[1]", False), ("[nope]", False),
+    ("null", False),
+])
+def test_pex_rc_knobs_field(tmp_path, capsys, field, ok):
+    ws = make_ws(tmp_path, GOOD_YAML + f"pex_rc_knobs: {field}\n")
+    code = check_spec_lint_ade.main(["--workspace", str(ws)])
+    out = capsys.readouterr().out
+    if ok:
+        assert code == 0, out
+    else:
+        assert code == 1 and "bad_pex_rc_knobs" in out, out
+
+
 def test_sim_timeout_within_the_cap_passes(tmp_path, capsys):
     ws = make_ws(tmp_path, GOOD_YAML + "sim_timeout_s: {pex_sim: 900, "
                  "sim_tt: 120.5, sim_pvt: 3600}\n")

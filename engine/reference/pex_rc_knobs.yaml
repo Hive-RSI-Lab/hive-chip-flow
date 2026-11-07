@@ -1,0 +1,34 @@
+# pex_rc_knobs.yaml - the pinned R and C scale factors pex_sim can apply to an
+# extracted netlist (spec.yaml `pex_rc_knobs`, check_pex_sim.py's docstring).
+# Consumed by engine/scripts/corners.py. Never edited per block.
+#
+# THIS IS AN APPROXIMATION, NOT FOUNDRY RC CORNERS. One factor scales every R
+# line and one scales every C line, whatever the layer. A real corner moves
+# each layer by its own amount and moves contact and via resistance much more
+# than wire resistance, which one factor cannot do. The numbers below bound the
+# PDK's files, as tests/test_check_pex_sim.py checks against the PDK itself.
+#
+# Where the numbers come from (paths under the gf180mcuD PDK root):
+#   r: libs.ref/gf180mcu_fd_sc_mcu7t5v0/techlef/*__{min,nom,max}.tlef, metal1 to
+#      metal4 RPERSQ 0.076 / 0.090 / 0.104 ohm/sq: x0.844 and x1.156. magic's own
+#      variants agree (libs.tech/magic/gf180mcuD.tech, `style ngspice variants`,
+#      lrlc and hrhc, 76 and 104 mohm/sq against 90), as does the res column of
+#      libs.tech/librelane/rules.openrcx.gf180mcuD.{min,max}.magic. Metal5 moves
+#      further in magic's table (x0.775, x1.225) and contacts and vias far
+#      further (hrhc x2 to x3.3): x1.156 understates a path through many vias.
+#   c: libs.tech/librelane/rules.openrcx.gf180mcuD.{min,max} against .nom, total
+#      Cc+Cf per table row: the largest row is x1.199 (median x1.11), the
+#      smallest x0.84 (median x0.91). The factors are the envelope, rounded out,
+#      so they are pessimistic for most geometries. The techlef C columns are
+#      placeholders and are not used.
+#
+# `pair` is the process the knob runs with, so the worst wire meets the worst
+# transistor (the sweep's slow/hot or fast/cold corner, check_pex_sim.py):
+# high R and C slow a path, low R and C can push a measure past a max bound.
+knobs:
+  c_high:  {c: 1.20, r: 1.0,   pair: ss}
+  c_low:   {c: 0.84, r: 1.0,   pair: ff}
+  r_high:  {c: 1.0,  r: 1.156, pair: ss}
+  r_low:   {c: 1.0,  r: 0.844, pair: ff}
+  rc_high: {c: 1.20, r: 1.156, pair: ss}
+  rc_low:  {c: 0.84, r: 0.844, pair: ff}

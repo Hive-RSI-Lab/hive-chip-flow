@@ -93,6 +93,7 @@ import yaml  # noqa: E402
 
 SCRIPT = "corners"
 DEFAULT_YAML = ENGINE / "reference" / "corners.yaml"
+RC_KNOBS_YAML = ENGINE / "reference" / "pex_rc_knobs.yaml"
 REQUIRED_AXES = ("process", "temperature_c", "supply_pct")
 # the PDK's passive sections exist for these process names only
 PDK_PASSIVE = ("typical", "ss", "ff")
@@ -149,6 +150,50 @@ def load(path: Path | str = DEFAULT_YAML) -> dict:
                     raise CheckError(f"{where} {k} {c[k]!r} not in "
                                      f"{sorted(allowed, key=str)}")
     return data
+
+
+def rc_knobs(path: Path | str = RC_KNOBS_YAML) -> dict[str, dict]:
+    """The pinned table pex_sim's `pex_rc_knobs` picks from: name -> {c, r,
+    pair}. Malformed is a refusal, never a knob that silently scales by 1."""
+    p = Path(path)
+    if not p.is_file():
+        raise CheckError(f"no pex_rc_knobs.yaml at {p}")
+    knobs = (yaml.safe_load(p.read_text(encoding="utf-8")) or {}).get("knobs")
+    if not isinstance(knobs, dict) or not knobs:
+        raise CheckError(f"{p}: 'knobs' must be a non-empty mapping")
+    for name, k in knobs.items():
+        if not (isinstance(k, dict) and _num(k.get("c")) and _num(k.get("r"))
+                and k["c"] > 0 and k["r"] > 0
+                and k.get("pair") in ("ss", "ff")):
+            raise CheckError(f"{p}: knob {name!r} needs positive c and r and "
+                             "a pair of ss or ff")
+    return knobs
+
+
+def rc_knobs_problem(field, sweep: list[dict],
+                     knobs: dict[str, dict]) -> str | None:
+    """What is wrong with a spec's `pex_rc_knobs`, or None. spec_lint and the
+    gate both ask here. A knob whose paired process the sweep lacks would have
+    no corner to run at, so it is refused rather than dropped."""
+    if field == "all":
+        names = list(knobs)
+    elif (isinstance(field, list) and field
+          and all(isinstance(n, str) for n in field)):
+        names = field
+    else:
+        return ("spec.yaml 'pex_rc_knobs' must be \"all\" or a non-empty list "
+                f"of knob names from {sorted(knobs)}")
+    bad = [n for n in names if n not in knobs]
+    if bad:
+        return (f"spec.yaml 'pex_rc_knobs' names {bad}, which "
+                f"pex_rc_knobs.yaml does not pin: {sorted(knobs)}")
+    swept = {c["process"] for c in sweep}
+    unpaired = [n for n in names if knobs[n]["pair"] not in swept]
+    if unpaired:
+        return (f"spec.yaml 'pex_rc_knobs' names {unpaired}, each paired with "
+                "a process the spec's corners do not sweep: "
+                + ", ".join(f"{n} needs {knobs[n]['pair']}" for n in unpaired))
+    return None
 
 
 def passive_of(corner: dict, device: str | None = None) -> str:

@@ -47,8 +47,20 @@ scored at is skipped and listed in `not_scored`.
 Every finding names its corner. The report keeps `measured` (the typical
 corner's values, or the first corner run when no bound is scored at typical),
 and adds `corners`, `corner_source`, `measured_by_corner` and `not_scored`.
-R/C extraction corners (cworst/rcworst) are not here: GF180 ships no corner
-tech for magic, so the wire R and C are the same at every corner above.
+
+RC knobs. At the corners above the wire R and C are the same; magic extracts
+at its nominal style. spec.yaml's `pex_rc_knobs` ("all" or a list of names,
+absent means none, since each knob is one more ngspice run) adds runs on a
+copy of the extracted netlist with every C and R line scaled by the factors
+pinned in engine/reference/pex_rc_knobs.yaml. Each knob pairs with one corner:
+a `pair: ss` knob with the sweep's slow, hot, low-supply corner, a `pair: ff`
+knob with its fast, cold, high-supply corner, whether or not the corner set
+above holds that corner. The scaling is an approximation and not a foundry RC
+corner, as the table says: one factor for all layers, and vias move as little
+as wires. (The PDK's magic tech does hold RC variants, `ngspice(hrhc)` and its
+siblings; this gate does not extract at them.) Findings name the knob too, in refs and in the message, and the report
+adds `rc_knobs`, each knob's corner, factors and values. A knob with no bound
+scored at its corner is a refusal: the run it asked for would measure nothing.
 
 The bench template carries substitution tokens, filled by str.format: `{pdk}`
 (the resolved toolchain's PDK root) and `{extracted}` (the parasitic netlist
@@ -301,6 +313,15 @@ def slow_corner(sweep: list[dict]) -> dict | None:
                default=None)
 
 
+def fast_corner(sweep: list[dict]) -> dict | None:
+    """slow_corner's mirror: the fast, cold, high-supply corner, passives moving
+    with the transistors. None with no ff corner."""
+    fasts = [c for c in sweep if c["process"] == "ff"]
+    return min(fasts, key=lambda c: (c["temp_c"], -c["supply_pct"],
+                                     corners_mod.passive_of(c) != "ff"),
+               default=None)
+
+
 def _margin(value: float, bound: dict) -> float:
     """Distance from `value` to the nearest side of `bound`; negative past it."""
     sides = []
@@ -411,6 +432,22 @@ def pex_corners_problem(field, sweep: list[dict]) -> str | None:
     return None
 
 
+def rc_knob_runs(field, sweep: list[dict]) -> list[dict]:
+    """The knob runs a spec's `pex_rc_knobs` asks for, each {knob, corner, c,
+    r}, in table order for "all" and in the spec's order otherwise. Raises
+    CheckError on a field spec_lint would refuse."""
+    if field is None:
+        return []
+    knobs = corners_mod.rc_knobs()
+    problem = corners_mod.rc_knobs_problem(field, sweep, knobs)
+    if problem:
+        raise CheckError(problem)
+    pair = {"ss": slow_corner(sweep), "ff": fast_corner(sweep)}
+    return [{"knob": name, "corner": pair[knobs[name]["pair"]],
+             "c": knobs[name]["c"], "r": knobs[name]["r"]}
+            for name in (list(knobs) if field == "all" else field)]
+
+
 def unaware_tokens(template: str, corners: list[dict],
                    passives: list[str]) -> list[str]:
     """The tokens the bench must use for `corners` and does not. Pure."""
@@ -494,6 +531,7 @@ def run(argv=None):
         # bare workspace has no sweep to read, so typical is all there is
         sweep, field, nominal_vdd = [dict(BASE, name="tt")], None, None
         corner_list, source, unswept = sweep, "no spec.yaml: typical only", []
+        knob_runs = []
     else:
         sweep, _scoped = sim_run.spec_sweep(ws)
         field, nominal_vdd = spec.get("pex_corners"), (spec.get("supply")
@@ -501,6 +539,7 @@ def run(argv=None):
         corner_list, source, unswept = select_corners(
             field, sweep, bound_rows,
             None if field is not None else fresh_sim_pvt_results(ws))
+        knob_runs = rc_knob_runs(spec.get("pex_rc_knobs"), sweep)
 
     template = bench_tpl.read_text(encoding="utf-8")
     if "{vdd}" in template and (isinstance(nominal_vdd, bool) or not isinstance(
@@ -509,8 +548,8 @@ def run(argv=None):
                          "numeric 'supply.vdd' - run spec_lint first")
     pdk = layoutlib.pdk_root()
 
-    def deck(corner: dict) -> str:
-        return template.format(pdk=pdk, extracted=extracted.resolve(),
+    def deck(corner: dict, netlist: Path = extracted) -> str:
+        return template.format(pdk=pdk, extracted=netlist.resolve(),
                                **corner_tokens(corner, nominal_vdd))
     bench_text = deck(corner_list[0])
 
@@ -538,7 +577,15 @@ def run(argv=None):
         "simulate as typical and pass unseen. Use the token in the bench (the "
         f"bench-writer), or keep it typical-only with `pex_corners: "
         f"[{typical_corner(sweep)['name']}]` in spec.yaml", "check_pex_sim")
-        for token in unaware_tokens(template, corner_list, passives)]
+        for token in unaware_tokens(
+            template, corner_list + [k["corner"] for k in knob_runs], passives)]
+    if knob_runs and "{extracted}" not in template:
+        refused.append(checklib.violation(
+            "pex_sim", "error", rel_bench, topcell, "pex_bench_not_corner_aware",
+            ["extracted"], f"{bench_tpl.name} never uses {{extracted}}, and "
+            "spec.yaml's pex_rc_knobs needs it to reach the scaled netlist: "
+            "every knob would simulate the nominal wires and pass unseen. Use "
+            "the token in the bench (the bench-writer)", "check_pex_sim"))
     refused += [checklib.violation(
         "pex_sim", "error", rel_bounds, topcell, "sim_bound_not_swept",
         [b["measure"]], f"{b['measure']}: its bound is scoped to "
@@ -552,19 +599,14 @@ def run(argv=None):
         return payload, args.out
 
     violations = []
-    by_corner: dict[str, dict] = {}
-    not_scored = []
-    for corner in corner_list:
-        cname = corner["name"]
-        names = corners_mod.names_of(corner)
-        scored = [b for b in bound_rows if simlib.scored_at(b, names)]
-        if not scored:
-            not_scored.append({"corner": cname,
-                               "reason": "no bound is scored at this corner"})
-            continue
-        bench_path = work_dir / f"{block}_pex_tb__{cname}.cir"
+
+    def run_bench(corner: dict, scored: list[dict], stem: str, where: str,
+                  refs: list[str], netlist: Path = extracted) -> dict:
+        """One ngspice run at `corner`: the values of `scored`, and their
+        findings appended to `violations`, each naming `where`."""
+        bench_path = work_dir / f"{block}_pex_tb__{stem}.cir"
         layoutlib.fresh(bench_path)
-        bench_path.write_text(deck(corner), encoding="utf-8")
+        bench_path.write_text(deck(corner, netlist), encoding="utf-8")
 
         # a meas whose trigger/target never happened (a latch that decided
         # the wrong way never lets outn fall) comes back by name and is a
@@ -576,24 +618,24 @@ def run(argv=None):
                                             failed_measures=never_met)
         except layoutlib.LayoutError as exc:
             if isinstance(exc.__cause__, subprocess.TimeoutExpired):
-                raise CheckError(f"at corner {cname}: " + speclib.timeout_hint(
+                raise CheckError(f"at corner {where}: " + speclib.timeout_hint(
                     "pex_sim", timeout)) from exc
-            raise CheckError(f"at corner {cname}: {exc}") from exc
+            raise CheckError(f"at corner {where}: {exc}") from exc
         values = layoutlib.parse_ngspice_prints(sim_out)
         if not values:
             raise CheckError(
-                f"at corner {cname}: ngspice produced no parseable 'name = "
+                f"at corner {where}: ngspice produced no parseable 'name = "
                 "value' print lines - the bench did not measure anything: "
                 f"{sim_out[-2000:]}")
 
-        measured = by_corner.setdefault(cname, {})
+        measured = {}
         for bound in scored:
             name = bound["measure"]
             key = name.lower()
             if key in never_met and key not in values:
                 violations.append(checklib.violation(
                     "pex_sim", "error", rel_bounds, topcell, "measure_missing",
-                    [name, cname], f"{name} @ {cname}: the bench's trigger/"
+                    [name, *refs], f"{name} @ {where}: the bench's trigger/"
                     "target condition was never met (ngspice: 'failed!') - "
                     "the circuit never made the transition this measure times",
                     "ngspice"))
@@ -601,7 +643,7 @@ def run(argv=None):
             if key not in values:
                 violations.append(checklib.violation(
                     "pex_sim", "error", rel_bounds, topcell, "measure_missing",
-                    [name, cname], f"{name} @ {cname}: bench never printed a "
+                    [name, *refs], f"{name} @ {where}: bench never printed a "
                     f"value for it (printed: {sorted(values)})", "ngspice"))
                 continue
             v = values[key]
@@ -611,9 +653,54 @@ def run(argv=None):
                     or (hi is not None and v > hi)):
                 violations.append(checklib.violation(
                     "pex_sim", "error", rel_bounds, topcell,
-                    "measure_out_of_bounds", [name, cname],
-                    f"{name} @ {cname} = {v:.6g}, outside bound [{lo}, {hi}]",
+                    "measure_out_of_bounds", [name, *refs],
+                    f"{name} @ {where} = {v:.6g}, outside bound [{lo}, {hi}]",
                     "ngspice"))
+        return measured
+
+    def scored_at(corner: dict) -> list[dict]:
+        names = corners_mod.names_of(corner)
+        return [b for b in bound_rows if simlib.scored_at(b, names)]
+
+    # a knob that would measure nothing, or a netlist it cannot scale, stops
+    # the gate before the first bench rather than after a long sweep
+    scaled = {}
+    for run_ in knob_runs:
+        knob, cname = run_["knob"], run_["corner"]["name"]
+        if not scored_at(run_["corner"]):
+            raise CheckError(
+                f"pex_rc_knobs asks for {knob}, which runs at {cname}, and no "
+                f"bound in {bounds_path.name} is scored there: a run with "
+                "nothing to score is a refusal")
+        try:
+            text = layoutlib.scale_parasitics(
+                extracted.read_text(encoding="utf-8"), run_["c"], run_["r"])
+        except layoutlib.LayoutError as exc:
+            raise CheckError(f"pex_rc_knobs {knob}: {exc}") from exc
+        scaled[knob] = work_dir / f"{topcell}.pex.ordered.{knob}.spice"
+        layoutlib.fresh(scaled[knob])
+        scaled[knob].write_text(text, encoding="utf-8")
+
+    by_corner: dict[str, dict] = {}
+    not_scored = []
+    for corner in corner_list:
+        cname = corner["name"]
+        scored = scored_at(corner)
+        if not scored:
+            not_scored.append({"corner": cname,
+                               "reason": "no bound is scored at this corner"})
+            continue
+        by_corner[cname] = run_bench(corner, scored, cname, cname, [cname])
+
+    rc_runs = []
+    for run_ in knob_runs:
+        corner, knob = run_["corner"], run_["knob"]
+        cname = corner["name"]
+        where = f"{cname} / {knob} (C x{run_['c']:g}, R x{run_['r']:g})"
+        rc_runs.append({"knob": knob, "corner": cname, "c": run_["c"],
+                        "r": run_["r"], "measured": run_bench(
+                            corner, scored_at(corner), f"{cname}__{knob}", where,
+                            [cname, knob], scaled[knob])})
 
     if not by_corner:
         raise CheckError(
@@ -628,7 +715,7 @@ def run(argv=None):
         extracted=str(extracted.relative_to(ws)),
         parasitics=parasitics, measured=measured, corners=corner_names,
         corner_source=source, measured_by_corner=by_corner,
-        not_scored=not_scored)
+        not_scored=not_scored, **({"rc_knobs": rc_runs} if rc_runs else {}))
     return payload, args.out
 
 
