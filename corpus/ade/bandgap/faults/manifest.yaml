@@ -4,10 +4,6 @@
 # workspace, imports plant.py's `plant(ws)` and runs it, then runs `gate`
 # and checks the result against `expect`).
 #
-# `mc` has no entry (same as mirror's own manifest): this rung's spec.yaml
-# has no `mc` block, so gates.yaml's own "not applicable by default" fault
-# for that row already covers it.
-#
 # `drc`, `lvs`, `pex_sim` and `release` have no entries either. docs/
 # design.md "### M9." names this rung's row as one that "may stay red at
 # layout": there is no `layout/` generator here, and building one is out of
@@ -39,6 +35,10 @@ faults:
     gate: sim_pvt
     plant: plant_sim_pvt.py
     expect: {status: fail, kind: sim_bound_fail}
+  - name: mc_window_typical_meets_mismatch_misses
+    gate: mc
+    plant: plant_mc.py
+    expect: {status: fail, kind: yield_below_spec}
   - name: bench_strength_bounds_too_wide
     gate: bench_strength
     plant: plant_bench_strength.py

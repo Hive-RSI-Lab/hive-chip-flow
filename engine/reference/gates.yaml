@@ -316,7 +316,7 @@ gates:
       fail_severities: [error]
       max_count: 0
       # Not applicable when spec.yaml asks for no MC (check_mc.py); the
-      # corpus mirror rung asks, and plants this fault.
+      # corpus mirror and bandgap rungs ask, and plant this fault.
       fault: "a window typical meets but mismatch misses"
       description: "Yield at or above the spec."
     drc:

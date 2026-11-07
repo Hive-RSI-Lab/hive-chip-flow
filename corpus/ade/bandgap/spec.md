@@ -56,9 +56,9 @@ a floated body - the terminal `bench_strength`'s mutants always target,
 tied to each one's own source) moves any declared measure; only physically
 removing one does, and that is not a mutant this gate ever plants. Real
 silicon still needs the startup network for the process/mismatch corners
-this deterministic sim does not sweep - that is `mc`'s job, and this rung
-declares no `mc` block, the same "not applicable by default" carve-out
-gates.yaml's own `ade.mc` row already documents for a spec with none.
+this deterministic sim does not sweep - that is `mc`'s job, and this rung's
+`mc` block asks for it: 20 mismatch samples per bench at tt, 95% yield, with
+`xq2`'s `m=8` drawing the mismatch of eight units (`par=8` in the MC deck).
 
 ## Layout
 
