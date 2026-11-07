@@ -14,3 +14,14 @@ measures:
     bounds: {min: 2.6}
   - name: itail_peak
     bounds: {min: 7.0e-4, max: 2.0e-3}
+# the latch's outputs and the input pair, held to matching parasitics at
+# pex_sim: total C, pin-to-gate R, and C to the clock that kicks them
+symmetric_nets:
+  - nets: [outp, outn]
+    max_dc_pct: 5
+    max_dr_pct: 5
+    aggressors: [clk]
+  - nets: [inp, inn]
+    max_dc_pct: 5
+    max_dr_pct: 5
+    aggressors: [clk]

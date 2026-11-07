@@ -130,6 +130,16 @@ CHECK_KINDS = {"sim", "formal", "both", "measure"}
 #                        `vss`/`gnd`: a supply at `power` volts, or a signal
 #                        anywhere in [min, max]. Absent: a signal pin swings
 #                        0 V to supply.vdd (erc_nets())
+#     symmetric_nets: [{nets: [a, b], max_dc_pct?, max_dr_pct?, min_dc_ff?,
+#                       min_dr_ohm?, aggressors?: [net, ...]}]   optional; the
+#                        net pairs a layout must route alike (a latch's
+#                        outputs, UP/DN). pex_sim compares each pair's total
+#                        C and worst pin-to-device R in the extracted netlist,
+#                        and each one's C to every named aggressor, and fails
+#                        a pair whose difference is over the percentage and
+#                        over the absolute floor (default 0). At least one
+#                        max_*_pct, and max_dc_pct with aggressors
+#                        (symmetric_nets(); check_pex_sim.py)
 
 ADE_MEASURE_CORNER_KINDS = {"default", "all"}
 # the gates that run ngspice, each with a --timeout and a default of its own
@@ -274,6 +284,14 @@ def lint_spec_ade(spec: dict, rel_path: str = "spec/spec.yaml") -> list[dict]:
                             "{power: volts} or {min: volts, max: volts} "
                             "with min <= max")
 
+    if "symmetric_nets" in spec and symmetric_nets(spec) is None:
+        bad("bad_symmetric_nets", "spec.yaml 'symmetric_nets' must be a list "
+                                  "of {nets: [a, b]} with two different net "
+                                  "names, at least one of max_dc_pct and "
+                                  "max_dr_pct, every bound and floor a "
+                                  "number >= 0, and aggressors a list of net "
+                                  "names other than the pair's")
+
     if "pex_corners" in spec:
         field = spec["pex_corners"]
         if field != "all" and not (isinstance(field, list) and field and all(
@@ -386,6 +404,51 @@ def erc_nets(spec: dict) -> dict | None:
         if "min" in vals and vals["min"] > vals["max"]:
             return None
         out[pin] = vals
+    return out
+
+
+SYMMETRY_BOUNDS = ("max_dc_pct", "max_dr_pct", "min_dc_ff", "min_dr_ohm")
+
+
+def symmetric_nets(spec: dict) -> list[dict] | None:
+    """spec.yaml's `symmetric_nets` as [{nets: [a, b], max_dc_pct,
+    max_dr_pct, min_dc_ff, min_dr_ohm, aggressors}] - a bound left out is
+    None (not checked), a floor left out 0.0, aggressors [] - ([] when the
+    field is absent), or None when malformed (lint_spec_ade refuses that,
+    and so does check_pex_sim.py)."""
+    field = spec.get("symmetric_nets", []) if isinstance(spec, dict) else []
+    if not isinstance(field, list):
+        return None
+    out = []
+    for row in field:
+        if not (isinstance(row, dict) and set(row) <= {
+                "nets", "aggressors", *SYMMETRY_BOUNDS}):
+            return None
+        nets = row.get("nets")
+        if not (isinstance(nets, list) and len(nets) == 2 and all(
+                isinstance(n, str) and n.strip() for n in nets)
+                and nets[0].lower() != nets[1].lower()):
+            return None
+        vals = {}
+        for k in SYMMETRY_BOUNDS:
+            v = row.get(k)
+            if v is None and k not in row:
+                vals[k] = 0.0 if k.startswith("min_") else None
+                continue
+            if isinstance(v, bool) or not isinstance(v, (int, float)) \
+                    or not math.isfinite(v) or v < 0:
+                return None
+            vals[k] = float(v)
+        if vals["max_dc_pct"] is None and vals["max_dr_pct"] is None:
+            return None
+        aggr = row.get("aggressors", [])
+        if not (isinstance(aggr, list) and all(
+                isinstance(n, str) and n.strip()
+                and n.lower() not in {x.lower() for x in nets} for n in aggr)):
+            return None
+        if aggr and vals["max_dc_pct"] is None:
+            return None  # an aggressor's C is bounded by max_dc_pct
+        out.append({"nets": list(nets), **vals, "aggressors": list(aggr)})
     return out
 
 
