@@ -21,7 +21,7 @@ Fetched with git, pinned at these commits (M4, docs/design.md "### M4."):
   needed here.
 
 - `tt-support-tools/` from https://github.com/TinyTapeout/tt-support-tools
-  @ `01d5d2814fa9dd61e9d211e0b235a4a592a9316a` (main, 2026-08-20) -
+  @ `9d13ff3e3e6202090740110438c6a10c1d62ca0f` (main, 2026-11-05) -
   Apache-2.0 (`LICENSE`). Kept: `tech.py` (the per-PDK LibreLane config
   `ttlib.py` imports directly - `tech_map["gf180mcuD"]` - rather than
   copying its numbers by hand), `tech/gf180mcuD/tile_sizes.yaml` (DIE_AREA
@@ -58,3 +58,22 @@ into a small cache directory (same sandbox-aware cache-root rule as
 `bin/eda`'s own shim cache - CLAUDE.md: never write under
 `~/.cc/toolchains`) the first time `check_precheck.py` runs, and adds that
 directory to `PYTHONPATH` for that one invocation only.
+
+## Bumping the pin
+
+The shuttle's precheck runs tt-support-tools at the `tools-ref` of
+`tt-gds-action`, main by default, so the pin can fall behind it. The
+`precheck-drift` CI job (`engine/scripts/precheck_drift.py`, #133) runs daily
+and goes red, naming the files and commits, when a gf180-relevant path changed
+between the pin and that ref. It files one issue. The job judges by path, never
+by reading the change, so a person or agent reads the diff:
+
+1. Read `gh api repos/TinyTapeout/tt-support-tools/compare/<pin>...main` for what
+   it does to gf180. Adding another PDK or a new tile size is benign; a changed
+   gf180 rule is not, and the blocks may have to change with it.
+2. Copy only the kept files above from the new commit, never a local edit, and
+   put its hash and date in this file. The job compares every file here with
+   the pin's blob.
+3. Re-run precheck and release on the committed blocks and re-record them:
+   `reports/checks.json` and `gate-release.json` record the pin.
+   `attest.py verify-tree` has to stay clean.

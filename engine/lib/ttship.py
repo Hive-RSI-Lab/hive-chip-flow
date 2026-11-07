@@ -97,9 +97,8 @@ DEFAULT_AUTHOR = "Hive"
 
 # custom_gds renders a preview with `tt_tool.py --create-png ... || echo WARNING`
 # inside the action: a failure there, usage errors included, leaves the job
-# green, and tt_tool at our tools-ref refuses the --pdk it passes. The preview
-# is not shipped and no gate reads it, so failing the job would fail every
-# run: it stays optional, and this step says what happened.
+# green. The preview is not shipped and no gate reads it, so a failed render
+# must not fail the job: it stays optional, and this step says what happened.
 PNG_ARTIFACT = "gds_render.png"
 PNG_REPORT_STEP = f"""
       - name: Report the optional PNG preview
