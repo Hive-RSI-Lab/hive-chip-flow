@@ -30,33 +30,38 @@ the one it must patch at run time):
     25 C. A .temp card in the netlist it includes sets it (the self-check is what
     caught this; an in-process attempt to set its attribute had no effect).
   - Its min-pulse-width search crashes on dffq_1 ("Signal crosses threshold
-    multiple times", at time steps 10, 2 and 1 ps), so the search is skipped
-    and min_pulse_width is NOT in the output.
+    multiple times", at time steps 10, 2 and 1 ps), so the shim skips it.
   - Its hold tables are labelled by the data pulse's first edge (a "rise" hold
     is the falling edge after the clock). Liberty labels the edge that is
     constrained, so hold rise and fall are swapped.
   - Its setup is measured with hold near its own minimum, and its hold with
-    setup near its minimum ("dependent" times), so each sits above the
-    independent number. Safe, and pessimistic: on dffq_1 schematic, table setup
-    0.295-0.793 ns against 0.184-0.354 bisected, hold 0.095-0.371 against
-    -0.104-0.080. Not "fixed" here. The shipped lib's hold matches the bisected
-    values better than these tables do.
+    setup near its minimum ("dependent" times): 1.9-4.2x the shipped values on
+    extracted dffq_1. The shim skips that search too, and charlib bisects each
+    table point on its own bench instead (measure_sequential, issue #172): the
+    shortest setup (hold) time, the other side wide open, at which CRITERION
+    holds. Each side is independent, as in the PDK's own lib; both at their
+    minimum at once is not promised. min_pulse_width_high/low on the clock pin
+    are bisected the same way, the worst over clock slews and both D values.
 
-Timing and input capacitance only. Nothing the wrapper did not measure at this
-corner reaches the output: internal power, leakage, max_transition,
-max_capacitance and min_pulse_width are all dropped rather than copied from the
-PDK's other corner. Latches and tri-states are refused (lctime has no latch
-path); so is any flip-flop the bench cannot drive (next_state not a single pin).
+Timing, input capacitance, and for a flip-flop setup/hold and min_pulse_width.
+Nothing the wrapper did not measure at this corner reaches the output: internal
+power, leakage, max_transition and max_capacitance are dropped rather than
+copied from the PDK's other corner. Latches and tri-states are refused (lctime
+has no latch path); so is any flip-flop the bench cannot drive (next_state not a
+single pin, a set or reset). Recovery/removal is not measured.
 """
 from __future__ import annotations
 
+import dataclasses
 import itertools
 import json
 import os
+import queue
 import random
 import re
 import subprocess
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -72,15 +77,17 @@ import simlib  # noqa: E402
 # bench run the same models, so what is left is lctime's time step and threshold
 # interpolation. A stated number; do not widen it to pass.
 TOLERANCE = {"rel": 0.05, "abs_ns": 0.010}
-# Constraint self-check, in ns. The table's pair at +margin must capture within
-# ref + pushout + slack: the table is not optimistic. And with the other side wide
-# open, the value shortened by short_rel*|v| (at least short_abs) + short_ramp*data
-# ramp must not capture: the table is not more pessimistic than lctime's dependent
-# method explains. That bound comes from measurement (58% of the value at most, see
-# the module docstring) and is about gross errors, not accuracy.
-CONSTRAINT = {"margin_rel": 0.05, "margin_abs": 0.015,
-              "short_rel": 0.60, "short_abs": 0.100, "short_ramp": 0.5,
-              "pushout": 0.010, "slack": 0.015}
+# Setup, hold and min_pulse_width are measured by bisection on the bench
+# (measure_sequential), against this criterion: the flop captured the value (Q
+# crossed and ends there) no later than (1 + pushout_rel) x its clock-to-Q with
+# a wide-open window, Q unloaded. Bisected to resolution_ns. On extracted
+# dffq_1 this lands within 0.042 ns of the shipped setup/hold for clock and
+# data slews up to 0.68 ns, 0.114 ns up to 2.2 ns.
+CRITERION = {"pushout_rel": 0.03, "resolution_ns": 0.002}
+# Constraint self-check, two-sided: at value + margin the criterion must hold,
+# at value - margin it must fail (min_pulse_width: at one clock slew and D value
+# at least, the value being their worst). margin = max(rel*|v|, abs) ns.
+CONSTRAINT = {"margin_rel": 0.05, "margin_abs": 0.015}
 DEFAULT_CHECKS = 2  # random table points per corner, each arc, each edge
 # Known answer against the shipped tt_025C_3v30 lib: table/shipped must lie in
 # these bands, by netlist and load. tests/test_charlib.py asserts them. The PDK
@@ -88,8 +95,10 @@ DEFAULT_CHECKS = 2  # random table points per corner, each arc, each edge
 # cell): 0.7x at 3.4 fF on an inverter, 0.6x clock-to-Q on a flip-flop whatever
 # the load. Measured on extracted inv_1, nand2_1, dffq_1: delay 0.86-0.99,
 # transition 0.90-1.00, input cap 0.81-1.11.
-# Setup and hold have no band: they are safe-side only (see the docstring). On
-# extracted dffq_1 setup is 1.9-4.2x shipped and hold above it at every point.
+# Setup and hold: table - shipped in ns, at slews up to 0.7 ns (slower ones
+# drift to 0.114 ns). min_pulse_width: table/shipped. Measured on extracted
+# dffq_1: setup/hold within 0.042 ns, min_pulse_width 0.74 high, 0.94-0.99 low
+# (the shipped high width is not the narrowest that captures).
 TOLERANCE_SHIPPED = {
     ("extracted", "delay", "load>=20fF"): (0.85, 1.15),
     ("extracted", "transition", "load>=20fF"): (0.85, 1.15),
@@ -97,6 +106,8 @@ TOLERANCE_SHIPPED = {
     ("schematic", "delay", "load>=20fF"): (0.80, 1.15),
     ("schematic", "delay", "load<20fF"): (0.60, 1.15),
     ("schematic", "transition", "load>=20fF"): (0.80, 1.15),
+    ("extracted", "setup_hold_abs_ns", "slew<=0.7ns"): (-0.06, 0.06),
+    ("extracted", "min_pulse_width", "any"): (0.70, 1.10),
 }
 MODEL_LIB = "sm141064.ngspice"
 DESIGN_INCLUDE = "design.ngspice"
@@ -537,6 +548,15 @@ def _template_groups(n_slew, n_load, n_data, n_clock):
 
 def assemble(raw_text: str, header: Group, t: Terms, slews, loads, ramps,
              data_slews=None, clock_slews=None) -> tuple[Group, str]:
+    """assemble_library, written out."""
+    cell, lib = assemble_library(raw_text, header, t, slews, loads, ramps,
+                                 data_slews, clock_slews)
+    return cell, write_liberty(lib) + "\n"
+
+
+def assemble_library(raw_text: str, header: Group, t: Terms, slews, loads,
+                     ramps, data_slews=None, clock_slews=None
+                     ) -> tuple[Group, Group]:
     """lctime's output, at the library's axes and with the library's transition
     meaning, in a library holding what was measured at this corner and no more."""
     raw = parse_liberty(raw_text)
@@ -559,7 +579,7 @@ def assemble(raw_text: str, header: Group, t: Terms, slews, loads, ramps,
     lib.groups += _template_groups(len(slews), len(loads),
                                    len(data_slews or ()), len(clock_slews or ()))
     lib.groups.append(cell)
-    return cell, write_liberty(lib) + "\n"
+    return cell, lib
 
 
 def _timing(tg, t, slews, loads, ramps, data_slews, clock_slews) -> Group:
@@ -891,129 +911,368 @@ def _check_ff_arc(bench, cell, clock, data, pin, tables, rng, slews, loads,
     return points
 
 
-def _data_pulse(vdd, first, second, ramp, high, end_ns):
-    """D leaves its rest level at `first` and heads back at `second`. A window
-    shorter than the ramp is a triangle that never reaches the other rail, which
-    is what a real slow edge does; PWL times must keep increasing."""
-    rest, other = (0.0, vdd) if high else (vdd, 0.0)
+def _pulse_points(vdd, rest_high, first, second, ramp):
+    """A pulse away from the rest rail: its leading ramp starts at `first`, its
+    trailing ramp at `second`, both `ramp` long and at the same slope, so the
+    width between the two threshold crossings is second-first (at a 50%
+    threshold) whatever the shape. Narrower than its ramp it is a triangle whose
+    edges meet short of the other rail, as a real slow edge would; one that
+    would not leave the rest rail at all is no points."""
+    rest, other = (vdd, 0.0) if rest_high else (0.0, vdd)
     if second - first >= ramp:
-        points = [(first, rest), (first + ramp, other), (second, other),
-                  (second + ramp, rest)]
-    else:
-        peak = (second - first) / ramp
-        points = [(first, rest), ((first + second + ramp) / 2,
-                                  rest + (other - rest) * peak),
-                  (second + ramp, rest)]
-    points = [(0.0, rest)] + points + [(end_ns, rest)]
+        return [(first, rest), (first + ramp, other), (second, other),
+                (second + ramp, rest)]
+    frac = (second - first + ramp) / (2.0 * ramp)
+    if frac <= 0:
+        return []
+    return [(first, rest), ((first + second + ramp) / 2.0,
+                            rest + (other - rest) * frac), (second + ramp, rest)]
+
+
+def _pwl(points, start_level, end_level, end_ns):
+    """PWL(...) from 0 to end_ns; times must keep increasing."""
+    points = [(0.0, start_level)] + list(points) + [(end_ns, end_level)]
     return "PWL(" + " ".join(f"{t:.6g}n {v:g}" for t, v in points) + ")"
+
+
+def _data_pulse(vdd, first, second, ramp, high, end_ns):
+    """D leaves its rest level at `first` and heads back at `second`
+    (_pulse_points). PWL times must keep increasing."""
+    rest = 0.0 if high else vdd
+    return _pwl(_pulse_points(vdd, not high, first, second, ramp), rest, rest,
+                end_ns)
+
+
+def _q_delay(bench, stim, q, new_high, t_clk, t_from, t_stop, step):
+    """Clock threshold (t_clk) to Q's first threshold crossing after t_from, Q
+    unloaded. None when Q never crossed, or ends anywhere but `new_high`: a
+    glitch through the threshold that falls back is a wrong captured value."""
+    edge = "RISE" if new_high else "FALL"
+    m = bench.simulate(stim, q, 0.0, t_stop, step, [
+        f".meas tran t_q WHEN v({q})="
+        f"{bench.terms.output_threshold * bench.vdd:.6g} {edge}=1 "
+        f"TD={t_from:.6g}n",
+        f".meas tran v_end FIND v({q}) AT={t_stop - 0.5:.6g}n"])
+    if "t_q" not in m or "v_end" not in m:
+        return None
+    if (m["v_end"] > bench.vdd / 2) != new_high:
+        return None
+    return m["t_q"] * 1e9 - t_clk
+
+
+def _passes(delay, ref):
+    """CRITERION: Q captured the value, no later than (1 + pushout_rel) x ref."""
+    return delay is not None and delay <= (1 + CRITERION["pushout_rel"]) * ref
 
 
 def _capture_delay(bench, clock, data, q, sampled_high, setup_ns, hold_ns,
                    clock_ramp, data_ramp):
     """The delay from the clock's threshold to Q's, with D at `sampled_high`
     only for the window setup_ns before to hold_ns after that threshold, both
-    measured at D's threshold. None when Q never moved."""
+    measured at D's threshold. None when Q never moved or ends at the wrong
+    value (_q_delay)."""
     t = bench.terms
     t_edge = 12.0 + 4 * clock_ramp + 4 * data_ramp + 2 * abs(setup_ns)
     t_clk = t_edge + t.input_threshold * clock_ramp
     half = t.input_threshold * data_ramp
     d_first = t_clk - setup_ns - half
     d_second = t_clk + hold_ns - half
-    t_stop = t_clk + hold_ns + clock_ramp + data_ramp + 12.0
+    t_stop = t_clk + max(hold_ns, 0.0) + clock_ramp + data_ramp + 12.0
     if d_second <= d_first:
         return None  # no pulse at all: D never carried the value
     d = _data_pulse(bench.vdd, d_first, d_second, data_ramp, sampled_high,
                     t_stop + 1)
     stim = _ff_stim(bench, clock, data, d, clock_ramp, t_edge, t_stop + 1)
-    edge = "RISE" if sampled_high else "FALL"
-    # the crossing after the clock: CROSS count 1 from the measured clock edge
-    m = bench.simulate(stim, q, 0.0, t_stop,
-                       max(min(clock_ramp, data_ramp) / 50.0, 0.001),
-                       [f".meas tran t_q WHEN v({q})="
-                        f"{t.output_threshold * bench.vdd:.6g} {edge}=1 "
-                        f"TD={t_clk - clock_ramp:.6g}n"])
-    if "t_q" not in m:
-        return None
-    return m["t_q"] * 1e9 - t_clk
+    return _q_delay(bench, stim, q, sampled_high, t_clk, t_clk - clock_ramp,
+                    t_stop, max(min(clock_ramp, data_ramp) / 50.0, 0.001))
 
 
-def _check_constraints(bench, cell, clock, data, q, rng, data_slews, clock_slews,
-                       n) -> list[dict]:
-    """The table's own setup/hold pair for each sampled value. lctime's fail
-    criterion is its delay pushed out by more than 10 ps, so the same here."""
+def _bisect(passes, lo, hi, resolution, what):
+    """The smallest x in [lo, hi] that passes, to `resolution`, for a check
+    that fails at lo and passes at hi (anything else is a refusal: the bracket
+    or the criterion is wrong, and a number from it would be made up)."""
+    if not passes(hi):
+        raise Refused("bench_failed", f"{what}: fails even at {hi:.4g} ns")
+    if passes(lo):
+        raise Refused("bench_failed", f"{what}: passes even at {lo:.4g} ns")
+    while hi - lo > resolution:
+        mid = (lo + hi) / 2.0
+        if passes(mid):
+            hi = mid
+        else:
+            lo = mid
+    return hi
+
+
+# Liberty's label -> the value D carries at the clock: a rising setup is D
+# arriving high; a rising hold is D leaving low, so the sampled value was low.
+SAMPLED_HIGH = {("setup", "rise"): True, ("setup", "fall"): False,
+                ("hold", "rise"): False, ("hold", "fall"): True}
+
+
+def _constraint_delay(bench, clock, data, q, kind, edge, dr, cr):
+    """delay(v): clock-to-Q with `kind` (setup or hold) at v and the other side
+    wide open; and the wide-open reference."""
+    sampled_high = SAMPLED_HIGH[(kind, edge)]
+    wide = 3.0 + dr + cr
+
+    def delay(v):
+        s, h = (v, wide) if kind == "setup" else (wide, v)
+        return _capture_delay(bench, clock, data, q, sampled_high, s, h, cr, dr)
+    ref = delay(wide)
+    if ref is None:
+        raise Refused("bench_failed",
+                      f"{q} never moved with a {wide:g} ns data window")
+    return delay, ref, wide
+
+
+def measure_constraint(bench, clock, data, q, kind, edge, dr, cr) -> float:
+    """One setup or hold value by bisection (issue #172): the shortest `kind`
+    time, the other side wide open, at which CRITERION still holds. Each side
+    is independent, as in the PDK's own lib; both at their minimum at once is
+    not promised."""
+    delay, ref, wide = _constraint_delay(bench, clock, data, q, kind, edge, dr, cr)
+    return _bisect(lambda v: _passes(delay(v), ref), -(dr + cr) - 0.5, wide,
+                   CRITERION["resolution_ns"],
+                   f"{kind}_{edge} at data ramp {dr:.4g}, clock ramp {cr:.4g}")
+
+
+def _pulse_delay(bench, clock, data, q, high, new_high, width, cr, dr):
+    """Clock-to-Q of the edge that must load `new_high` over Q's old value,
+    with a clock pulse `width` wide between its threshold crossings (a 50%
+    input threshold: the width is the ramps' start-to-start time). `high`: the
+    measured rising edge's own high phase is `width`. Not `high`: the low phase
+    before the measured rising edge is `width`, D having changed while the
+    clock was high."""
     t = bench.terms
+    th = t.input_threshold
+    vdd = bench.vdd
+    old_v, new_v = (0.0, vdd) if new_high else (vdd, 0.0)
+    pre = 4.0 + 2 * cr + dr          # loads the old value
+    if high:
+        t_edge = pre + 2 * cr + 6.0 + dr
+        first = t_edge
+        second = first + width - (1 - 2 * th) * cr
+        clk = (_pulse_points(vdd, False, pre, pre + 2.0 + cr, cr) +
+               _pulse_points(vdd, False, first, second, cr))
+        t_clk = t_edge + th * cr
+        d_change = t_edge - 3.0 - dr
+        t_stop = t_clk + max(width, 0.0) + cr + 12.0
+        clock_wave = _pwl(clk, 0.0, 0.0, t_stop + 1)
+    else:
+        first = pre + 2 * cr + 6.0 + dr
+        second = first + width - (2 * th - 1) * cr
+        clk = ([(pre, 0.0), (pre + cr, vdd)] +
+               _pulse_points(vdd, True, first, second, cr))
+        t_clk = second + th * cr
+        d_change = pre + cr + 1.0
+        t_stop = t_clk + cr + 12.0
+        clock_wave = _pwl(clk, 0.0, vdd, t_stop + 1)
+    d = _pwl([(d_change, old_v), (d_change + dr, new_v)], old_v, new_v,
+             t_stop + 1)
+    return _q_delay(bench, {clock: clock_wave, data: d}, q, new_high, t_clk,
+                    first, t_stop, max(cr / 50.0, 0.001))
+
+
+def measure_pulse_width(bench, clock, data, q, high, new_high, cr, dr) -> float:
+    """min_pulse_width by bisection: the narrowest high (or low) clock phase at
+    which the flop still loads `new_high` to CRITERION, against a wide pulse."""
+    wide = 5.0 + cr
+
+    def delay(w):
+        return _pulse_delay(bench, clock, data, q, high, new_high, w, cr, dr)
+    ref = delay(wide)
+    if ref is None:
+        raise Refused("bench_failed",
+                      f"{q} never moved with a {wide:g} ns clock pulse")
+    return _bisect(lambda w: _passes(delay(w), ref), 0.0, wide,
+                   CRITERION["resolution_ns"],
+                   f"min_pulse_width_{'high' if high else 'low'} at clock "
+                   f"ramp {cr:.4g}")
+
+
+def _jobs() -> int:
+    return max(1, int(os.environ.get("CHARLIB_JOBS", "0") or 0)
+               or min(8, os.cpu_count() or 1))
+
+
+def _pool_map(bench, fn, tasks, jobs):
+    """[fn(bench, task)...], each worker on its own Bench (its own deck
+    directory). The parent bench counts every run."""
+    if jobs <= 1 or len(tasks) <= 1:
+        return [fn(bench, task) for task in tasks]
+    free = queue.Queue()
+    workers = []
+    for k in range(min(jobs, len(tasks))):
+        w = bench.work / f"w{k}"
+        w.mkdir(parents=True, exist_ok=True)
+        workers.append(dataclasses.replace(bench, work=w, runs=0))
+        free.put(workers[-1])
+
+    def run(task):
+        b = free.get()
+        try:
+            return fn(b, task)
+        finally:
+            free.put(b)
+    try:
+        with ThreadPoolExecutor(len(workers)) as pool:
+            return list(pool.map(run, tasks))
+    finally:
+        bench.runs += sum(b.runs for b in workers)
+
+
+def measure_sequential(bench, cell, data_slews, clock_slews,
+                       jobs: int | None = None) -> dict:
+    """Setup, hold (every data x clock slew point) and min_pulse_width (every
+    clock slew, both D values) by bisection on the bench."""
+    clock, data, _ = _ff_terms(cell)
+    q = next(p.args for p in cell.sub("pin") if p.attr("direction") == "output")
+    t = bench.terms
+    jobs = jobs or _jobs()
+    cons = [(kind, edge, i, j) for (kind, edge) in SAMPLED_HIGH
+            for i in range(len(data_slews)) for j in range(len(clock_slews))]
+
+    def one_constraint(b, task):
+        kind, edge, i, j = task
+        return measure_constraint(b, clock, data, q, kind, edge,
+                                  ramp_of(data_slews[i], t),
+                                  ramp_of(clock_slews[j], t))
+    dr0 = ramp_of(min(data_slews), t)
+    pulses = [(high, new_high, j) for high in (True, False)
+              for new_high in (True, False) for j in range(len(clock_slews))]
+
+    def one_pulse(b, task):
+        high, new_high, j = task
+        return measure_pulse_width(b, clock, data, q, high, new_high,
+                                   ramp_of(clock_slews[j], t), dr0)
+    values = _pool_map(bench, one_constraint, cons, jobs)
+    widths = _pool_map(bench, one_pulse, pulses, jobs)
+    tables = {(kind, edge): [[None] * len(clock_slews) for _ in data_slews]
+              for (kind, edge) in SAMPLED_HIGH}
+    for (kind, edge, i, j), v in zip(cons, values):
+        tables[(kind, edge)][i][j] = round(v, 4)
+    mpw = {}
+    for high in (True, False):
+        name = f"min_pulse_width_{'high' if high else 'low'}"
+        rows = [{"clock_slew": clock_slews[j], "d_high": new_high,
+                 "width_ns": round(w, 4)}
+                for (h, new_high, j), w in zip(pulses, widths) if h == high]
+        worst = max(rows, key=lambda r: r["width_ns"])
+        mpw[name] = {"value_ns": worst["width_ns"], "at": worst, "all": rows}
+    return {"clock": clock, "data": data, "q": q, "criterion": CRITERION,
+            "data_slews": list(data_slews), "clock_slews": list(clock_slews),
+            "tables": {f"{k}_{e}": rows for (k, e), rows in tables.items()},
+            "min_pulse_width": mpw}
+
+
+def install_sequential(cell, measured) -> None:
+    """The bisected tables over lctime's placeholders (the shim skips its own
+    setup/hold), and min_pulse_width on the clock pin. A constraint table that
+    is not there, or one too many, is a refusal: nothing of lctime's may
+    survive under charlib's label."""
+    data = next(p for p in cell.sub("pin") if p.args == measured["data"])
+    done = set()
+    for timing in data.sub("timing"):
+        kind = timing.attr("timing_type").strip('"').split("_")[0]
+        for g in timing.groups:
+            key = f"{kind}_{g.name.split('_')[0]}"
+            if not g.name.endswith("_constraint") or key not in measured["tables"]:
+                continue
+            if key in done:
+                raise Refused("lctime_failed", f"{cell.args}: two {key} tables")
+            g.set_attr("values", _quoted_rows(measured["tables"][key]), True)
+            done.add(key)
+    if done != set(measured["tables"]):
+        raise Refused("lctime_failed",
+                      f"{cell.args}/{measured['data']}: constraint tables "
+                      f"{sorted(set(measured['tables']) - done)} are missing")
+    clock = next(p for p in cell.sub("pin") if p.args == measured["clock"])
+    for name, m in measured["min_pulse_width"].items():
+        clock.set_attr(name, f"{m['value_ns']:.4g}")
+
+
+def _constraint_tables(cell, data) -> dict:
     pin = next(p for p in cell.sub("pin") if p.args == data)
     tab = {}
     for timing in pin.sub("timing"):
         kind = timing.attr("timing_type").strip('"').split("_")[0]
         for g in timing.groups:
             tab[(kind, g.name.split("_")[0])] = table(g)
-    if {(k, e) for k in ("setup", "hold") for e in ("rise", "fall")} - tab.keys():
+    if set(SAMPLED_HIGH) - tab.keys():
         raise Refused("lctime_failed",
                       f"{cell.args}/{data}: setup/hold tables are missing")
-    points = []
-    for _ in range(n):
-        i, j = rng.randrange(len(data_slews)), rng.randrange(len(clock_slews))
-        for sampled_high in (True, False):
-            setup_edge, hold_edge = (("rise", "fall") if sampled_high
-                                     else ("fall", "rise"))
-            setup = tab[("setup", setup_edge)][i][j]
-            hold = tab[("hold", hold_edge)][i][j]
-            points += _constraint_point(
-                bench, clock, data, q, sampled_high, setup, hold, setup_edge,
-                hold_edge, i, j, data_slews, clock_slews)
-    return points
+    return tab
 
 
 def _margin(value, rel, abs_ns):
     return max(rel * abs(value), abs_ns)
 
 
-def _constraint_point(bench, clock, data, q, sampled_high, setup, hold, setup_edge,
-                      hold_edge, i, j, data_slews, clock_slews) -> list[dict]:
+def _check_constraints(bench, cell, clock, data, q, rng, data_slews, clock_slews,
+                       n) -> list[dict]:
+    """Two-sided, each side on its own (the other wide open, as measured): at
+    table + margin the flop must meet CRITERION, at table - margin it must
+    not. Optimistic and pessimistic tables both fail."""
     t = bench.terms
     c = CONSTRAINT
-    dr, cr = ramp_of(data_slews[i], t), ramp_of(clock_slews[j], t)
-    wide = 3.0 + dr + cr
-
-    def delay(s, h):
-        return _capture_delay(bench, clock, data, q, sampled_high, s, h, cr, dr)
-
-    ref = delay(wide, wide)
-    if ref is None:
-        raise Refused("bench_failed",
-                      f"{q} never moved with a {wide:g} ns data window")
-    limit = ref + c["pushout"] + c["slack"]
-    m_s = _margin(setup, c["margin_rel"], c["margin_abs"])
-    m_h = _margin(hold, c["margin_rel"], c["margin_abs"])
-    s_s = _margin(setup, c["short_rel"], c["short_abs"]) + c["short_ramp"] * dr
-    s_h = _margin(hold, c["short_rel"], c["short_abs"]) + c["short_ramp"] * dr
-    held = delay(setup + m_s, hold + m_h)
-    short_setup = delay(setup - s_s, wide)
-    short_hold = delay(wide, hold - s_h)
-    where = dict(i=i, j=j, data_slew=data_slews[i], clock_slew=clock_slews[j],
-                 reference_ns=ref, limit_ns=limit)
-
-    def captured(d):
-        return d is not None and d <= limit
-    return [
-        {"table": f"setup_{setup_edge}+hold_{hold_edge}", "check": "not_optimistic",
-         "setup_ns": setup, "hold_ns": hold, "delay_ns": held,
-         "ok": captured(held), **where},
-        {"table": f"setup_{setup_edge}", "check": "not_far_pessimistic",
-         "value_ns": setup, "shortened_by_ns": s_s, "delay_ns": short_setup,
-         "ok": not captured(short_setup), **where},
-        {"table": f"hold_{hold_edge}", "check": "not_far_pessimistic",
-         "value_ns": hold, "shortened_by_ns": s_h, "delay_ns": short_hold,
-         "ok": not captured(short_hold), **where},
-    ]
+    tab = _constraint_tables(cell, data)
+    points = []
+    for _ in range(n):
+        i, j = rng.randrange(len(data_slews)), rng.randrange(len(clock_slews))
+        dr, cr = ramp_of(data_slews[i], t), ramp_of(clock_slews[j], t)
+        for kind, edge in SAMPLED_HIGH:
+            v = tab[(kind, edge)][i][j]
+            delay, ref, _ = _constraint_delay(bench, clock, data, q, kind, edge,
+                                              dr, cr)
+            m = _margin(v, c["margin_rel"], c["margin_abs"])
+            where = dict(table=f"{kind}_{edge}", value_ns=v, margin_ns=m, i=i,
+                         j=j, data_slew=data_slews[i], clock_slew=clock_slews[j],
+                         reference_ns=ref)
+            longer, shorter = delay(v + m), delay(v - m)
+            points += [
+                {"check": "not_optimistic", "delay_ns": longer,
+                 "ok": _passes(longer, ref), **where},
+                {"check": "not_pessimistic", "delay_ns": shorter,
+                 "ok": not _passes(shorter, ref), **where}]
+    return points
 
 
-def validate(cell: Group, *, netlist: Path, pdk: Path, corner: dict, vdd: float,
-             terms: Terms, slews, loads, data_slews=None, clock_slews=None,
-             work: Path, checks: int = DEFAULT_CHECKS, seed: int = 0) -> dict:
-    """Re-simulate `checks` random points per arc per corner. Bench failures are
-    refusals; an off table is a point with ok false."""
+def _check_pulse_widths(bench, cell, clock, data, q, data_slews,
+                        clock_slews) -> list[dict]:
+    """min_pulse_width, both sides: + margin meets CRITERION at every clock
+    slew and D value; - margin fails at one of them at least (the value is
+    their worst)."""
+    t = bench.terms
+    c = CONSTRAINT
+    pin = next(p for p in cell.sub("pin") if p.args == clock)
+    dr0 = ramp_of(min(data_slews), t)
+    points = []
+    for high in (True, False):
+        name = f"min_pulse_width_{'high' if high else 'low'}"
+        if pin.attr(name) is None:
+            points.append({"table": name, "check": "present", "ok": False})
+            continue
+        v = float(pin.attr(name))
+        m = _margin(v, c["margin_rel"], c["margin_abs"])
+        longer_ok, shorter_fails = True, False
+        for j, slew in enumerate(clock_slews):
+            cr = ramp_of(slew, t)
+            for new_high in (True, False):
+                def delay(w, cr=cr, new_high=new_high):
+                    return _pulse_delay(bench, clock, data, q, high, new_high,
+                                        w, cr, dr0)
+                ref = delay(5.0 + cr)
+                longer_ok = longer_ok and _passes(delay(v + m), ref)
+                shorter_fails = shorter_fails or not _passes(delay(v - m), ref)
+        where = dict(table=name, value_ns=v, margin_ns=m)
+        points += [{"check": "not_optimistic", "ok": longer_ok, **where},
+                   {"check": "not_pessimistic", "ok": shorter_fails, **where}]
+    return points
+
+
+def make_bench(cell: Group, *, netlist: Path, pdk: Path, corner: dict,
+               vdd: float, terms: Terms, work: Path) -> Bench:
     work.mkdir(parents=True, exist_ok=True)
     text = netlist.read_text(encoding="utf-8", errors="replace")
     pg = {g.args: g.attr("pg_type") for g in cell.sub("pg_pin")}
@@ -1024,6 +1283,16 @@ def validate(cell: Group, *, netlist: Path, pdk: Path, corner: dict, vdd: float,
         raise Refused("pins_missing",
                       f"{cell.args}: netlist ports {bench.ports} lack "
                       f"{sorted(missing)}; an extraction must label them")
+    return bench
+
+
+def validate(cell: Group, *, netlist: Path, pdk: Path, corner: dict, vdd: float,
+             terms: Terms, slews, loads, data_slews=None, clock_slews=None,
+             work: Path, checks: int = DEFAULT_CHECKS, seed: int = 0) -> dict:
+    """Re-simulate `checks` random points per arc per corner. Bench failures are
+    refusals; an off table is a point with ok false."""
+    bench = make_bench(cell, netlist=netlist, pdk=pdk, corner=corner, vdd=vdd,
+                       terms=terms, work=work)
     rng = random.Random(seed)
     if cell.sub("ff"):
         clock, data, _ = _ff_terms(cell)
@@ -1039,6 +1308,8 @@ def validate(cell: Group, *, netlist: Path, pdk: Path, corner: dict, vdd: float,
                                         checks)
         points += _check_constraints(bench, cell, clock, data, q, rng, data_slews,
                                      clock_slews, checks)
+        points += _check_pulse_widths(bench, cell, clock, data, q, data_slews,
+                                      clock_slews)
     else:
         points = _check_combinational(bench, cell, rng, slews, loads, checks)
     bad = [p for p in points if not p["ok"]]
@@ -1074,6 +1345,42 @@ def compare_shipped(cell: Group, shipped_text: str) -> list[dict]:
                         out.append({"table": g.name, "arc": f"{related}->{pin.args}",
                                     "slew": s, "load": c, "value": v,
                                     "shipped": best, "ratio": v / best})
+    return out
+
+
+def compare_constraints(cell: Group, shipped_text: str) -> list[dict]:
+    """Setup/hold: table - shipped (ns) at every point; min_pulse_width:
+    table/shipped. Same index points required."""
+    shipped = parse_liberty(shipped_text)
+    out = []
+    for pin in cell.sub("pin"):
+        spin = next(p for p in shipped.sub("pin") if p.args == pin.args)
+        for name in ("min_pulse_width_high", "min_pulse_width_low"):
+            v, ship = pin.attr(name), spin.attr(name)
+            if v is not None and ship is not None:
+                out.append({"table": name, "pin": pin.args, "value": float(v),
+                            "shipped": float(ship),
+                            "ratio": float(v) / float(ship)})
+        for timing in pin.sub("timing"):
+            kind = str(timing.attr("timing_type", "")).strip('"')
+            for g in timing.groups:
+                if not g.name.endswith("_constraint"):
+                    continue
+                cands = [tab for st in spin.sub("timing")
+                         if str(st.attr("timing_type", "")).strip('"') == kind
+                         for tab in st.sub(g.name)]
+                if len(cands) != 1:
+                    raise Refused("table_axes", f"{pin.args} {kind} {g.name}: "
+                                  f"{len(cands)} shipped tables")
+                for i, s in enumerate(numbers(g.attr("index_1"))):
+                    for j, c in enumerate(numbers(g.attr("index_2"))):
+                        v = table(g)[i][j]
+                        ship = _lookup(cands[0], s, c)
+                        out.append({"table": f"{kind.split('_')[0]}_"
+                                    f"{g.name.split('_')[0]}",
+                                    "pin": pin.args, "data_slew": s,
+                                    "clock_slew": c, "value": v,
+                                    "shipped": ship, "diff": v - ship})
     return out
 
 
@@ -1175,10 +1482,19 @@ def characterize(cell: str, *, template_lib: Path, corners: list[dict],
                    ramps=ramps, loads=loads,
                    clock_ramps=cramps)
         head = corner_header(header_text, library, vdd, corner["temp_c"], False)
-        out_cell, lib_text = assemble(
+        out_cell, out_lib = assemble_library(
             raw.read_text(encoding="utf-8", errors="replace"), head, terms,
             slews, loads, ramps, data_slews=slews if sequential else None,
             clock_slews=cslews)
+        measured = None
+        if sequential:
+            bench = make_bench(out_cell, netlist=netlist, pdk=pdk,
+                               corner=corner, vdd=vdd, terms=terms,
+                               work=work / "measure")
+            measured = measure_sequential(bench, out_cell, slews, cslews)
+            measured["simulations"] = bench.runs
+            install_sequential(out_cell, measured)
+        lib_text = write_liberty(out_lib) + "\n"
         check = validate(out_cell, netlist=netlist, pdk=pdk, corner=corner,
                          vdd=vdd, terms=terms, slews=slews, loads=loads,
                          data_slews=slews if sequential else None,
@@ -1186,9 +1502,13 @@ def characterize(cell: str, *, template_lib: Path, corners: list[dict],
                          seed=seed)
         banner = (f"/* charlib (lctime): {cell} at {name}, {vdd:g} V, "
                   f"{corner['temp_c']} C, process {corner['process']}, "
-                  f"{netlist_kind} netlist. Timing and input capacitance only. */\n")
+                  f"{netlist_kind} netlist. Timing, input capacitance"
+                  f"{', setup/hold and min_pulse_width' if sequential else ''}"
+                  f" only. */\n")
         path = _write_verdict(out_dir, library, check["ok"], banner + lib_text)
         report["corners"][name] = {"lib": str(path), "vdd": vdd, "check": check}
+        if measured:
+            report["corners"][name]["sequential"] = measured
         ok = ok and check["ok"]
     report["ok"] = ok
     (out_dir / f"{cell}.report.json").write_text(
