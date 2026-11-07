@@ -93,6 +93,10 @@ faults:
     gate: erc
     plant: plant_erc_bulk_tie.py
     expect: {status: fail, kind: bulk_tie, refs: [vdd, vss]}
+  - name: erc_pnp_emitter_on_5v_net
+    gate: erc
+    plant: plant_erc_pnp_junction.py
+    expect: {status: fail, kind: overvoltage_junction, refs: [vbat, vss]}
   - name: long_min_width_output_line
     gate: pex_sim
     plant: plant_pex_long_output_line.py
