@@ -16,4 +16,7 @@ says why; the report lists it under `mc_waived`. "MC is slow" is not a
 reason.
 
 **Also:** a multiplied device (`m=N`) gets the right sigma in the mc gate
-(check_mc adds `par=N`); you need not expand it by hand.
+(check_mc adds `par=N`, and carries an `m=N` on a user subckt down to the MOS
+inside it); you need not expand it by hand. A multiplied bipolar, or a subckt
+defined outside the netlist and bench, stays pessimistic: the report lists it
+as `unhandled` under `par_added`.

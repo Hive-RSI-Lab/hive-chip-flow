@@ -35,9 +35,12 @@ agauss()-driven per-instance mismatch parameters (mis_vth, mis_k, mis_r,
 The PDK's MOS mismatch term reads the instance's `par` but not its `m`, so
 an `m=N` device would draw one unit's sigma (sqrt(N) too much). The MC
 decks therefore include a copy of the netlist in which every multiplied
-nfet_*/pfet_* instance also carries `par=N` (add_par_for_multiplier; the
-same for devices in the bench), listed in the report's `par_added`; the
-block's own netlist is never edited.
+nfet_*/pfet_* instance also carries `par=N`, and an `m=N` on a user subckt
+carries down to the MOS inside it, multiplying across levels
+(add_par_for_multiplier; the same for the bench), listed in the report's
+`par_added`. A multiplied bipolar, or a multiplied subckt defined outside
+the netlist and bench, is listed there as `unhandled`: its sigma stays
+pessimistic. The block's own netlist is never edited.
 
 Two refusals a caller must not be able to talk this gate out of: `mc.runs:
 0` is refused outright (CheckError, exit 2), never silently widened back up
@@ -56,6 +59,7 @@ import argparse
 import re
 import shutil
 import sys
+from collections.abc import Iterable
 from pathlib import Path
 
 SCRIPTS = Path(__file__).resolve().parent
@@ -115,8 +119,18 @@ def inject_mc_params(template_text: str, seed: int, do_global: bool) -> str:
 # per-instance mismatch at all - and the MIM caps carry none either.)
 _MOS_MODEL_RE = re.compile(r"^[np]fet_0[356]v[03](?:_dss|_nvt)?$",
                            re.IGNORECASE)
-_PARAM_RE = re.compile(r"(?<![\w.])(m|par)\s*=\s*('[^']*'|\{[^}]*\}|[^\s]+)",
-                       re.IGNORECASE)
+_PARAM_RE = re.compile(
+    r"(?<![\w.])(m|par)\s*=\s*('[^']*'|\{\{[^}]*\}\}|\{[^}]*\}|[^\s]+)",
+    re.IGNORECASE)
+_FIRST_PARAM_RE = re.compile(r"\s[\w.]+\s*=")
+# PDK devices whose `m` needs no `par`: their mismatch term is zero or absent
+# (resistors set mis_r=0, MIM caps carry none). Bipolars do read `par`, so a
+# multiplied one is reported as unhandled like any other model not rewritten.
+_NO_PAR_MODEL_RE = re.compile(
+    r"^(?:cap_|nplus_|pplus_|npolyf_|ppolyf_|nwell|rm\d|tm\d|efuse|diode_)",
+    re.IGNORECASE)
+# The parameter that carries an `m=N` down a user subckt in the MC copy.
+MULT_PARAM = "mc_mult"
 
 
 def _logical_lines(text: str) -> list[list[int]]:
@@ -139,37 +153,186 @@ def _strip_comment(ln: str) -> str:
     return ln
 
 
-def add_par_for_multiplier(text: str) -> tuple[str, list[dict]]:
-    """Give every `X... <nfet_*/pfet_*> ... m=N` instance (N not 1) a
-    matching `par=N`, so the PDK's mismatch term sees the total area
-    (m=N par=N: the right DC point AND the right sigma; m=4 alone measured
-    sd 3.9 mV against 1.8 mV for the same total width). An instance that
-    already writes `par` is left as it is. Returns (new text, [{instance,
-    model, m}] rewritten). Used on the MC deck's netlist copy only."""
+def _instance(group: list[int], lines: list[str]) -> tuple | None:
+    """(name, model, {m,par: value}) of the `X...` instance on this logical
+    line, or None when it isn't one."""
+    if lines[group[0]].lstrip()[:1] not in ("x", "X"):
+        return None
+    body = " ".join(_strip_comment(lines[i]).lstrip().lstrip("+")
+                    for i in group)
+    toks = _FIRST_PARAM_RE.split(body, maxsplit=1)[0].split()
+    if toks and toks[-1].lower() == "params:":
+        toks.pop()
+    if len(toks) < 2:
+        return None
+    params = {k.lower(): v for k, v in _PARAM_RE.findall(body)}
+    return toks[0], toks[-1], params
+
+
+def _multiplier(params: dict) -> str | None:
+    """The instance's `m` when it multiplies anything. An instance that
+    already writes `par` has settled its own mismatch and is left alone."""
+    mval = params.get("m")
+    if mval is None or "par" in params or _bare(mval) == "1":
+        return None
+    return mval
+
+
+def _bare(value: str) -> str:
+    """A parameter value with its one layer of quotes or braces off, ready
+    to sit inside an expression. A bench's `{{TOKEN}}` placeholder keeps its
+    braces, since materialize() still has to find it."""
+    if value.startswith("{{"):
+        return value
+    return value.strip("'{}")
+
+
+def _append_param(lines: list[str], group: list[int], param: str) -> None:
+    last = group[-1]
+    code = _strip_comment(lines[last])
+    lines[last] = code.rstrip() + f" {param}" + lines[last][len(code):]
+
+
+def _set_par(lines: list[str], group: list[int], value: str) -> None:
+    for i in group:
+        code = _strip_comment(lines[i])
+        for found in _PARAM_RE.finditer(code):
+            if found.group(1).lower() == "par":
+                lines[i] = (lines[i][:found.start(2)] + value
+                            + lines[i][found.end(2):])
+                return
+    _append_param(lines, group, f"par={value}")
+
+
+def _subckt_blocks(text: str) -> tuple[dict, list]:
+    """Walk one netlist or bench: ({subckt name: {mos, calls}}, [(enclosing
+    subckt or None, line group)] for its `X` instances and .subckt lines)."""
+    lines = text.split("\n")
+    defs: dict[str, dict] = {}
+    walk: list = []
+    stack: list[str] = []
+    for group in _logical_lines(text):
+        head = lines[group[0]].split()
+        word = head[0].lower() if head else ""
+        if word == ".subckt" and len(head) > 1:
+            stack.append(head[1].lower())
+            defs.setdefault(stack[-1], {"mos": False, "calls": set()})
+            walk.append((None, group))
+        elif word == ".ends":
+            if stack:
+                stack.pop()
+        else:
+            found = _instance(group, lines)
+            if found is None:
+                continue
+            walk.append((stack[-1] if stack else None, group))
+            if stack:
+                if _MOS_MODEL_RE.match(found[1]):
+                    defs[stack[-1]]["mos"] = True
+                else:
+                    defs[stack[-1]]["calls"].add(found[1].lower())
+    return defs, walk
+
+
+def _carriers(texts: list[str]) -> tuple[set[str], dict]:
+    """The subckts that must carry a multiplier down to their MOS: those
+    holding a MOS at any depth and sitting under an `m=N` instance at any
+    depth, over every text the deck includes (a bench may multiply a subckt
+    its netlist defines). Also returns the joined definitions."""
+    defs: dict[str, dict] = {}
+    roots: set[str] = set()
+    for text in texts:
+        found, walk = _subckt_blocks(text)
+        for name, d in found.items():
+            have = defs.setdefault(name, {"mos": False, "calls": set()})
+            have["mos"] = have["mos"] or d["mos"]
+            have["calls"] |= d["calls"]
+        lines = text.split("\n")
+        for _, group in walk:
+            inst = _instance(group, lines)
+            if inst and _multiplier(inst[2]) is not None:
+                roots.add(inst[1].lower())
+
+    def closure(start: set[str], edges) -> set[str]:
+        seen, todo = set(), list(start)
+        while todo:
+            name = todo.pop()
+            if name not in seen:
+                seen.add(name)
+                todo.extend(edges(name))
+        return seen
+
+    reached = closure(roots & set(defs),
+                      lambda n: defs[n]["calls"] & set(defs))
+    holds_mos = {n for n in defs if any(
+        defs[c]["mos"] for c in closure(
+            {n}, lambda k: defs[k]["calls"] & set(defs)))}
+    return reached & holds_mos, defs
+
+
+def add_par_for_multiplier(text: str, others: Iterable[str] = ()
+                           ) -> tuple[str, list[dict]]:
+    """Make the PDK's mismatch term see each MOS's total area, keeping the
+    DC point (m=N par=N: the right sigma as well; m=4 alone measured sd
+    3.9 mV against 1.8 mV for the same total width).
+
+    An `X... <nfet_*/pfet_*> ... m=N` instance (N not 1) gets a matching
+    `par=N`. For an `X... <user subckt> ... m=N`, ngspice multiplies the
+    inner devices' `m` but `par` stays 1, so a subckt holding MOS (a
+    carrier, see _carriers) takes a MULT_PARAM parameter, the instance sets
+    it to N, nested instances multiply it, and each inner MOS gets
+    par={MULT_PARAM*<own par or m>}. An instance that already writes `par`
+    is left as it is.
+
+    `others` are the other texts of the same deck, read only to find what
+    is multiplied and defined across them. Returns (new text, [{instance,
+    model, m}]): each one rewritten, with `subckt` when it sits in a
+    carrier, and with `unhandled` for a multiplied model not rewritten (a
+    bipolar, or a subckt this text set can't see into), which keeps one
+    unit's sigma (pessimistic). Used on the MC deck's copies only."""
+    carriers, defs = _carriers([text, *others])
+    _, walk = _subckt_blocks(text)
     lines = text.split("\n")
     done: list[dict] = []
-    for group in _logical_lines(text):
-        first = lines[group[0]].lstrip()
-        if not first[:1] in ("x", "X"):
+    for inside, group in walk:
+        head = lines[group[0]].split()
+        if head[0].lower() == ".subckt":
+            if head[1].lower() in carriers:
+                _append_param(lines, group, f"{MULT_PARAM}=1")
             continue
-        body = " ".join(_strip_comment(lines[i]).lstrip().lstrip("+")
-                        for i in group)
-        toks = body.split()
-        model = None
-        for t in toks[1:]:
-            if "=" in t:
-                break
-            model = t
-        if not model or not _MOS_MODEL_RE.match(model):
-            continue
-        params = {k.lower(): v for k, v in _PARAM_RE.findall(body)}
-        mval = params.get("m")
-        if mval is None or "par" in params or mval.strip("'{}") == "1":
-            continue
-        last = group[-1]
-        code = _strip_comment(lines[last])
-        lines[last] = code.rstrip() + f" par={mval}" + lines[last][len(code):]
-        done.append({"instance": toks[0], "model": model, "m": mval})
+        name, model, params = _instance(group, lines)
+        mval = _multiplier(params)
+        carried = inside in carriers
+        where = {"subckt": inside} if carried else {}
+        if _MOS_MODEL_RE.match(model):
+            if carried:
+                own = params.get("par") or params.get("m")
+                par = (f"{{{MULT_PARAM}*({_bare(own)})}}" if own
+                       else f"{{{MULT_PARAM}}}")
+                _set_par(lines, group, par)
+                done.append({"instance": name, "model": model,
+                             "m": own or "1", **where})
+            elif mval is not None:
+                _set_par(lines, group, mval)
+                done.append({"instance": name, "model": model, "m": mval})
+        elif model.lower() in carriers:
+            if carried:
+                mult = (f"{{{MULT_PARAM}*({_bare(mval)})}}" if mval
+                        else f"{{{MULT_PARAM}}}")
+            elif mval is not None:
+                mult = mval
+            else:
+                continue
+            _append_param(lines, group, f"{MULT_PARAM}={mult}")
+            done.append({"instance": name, "model": model,
+                         "m": mval or "1", **where})
+        elif (mval is not None or carried) and model.lower() not in defs \
+                and not _NO_PAR_MODEL_RE.match(model):
+            done.append({
+                "instance": name, "model": model, "m": mval or "1", **where,
+                "unhandled": "not rewritten (a bipolar, or defined outside "
+                             "the netlist and bench), so it keeps one unit's "
+                             "mismatch: sqrt(N) pessimistic"})
     return "\n".join(lines), done
 
 
@@ -178,14 +341,16 @@ _REL_INCLUDE_RE = re.compile(
     re.IGNORECASE | re.MULTILINE)
 
 
-def mc_netlist(netlist_path: Path, out_dir: Path) -> tuple[Path, list[dict]]:
+def mc_netlist(netlist_path: Path, out_dir: Path, others: Iterable[str] = ()
+               ) -> tuple[Path, list[dict]]:
     """The netlist the MC decks include: the block's own when no instance
-    needs `par` (add_par_for_multiplier), else a rewritten copy under
-    out_dir (relative .include/.lib paths made absolute, so they still
-    resolve from there). The block's netlist file is never written."""
+    needs `par` (add_par_for_multiplier; `others` are the bench texts), else
+    a rewritten copy under out_dir (relative .include/.lib paths made
+    absolute, so they still resolve from there). The block's netlist file is
+    never written."""
     text = netlist_path.read_text(encoding="utf-8")
-    new_text, done = add_par_for_multiplier(text)
-    if not done:
+    new_text, done = add_par_for_multiplier(text, others)
+    if new_text == text:
         return netlist_path, done
     base = netlist_path.resolve().parent
 
@@ -273,8 +438,13 @@ def run(argv=None):
     out_dir = ws / OUT_SUBDIR
     shutil.rmtree(out_dir, ignore_errors=True)
     # m=N MOS instances get par=N in the MC copy of the netlist (and of each
-    # bench), or the PDK gives them one unit's mismatch: sqrt(N) too much
-    mc_net, par_added = mc_netlist(netlist_path, out_dir)
+    # bench), or the PDK gives them one unit's mismatch: sqrt(N) too much.
+    # An m=N on a user subckt carries down to its MOS the same way, and a
+    # bench may multiply a subckt the netlist defines, so each sees the rest.
+    bench_texts = {bench: bench.read_text(encoding="utf-8")
+                   for bench, _ in sim_run.find_benches(ws)}
+    netlist_text = netlist_path.read_text(encoding="utf-8")
+    mc_net, par_added = mc_netlist(netlist_path, out_dir, bench_texts.values())
     subs = sim_run.build_subs(t_root, mc_net, tt_corner, nominal_vdd, sizing)
 
     outcomes = []
@@ -291,7 +461,9 @@ def run(argv=None):
             not_scored.append(bench_path.name)
             continue
         template_text, bench_par = add_par_for_multiplier(
-            bench_path.read_text(encoding="utf-8"))
+            bench_texts[bench_path],
+            [netlist_text, *(t for b, t in bench_texts.items()
+                             if b != bench_path)])
         par_added += [dict(d, bench=bench_path.name) for d in bench_par]
         per_bench_measures = measures_by_bench.setdefault(bench_path.name, [])
         for i, seed in enumerate(seeds):

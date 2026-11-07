@@ -381,14 +381,18 @@ R1 a b 1k m=2
 
 def test_add_par_for_multiplier_rewrites_multiplied_mos_only():
     new, done = check_mc.add_par_for_multiplier(MULT_NETLIST)
-    assert [d["instance"] for d in done] == ["XMREF", "XMOUT"]
+    assert [d["instance"] for d in done if "unhandled" not in d] \
+        == ["XMREF", "XMOUT"]
+    assert [d["instance"] for d in done if "unhandled" in d] == ["XSUB"]
     assert "XMREF iref iref vss vss nfet_03v3 w=2u l=1u m=4 par=4\n" in new
     assert "+ m={m_out} par={m_out} ; m=9" in new
     # m=1, an existing par, a user subckt, a resistor: untouched
     for keep in ("pfet_03v3 w=1u l=1u m=1\n", "m=2 par=2\n",
                  "XSUB a b mysub m=3\n", "R1 a b 1k m=2\n"):
         assert keep in new
-    assert check_mc.add_par_for_multiplier(new)[1] == []  # idempotent
+    # idempotent on what it rewrote
+    assert [d["instance"] for d in check_mc.add_par_for_multiplier(new)[1]] \
+        == ["XSUB"]
 
 
 def test_mc_decks_include_the_par_copy_never_the_block_netlist(
@@ -400,7 +404,9 @@ def test_mc_decks_include_the_par_copy_never_the_block_netlist(
     code = check_mc.main(["--workspace", str(ws)])
     out = json.loads(capsys.readouterr().out)
     assert code == 0, out
-    assert [d["instance"] for d in out["par_added"]] == ["XMREF", "XMOUT"]
+    assert [d["instance"] for d in out["par_added"]] \
+        == ["XMREF", "XMOUT", "XSUB"]
+    assert "unhandled" in out["par_added"][2]
     assert (ws / "netlist" / "mirror.cir").read_text() == MULT_NETLIST
     copy = ws / "log" / "mc" / "mirror__mc_par.cir"
     text = copy.read_text()
@@ -419,6 +425,160 @@ def test_netlist_without_multiplied_mos_is_included_as_is(tmp_path):
     path, done = check_mc.mc_netlist(net, tmp_path / "out")
     assert path == net and done == []
     assert not (tmp_path / "out").exists()
+
+
+HIER_NETLIST = """\
+.subckt unit d ; m=9 in a comment
+XM d d 0 0 nfet_03v3 w=2u l=1u
+.ends
+.subckt pair d
+XI d unit m=2
+.ends
+XTOP a unit m=4
+XTWO b pair m=3
+XONE c unit
+"""
+
+
+def test_hierarchical_m_carries_down_and_multiplies_across_levels():
+    new, done = check_mc.add_par_for_multiplier(HIER_NETLIST)
+    assert ".subckt unit d mc_mult=1 ; m=9 in a comment\n" in new
+    assert "XM d d 0 0 nfet_03v3 w=2u l=1u par={mc_mult}\n" in new
+    assert ".subckt pair d mc_mult=1\n" in new
+    assert "XI d unit m=2 mc_mult={mc_mult*(2)}\n" in new
+    assert "XTOP a unit m=4 mc_mult=4\n" in new
+    assert "XTWO b pair m=3 mc_mult=3\n" in new
+    assert "XONE c unit\n" in new  # one unit: the default of 1 is right
+    assert [d["instance"] for d in done] == ["XM", "XI", "XTOP", "XTWO"]
+    assert [d.get("subckt") for d in done] == ["unit", "pair", None, None]
+
+
+def test_inner_mos_own_m_or_par_joins_the_carried_multiplier():
+    new, _ = check_mc.add_par_for_multiplier(
+        ".subckt unit d\n"
+        "XA d d 0 0 nfet_03v3 w=2u l=1u m=3\n"
+        "XB d d 0 0 nfet_03v3 w=2u l=1u m=3 par=5\n"
+        "XC d d 0 0 nfet_03v3 w=2u l=1u m={k} ; note\n"
+        ".ends\n"
+        "XU a unit m=2\n")
+    assert "l=1u m=3 par={mc_mult*(3)}\n" in new
+    assert "l=1u m=3 par={mc_mult*(5)}\n" in new
+    assert "l=1u m={k} par={mc_mult*(k)} ; note\n" in new
+
+
+def test_instance_that_writes_par_and_subckt_without_mos_stay_as_written():
+    text = (".subckt unit d\nXM d d 0 0 nfet_03v3 w=2u l=1u\n.ends\n"
+            ".subckt rs a\nR1 a 0 1k\n.ends\n"
+            "XU a unit m=4 par=4\nXR a rs m=2\n")
+    assert check_mc.add_par_for_multiplier(text) == (text, [])
+
+
+def test_bench_multiplying_a_netlist_subckt_reaches_both_copies(tmp_path):
+    net = tmp_path / "n.cir"
+    net.write_text(".subckt unit d\nXM d d 0 0 nfet_03v3 w=2u l=1u\n.ends\n",
+                   encoding="utf-8")
+    bench = "XU a unit m={{M}}\n"
+    path, done = check_mc.mc_netlist(net, tmp_path / "out", [bench])
+    assert path != net and "par={mc_mult}" in path.read_text()
+    assert [d["instance"] for d in done] == ["XM"]
+    new, done = check_mc.add_par_for_multiplier(bench, [net.read_text()])
+    # the token keeps its braces for materialize()
+    assert new == "XU a unit m={{M}} mc_mult={{M}}\n"
+    assert done[0]["m"] == "{{M}}"
+
+
+def test_multiplied_model_not_rewritten_is_reported_unless_it_has_no_mismatch():
+    text = ("XE a elsewhere m=4\nXQ c b e pnp_10p00x10p00 m=8\n"
+            "XR a b 0 nplus_u w=1u l=1u m=2\nXC a b cap_mim_1f0_m2m3_noshield m=2\n"
+            "XF a elsewhere m=1\n")
+    new, done = check_mc.add_par_for_multiplier(text)
+    assert new == text
+    assert [d["instance"] for d in done] == ["XE", "XQ"]
+    assert all("unhandled" in d for d in done)
+
+
+def test_unknown_model_inside_a_carrier_is_reported():
+    _, done = check_mc.add_par_for_multiplier(
+        ".subckt unit d\nXM d d 0 0 nfet_03v3 w=2u l=1u\nXE d elsewhere\n.ends\n"
+        "XU a unit m=4\n")
+    assert [(d["instance"], d.get("subckt")) for d in done if "unhandled" in d] \
+        == [("XE", "unit")]
+
+
+def test_recursive_subckt_definitions_do_not_hang():
+    new, _ = check_mc.add_par_for_multiplier(
+        ".subckt a d\nXB d b\nXM d d 0 0 nfet_03v3 w=2u l=1u\n.ends\n"
+        ".subckt b d\nXA d a\n.ends\nXU z a m=2\n")
+    assert "XB d b mc_mult={mc_mult}\n" in new
+
+
+def _hier_vgs(tmp_path, lines, fixed, mismatch, tag, count):
+    """Node voltages of one seeded op over `lines`, MC copy or as written."""
+    import re
+
+    import corners as corners_mod
+    import simlib
+
+    net = tmp_path / f"{tag}.cir"
+    net.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    bench = (".include '{{PDK}}/libs.tech/ngspice/design.spice'\n"
+             ".lib '{{PDK}}/libs.tech/ngspice/sm141064.spice' {{CORNER}}\n"
+             ".include '{{NETLIST}}'\n"
+             ".control\nop\nprint all\n.endc\n.end\n")
+    eda = sim_run.EDA_BIN
+    root = sim_run.toolchain_root(eda)
+    tt = corners_mod.corners_by_name(corners_mod.load(), ["tt"])[0]
+    out = tmp_path / f"{tag}_{int(fixed)}_{int(mismatch)}"
+    out.mkdir(parents=True, exist_ok=True)
+    nl = check_mc.mc_netlist(net, out)[0] if fixed else net
+    text = check_mc.inject_mc_params(bench, 7, False) if mismatch else bench
+    deck = out / "tb.cir"
+    deck.write_text(simlib.materialize(
+        text, sim_run.build_subs(root, nl, tt, 3.3, {})), encoding="utf-8")
+    stdout, _, _ = simlib.run_ngspice(eda, deck, out, 280)
+    v = {k.lower(): float(x) for k, x in re.findall(
+        r"^\s*(\S+)\s*=\s*([-+0-9.eE]+)\s*$", stdout, re.MULTILINE)}
+    return ([v[f"a{i}"] for i in range(count)],
+            [v[f"b{i}"] for i in range(count)])
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("tag,head,inst", [
+    # the issue's measurement (#144): unit m=4 against flat w=8u
+    ("one", [], "unit m=4"),
+    # the multiplier on two levels multiplies: m=2 of (m=2 of unit)
+    ("two", [".subckt twice d", "XI d unit m=2", ".ends"], "twice m=2"),
+])
+def test_real_hierarchical_m_mismatch_matches_the_wider_device(
+        tmp_path, tag, head, inst):
+    # Known answer: one seeded op over 200 diode-connected pairs at 40 uA,
+    # the unit w=2u under a multiplier of 4 next to a flat w=8u. Carried
+    # through, the sigma matches the device of the same area within 25%
+    # (seed 7: 1.97 mV against 2.22 mV; over seeds 1-8 both average 1.97 mV);
+    # the planted fault, the netlist as written, gives about 1.8x (3.94 mV).
+    # With mismatch off, the rewrite leaves DC alone.
+    import statistics
+
+    n = 200
+    lines = ["* hierarchical m=4 vs w*4", ".subckt unit d",
+             "XM d d 0 0 nfet_03v3 w=2u l=1u", ".ends", *head]
+    for i in range(n):
+        lines += [f"XA{i} a{i} {inst}", f"IA{i} 0 a{i} 40u",
+                  f"XB{i} b{i} b{i} 0 0 nfet_03v3 w=8u l=1u",
+                  f"IB{i} 0 b{i} 40u"]
+    a_fix, b = _hier_vgs(tmp_path, lines, True, True, tag, n)
+    sd_b = statistics.stdev(b)
+    ratio = statistics.stdev(a_fix) / sd_b
+    print(f"{tag}: sd fixed {statistics.stdev(a_fix)*1e3:.2f} mV "
+          f"flat {sd_b*1e3:.2f} mV ratio {ratio:.2f}")
+    assert 0.75 < ratio < 1.33, ratio
+    a_asis, _ = _hier_vgs(tmp_path, lines, False, True, tag, n)
+    planted = statistics.stdev(a_asis) / sd_b
+    print(f"{tag}: planted sd {statistics.stdev(a_asis)*1e3:.2f} mV "
+          f"ratio {planted:.2f}")
+    assert planted > 1.5, planted
+    assert _hier_vgs(tmp_path, lines, True, False, tag, n)[0] \
+        == _hier_vgs(tmp_path, lines, False, False, tag, n)[0]
 
 
 @pytest.mark.slow
