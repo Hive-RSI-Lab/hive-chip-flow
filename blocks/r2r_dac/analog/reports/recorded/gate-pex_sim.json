@@ -32,8 +32,8 @@
    "t_settle_fall": 1.1996e-06,
    "t_rise_10_90": 4.24e-07,
    "t_fall_10_90": 4.225e-07,
-   "glitch_energy_up": 3.31983e-11,
-   "glitch_energy_down": 9.71645e-12,
+   "glitch_energy_up": 3.31971e-11,
+   "glitch_energy_down": 9.68953e-12,
    "glitch_peak_up": 0.0165725,
    "glitch_peak_down": 0.019806
   },
@@ -50,8 +50,8 @@
     "t_settle_fall": 1.1996e-06,
     "t_rise_10_90": 4.24e-07,
     "t_fall_10_90": 4.225e-07,
-    "glitch_energy_up": 3.31983e-11,
-    "glitch_energy_down": 9.71645e-12,
+    "glitch_energy_up": 3.31971e-11,
+    "glitch_energy_down": 9.68953e-12,
     "glitch_peak_up": 0.0165725,
     "glitch_peak_down": 0.019806
    },
@@ -71,7 +71,7 @@
     "t_rise_10_90": 5.125e-07,
     "t_fall_10_90": 5.105e-07,
     "glitch_energy_up": 2.39332e-11,
-    "glitch_energy_down": 5.12908e-12,
+    "glitch_energy_down": 5.1274e-12,
     "glitch_peak_up": 0.018281,
     "glitch_peak_down": 0.0170905
    },
@@ -80,7 +80,7 @@
     "t_settle_fall": 1.43529e-06,
     "t_rise_10_90": 5.08e-07,
     "t_fall_10_90": 5.055e-07,
-    "glitch_energy_up": 4.05991e-11,
+    "glitch_energy_up": 4.0575e-11,
     "glitch_energy_down": 8.62933e-12,
     "glitch_peak_up": 0.0122178,
     "glitch_peak_down": 0.0141393
@@ -91,7 +91,7 @@
  "inputs_at_start": {
   "layout": "dir_text:889449a57e56e4c2cab666ce1481936e988d284cf7e8717638791f7715a62c67",
   "tb": "dir_text:f39ddda9f2efd5463da75d99f486ff1ea8d2038b91027869426db82f0bf513e4",
-  "layout_ref": "dir_text:c4aa1a8579f2b576c7bbfb34464926cef64b1f078bacd41d28ec3e82650f2e7e",
+  "layout_ref": "dir_text:3877121e758def7d2fcd326931f83d5dfad6ae2f65fec2e70b868dfdf45a8f9a",
   "netlist": "dir_text:2c6d358ba4c3ec93f5dc910e1777df9a3f5418293791a715229fa1b8d22d1e4e",
   "spec_yaml": "json_canonical:8c9cd25a18e9f52cb3d6890c8bb10c49e0fd4727727abbe712a4ce5fc7367fb4",
   "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
@@ -100,6 +100,6 @@
   "pdk_klayout": "dir_text:876da90e8aab65b830b36eca12bd720adfe8240a0952872419d9f2b4abda605d"
  },
  "strength_at_start": 0,
- "recorded_ts": "2026-11-07T17:17:52",
- "attempts": 5
+ "recorded_ts": "2026-11-07T18:23:53",
+ "attempts": 6
 }

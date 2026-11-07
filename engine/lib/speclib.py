@@ -130,6 +130,12 @@ CHECK_KINDS = {"sim", "formal", "both", "measure"}
 #                        `vss`/`gnd`: a supply at `power` volts, or a signal
 #                        anywhere in [min, max]. Absent: a signal pin swings
 #                        0 V to supply.vdd (erc_nets())
+#     ir_drop_mv: float   optional; the em_ir gate's bound on each supply
+#                        rail's static drop from its pin to any extracted node
+#                        of it, in mV, positive. Absent: 2 % of supply.vdd
+#     ir_rails: [pin, ...]   optional; the pins em_ir holds to ir_drop_mv.
+#                        Absent: the pins named like a supply key or vss/gnd.
+#                        `[]` declares a block with no supply pin (EM alone)
 #     symmetric_nets: [{nets: [a, b], max_dc_pct?, max_dr_pct?, min_dc_ff?,
 #                       min_dr_ohm?, aggressors?: [net, ...]}]   optional; the
 #                        net pairs a layout must route alike (a latch's
@@ -152,7 +158,7 @@ CHECK_KINDS = {"sim", "formal", "both", "measure"}
 ADE_MEASURE_CORNER_KINDS = {"default", "all"}
 # the gates that run ngspice, each with a --timeout and a default of its own
 SIM_TIMEOUT_CHECKS = ("netlist_lint", "sim_tt", "sim_pvt", "mc",
-                      "bench_strength", "pex_sim")
+                      "bench_strength", "pex_sim", "em_ir")
 MAX_SIM_TIMEOUT_S = 3600.0
 # a measure name with one of these `_`-separated tokens is read as
 # matching-sensitive (lint_matching_measures)
@@ -291,6 +297,21 @@ def lint_spec_ade(spec: dict, rel_path: str = "spec/spec.yaml") -> list[dict]:
         bad("bad_erc_nets", "spec.yaml 'erc_nets' must map each pin name to "
                             "{power: volts} or {min: volts, max: volts} "
                             "with min <= max")
+
+    if "ir_drop_mv" in spec:
+        v = spec["ir_drop_mv"]
+        if isinstance(v, bool) or not isinstance(v, (int, float)) or v <= 0:
+            bad("bad_ir_drop", "spec.yaml 'ir_drop_mv' must be a positive "
+                               "number of mV")
+
+    if "ir_rails" in spec:
+        field = spec["ir_rails"]
+        if not (isinstance(field, list) and all(
+                isinstance(n, str) and n for n in field)
+                and len(set(field)) == len(field)):
+            bad("bad_ir_rails", "spec.yaml 'ir_rails' must be a list of "
+                                "distinct pin names ([] for a block with no "
+                                "supply pin)")
 
     if "symmetric_nets" in spec and symmetric_nets(spec) is None:
         bad("bad_symmetric_nets", "spec.yaml 'symmetric_nets' must be a list "

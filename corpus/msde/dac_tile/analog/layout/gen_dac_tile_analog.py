@@ -95,6 +95,33 @@ def via(top, cx, cy, layer_via, layers_metal):
         layoutlib.rect(top, cx - p, cy - p, cx + p, cy + p, LY[m])
 
 
+# A via that carries supply or ladder current: RAIL_CUTS cuts in a row
+# along its wire. The whole tile's supply current crosses metal1-metal3 at
+# the three stacks per rail, and the ladder's crosses metal1-metal2 at
+# each end of dm and dl; one cut carries 0.18 mA under the DRM's DC
+# electromigration limit (engine/reference/em_limits.yaml), and a single
+# cut there fails the em_ir gate at the fast corner.
+RAIL_CUTS = 3
+VIA_SPACE = 0.26  # GF180 via1/via2 cut to cut
+
+
+def rail_via(top, cx, cy, layer_via, layers_metal, along="x"):
+    """RAIL_CUTS cuts centred on (cx, cy), in a row along x, or along y
+    where the pad has to stay narrow (a resistor terminal, whose metal1
+    sits close to the body's substrate contact)."""
+    pitch = VIA + VIA_SPACE
+    span = (RAIL_CUTS - 1) * pitch
+    h = VIA / 2
+    for k in range(RAIL_CUTS):
+        d = -span / 2 + k * pitch
+        x, y = (cx + d, cy) if along == "x" else (cx, cy + d)
+        layoutlib.rect(top, x - h, y - h, x + h, y + h, LY[layer_via])
+    long_ = span / 2 + PAD / 2
+    hx, hy = (long_, PAD / 2) if along == "x" else (PAD / 2, long_)
+    for m in layers_metal:
+        layoutlib.rect(top, cx - hx, cy - hy, cx + hx, cy + hy, LY[m])
+
+
 def via12(top, cx, cy):
     via(top, cx, cy, "via1", ("metal1", "metal2"))
 
@@ -263,8 +290,8 @@ def generate():
     for name, t, row in (("M", T_DM, 0), ("L", T_DL, 2)):
         ax, ay = centre(rows[row]["a"])
         cx = cols[name]["cx"]
-        via12(top, cx, ay)
-        via12(top, ax, ay)
+        rail_via(top, cx, ay, "via1", ("metal1", "metal2"))
+        rail_via(top, ax, ay, "via1", ("metal1", "metal2"), along="y")
         hwire(top, cx, ax, ay, M2)
 
     # vout: a metal1 line in the gap between rows 0 and 1, joining row 1's
@@ -299,13 +326,13 @@ def generate():
         s, t = c["p"]["s"], c["p"]["tap"]
         layoutlib.rect(top, min(s[0], t[0]), s[1], max(s[2], t[2]), vdd_y1, M1)
         vx, vy = (s[0] + s[2]) / 2, (vdd_y0 + vdd_y1) / 2
-        via(top, vx, vy, "via1", ("metal1", "metal2"))
-        via(top, vx, vy, "via2", ("metal2", "metal3"))
+        rail_via(top, vx, vy, "via1", ("metal1", "metal2"))
+        rail_via(top, vx, vy, "via2", ("metal2", "metal3"))
         s, t = c["n"]["s"], c["n"]["tap"]
         layoutlib.rect(top, min(s[0], t[0]), vss_y0, max(s[2], t[2]), s[3], M1)
         vx, vy = (s[0] + s[2]) / 2, (vss_y0 + vss_y1) / 2
-        via(top, vx, vy, "via1", ("metal1", "metal2"))
-        via(top, vx, vy, "via2", ("metal2", "metal3"))
+        rail_via(top, vx, vy, "via1", ("metal1", "metal2"))
+        rail_via(top, vx, vy, "via2", ("metal2", "metal3"))
 
     # the ladder's substrate contacts down a metal1 strip to the vss rail;
     # row 3's left terminal (the ladder's foot) butted onto its contact
@@ -313,8 +340,8 @@ def generate():
     layoutlib.rect(top, sub3[0], vss_y0, sub3[2], sub3[3], M1)
     layoutlib.rect(top, sub3[0], sub3[1], rows[3]["a"][2], sub3[3], M1)
     vx = (sub3[0] + sub3[2]) / 2
-    via(top, vx, (vss_y0 + vss_y1) / 2, "via1", ("metal1", "metal2"))
-    via(top, vx, (vss_y0 + vss_y1) / 2, "via2", ("metal2", "metal3"))
+    rail_via(top, vx, (vss_y0 + vss_y1) / 2, "via1", ("metal1", "metal2"))
+    rail_via(top, vx, (vss_y0 + vss_y1) / 2, "via2", ("metal2", "metal3"))
 
     for y0, y1, net in ((vdd_y0, vdd_y1, "vdd"), (vss_y0, vss_y1, "vss")):
         layoutlib.rect(top, 0.0, y0, x_right, y1, M1)

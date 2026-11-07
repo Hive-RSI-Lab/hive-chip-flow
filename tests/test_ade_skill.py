@@ -217,7 +217,7 @@ def test_every_corpus_fault_kind_has_a_remediation_reference():
     assert manifest, "no corpus fault kinds found - did the corpus move?"
     gate_to_check = {"drc": "analog_drc", "lvs": "analog_lvs",
                      "erc": "analog_erc", "layout_match": "layout_match",
-                     "pex_sim": "pex_sim"}
+                     "pex_sim": "pex_sim", "em_ir": "analog_em_ir"}
     for kind, gates in sorted(manifest.items()):
         checks = {gate_to_check[g] for g in gates if g in gate_to_check}
         ref = fix_dispatch.remediation_ref(kind, rem_dir, checks)
@@ -257,7 +257,7 @@ def test_full_run_plans_p4_gates_in_gates_yaml_order_then_layout_then_release():
     p4_order = ["netlist_lint", "sim_tt", "sim_pvt", "bench_strength", "mc"]
     p4_positions = [gate_seq.index(g) for g in p4_order]
     assert p4_positions == sorted(p4_positions)
-    p5_order = ["drc", "lvs", "pex_sim"]
+    p5_order = ["drc", "lvs", "pex_sim", "em_ir"]
     p5_positions = [gate_seq.index(g) for g in p5_order]
     assert p5_positions == sorted(p5_positions)
     assert min(p5_positions) > max(p4_positions)

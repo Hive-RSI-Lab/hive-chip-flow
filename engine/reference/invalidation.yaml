@@ -281,6 +281,11 @@ gate_inputs:
                      pdk_klayout]
     pex_sim:        [layout, tb, layout_ref, netlist, spec_yaml, pdk_version,
                      pdk_models, pdk_magic, pdk_klayout]
+    # em_ir (#120): the same regenerated layout and extraction as pex_sim,
+    # its own operating-point bench from tb/ or layout_ref/, the reference
+    # netlist for pins, spec.yaml's sweep, ir_drop_mv and ir_rails
+    em_ir:          [layout, tb, layout_ref, netlist, spec_yaml, pdk_version,
+                     pdk_models, pdk_magic, pdk_klayout]
     release:        [netlist, layout, sizing, spec_yaml, pdk_version]
   msde:
     # #113: every file each gate opens (tests/test_msde_freshness.py plants
@@ -432,7 +437,7 @@ edit_classes:
       mutates: [spec_yaml, spec_md]
       stale_artifacts: []
       gates: [spec_lint, netlist_lint, sim_tt, sim_pvt, bench_strength, mc,
-              drc, lvs, erc, layout_match, pex_sim, release]
+              drc, lvs, erc, layout_match, pex_sim, em_ir, release]
       human_hold: 2
     netlist_edit:
       # "marks every analog gate" (1.6); hold matches rtl_edit's weight - a
@@ -440,7 +445,7 @@ edit_classes:
       mutates: [netlist]
       stale_artifacts: []
       gates: [netlist_lint, sim_tt, sim_pvt, bench_strength, mc, drc, lvs,
-              erc, layout_match, pex_sim, release]
+              erc, layout_match, pex_sim, em_ir, release]
       human_hold: 1
     sizing_edit:
       mutates: [sizing]
@@ -448,11 +453,11 @@ edit_classes:
       gates: [sim_tt, sim_pvt, bench_strength, mc, lvs, pex_sim, release]
       human_hold: 1
     layout_code_edit:
-      # layout_ref (the post-layout bench) rides here: pex_sim is the only
-      # gate reading it, and every gate this class names re-runs anyway
+      # layout_ref (the post-layout benches) rides here: pex_sim and em_ir
+      # are the gates reading it, and every gate this class names re-runs
       mutates: [layout, layout_ref]
       stale_artifacts: []
-      gates: [drc, lvs, erc, layout_match, pex_sim, release]
+      gates: [drc, lvs, erc, layout_match, pex_sim, em_ir, release]
       human_hold: 1
     erc_waiver_edit:
       # spec/erc_waivers.yaml: a waiver is a claim a device is safe, so it

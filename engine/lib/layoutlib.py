@@ -824,7 +824,8 @@ def uncount_rnode_caps(ext_text: str, res_ext_text: str,
 
 def run_magic_extract(work_dir, gds_path, topcell: str, *, parasitics: bool,
                       timeout: float = 180.0,
-                      variant: str | None = None) -> tuple[Path, str]:
+                      variant: str | None = None,
+                      geometry: bool = False) -> tuple[Path, str]:
     """Extract the GDS to SPICE with magic. Without parasitics this is the
     LVS netlist (`<topcell>.spice`, docs/spikes/glayout.md's "extract all;
     ext2spice"). With parasitics (`<topcell>.pex.spice`) it adds every
@@ -846,14 +847,21 @@ def run_magic_extract(work_dir, gds_path, topcell: str, *, parasitics: bool,
     `variant` extracts at that RC variant of the tech's ngspice style (hrhc and
     its siblings), for both passes. magic only prints a complaint about a style
     its tech lacks and carries on at the nominal one, so the .ext's own `style`
-    line is checked and anything else is a refusal."""
+    line is checked and anything else is a refusal.
+
+    `geometry` (parasitics only) also has extresist write `<topcell>.fh`, its
+    FastHenry view of every split net: each wire piece with its layer
+    height, width and end points, which the em_ir gate reads current
+    density off. The netlist itself is the same as without it."""
+    if geometry and not parasitics:
+        raise LayoutError("geometry comes from extresist: it needs parasitics")
     work_dir = Path(work_dir)
     base = work_dir / topcell
     out_path = work_dir / (f"{topcell}.pex.spice" if parasitics
                            else f"{topcell}.spice")
     ext_path = base.with_suffix(".ext")
     fresh(out_path, *(base.with_suffix(s) for s in
-                      (".ext", ".res.ext", ".sim", ".nodes")))
+                      (".ext", ".res.ext", ".sim", ".nodes", ".fh")))
     tech = magic_tech(work_dir)
     lines = _magic_head(tech, gds_path, topcell)
     if variant:
@@ -874,6 +882,8 @@ def run_magic_extract(work_dir, gds_path, topcell: str, *, parasitics: bool,
         lines += ["extract do resistance", "extract all",
                   "ext2sim labels on", "ext2sim",
                   "extresist tolerance 0.01", "extresist simplify off",
+                  *(["extresist geometry", "extresist fasthenry"]
+                    if geometry else []),
                   "extresist all",
                   "ext2spice lvs", "ext2spice cthresh 0",
                   "ext2spice extresist on"]
@@ -889,7 +899,8 @@ def run_magic_extract(work_dir, gds_path, topcell: str, *, parasitics: bool,
             f"not complete: {out[-2000:]}")
     if parasitics:
         res_path = base.with_suffix(".res.ext")
-        for need in (ext_path, res_path):
+        for need in (ext_path, res_path) + (
+                (base.with_suffix(".fh"),) if geometry else ()):
             if not need.is_file():
                 raise LayoutError(
                     f"magic extraction wrote no {need.name} to check "

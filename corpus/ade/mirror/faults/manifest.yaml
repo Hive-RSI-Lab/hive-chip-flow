@@ -141,6 +141,12 @@ faults:
     expect:
       status: fail
       kind: measure_out_of_bounds
+  # issue #120: the vss pin at the end of a 1000um minimum-width strap, so
+  # the sources sit 13 mV off the pin against spec.yaml's 2 mV
+  - name: em_ir_vss_strap_at_minimum_width
+    gate: em_ir
+    plant: plant_em_ir_narrow_vss_strap.py
+    expect: {status: fail, kind: ir_drop_over}
   - name: release_netlist_changed_after_sim
     gate: release
     plant: plant_release.py

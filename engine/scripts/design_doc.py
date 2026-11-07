@@ -89,6 +89,7 @@ GATE_WHAT = {
     "netlist_lint": "ngspice dry run", "sim_tt": "typical corner",
     "sim_pvt": "PVT corners", "bench_strength": "bench mutants",
     "mc": "Monte Carlo", "pex_sim": "post-layout sim",
+    "em_ir": "EM and IR drop",
     "split": "interface agrees", "cosim": "mixed-signal cosim",
     "macro_lib": "analog macro timing abstract",
     "top_harden": "top-level harden", "top_drc": "top-level DRC",
@@ -347,7 +348,7 @@ def gate_numbers(r: dict) -> str:
                 f"{got.get(k, 0)}/{n} {k}" for k, n in sorted(want.items())))
     elif g == "precheck" and "checks_run" in f:
         parts.append(f"{f['checks_run']} checks run")
-    elif g in ("sim_tt", "sim_pvt", "pex_sim") and f.get("corners"):
+    elif g in ("sim_tt", "sim_pvt", "pex_sim", "em_ir") and f.get("corners"):
         parts.append(f"{len(f['corners'])} corners: " + ", ".join(map(str, f["corners"])))
     elif g == "split" and isinstance(f.get("signals"), list):
         parts.append(f"{len(f['signals'])} crossing signals agree")

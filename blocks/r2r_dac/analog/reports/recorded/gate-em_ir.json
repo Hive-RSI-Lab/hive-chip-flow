@@ -1,0 +1,1294 @@
+{
+ "script": "gate",
+ "gate": "em_ir",
+ "phase": "P5",
+ "tool": "analog_em_ir",
+ "input_digest": "dir_text:889449a57e56e4c2cab666ce1481936e988d284cf7e8717638791f7715a62c67",
+ "status": "pass",
+ "criteria": {
+  "fail_severities": [
+   "error"
+  ],
+  "max_count": 0
+ },
+ "counts": {
+  "total": 0,
+  "by_severity": {},
+  "by_source": {}
+ },
+ "failing_count": 0,
+ "failing": [],
+ "violations": [],
+ "facts": {
+  "topcell": "r2r_dac_analog",
+  "gds": "layout/r2r_dac_analog.gds",
+  "bench": "layout_ref/r2r_dac_analog_emir_tb.cir",
+  "extracted": "log/em_ir/r2r_dac_analog.pex.ordered.spice",
+  "limits": "engine/reference/em_limits.yaml",
+  "temperature_c": 125,
+  "rails": [
+   "vdd",
+   "vss"
+  ],
+  "ir_checked": true,
+  "ir_bound_mv": 66.0,
+  "ir_bound_source": "2 % of supply.vdd",
+  "ir_worst_mv": {
+   "vdd": 8.929,
+   "vss": 3.1353
+  },
+  "corners": [
+   "tt_m40c",
+   "tt_25c",
+   "tt_125c",
+   "ff_m40c",
+   "ff_25c",
+   "ff_125c",
+   "ss_m40c",
+   "ss_25c",
+   "ss_125c",
+   "tt_pss",
+   "tt_pff"
+  ],
+  "by_corner": {
+   "tt_m40c": {
+    "nets": [
+     {
+      "net": "vdd",
+      "i_total": 0.00016096161546008323,
+      "w_min_um": 0.23,
+      "wire_ratio": 1.0445,
+      "cut_ratio": 1.1497,
+      "tier": 2
+     },
+     {
+      "net": "vss",
+      "i_total": 0.00012083941315496361,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.7842,
+      "cut_ratio": 0.8631
+     },
+     {
+      "net": "d7",
+      "i_total": 3.920973603658973e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.2544,
+      "cut_ratio": 0.2801
+     },
+     {
+      "net": "d0",
+      "i_total": 3.6661367956001294e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.2379,
+      "cut_ratio": 0.2619
+     },
+     {
+      "net": "d5",
+      "i_total": 3.579618125434068e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.2323,
+      "cut_ratio": 0.2557
+     },
+     {
+      "net": "d3",
+      "i_total": 3.451401678566865e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.224,
+      "cut_ratio": 0.2465
+     },
+     {
+      "net": "d1",
+      "i_total": 3.321944649191528e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.2156,
+      "cut_ratio": 0.2373
+     },
+     {
+      "net": "d6",
+      "i_total": 3.0324949078877723e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.1968,
+      "cut_ratio": 0.2166
+     }
+    ],
+    "ir_mv": {
+     "vdd": 7.086,
+     "vss": 2.4878
+    },
+    "ir_node": {
+     "vdd": "vdd.t259",
+     "vss": "vss.t92"
+    },
+    "worst_wire": {
+     "net": "vdd",
+     "mA_per_um": 0.30186469631501783,
+     "limit": 0.67
+    },
+    "worst_cut": {
+     "gds": [
+      35,
+      0
+     ],
+     "cuts": 1,
+     "mA_per_cut": 0.12074587852600713,
+     "limit": 0.18
+    },
+    "cuts_located_off_magic": []
+   },
+   "tt_25c": {
+    "nets": [
+     {
+      "net": "vdd",
+      "i_total": 0.0001748672489962094,
+      "w_min_um": 0.23,
+      "wire_ratio": 1.1348,
+      "cut_ratio": 1.2491,
+      "tier": 2
+     },
+     {
+      "net": "vss",
+      "i_total": 0.00012179136919675665,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.7903,
+      "cut_ratio": 0.8699
+     },
+     {
+      "net": "d5",
+      "i_total": 4.132974654872909e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.2682,
+      "cut_ratio": 0.2952
+     },
+     {
+      "net": "d3",
+      "i_total": 3.816704920772337e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.2477,
+      "cut_ratio": 0.2726
+     },
+     {
+      "net": "d1",
+      "i_total": 3.713183161768124e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.241,
+      "cut_ratio": 0.2652
+     },
+     {
+      "net": "d0",
+      "i_total": 3.7030678202362016e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.2403,
+      "cut_ratio": 0.2645
+     },
+     {
+      "net": "d7",
+      "i_total": 3.2782357595633876e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.2127,
+      "cut_ratio": 0.2342
+     },
+     {
+      "net": "d6",
+      "i_total": 3.056669785496161e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.1984,
+      "cut_ratio": 0.2183
+     }
+    ],
+    "ir_mv": {
+     "vdd": 7.144,
+     "vss": 2.5082
+    },
+    "ir_node": {
+     "vdd": "vdd.t259",
+     "vss": "vss.t92"
+    },
+    "worst_wire": {
+     "net": "vdd",
+     "mA_per_um": 0.3043007259105801,
+     "limit": 0.67
+    },
+    "worst_cut": {
+     "gds": [
+      35,
+      0
+     ],
+     "cuts": 1,
+     "mA_per_cut": 0.12172029036423206,
+     "limit": 0.18
+    },
+    "cuts_located_off_magic": []
+   },
+   "tt_125c": {
+    "nets": [
+     {
+      "net": "vdd",
+      "i_total": 0.00017698157629295757,
+      "w_min_um": 0.23,
+      "wire_ratio": 1.1485,
+      "cut_ratio": 1.2642,
+      "tier": 2
+     },
+     {
+      "net": "vss",
+      "i_total": 0.00012194393194593422,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.7913,
+      "cut_ratio": 0.871
+     },
+     {
+      "net": "d0",
+      "i_total": 4.024892885663014e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.2612,
+      "cut_ratio": 0.2875
+     },
+     {
+      "net": "d1",
+      "i_total": 3.906197633802669e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.2535,
+      "cut_ratio": 0.279
+     },
+     {
+      "net": "d3",
+      "i_total": 3.809322735962662e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.2472,
+      "cut_ratio": 0.2721
+     },
+     {
+      "net": "d5",
+      "i_total": 3.6402076419316934e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.2362,
+      "cut_ratio": 0.26
+     },
+     {
+      "net": "d7",
+      "i_total": 3.231282997637116e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.2097,
+      "cut_ratio": 0.2308
+     },
+     {
+      "net": "d6",
+      "i_total": 3.059859497113722e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.1986,
+      "cut_ratio": 0.2186
+     }
+    ],
+    "ir_mv": {
+     "vdd": 7.152,
+     "vss": 2.5114
+    },
+    "ir_node": {
+     "vdd": "vdd.t259",
+     "vss": "vss.t92"
+    },
+    "worst_wire": {
+     "net": "vdd",
+     "mA_per_um": 0.30463340770068975,
+     "limit": 0.67
+    },
+    "worst_cut": {
+     "gds": [
+      35,
+      0
+     ],
+     "cuts": 1,
+     "mA_per_cut": 0.12185336308027589,
+     "limit": 0.18
+    },
+    "cuts_located_off_magic": []
+   },
+   "ff_m40c": {
+    "nets": [
+     {
+      "net": "vdd",
+      "i_total": 0.00020396103388257937,
+      "w_min_um": 0.23,
+      "wire_ratio": 1.3236,
+      "cut_ratio": 1.4569,
+      "tier": 2
+     },
+     {
+      "net": "vss",
+      "i_total": 0.0001507780346344773,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.9784,
+      "cut_ratio": 1.077,
+      "tier": 2
+     },
+     {
+      "net": "d3",
+      "i_total": 6.043924735431382e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.3922,
+      "cut_ratio": 0.4317
+     },
+     {
+      "net": "d0",
+      "i_total": 5.576119712665015e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.3619,
+      "cut_ratio": 0.3983
+     },
+     {
+      "net": "d7",
+      "i_total": 5.122637506333128e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.3324,
+      "cut_ratio": 0.3659
+     },
+     {
+      "net": "d1",
+      "i_total": 4.738944788947516e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.3075,
+      "cut_ratio": 0.3385
+     },
+     {
+      "net": "d5",
+      "i_total": 4.615428715003321e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.2995,
+      "cut_ratio": 0.3297
+     },
+     {
+      "net": "d6",
+      "i_total": 3.783344627716911e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.2455,
+      "cut_ratio": 0.2702
+     }
+    ],
+    "ir_mv": {
+     "vdd": 8.843,
+     "vss": 3.1049
+    },
+    "ir_node": {
+     "vdd": "vdd.t259",
+     "vss": "vss.t92"
+    },
+    "worst_wire": {
+     "net": "vdd",
+     "mA_per_um": 0.3766798035971721,
+     "limit": 0.67
+    },
+    "worst_cut": {
+     "gds": [
+      35,
+      0
+     ],
+     "cuts": 1,
+     "mA_per_cut": 0.15079164730215308,
+     "limit": 0.18
+    },
+    "cuts_located_off_magic": [
+     {
+      "net": "vss",
+      "at": [
+       152.52,
+       81.36
+      ],
+      "amps": 4.190947834221822e-05,
+      "what": "a wire under metal1 meets metal",
+      "charged": [
+       33,
+       0
+      ],
+      "box": [
+       150.22,
+       80.74,
+       150.44,
+       81.98
+      ],
+      "cuts": 3
+     },
+     {
+      "net": "vss",
+      "at": [
+       221.69,
+       -0.72
+      ],
+      "amps": 1.100728938576063e-07,
+      "charged": null,
+      "what": "substrate joins metal with no drawn tap"
+     },
+     {
+      "net": "vss",
+      "at": [
+       182.08,
+       90.98
+      ],
+      "amps": 1.0223457141677612e-06,
+      "charged": null,
+      "what": "substrate joins metal with no drawn tap"
+     },
+     {
+      "net": "vss",
+      "at": [
+       217.92,
+       90.98
+      ],
+      "amps": 7.659283910918813e-08,
+      "charged": null,
+      "what": "substrate joins metal with no drawn tap"
+     },
+     {
+      "net": "vss",
+      "at": [
+       182.08,
+       -0.72
+      ],
+      "amps": 1.0584531433968173e-07,
+      "charged": null,
+      "what": "substrate joins metal with no drawn tap"
+     },
+     {
+      "net": "vss",
+      "at": [
+       0.3,
+       -3.0
+      ],
+      "amps": 1.2378601814853083e-06,
+      "charged": null,
+      "what": "substrate joins metal with no drawn tap"
+     }
+    ]
+   },
+   "ff_25c": {
+    "nets": [
+     {
+      "net": "vdd",
+      "i_total": 0.00019516416883414247,
+      "w_min_um": 0.23,
+      "wire_ratio": 1.2665,
+      "cut_ratio": 1.394,
+      "tier": 2
+     },
+     {
+      "net": "vss",
+      "i_total": 0.00015197896697258603,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.9862,
+      "cut_ratio": 1.0856,
+      "tier": 2
+     },
+     {
+      "net": "d3",
+      "i_total": 5.7487445677252644e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.3731,
+      "cut_ratio": 0.4106
+     },
+     {
+      "net": "d0",
+      "i_total": 5.6982727601751274e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.3698,
+      "cut_ratio": 0.407
+     },
+     {
+      "net": "d1",
+      "i_total": 4.978254339280816e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.3231,
+      "cut_ratio": 0.3556
+     },
+     {
+      "net": "d7",
+      "i_total": 4.627966460139862e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.3003,
+      "cut_ratio": 0.3306
+     },
+     {
+      "net": "d5",
+      "i_total": 4.566129637209032e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.2963,
+      "cut_ratio": 0.3262
+     },
+     {
+      "net": "d6",
+      "i_total": 3.8141971896915946e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.2475,
+      "cut_ratio": 0.2724
+     }
+    ],
+    "ir_mv": {
+     "vdd": 8.915,
+     "vss": 3.1306
+    },
+    "ir_node": {
+     "vdd": "vdd.t259",
+     "vss": "vss.t92"
+    },
+    "worst_wire": {
+     "net": "vdd",
+     "mA_per_um": 0.3797313868162584,
+     "limit": 0.67
+    },
+    "worst_cut": {
+     "gds": [
+      35,
+      0
+     ],
+     "cuts": 1,
+     "mA_per_cut": 0.1523345713719847,
+     "limit": 0.18
+    },
+    "cuts_located_off_magic": [
+     {
+      "net": "vss",
+      "at": [
+       152.52,
+       77.36
+      ],
+      "amps": 2.172545222401866e-09,
+      "what": "a wire under metal1 meets metal",
+      "charged": [
+       33,
+       0
+      ],
+      "box": [
+       150.22,
+       76.74,
+       150.44,
+       77.98
+      ],
+      "cuts": 3
+     },
+     {
+      "net": "vss",
+      "at": [
+       152.52,
+       81.36
+      ],
+      "amps": 4.225931232091739e-05,
+      "what": "a wire under metal1 meets metal",
+      "charged": [
+       33,
+       0
+      ],
+      "box": [
+       150.22,
+       80.74,
+       150.44,
+       81.98
+      ],
+      "cuts": 3
+     },
+     {
+      "net": "vss",
+      "at": [
+       221.69,
+       -0.72
+      ],
+      "amps": 1.1095761296063979e-07,
+      "charged": null,
+      "what": "substrate joins metal with no drawn tap"
+     },
+     {
+      "net": "vss",
+      "at": [
+       182.08,
+       90.98
+      ],
+      "amps": 1.030541773706962e-06,
+      "charged": null,
+      "what": "substrate joins metal with no drawn tap"
+     },
+     {
+      "net": "vss",
+      "at": [
+       217.92,
+       90.98
+      ],
+      "amps": 7.722057978500222e-08,
+      "charged": null,
+      "what": "substrate joins metal with no drawn tap"
+     },
+     {
+      "net": "vss",
+      "at": [
+       182.08,
+       -0.72
+      ],
+      "amps": 1.0665868217785437e-07,
+      "charged": null,
+      "what": "substrate joins metal with no drawn tap"
+     },
+     {
+      "net": "vss",
+      "at": [
+       0.3,
+       -3.0
+      ],
+      "amps": 1.2479172714982775e-06,
+      "charged": null,
+      "what": "substrate joins metal with no drawn tap"
+     }
+    ]
+   },
+   "ff_125c": {
+    "nets": [
+     {
+      "net": "vdd",
+      "i_total": 0.00020510439287709856,
+      "w_min_um": 0.23,
+      "wire_ratio": 1.331,
+      "cut_ratio": 1.465,
+      "tier": 2
+     },
+     {
+      "net": "vss",
+      "i_total": 0.0001522288727938927,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.9879,
+      "cut_ratio": 1.0873,
+      "tier": 2
+     },
+     {
+      "net": "d5",
+      "i_total": 5.607926314080462e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.3639,
+      "cut_ratio": 0.4006
+     },
+     {
+      "net": "d3",
+      "i_total": 5.5214721726152024e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.3583,
+      "cut_ratio": 0.3944
+     },
+     {
+      "net": "d0",
+      "i_total": 5.123895181376827e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.3325,
+      "cut_ratio": 0.366
+     },
+     {
+      "net": "d1",
+      "i_total": 4.770313401512594e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.3096,
+      "cut_ratio": 0.3407
+     },
+     {
+      "net": "d6",
+      "i_total": 3.818114215296268e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.2478,
+      "cut_ratio": 0.2727
+     },
+     {
+      "net": "d7",
+      "i_total": 3.646822742586724e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.2367,
+      "cut_ratio": 0.2605
+     }
+    ],
+    "ir_mv": {
+     "vdd": 8.929,
+     "vss": 3.1353
+    },
+    "ir_node": {
+     "vdd": "vdd.t259",
+     "vss": "vss.t92"
+    },
+    "worst_wire": {
+     "net": "vdd",
+     "mA_per_um": 0.38030355866975213,
+     "limit": 0.67
+    },
+    "worst_cut": {
+     "gds": [
+      35,
+      0
+     ],
+     "cuts": 1,
+     "mA_per_cut": 0.15233457137367265,
+     "limit": 0.18
+    },
+    "cuts_located_off_magic": [
+     {
+      "net": "vss",
+      "at": [
+       152.52,
+       81.36
+      ],
+      "amps": 4.232481475431746e-05,
+      "what": "a wire under metal1 meets metal",
+      "charged": [
+       33,
+       0
+      ],
+      "box": [
+       150.22,
+       80.74,
+       150.44,
+       81.98
+      ],
+      "cuts": 3
+     },
+     {
+      "net": "vss",
+      "at": [
+       221.69,
+       -0.72
+      ],
+      "amps": 1.1109012414602898e-07,
+      "charged": null,
+      "what": "substrate joins metal with no drawn tap"
+     },
+     {
+      "net": "vss",
+      "at": [
+       182.08,
+       90.98
+      ],
+      "amps": 1.032031919449142e-06,
+      "charged": null,
+      "what": "substrate joins metal with no drawn tap"
+     },
+     {
+      "net": "vss",
+      "at": [
+       217.92,
+       90.98
+      ],
+      "amps": 7.727450042535343e-08,
+      "charged": null,
+      "what": "substrate joins metal with no drawn tap"
+     },
+     {
+      "net": "vss",
+      "at": [
+       182.08,
+       -0.72
+      ],
+      "amps": 1.068772066352607e-07,
+      "charged": null,
+      "what": "substrate joins metal with no drawn tap"
+     },
+     {
+      "net": "vss",
+      "at": [
+       0.3,
+       -3.0
+      ],
+      "amps": 1.2495463738074655e-06,
+      "charged": null,
+      "what": "substrate joins metal with no drawn tap"
+     }
+    ]
+   },
+   "ss_m40c": {
+    "nets": [
+     {
+      "net": "vdd",
+      "i_total": 0.00015635898972734118,
+      "w_min_um": 0.23,
+      "wire_ratio": 1.0147,
+      "cut_ratio": 1.1168,
+      "tier": 2
+     },
+     {
+      "net": "vss",
+      "i_total": 0.00010079236490110988,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.6541,
+      "cut_ratio": 0.7199
+     },
+     {
+      "net": "d1",
+      "i_total": 4.9947557273405544e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.3241,
+      "cut_ratio": 0.3568
+     },
+     {
+      "net": "d7",
+      "i_total": 3.5825983608824405e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.2325,
+      "cut_ratio": 0.2559
+     },
+     {
+      "net": "d3",
+      "i_total": 3.437807761937776e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.2231,
+      "cut_ratio": 0.2456
+     },
+     {
+      "net": "d0",
+      "i_total": 3.398259288372377e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.2205,
+      "cut_ratio": 0.2427
+     },
+     {
+      "net": "d5",
+      "i_total": 3.2912062495932006e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.2136,
+      "cut_ratio": 0.2351
+     },
+     {
+      "net": "d6",
+      "i_total": 2.5298566217817872e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.1642,
+      "cut_ratio": 0.1807
+     }
+    ],
+    "ir_mv": {
+     "vdd": 5.91,
+     "vss": 2.0749
+    },
+    "ir_node": {
+     "vdd": "vdd.t259",
+     "vss": "vss.t92"
+    },
+    "worst_wire": {
+     "net": "vdd",
+     "mA_per_um": 0.25174619780002344,
+     "limit": 0.67
+    },
+    "worst_cut": {
+     "gds": [
+      35,
+      0
+     ],
+     "cuts": 1,
+     "mA_per_cut": 0.10069847912000937,
+     "limit": 0.18
+    },
+    "cuts_located_off_magic": []
+   },
+   "ss_25c": {
+    "nets": [
+     {
+      "net": "vdd",
+      "i_total": 0.00016987890135486587,
+      "w_min_um": 0.23,
+      "wire_ratio": 1.1024,
+      "cut_ratio": 1.2134,
+      "tier": 2
+     },
+     {
+      "net": "vss",
+      "i_total": 0.00010159604314914776,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.6593,
+      "cut_ratio": 0.7257
+     },
+     {
+      "net": "d7",
+      "i_total": 4.5048858411876045e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.2923,
+      "cut_ratio": 0.3218
+     },
+     {
+      "net": "d3",
+      "i_total": 3.4572743108355375e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.2244,
+      "cut_ratio": 0.2469
+     },
+     {
+      "net": "d5",
+      "i_total": 3.3610597938995516e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.2181,
+      "cut_ratio": 0.2401
+     },
+     {
+      "net": "d0",
+      "i_total": 3.291312513029339e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.2136,
+      "cut_ratio": 0.2351
+     },
+     {
+      "net": "d1",
+      "i_total": 2.9954874663039707e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.1944,
+      "cut_ratio": 0.214
+     },
+     {
+      "net": "d6",
+      "i_total": 2.550236389549384e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.1655,
+      "cut_ratio": 0.1822
+     }
+    ],
+    "ir_mv": {
+     "vdd": 5.958,
+     "vss": 2.0917
+    },
+    "ir_node": {
+     "vdd": "vdd.t259",
+     "vss": "vss.t92"
+    },
+    "worst_wire": {
+     "net": "vdd",
+     "mA_per_um": 0.2537530851118938,
+     "limit": 0.67
+    },
+    "worst_cut": {
+     "gds": [
+      35,
+      0
+     ],
+     "cuts": 1,
+     "mA_per_cut": 0.10200039307745466,
+     "limit": 0.18
+    },
+    "cuts_located_off_magic": []
+   },
+   "ss_125c": {
+    "nets": [
+     {
+      "net": "vdd",
+      "i_total": 0.00015399422823390537,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.9993,
+      "cut_ratio": 1.1,
+      "tier": 2
+     },
+     {
+      "net": "vss",
+      "i_total": 0.00010168468568665695,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.6599,
+      "cut_ratio": 0.7263
+     },
+     {
+      "net": "d7",
+      "i_total": 4.324731721637185e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.2806,
+      "cut_ratio": 0.3089
+     },
+     {
+      "net": "d0",
+      "i_total": 3.611889632489223e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.2344,
+      "cut_ratio": 0.258
+     },
+     {
+      "net": "d5",
+      "i_total": 3.4023057421933225e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.2208,
+      "cut_ratio": 0.243
+     },
+     {
+      "net": "d3",
+      "i_total": 3.338522153658281e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.2166,
+      "cut_ratio": 0.2385
+     },
+     {
+      "net": "d1",
+      "i_total": 3.070293281849633e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.1992,
+      "cut_ratio": 0.2193
+     },
+     {
+      "net": "d6",
+      "i_total": 2.5514132509495838e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.1656,
+      "cut_ratio": 0.1822
+     }
+    ],
+    "ir_mv": {
+     "vdd": 5.963,
+     "vss": 2.094
+    },
+    "ir_node": {
+     "vdd": "vdd.t259",
+     "vss": "vss.t92"
+    },
+    "worst_wire": null,
+    "worst_cut": {
+     "gds": [
+      35,
+      0
+     ],
+     "cuts": 1,
+     "mA_per_cut": 0.10159599821377273,
+     "limit": 0.18
+    },
+    "cuts_located_off_magic": []
+   },
+   "tt_pss": {
+    "nets": [
+     {
+      "net": "vdd",
+      "i_total": 0.0001519767456325519,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.9862,
+      "cut_ratio": 1.0855,
+      "tier": 2
+     },
+     {
+      "net": "vss",
+      "i_total": 0.00010169707286609643,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.6599,
+      "cut_ratio": 0.7264
+     },
+     {
+      "net": "d5",
+      "i_total": 5.0425716618397265e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.3272,
+      "cut_ratio": 0.3602
+     },
+     {
+      "net": "d0",
+      "i_total": 4.659072588363246e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.3023,
+      "cut_ratio": 0.3328
+     },
+     {
+      "net": "d3",
+      "i_total": 4.0532402388937625e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.263,
+      "cut_ratio": 0.2895
+     },
+     {
+      "net": "d7",
+      "i_total": 3.429076419901488e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.2225,
+      "cut_ratio": 0.2449
+     },
+     {
+      "net": "d1",
+      "i_total": 3.031740550432209e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.1967,
+      "cut_ratio": 0.2166
+     },
+     {
+      "net": "d6",
+      "i_total": 2.5526475249691295e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.1656,
+      "cut_ratio": 0.1823
+     }
+    ],
+    "ir_mv": {
+     "vdd": 5.964,
+     "vss": 2.0938
+    },
+    "ir_node": {
+     "vdd": "vdd.t259",
+     "vss": "vss.t92"
+    },
+    "worst_wire": null,
+    "worst_cut": {
+     "gds": [
+      35,
+      0
+     ],
+     "cuts": 1,
+     "mA_per_cut": 0.10200244585559737,
+     "limit": 0.18
+    },
+    "cuts_located_off_magic": []
+   },
+   "tt_pff": {
+    "nets": [
+     {
+      "net": "vdd",
+      "i_total": 0.00020118620373471384,
+      "w_min_um": 0.23,
+      "wire_ratio": 1.3056,
+      "cut_ratio": 1.437,
+      "tier": 2
+     },
+     {
+      "net": "vss",
+      "i_total": 0.0001518465963536725,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.9854,
+      "cut_ratio": 1.0846,
+      "tier": 2
+     },
+     {
+      "net": "d7",
+      "i_total": 6.642534259975097e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.4311,
+      "cut_ratio": 0.4745
+     },
+     {
+      "net": "d3",
+      "i_total": 6.343902584400674e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.4117,
+      "cut_ratio": 0.4531
+     },
+     {
+      "net": "d5",
+      "i_total": 5.293519816595792e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.3435,
+      "cut_ratio": 0.3781
+     },
+     {
+      "net": "d0",
+      "i_total": 4.99783296780584e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.3243,
+      "cut_ratio": 0.357
+     },
+     {
+      "net": "d1",
+      "i_total": 4.764039679357806e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.3092,
+      "cut_ratio": 0.3403
+     },
+     {
+      "net": "d6",
+      "i_total": 3.811548339579765e-05,
+      "w_min_um": 0.23,
+      "wire_ratio": 0.2473,
+      "cut_ratio": 0.2723
+     }
+    ],
+    "ir_mv": {
+     "vdd": 8.908,
+     "vss": 3.1285
+    },
+    "ir_node": {
+     "vdd": "vdd.t259",
+     "vss": "vss.t92"
+    },
+    "worst_wire": {
+     "net": "vdd",
+     "mA_per_um": 0.3794453008892829,
+     "limit": 0.67
+    },
+    "worst_cut": {
+     "gds": [
+      38,
+      0
+     ],
+     "cuts": 1,
+     "mA_per_cut": 0.1518465963536725,
+     "limit": 0.18
+    },
+    "cuts_located_off_magic": [
+     {
+      "net": "vss",
+      "at": [
+       152.52,
+       81.36
+      ],
+      "amps": 4.223727781655111e-05,
+      "what": "a wire under metal1 meets metal",
+      "charged": [
+       33,
+       0
+      ],
+      "box": [
+       150.22,
+       80.74,
+       150.44,
+       81.98
+      ],
+      "cuts": 3
+     },
+     {
+      "net": "vss",
+      "at": [
+       221.69,
+       -0.72
+      ],
+      "amps": 1.1086396352615738e-07,
+      "charged": null,
+      "what": "substrate joins metal with no drawn tap"
+     },
+     {
+      "net": "vss",
+      "at": [
+       182.08,
+       90.98
+      ],
+      "amps": 1.029769326819519e-06,
+      "charged": null,
+      "what": "substrate joins metal with no drawn tap"
+     },
+     {
+      "net": "vss",
+      "at": [
+       217.92,
+       90.98
+      ],
+      "amps": 7.714132314980309e-08,
+      "charged": null,
+      "what": "substrate joins metal with no drawn tap"
+     },
+     {
+      "net": "vss",
+      "at": [
+       182.08,
+       -0.72
+      ],
+      "amps": 1.0654224723457397e-07,
+      "charged": null,
+      "what": "substrate joins metal with no drawn tap"
+     },
+     {
+      "net": "vss",
+      "at": [
+       0.3,
+       -3.0
+      ],
+      "amps": 1.24695231859485e-06,
+      "charged": null,
+      "what": "substrate joins metal with no drawn tap"
+     }
+    ]
+   }
+  }
+ },
+ "inputs_at_start": {
+  "layout": "dir_text:889449a57e56e4c2cab666ce1481936e988d284cf7e8717638791f7715a62c67",
+  "tb": "dir_text:f39ddda9f2efd5463da75d99f486ff1ea8d2038b91027869426db82f0bf513e4",
+  "layout_ref": "dir_text:3877121e758def7d2fcd326931f83d5dfad6ae2f65fec2e70b868dfdf45a8f9a",
+  "netlist": "dir_text:2c6d358ba4c3ec93f5dc910e1777df9a3f5418293791a715229fa1b8d22d1e4e",
+  "spec_yaml": "json_canonical:8c9cd25a18e9f52cb3d6890c8bb10c49e0fd4727727abbe712a4ce5fc7367fb4",
+  "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+  "pdk_models": "dir_text:84e0f27991c27acae27ec5243fd0d1587f7bfb2655e802ed0eb92a811cf5f7f8",
+  "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
+  "pdk_klayout": "dir_text:876da90e8aab65b830b36eca12bd720adfe8240a0952872419d9f2b4abda605d"
+ },
+ "strength_at_start": 0,
+ "recorded_ts": "2026-11-07T18:24:04",
+ "attempts": 1
+}

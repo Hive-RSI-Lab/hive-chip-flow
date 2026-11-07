@@ -129,6 +129,7 @@ Three areas of quality, and process reported apart. Each signal is read from a g
 | analog reliability ERC | implementation (analog) | CVC on the extracted layout: device ratings, bulk ties, floating gates, diodes | `erc` (`check_analog_erc.py`) |
 | matched-device layout | implementation (analog) | the extracted rows of `spec.yaml`'s `matching:` groups: centroid offset, unit size, orientation, end dummies | `layout_match` (`check_layout_match.py`) |
 | post-layout margins | implementation (analog) | magic extraction with R and C, then the measures again | `pex_sim` (`check_pex_sim.py`) |
+| electromigration and IR drop | implementation (analog) | an operating point on the extraction, every wire and cut against the DRM's DC limit, every rail's drop against a bound | `em_ir` (`check_analog_em_ir.py`) |
 | co-simulation | function (msde) | one cocotb bench drives the Icarus digital side against the ngspice analog block | `cosim` (`check_cosim.py`) |
 | top DRC, LVS, precheck | implementation (msde) | on the assembled top with the analog macro | `top_harden`, `top_drc`, `top_lvs`, `precheck` |
 | stage benches | regression | a stage's gates on a frozen fixture, composite against a baseline | `bench.py --compare` |
