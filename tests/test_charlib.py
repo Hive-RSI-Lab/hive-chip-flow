@@ -232,6 +232,43 @@ def test_a_rejected_rerun_leaves_no_earlier_lib_behind(tmp_path):
     assert not bad.exists() and good.read_text() == "third"
 
 
+def test_bisect_converges_and_refuses_a_bad_bracket():
+    assert charlib._bisect(lambda x: x >= 0.123, -1.0, 2.0, 0.001, "x") == \
+        pytest.approx(0.123, abs=0.001)
+    with pytest.raises(charlib.Refused):
+        charlib._bisect(lambda x: False, -1.0, 2.0, 0.001, "never")
+    with pytest.raises(charlib.Refused):
+        charlib._bisect(lambda x: True, -1.0, 2.0, 0.001, "always")
+
+
+@pytest.mark.parametrize("first, second, ramp", [
+    (1.0, 3.0, 0.5), (1.0, 1.2, 0.5), (1.0, 0.8, 0.5), (1.0, 1.0, 0.5)])
+def test_pulse_points_width_is_threshold_to_threshold(first, second, ramp):
+    """At a 50% threshold the crossings are second - first apart, a triangle
+    included; the times keep increasing."""
+    vdd = 3.3
+    for rest_high in (False, True):
+        pts = charlib._pulse_points(vdd, rest_high, first, second, ramp)
+        times = [t for t, _ in pts]
+        assert times == sorted(times) and len(set(times)) == len(times)
+
+        def crossings():
+            out = []
+            for (t0, v0), (t1, v1) in zip(pts, pts[1:]):
+                if (v0 - vdd / 2) * (v1 - vdd / 2) < 0:
+                    out.append(t0 + (vdd / 2 - v0) * (t1 - t0) / (v1 - v0))
+            return out
+        c = crossings()
+        if second > first:
+            assert len(c) == 2 and c[1] - c[0] == pytest.approx(second - first)
+        else:
+            assert c == []
+
+
+def test_pulse_points_nothing_when_it_never_leaves_the_rail():
+    assert charlib._pulse_points(3.3, False, 1.0, 0.4, 0.5) == []
+
+
 def test_pick_is_a_subset_of_the_template_only():
     assert charlib.pick([1, 2, 3], [0, 2]) == [1, 3]
     assert charlib.pick([1, 2, 3], None) == [1, 2, 3]
@@ -504,10 +541,10 @@ def test_opensta_reads_the_output(tmp_path):
 
 @pytest.mark.slow
 def test_dffq_extracted_clock_to_q_setup_hold(tmp_path):
-    """lctime can do dffq_1 once its min-pulse search is skipped (lctime_shim).
-    Clock-to-Q and transitions land in the band. Setup and hold pass the bench's
-    two-sided check but are pessimistic against the shipped lib: asserted as
-    what they are, safe-side at every point, with no accuracy claim."""
+    """Extracted dffq_1 against the shipped tt lib (issue #172): clock-to-Q and
+    transitions in their ratio band; setup and hold, bisected, within an
+    absolute band at every point (slews up to 0.7 ns); min_pulse_width high
+    and low present and in their ratio band."""
     cell = "dffq_1"
     full = f"{LIB}__{cell}"
     report = _run(cell, tmp_path / "out", extracted=_extract(full, tmp_path),
@@ -518,41 +555,61 @@ def test_dffq_extracted_clock_to_q_setup_hold(tmp_path):
         low, high = charlib.TOLERANCE_SHIPPED[("extracted", kind, "load>=20fF")]
         band = _band(rows, kinds, 0.020)
         assert low <= band[0] and band[1] <= high, (kind, band)
-    clock = [p for p in got.sub("pin") if p.args == "CLK"][0]
-    assert clock.attr("min_pulse_width_high") is None  # never measured
     low, high = charlib.TOLERANCE_SHIPPED[("extracted", "input_cap", "any")]
     for name in ("CLK", "D"):
         mine = float([p for p in got.sub("pin") if p.args == name][0].attr("capacitance"))
         theirs = float([p for p in ship.sub("pin") if p.args == name][0].attr("capacitance"))
         assert low <= mine / theirs <= high, name
     data = [p for p in got.sub("pin") if p.args == "D"][0]
-    ship_d = [p for p in ship.sub("pin") if p.args == "D"][0]
     kinds = {t.attr("timing_type") for t in data.sub("timing")}
     assert kinds == {"setup_rising", "hold_rising"}
-    for timing in data.sub("timing"):
-        twin = [t for t in ship_d.sub("timing")
-                if t.attr("timing_type") == timing.attr("timing_type")][0]
-        for tab in timing.groups:
-            other = twin.sub(tab.name)[0]
-            for i, s_ in enumerate(charlib.numbers(tab.attr("index_1"))):
-                for j, c_ in enumerate(charlib.numbers(tab.attr("index_2"))):
-                    assert charlib.table(tab)[i][j] >= charlib._lookup(other, s_, c_)
+    cons = charlib.compare_constraints(
+        got, charlib.split_library(_shipped().read_text(errors="replace"), full)[1])
+    diffs = [r for r in cons if "diff" in r]
+    assert {r["table"] for r in diffs} == {"setup_rise", "setup_fall",
+                                          "hold_rise", "hold_fall"}
+    assert len(diffs) == 4 * 2 * 2
+    low, high = charlib.TOLERANCE_SHIPPED[
+        ("extracted", "setup_hold_abs_ns", "slew<=0.7ns")]
+    for r in diffs:
+        assert r["data_slew"] <= 0.7 and r["clock_slew"] <= 0.7
+        assert low <= r["diff"] <= high, r
+    low, high = charlib.TOLERANCE_SHIPPED[("extracted", "min_pulse_width", "any")]
+    widths = {r["table"]: r["ratio"] for r in cons if "ratio" in r}
+    assert set(widths) == {"min_pulse_width_high", "min_pulse_width_low"}
+    for name, ratio in widths.items():
+        assert low <= ratio <= high, (name, ratio)
 
 
 @pytest.mark.slow
-def test_planted_optimistic_setup_is_caught(tmp_path):
-    """The table's setup 0.3 ns short: the bench's capture at table+margin fails."""
+@pytest.mark.parametrize("table_type, attr, shift, caught", [
+    ("setup_rising", None, -0.3, "not_optimistic"),
+    ("setup_rising", None, +0.3, "not_pessimistic"),
+    ("hold_rising", None, +0.3, "not_pessimistic"),
+    (None, "min_pulse_width_high", -0.3, "not_optimistic"),
+])
+def test_planted_constraint_fault_is_caught(tmp_path, table_type, attr, shift,
+                                            caught):
+    """A table 0.3 ns off either way fails the two-sided check: short, the
+    flop misses at table + margin; long, it still captures at table - margin."""
     cell = "dffq_1"
     report = _run(cell, tmp_path / "out", slews=(1,), loads=(3,))
+    assert report["ok"], report["corners"]["tt_025C"]["check"]["failed"]
     lib = charlib.parse_liberty(
         Path(report["corners"]["tt_025C"]["lib"]).read_text())
     got = lib.sub("cell")[0]
-    data = [p for p in got.sub("pin") if p.args == "D"][0]
-    setup = [t for t in data.sub("timing")
-             if t.attr("timing_type") == "setup_rising"][0]
-    for tab in setup.groups:
-        rows = [[v - 0.3 for v in r] for r in charlib.table(tab)]
-        tab.set_attr("values", charlib._quoted_rows(rows), True)
+    if attr:
+        clock = [p for p in got.sub("pin") if p.args == "CLK"][0]
+        clock.set_attr(attr, f"{float(clock.attr(attr)) + shift:.4g}")
+        name = attr
+    else:
+        data = [p for p in got.sub("pin") if p.args == "D"][0]
+        timing = [t for t in data.sub("timing")
+                  if t.attr("timing_type") == table_type][0]
+        for tab in timing.groups:
+            rows = [[v + shift for v in r] for r in charlib.table(tab)]
+            tab.set_attr("values", charlib._quoted_rows(rows), True)
+        name = table_type.split("_")[0]
     work = next((tmp_path / "out").glob("*.work"))
     check = charlib.validate(
         got, netlist=work / "netlist.sp", pdk=_pdk(), corner=TT25, vdd=3.3,
@@ -560,8 +617,8 @@ def test_planted_optimistic_setup_is_caught(tmp_path):
         data_slews=report["slews"], clock_slews=report["constraint_slews"],
         work=tmp_path / "again", checks=1, seed=1)
     assert not check["ok"]
-    assert any("setup" in p["table"] and p["check"] == "not_optimistic"
-               for p in check["failed"])
+    assert any(p["table"].startswith(name) and p["check"] == caught
+               for p in check["failed"]), check["failed"]
 
 
 @pytest.mark.slow
