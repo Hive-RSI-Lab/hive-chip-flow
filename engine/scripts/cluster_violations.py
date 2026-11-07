@@ -288,6 +288,9 @@ FIXER_HINTS: dict[str, str] = {
     # lvs (check_analog_lvs.py) and pex_sim (check_pex_sim.py) - a pex
     # bench that never printed a value is the bench-writer's, not the layout's
     "lvs_mismatch": "layout",
+    # lvs_extractors_disagree stays unmapped ("review"): netgen and klayout
+    # read the same GDS differently, an extraction question before it is
+    # the generator's
     "measure_out_of_bounds": "layout",
     "measure_missing": "testbench",
     "pex_bench_not_corner_aware": "testbench",
@@ -307,6 +310,9 @@ KIND_PREFIX_HINTS: tuple[tuple[str, str], ...] = (
 CHECK_HINTS: dict[str, str] = {
     "analog_drc": "layout",
     "analog_lvs": "layout",
+    # erc (#122): a bulk tie, a floating gate or an overvoltage is fixed in
+    # the generator (or the netlist it must match, which lvs then checks)
+    "analog_erc": "layout",
     "pex_sim": "layout",
 }
 
