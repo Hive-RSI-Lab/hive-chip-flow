@@ -116,6 +116,10 @@ CHECK_KINDS = {"sim", "formal", "both", "measure"}
 #                        spec's sweep pex_sim runs its bench at. Absent:
 #                        typical, slow/hot and sim_pvt's worst per measure
 #                        (check_pex_sim.py's docstring)
+#     pex_rc_knobs: "all" | [name, ...]   optional; scaled R and C runs of the
+#                        pex bench, from engine/reference/pex_rc_knobs.yaml. An
+#                        approximation, each knob one more ngspice run. Absent:
+#                        wire R and C as extracted
 
 ADE_MEASURE_CORNER_KINDS = {"default", "all"}
 # the gates that run ngspice, each with a --timeout and a default of its own
@@ -261,6 +265,13 @@ def lint_spec_ade(spec: dict, rel_path: str = "spec/spec.yaml") -> list[dict]:
                 isinstance(n, str) for n in field)):
             bad("bad_pex_corners", "spec.yaml 'pex_corners' must be \"all\" "
                                    "or a non-empty list of corner names")
+
+    if "pex_rc_knobs" in spec:
+        field = spec["pex_rc_knobs"]
+        if field != "all" and not (isinstance(field, list) and field and all(
+                isinstance(n, str) for n in field)):
+            bad("bad_pex_rc_knobs", "spec.yaml 'pex_rc_knobs' must be \"all\" "
+                                    "or a non-empty list of knob names")
 
     return out
 

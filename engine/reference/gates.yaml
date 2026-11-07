@@ -358,8 +358,10 @@ gates:
       # coupling C against magic's .ext is refused), then the block's
       # post-layout bench at each corner of the spec's pex_corners (default:
       # typical, slow/hot, sim_pvt's worst per measure), measuring what
-      # parasitics move (the mirror's output pole). klayout_pex as a second
-      # extractor and RC extraction corners are not wired up yet.
+      # parasitics move (the mirror's output pole), and at each `pex_rc_knobs`
+      # knob the spec opts into: every R and C scaled by a pinned factor, paired
+      # with the slow or fast corner (an approximation, not foundry RC corners).
+      # klayout_pex as a second extractor is not wired up yet.
       phase: P5
       tool: pex_sim
       strength: 0

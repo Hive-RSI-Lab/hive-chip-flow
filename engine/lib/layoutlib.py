@@ -824,6 +824,41 @@ def count_parasitics(spice_text: str) -> dict[str, int]:
     return counts
 
 
+_RC_VALUE_RE = re.compile(
+    r"([-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?)([A-Za-z]*)")
+
+
+def scale_parasitics(spice_text: str, c: float, r: float) -> str:
+    """`spice_text` with every capacitor's value times `c` and every resistor's
+    times `r`, the unit suffix kept. Every R and C line count_parasitics counts
+    is one `name node node value`: any other shape is refused, since leaving a
+    line it cannot read at nominal would pass off a partly scaled netlist as a
+    scaled one, as is a factor with no line of its kind to move. Pure."""
+    factors = {"c": c, "r": r}
+    moved = {"c": 0, "r": 0}
+    out = []
+    for line in spice_text.splitlines():
+        head = line.lstrip()[:1].lower()
+        if head in factors:
+            tokens = line.split()
+            match = (_RC_VALUE_RE.fullmatch(tokens[3])
+                     if len(tokens) == 4 else None)
+            if match is None:
+                raise LayoutError(
+                    f"cannot scale {line.strip()!r}: an extracted R or C line "
+                    "must be 'name node node value'")
+            moved[head] += 1
+            if factors[head] != 1:
+                value = float(match[1]) * factors[head]
+                line = " ".join(tokens[:3] + [f"{value:.9g}{match[2]}"])
+        out.append(line)
+    for kind, factor in factors.items():
+        if factor != 1 and not moved[kind]:
+            raise LayoutError(f"cannot scale {kind.upper()} by {factor:g}: the "
+                              f"netlist has no {kind.upper()} line")
+    return "\n".join(out) + "\n"
+
+
 def netgen_setup() -> Path:
     setup = (pdk_root() / "libs.tech" / "netgen" /
              f"{pdk_root().name}_setup.tcl")

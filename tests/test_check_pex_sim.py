@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import re
 import shutil
 import sys
 from pathlib import Path
@@ -682,6 +683,263 @@ def _rc_extract(monkeypatch):
         return p, ""
 
     monkeypatch.setattr(layoutlib, "run_magic_extract", extracted)
+
+
+def test_scale_parasitics_moves_each_kind_and_keeps_the_suffix():
+    import layoutlib
+    text = (".subckt blk a b\nR0 a b 12.5\nC0 a b 4.89611f\nC1 a 0 1e-15\n"
+            "Xm a b c d nfet w=1u\n.ends\n")
+    got = layoutlib.scale_parasitics(text, 1.2, 2).splitlines()
+    assert got == [".subckt blk a b", "R0 a b 25", "C0 a b 5.875332f",
+                   "C1 a 0 1.2e-15", "Xm a b c d nfet w=1u", ".ends"]
+    # a factor of 1 leaves that kind's lines as extracted
+    assert "R0 a b 12.5" in layoutlib.scale_parasitics(text, 1.2, 1)
+    assert "C0 a b 4.89611f" in layoutlib.scale_parasitics(text, 1, 1.2)
+
+
+@pytest.mark.parametrize("line", [
+    "R0 a b rm1 l=1", "R0 a b", "C0 a b 1f w=2", "C0 a b tbd",
+])
+def test_scale_parasitics_refuses_a_line_it_cannot_read(line):
+    import layoutlib
+    with pytest.raises(layoutlib.LayoutError, match="cannot scale"):
+        layoutlib.scale_parasitics(f"{line}\nR1 a b 1\nC1 a b 1f\n", 1.2, 1.2)
+
+
+@pytest.mark.parametrize("c, r", [(1.2, 1), (1, 1.2)])
+def test_scale_parasitics_refuses_a_factor_with_nothing_to_move(c, r):
+    # a c_high run on a netlist with no C line would be the nominal run again
+    import layoutlib
+    only = "R0 a b 1\n" if c != 1 else "C0 a b 1f\n"
+    with pytest.raises(layoutlib.LayoutError, match="no [RC] line"):
+        layoutlib.scale_parasitics(only, c, r)
+
+
+def test_fast_corner_is_the_mirror_of_slow():
+    fast = [{"name": "ff_27c", "process": "ff", "temp_c": 27, "supply_pct": 0},
+            {"name": "ff_cold", "process": "ff", "temp_c": -40, "supply_pct": 10},
+            {"name": "ff_pss", "process": "ff", "temp_c": -40, "supply_pct": 10,
+             "passive": "ss"}]
+    assert check_pex_sim.fast_corner(GRID) is None
+    assert check_pex_sim.fast_corner(SWEEP[:1]) is None
+    assert check_pex_sim.fast_corner(fast)["name"] == "ff_cold"
+
+
+def test_rc_knob_runs_pair_high_with_slow_and_low_with_fast():
+    runs = check_pex_sim.rc_knob_runs(["c_low", "rc_high"], SWEEP)
+    assert [(k["knob"], k["corner"]["name"], k["c"], k["r"]) for k in runs] == [
+        ("c_low", "ff", 0.84, 1.0), ("rc_high", "ss", 1.20, 1.156)]
+    assert check_pex_sim.rc_knob_runs(None, SWEEP) == []
+    assert len(check_pex_sim.rc_knob_runs("all", SWEEP)) == 6
+
+
+@pytest.mark.parametrize("field", ["c_high", [], ["nope"], [1]])
+def test_rc_knob_runs_refuses_a_bad_field(field):
+    with pytest.raises(CheckError, match="pex_rc_knobs"):
+        check_pex_sim.rc_knob_runs(field, SWEEP)
+
+
+def test_rc_knob_runs_refuses_a_sweep_without_the_paired_process():
+    # a grid must span ss and ff today, so only a table change gets here: a
+    # knob with no corner to run at is refused, not dropped
+    with pytest.raises(CheckError, match="c_low needs ff"):
+        check_pex_sim.rc_knob_runs(["c_low"], GRID)
+
+
+def _rc_knob_block(ws, field, bounds, bench=None):
+    _spec(ws, f"top: blk\nsupply: {{vdd: 3.3}}\npex_corners: [ss]\n"
+              f"pex_rc_knobs: {field}\n")
+    (ws / "netlist" / "blk.cir").write_text(
+        ".subckt blk a b\nR1 a b 1k\n.ends\n", encoding="utf-8")
+    (ws / "layout_ref" / "blk_pex_tb.cir").write_text(
+        bench or ".lib x {corner}\n.temp {temp_c}\nv1 a 0 {vdd}\n"
+        ".include {extracted}\n.end\n", encoding="utf-8")
+    (ws / "layout_ref" / "blk_pex_tb.bounds.json").write_text(
+        json.dumps({"measures": bounds}), encoding="utf-8")
+
+
+def test_knob_runs_its_scaled_netlist_and_the_finding_names_both(
+        unlaunchable_eda, tmp_path, monkeypatch):
+    import layoutlib
+    ws = unlaunchable_eda
+    _rc_extract(monkeypatch)
+    _rc_knob_block(ws, "[rc_high]", {"x": {"min": 1}})
+    decks = {}
+
+    def sim(bench, cwd, timeout, failed_measures):
+        decks[bench.name] = bench.read_text(encoding="utf-8")
+        # the measure drops under its floor only on the scaled netlist
+        return "x = 0.5\n" if ".rc_high.spice" in decks[bench.name] else "x = 2\n"
+    monkeypatch.setattr(layoutlib, "run_ngspice", sim)
+    code, out = run_json(["--workspace", str(ws)], tmp_path)
+    assert code == 1, out
+    assert set(decks) == {"blk_pex_tb__tt.cir", "blk_pex_tb__ss.cir",
+                          "blk_pex_tb__ss__rc_high.cir"}
+    assert all(".rc_high.spice" not in decks[n] for n in
+               ("blk_pex_tb__tt.cir", "blk_pex_tb__ss.cir"))
+    assert ".temp 125" in decks["blk_pex_tb__ss__rc_high.cir"]
+    [v] = out["violations"]
+    assert v["kind"] == "measure_out_of_bounds"
+    assert set(v["refs"]) == {"x", "ss", "rc_high"}
+    assert "x @ ss / rc_high (C x1.2, R x1.156) = 0.5" in v["msg"]
+    assert out["rc_knobs"] == [{"knob": "rc_high", "corner": "ss", "c": 1.2,
+                                "r": 1.156, "measured": {"x": 0.5}}]
+    assert set(out["measured_by_corner"]) == {"tt", "ss"}
+    scaled = (ws / "log" / "pex_sim" / "blk.pex.ordered.rc_high.spice").read_text(
+        encoding="utf-8")
+    assert "R0 a b 14.45" in scaled and "C0 a b 0.12f" in scaled
+
+
+def test_no_knob_field_adds_no_run_and_no_report_field(
+        unlaunchable_eda, tmp_path, monkeypatch):
+    import layoutlib
+    ws = unlaunchable_eda
+    _rc_extract(monkeypatch)
+    _spec(ws, "top: blk\nsupply: {vdd: 3.3}\npex_corners: [ss]\n")
+    (ws / "netlist" / "blk.cir").write_text(
+        ".subckt blk a b\nR1 a b 1k\n.ends\n", encoding="utf-8")
+    _aware_bench(ws, {"x": {"min": 1}})
+    ran = []
+
+    def sim(bench, cwd, timeout, failed_measures):
+        ran.append(bench.name)
+        return "x = 2\n"
+    monkeypatch.setattr(layoutlib, "run_ngspice", sim)
+    code, out = run_json(["--workspace", str(ws)], tmp_path)
+    assert code == 0, out
+    assert sorted(ran) == ["blk_pex_tb__ss.cir", "blk_pex_tb__tt.cir"]
+    assert "rc_knobs" not in out
+
+
+def test_knob_on_a_bench_without_extracted_is_a_finding_and_runs_nothing(
+        unlaunchable_eda, tmp_path, monkeypatch):
+    # a bench that hard-codes its netlist would run every knob on nominal wires
+    import layoutlib
+    ws = unlaunchable_eda
+    _rc_extract(monkeypatch)
+    _rc_knob_block(ws, "[c_high]", {"x": {"min": 1}},
+                   bench=".lib x {corner}\n.temp {temp_c}\nv1 a 0 {vdd}\n.end\n")
+
+    def sim(*a, **k):
+        raise AssertionError("no bench may run")
+    monkeypatch.setattr(layoutlib, "run_ngspice", sim)
+    code, out = run_json(["--workspace", str(ws)], tmp_path)
+    assert code == 1, out
+    [v] = out["violations"]
+    assert v["kind"] == "pex_bench_not_corner_aware" and v["refs"] == ["extracted"]
+
+
+def test_knob_corner_needs_its_tokens_even_when_outside_pex_corners(
+        unlaunchable_eda, tmp_path, monkeypatch):
+    # typical-only corners ask no token of the bench, and c_high's slow corner
+    # does: without {corner} it would simulate typical devices and pass unseen
+    ws = unlaunchable_eda
+    _rc_extract(monkeypatch)
+    _spec(ws, "top: blk\nsupply: {vdd: 3.3}\npex_corners: [tt]\n"
+              "pex_rc_knobs: [c_high]\n")
+    (ws / "netlist" / "blk.cir").write_text(
+        ".subckt blk a b\nR1 a b 1k\n.ends\n", encoding="utf-8")
+    (ws / "layout_ref" / "blk_pex_tb.cir").write_text(
+        ".include {extracted}\n.end\n", encoding="utf-8")
+    (ws / "layout_ref" / "blk_pex_tb.bounds.json").write_text(
+        json.dumps({"measures": {"x": {"min": 1}}}), encoding="utf-8")
+    code, out = run_json(["--workspace", str(ws)], tmp_path)
+    assert code == 1, out
+    assert {v["refs"][0] for v in out["violations"]} == {"corner", "temp_c", "vdd"}
+
+
+def test_knob_with_no_bound_at_its_corner_is_a_refusal(
+        unlaunchable_eda, tmp_path, monkeypatch, capsys):
+    ws = unlaunchable_eda
+    _rc_extract(monkeypatch)
+    _rc_knob_block(ws, "[c_low]", {"x": {"min": 1, "corners": ["ss"]}})
+    code, out = run_err(["--workspace", str(ws)], capsys)
+    assert code == 2 and "c_low" in out["error"] and "ff" in out["error"]
+
+
+def test_knob_refuses_a_netlist_it_cannot_scale(
+        unlaunchable_eda, tmp_path, monkeypatch, capsys):
+    import layoutlib
+    ws = unlaunchable_eda
+
+    def extracted(work_dir, gds, cell, parasitics):
+        p = work_dir / f"{cell}.pex.spice"
+        p.write_text(".subckt blk a b\nR0 a b rm1 l=1\nC0 a b 0.1f\n.ends\n",
+                     encoding="utf-8")
+        return p, ""
+    monkeypatch.setattr(layoutlib, "run_magic_extract", extracted)
+    _rc_knob_block(ws, "[r_high]", {"x": {"min": 1}})
+
+    def sim(*a, **k):
+        raise AssertionError("no bench may run")
+    monkeypatch.setattr(layoutlib, "run_ngspice", sim)
+    code, out = run_err(["--workspace", str(ws)], capsys)
+    assert code == 2
+    assert "cannot scale" in out["error"] and "r_high" in out["error"]
+
+
+# #160: "Test: the mirror with a line that passes every PVT corner at nominal C
+# and fails at C x(1+dc): the gate must fail and name both the PVT corner and
+# the RC knob."
+@pytest.mark.slow
+def test_line_passing_every_corner_fails_at_c_high_and_names_both(tmp_path):
+    ws = make_ws(tmp_path, "mirror")
+    _plant(ws, "plant_pex_line_fails_at_c_high.py")
+    spec_path = ws / "spec" / "spec.yaml"
+    with_knob = spec_path.read_text(encoding="utf-8")
+    spec_path.write_text(with_knob.replace("pex_rc_knobs: [c_high]\n", "")
+                         + "pex_corners: all\n", encoding="utf-8")
+    code, out = run_json(["--workspace", str(ws)], tmp_path)
+    assert code == 0, out["violations"]
+    assert out["corners"] == ["tt", "ss", "ff", "sf", "fs"]
+
+    spec_path.write_text(with_knob, encoding="utf-8")
+    code, out = run_json(["--workspace", str(ws)], tmp_path)
+    assert code == 1, out
+    [v] = out["violations"]
+    assert v["kind"] == "measure_out_of_bounds"
+    assert set(v["refs"]) == {"f3db", "ss", "c_high"}
+    assert "f3db @ ss / c_high (C x1.2, R x1)" in v["msg"]
+    assert out["measured_by_corner"]["ss"]["f3db"] >= 5e8
+
+
+@pytest.mark.slow
+def test_pinned_knobs_bound_the_pdk_files_they_cite():
+    """pex_rc_knobs.yaml says where its numbers come from: read those files."""
+    import corners as corners_mod
+    import layoutlib
+    pdk = layoutlib.pdk_root()
+    knobs = corners_mod.rc_knobs()
+
+    def rpersq(which):
+        tlef = (pdk / "libs.ref" / "gf180mcu_fd_sc_mcu7t5v0" / "techlef" /
+                f"gf180mcu_fd_sc_mcu7t5v0__{which}.tlef").read_text(encoding="utf-8")
+        block = tlef[tlef.index("LAYER Metal1"):]
+        return float(re.search(r"RESISTANCE RPERSQ\s+([\d.]+)", block)[1])
+    assert rpersq("max") / rpersq("nom") == pytest.approx(knobs["r_high"]["r"], abs=1e-3)
+    assert rpersq("min") / rpersq("nom") == pytest.approx(knobs["r_low"]["r"], abs=1e-3)
+
+    def rows(which):
+        out, section = {}, None
+        text = (pdk / "libs.tech" / "librelane" /
+                f"rules.openrcx.gf180mcuD.{which}").read_text(encoding="utf-8")
+        for line in text.splitlines():
+            t = line.split()
+            if t[:1] == ["Metal"] and len(t) >= 3:
+                section = tuple(t[1:])
+            elif section and len(t) == 4 and all(
+                    re.fullmatch(r"[-+0-9.eE]+", x) for x in t):
+                out.setdefault(section, []).append([float(x) for x in t])
+        return out
+    nom = rows("nom")
+    assert nom
+    for which, knob, pick in (("max", "c_high", max), ("min", "c_low", min)):
+        other = rows(which)
+        ratios = [(a[1] + a[2]) / (b[1] + b[2]) for key, row in nom.items()
+                  for a, b in zip(other[key], row) if b[1] + b[2] > 0]
+        extreme = pick(ratios)
+        assert knobs[knob]["c"] == pytest.approx(extreme, abs=0.005)
+        assert pick(extreme, knobs[knob]["c"]) == knobs[knob]["c"], extreme
 
 
 # brief: "let a block's spec set the simulation time limit in a place the
