@@ -58,13 +58,13 @@ with `state.py human --checkpoint H1 --answer '<reply>'`.
 The bench-writer, in PEX MODE, writes `layout_ref/<block>_pex_tb.cir` and
 its bounds from `post_layout_bounds` before any layout exists. The
 layout-writer then writes `layout/gen_<block>.py`. `layout_gen.py` must
-run clean before `drc`, `lvs`, `erc` and `pex_sim`. Their findings go to the
+run clean before `drc`, `lvs`, `erc`, `layout_match` and `pex_sim`. Their findings go to the
 layout-fixer, who edits the generator and never the GDS.
 
 ## H2, then P6 release
 
 A second fresh reviewer, then H2. `set-phase P6` without `--force` is the
-proof that drc, lvs, erc and pex_sim each have a recorded result. Then `release`
+proof that drc, lvs, erc, layout_match and pex_sim each have a recorded result (layout_match may be declared not applicable). Then `release`
 (strict; it writes the record), `attest.py verify`, `attest.py disposition`, the P6 digest, and
 `set-phase done`. If `release` refuses, it lists every gap at once: go back
 to the phase that owns each one. Never force a phase to get past it.

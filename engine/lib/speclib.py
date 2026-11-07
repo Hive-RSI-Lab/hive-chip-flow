@@ -136,6 +136,24 @@ CHECK_KINDS = {"sim", "formal", "both", "measure"}
 #     ir_rails: [pin, ...]   optional; the pins em_ir holds to ir_drop_mv.
 #                        Absent: the pins named like a supply key or vss/gnd.
 #                        `[]` declares a block with no supply pin (EM alone)
+#     symmetric_nets: [{nets: [a, b], max_dc_pct?, max_dr_pct?, min_dc_ff?,
+#                       min_dr_ohm?, aggressors?: [net, ...]}]   optional; the
+#                        net pairs a layout must route alike (a latch's
+#                        outputs, UP/DN). pex_sim compares each pair's total
+#                        C and worst pin-to-device R in the extracted netlist,
+#                        and each one's C to every named aggressor, and fails
+#                        a pair whose difference is over the percentage and
+#                        over the absolute floor (default 0). At least one
+#                        max_*_pct, and max_dc_pct with aggressors
+#                        (symmetric_nets(); check_pex_sim.py)
+#     matching: [{devices: [a, b, ...], style: common_centroid | interdigitate,
+#                 tol_um?}]   optional; the devices a layout draws as one
+#                        row of equal units (#118). layout_match reads the
+#                        extracted row: unit centroids within tol_um
+#                        (default 0.05, common_centroid only), one unit
+#                        W/L, one orientation mix, a dummy or equal device
+#                        beside every end unit (matching();
+#                        check_layout_match.py)
 
 ADE_MEASURE_CORNER_KINDS = {"default", "all"}
 # the gates that run ngspice, each with a --timeout and a default of its own
@@ -295,6 +313,21 @@ def lint_spec_ade(spec: dict, rel_path: str = "spec/spec.yaml") -> list[dict]:
                                 "distinct pin names ([] for a block with no "
                                 "supply pin)")
 
+    if "symmetric_nets" in spec and symmetric_nets(spec) is None:
+        bad("bad_symmetric_nets", "spec.yaml 'symmetric_nets' must be a list "
+                                  "of {nets: [a, b]} with two different net "
+                                  "names, at least one of max_dc_pct and "
+                                  "max_dr_pct, every bound and floor a "
+                                  "number >= 0, and aggressors a list of net "
+                                  "names other than the pair's")
+
+    if "matching" in spec and matching(spec) is None:
+        bad("bad_matching", "spec.yaml 'matching' must be a list of "
+                            "{devices: [a, b, ...], style: common_centroid "
+                            "or interdigitate, tol_um?: a number > 0} with "
+                            "two or more different device names, no device "
+                            "in two groups")
+
     if "pex_corners" in spec:
         field = spec["pex_corners"]
         if field != "all" and not (isinstance(field, list) and field and all(
@@ -407,6 +440,84 @@ def erc_nets(spec: dict) -> dict | None:
         if "min" in vals and vals["min"] > vals["max"]:
             return None
         out[pin] = vals
+    return out
+
+
+MATCH_STYLES = ("common_centroid", "interdigitate")
+MATCH_TOL_UM = 0.05
+
+
+def matching(spec: dict) -> list[dict] | None:
+    """spec.yaml's `matching` as [{devices: [lower-case names], style,
+    tol_um}] ([] when the field is absent), or None when malformed
+    (lint_spec_ade refuses that, and so does check_layout_match.py)."""
+    field = spec.get("matching", []) if isinstance(spec, dict) else []
+    if not isinstance(field, list):
+        return None
+    out, seen = [], set()
+    for row in field:
+        if not (isinstance(row, dict) and set(row) <= {"devices", "style", "tol_um"}):
+            return None
+        devs = row.get("devices")
+        if not (isinstance(devs, list) and len(devs) >= 2 and all(
+                isinstance(d, str) and d.strip() for d in devs)):
+            return None
+        names = [d.strip().lower() for d in devs]
+        if len(set(names)) != len(names) or seen & set(names):
+            return None
+        seen |= set(names)
+        if row.get("style") not in MATCH_STYLES:
+            return None
+        tol = row.get("tol_um", MATCH_TOL_UM)
+        if isinstance(tol, bool) or not isinstance(tol, (int, float)) \
+                or not math.isfinite(tol) or tol <= 0:
+            return None
+        out.append({"devices": names, "style": row["style"], "tol_um": float(tol)})
+    return out
+
+
+SYMMETRY_BOUNDS = ("max_dc_pct", "max_dr_pct", "min_dc_ff", "min_dr_ohm")
+
+
+def symmetric_nets(spec: dict) -> list[dict] | None:
+    """spec.yaml's `symmetric_nets` as [{nets: [a, b], max_dc_pct,
+    max_dr_pct, min_dc_ff, min_dr_ohm, aggressors}] - a bound left out is
+    None (not checked), a floor left out 0.0, aggressors [] - ([] when the
+    field is absent), or None when malformed (lint_spec_ade refuses that,
+    and so does check_pex_sim.py)."""
+    field = spec.get("symmetric_nets", []) if isinstance(spec, dict) else []
+    if not isinstance(field, list):
+        return None
+    out = []
+    for row in field:
+        if not (isinstance(row, dict) and set(row) <= {
+                "nets", "aggressors", *SYMMETRY_BOUNDS}):
+            return None
+        nets = row.get("nets")
+        if not (isinstance(nets, list) and len(nets) == 2 and all(
+                isinstance(n, str) and n.strip() for n in nets)
+                and nets[0].lower() != nets[1].lower()):
+            return None
+        vals = {}
+        for k in SYMMETRY_BOUNDS:
+            v = row.get(k)
+            if v is None and k not in row:
+                vals[k] = 0.0 if k.startswith("min_") else None
+                continue
+            if isinstance(v, bool) or not isinstance(v, (int, float)) \
+                    or not math.isfinite(v) or v < 0:
+                return None
+            vals[k] = float(v)
+        if vals["max_dc_pct"] is None and vals["max_dr_pct"] is None:
+            return None
+        aggr = row.get("aggressors", [])
+        if not (isinstance(aggr, list) and all(
+                isinstance(n, str) and n.strip()
+                and n.lower() not in {x.lower() for x in nets} for n in aggr)):
+            return None
+        if aggr and vals["max_dc_pct"] is None:
+            return None  # an aggressor's C is bounded by max_dc_pct
+        out.append({"nets": list(nets), **vals, "aggressors": list(aggr)})
     return out
 
 

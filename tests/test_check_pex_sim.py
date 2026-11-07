@@ -389,6 +389,37 @@ def test_long_output_line_fails_pex_sim(tmp_path):
     assert gate_result["status"] == "fail"
 
 
+@pytest.mark.slow
+def test_clean_comparator_symmetric_nets_pass(tmp_path):
+    ws = make_ws(tmp_path, "comparator")
+    code, out = run_json(["--workspace", str(ws)], tmp_path)
+    assert code == 0, out
+    assert not [v for v in out["violations"] if v["kind"] == "symmetry_violated"]
+    pairs = {tuple(e["nets"]): e for e in out["symmetry"]}
+    assert set(pairs) == {("outp", "outn"), ("inp", "inn")}
+    for e in pairs.values():
+        assert {c["quantity"] for c in e["checked"]} == {"C", "R", "C to clk"}
+        assert all(c["mismatch_pct"] <= 5 for c in e["checked"])
+
+
+@pytest.mark.slow
+def test_asymmetric_output_detour_fails_before_the_bench(tmp_path):
+    ws = make_ws(tmp_path, "comparator")
+    path = CORPUS / "comparator" / "faults" / "plant_pex_asymmetric_output.py"
+    spec = importlib.util.spec_from_file_location("plant_pex_asym", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    mod.plant(ws)
+    code, out = run_json(["--workspace", str(ws)], tmp_path)
+    assert code == 1, out
+    sym = [v for v in out["violations"] if v["kind"] == "symmetry_violated"]
+    assert sym and all({"outp", "outn"} <= set(v["refs"]) for v in sym)
+    # both values are in the message, and the pair is reported as measured
+    assert any("outn" in v["msg"] and "outp" in v["msg"] for v in sym)
+    gate_result = gate.evaluate("pex_sim", _pex_sim_gate_row(), out)
+    assert gate_result["status"] == "fail"
+
+
 def _plant(ws, name):
     path = CORPUS / "mirror" / "faults" / name
     spec = importlib.util.spec_from_file_location(name[:-3], path)
@@ -638,7 +669,7 @@ def test_a_stale_sim_pvt_record_is_no_record(tmp_path, monkeypatch):
 
 def _unlabelled_mirror(tmp_path):
     """The mirror with iref_node's label taken out: magic names that net
-    itself (a_38_n132#), which extresist used to strip of its couplings."""
+    itself (a_638_n132#), which extresist used to strip of its couplings."""
     ws = make_ws(tmp_path, "mirror")
     gen = ws / "layout" / "gen_mirror.py"
     text = gen.read_text(encoding="utf-8")
@@ -658,8 +689,8 @@ def test_unlabelled_net_keeps_its_coupling_through_extresist(tmp_path):
     out, _log = layoutlib.run_magic_extract(ws / "log", gds, top,
                                             parasitics=True)
     text = out.read_text(encoding="utf-8")
-    assert any(ln.split()[1:3] in (["a_38_n132", "iout"],
-                                   ["iout", "a_38_n132"])
+    assert any(ln.split()[1:3] in (["a_638_n132", "iout"],
+                                   ["iout", "a_638_n132"])
                for ln in text.splitlines() if ln.startswith("C"))
 
 
@@ -669,7 +700,7 @@ def test_unnamed_net_losing_its_coupling_is_a_refusal(tmp_path, monkeypatch):
     import layoutlib
     ws, gds, top = _unlabelled_mirror(tmp_path)
     monkeypatch.setattr(layoutlib, "name_unlabelled_nets", lambda ext: [])
-    with pytest.raises(layoutlib.LayoutError, match="a_38_n132-iout"):
+    with pytest.raises(layoutlib.LayoutError, match="a_638_n132-iout"):
         layoutlib.run_magic_extract(ws / "log", gds, top, parasitics=True)
 
 
@@ -1097,16 +1128,17 @@ def test_unknown_variant_is_refused_since_magic_only_complains(tmp_path):
                                     variant="hxhx")
 
 
-# #254: the 50um mirror line, whose numbers were posted on #160. hrhc and lrlc
-# are the PDK's own variants, against the C and R the knobs only approximate.
+# #254: the 50um mirror line, first posted on #160 and re-measured on the
+# two-tap row (#118). hrhc and lrlc are the PDK's own variants, against the
+# C and R the knobs only approximate.
 @pytest.mark.slow
 def test_fifty_um_line_at_the_real_variants_matches_the_posted_numbers(tmp_path):
     ws = make_ws(tmp_path, "mirror")
     gen = ws / "layout" / "gen_mirror.py"
     gen.write_text(gen.read_text(encoding="utf-8").replace(
-        '    d = out["d"]\n    labels.append(("iout", (d[0] + d[2]) / 2, '
+        '    d = iout_pad\n    labels.append(("iout", (d[0] + d[2]) / 2, '
         '(d[1] + d[3]) / 2, L1LBL))\n',
-        '    d = out["d"]\n    y = (d[1] + d[3]) / 2\n'
+        '    d = iout_pad\n    y = (d[1] + d[3]) / 2\n'
         '    layoutlib.rect(top, d[0], y - 0.115, d[2] + 50.0, y + 0.115, L1)\n'
         '    layoutlib.rect(top, d[2] + 50.0, y - 0.5, d[2] + 51.0, y + 0.5, L1)\n'
         '    labels.append(("iout", d[2] + 50.5, y, L1LBL))\n'), encoding="utf-8")
@@ -1118,11 +1150,11 @@ def test_fifty_um_line_at_the_real_variants_matches_the_posted_numbers(tmp_path)
     by = {r["variant"]: r for r in out["rc_variants"]}
     assert {k: v["corner"] for k, v in by.items()} == {
         "hrhc": "ss", "lrlc": "ff", "hrlc": "sf", "lrhc": "fs"}
-    posted = {"hrhc": 467.4e6, "lrlc": 572.1e6, "hrlc": 493.3e6, "lrhc": 537.5e6}
+    posted = {"hrhc": 425.7e6, "lrlc": 521.0e6, "hrlc": 451.1e6, "lrhc": 487.6e6}
     for name, want in posted.items():
         assert by[name]["measured"]["f3db"] == pytest.approx(want, abs=0.1e6), name
-    assert out["measured_by_corner"]["ss"]["f3db"] == pytest.approx(475.9e6, abs=0.1e6)
-    assert out["measured_by_corner"]["ff"]["f3db"] == pytest.approx(560.5e6, abs=0.1e6)
+    assert out["measured_by_corner"]["ss"]["f3db"] == pytest.approx(434.2e6, abs=0.1e6)
+    assert out["measured_by_corner"]["ff"]["f3db"] == pytest.approx(508.3e6, abs=0.1e6)
 
 
 @pytest.mark.slow
@@ -1277,3 +1309,134 @@ def test_pex_sim_refuses_a_bad_spec_timeout(unlaunchable_eda, monkeypatch,
     code, out = run_err(["--workspace", str(ws)], capsys)
     assert code == 2, out
     assert "sim_timeout_s" in out["remediation"]
+
+
+# ---- symmetric_nets (#121) ---------------------------------------------------
+def _two_wires(len_a_um: float, len_b_um: float, seg_um: float = 10.0) -> str:
+    """A hand-built extraction of two parallel metal1 wires, each from its
+    labelled pin node to a gate at its far end, cut into seg_um segments
+    with extresist-style sub-nodes: every segment adds R_SEG ohm and splits
+    its ground C between its ends; the wires couple C_CPL per um over their
+    common length, and wire a alone runs past clk for 5 um."""
+    lines = [".subckt pair a b clk vss"]
+    k = 0
+
+    def wire(net, length):
+        nonlocal k
+        n_seg = round(length / seg_um)
+        nodes = [net] + [f"{net}.n{i}" for i in range(1, n_seg + 1)]
+        for i in range(n_seg):
+            k += 1
+            lines.append(f"R{k} {nodes[i]} {nodes[i + 1]} {R_SEG}")
+            for end in (nodes[i], nodes[i + 1]):
+                k += 1
+                lines.append(f"C{k} {end} vss {C_GND * seg_um / 2}f")
+        lines.append(f"X{net} vss {nodes[-1]} vss vss nfet_03v3 w=1u l=1u")
+        return nodes
+
+    na, nb = wire("a", len_a_um), wire("b", len_b_um)
+    for x, y in zip(na[1:], nb[1:]):
+        k += 1
+        lines.append(f"C{k} {x} {y} {C_CPL * seg_um}f")
+    lines.append(f"C{k + 1} a.n1 clk {C_CLK * 5}f")
+    lines.append(".ends")
+    return "\n".join(lines) + "\n"
+
+
+R_SEG, C_GND, C_CPL, C_CLK = 1.5, 0.04, 0.02, 0.01  # ohm, fF/um, fF/um, fF/um
+
+
+def test_net_parasitics_known_answer_two_wires():
+    # a: 60um, b: 20um -> the coupling runs the 20um they share
+    par = check_pex_sim.net_parasitics(_two_wires(60, 20), ["a", "b", "clk"])
+    ca = C_GND * 60 + C_CPL * 20 + C_CLK * 5
+    cb = C_GND * 20 + C_CPL * 20
+    assert par["a"]["c_ff"] == pytest.approx(ca, rel=1e-6)
+    assert par["b"]["c_ff"] == pytest.approx(cb, rel=1e-6)
+    assert par["a"]["c_ff"] / par["b"]["c_ff"] == pytest.approx(2.85 / 1.2)
+    assert par["a"]["r_ohm"] == pytest.approx(6 * R_SEG)
+    assert par["b"]["r_ohm"] == pytest.approx(2 * R_SEG)
+    assert par["a"]["c_to"]["b"] == pytest.approx(C_CPL * 20)
+    assert par["a"]["c_to"]["clk"] == pytest.approx(C_CLK * 5)
+    assert "clk" not in par["b"]["c_to"]
+
+
+def test_net_parasitics_solves_parallel_paths_not_the_sum():
+    text = (".subckt t a vss\nR1 a a.n1 10\nR2 a a.n1 10\nR3 a.n1 a.n2 4\n"
+            "R4 a.n1 a.n2 12\nM1 vss a.n2 vss vss nfet_03v3 w=1u l=1u\n"
+            "C1 a vss 1f\n.ends\n")
+    par = check_pex_sim.net_parasitics(text, ["a"])
+    assert par["a"]["r_ohm"] == pytest.approx(5 + 3)
+    assert par["a"]["c_ff"] == pytest.approx(1.0)
+
+
+def test_net_parasitics_unsplit_net_has_zero_r():
+    text = ".subckt t a vss\nX1 vss a vss vss nfet_03v3 w=1u l=1u\nC1 a vss 2f\n.ends\n"
+    assert check_pex_sim.net_parasitics(text, ["a"])["a"]["r_ohm"] == 0.0
+
+
+def test_net_parasitics_refuses_a_device_cut_off_from_the_label():
+    text = (".subckt t a vss\nR1 a a.n1 10\nR2 a.n2 a.n3 10\n"
+            "X1 vss a.n3 vss vss nfet_03v3 w=1u l=1u\n.ends\n")
+    with pytest.raises(CheckError):
+        check_pex_sim.net_parasitics(text, ["a"])
+
+
+PAIR_REF = (".subckt pair a b clk vss\nX1 vss a vss vss nfet_03v3 w=1u l=1u\n"
+            "X2 vss b vss vss nfet_03v3 w=1u l=1u\nC1 a clk 1f\n.ends\n")
+
+
+def _rows(**kw):
+    row = {"nets": ["a", "b"], "max_dc_pct": 5.0, "max_dr_pct": 5.0,
+           "min_dc_ff": 0.0, "min_dr_ohm": 0.0, "aggressors": []}
+    return [{**row, **kw}]
+
+
+def test_symmetric_pair_passes_and_reports_both_values():
+    found, rep = check_pex_sim.symmetry_findings(
+        _rows(aggressors=["clk"]), PAIR_REF, _two_wires(20, 20).replace(
+            ".ends", f"C99 b.n1 clk {C_CLK * 5}f\n.ends"), "pair", "g",
+        "spec/spec.yaml")
+    assert found == []
+    assert rep[0]["a"]["c_ff"] == rep[0]["b"]["c_ff"]
+    assert [c["quantity"] for c in rep[0]["checked"]] == ["C", "R", "C to clk"]
+
+
+def test_asymmetric_pair_is_symmetry_violated_with_both_values():
+    found, rep = check_pex_sim.symmetry_findings(
+        _rows(), PAIR_REF, _two_wires(60, 20), "pair", "g", "spec/spec.yaml")
+    kinds = {(v["kind"], tuple(v["refs"])) for v in found}
+    assert kinds == {("symmetry_violated", ("a", "b"))}
+    msgs = " ".join(v["msg"] for v in found)
+    assert "2.85 fF" in msgs and "1.2 fF" in msgs   # C, both values
+    assert "9 ohm" in msgs and "3 ohm" in msgs      # R, both values
+    assert "layout-fixer" in msgs
+
+
+def test_aggressor_coupling_on_one_side_only_is_a_finding():
+    found, _ = check_pex_sim.symmetry_findings(
+        _rows(aggressors=["clk"], max_dc_pct=50.0, max_dr_pct=None),
+        PAIR_REF, _two_wires(20, 20), "pair", "g", "spec/spec.yaml")
+    assert [v["refs"] for v in found] == [["a", "b", "clk"]]
+
+
+def test_floor_spares_a_large_percentage_of_a_tiny_difference():
+    found, _ = check_pex_sim.symmetry_findings(
+        _rows(min_dc_ff=5.0, min_dr_ohm=10.0), PAIR_REF, _two_wires(60, 20),
+        "pair", "g", "spec/spec.yaml")
+    assert found == []
+
+
+def test_a_pair_net_the_reference_lacks_is_a_refusal():
+    with pytest.raises(CheckError):
+        check_pex_sim.symmetry_findings(
+            _rows(nets=["a", "nope"]), PAIR_REF, _two_wires(20, 20), "pair",
+            "g", "spec/spec.yaml")
+
+
+def test_a_pair_net_the_extraction_never_names_is_unlabelled():
+    ext = _two_wires(20, 20).replace(" b ", " w_1_2# ").replace(" b.", " w_1_2#.")
+    found, _ = check_pex_sim.symmetry_findings(
+        _rows(), PAIR_REF, ext, "pair", "g", "spec/spec.yaml")
+    assert [(v["kind"], v["refs"]) for v in found] == [
+        ("symmetry_net_unlabelled", ["b"])]

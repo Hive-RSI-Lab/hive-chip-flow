@@ -97,6 +97,20 @@ faults:
     gate: erc
     plant: plant_erc_pnp_junction.py
     expect: {status: fail, kind: overvoltage_junction, refs: [vbat, vss]}
+  # layout_match (spec.yaml matching: xmref/xmout common-centroid): each
+  # plant breaks the drawn row one way and must name the devices
+  - name: layout_match_row_drawn_aabb
+    gate: layout_match
+    plant: plant_match_aabb.py
+    expect: {status: fail, kind: match_centroid_offset, refs: [xmout, xmref]}
+  - name: layout_match_end_dummies_removed
+    gate: layout_match
+    plant: plant_match_no_dummies.py
+    expect: {status: fail, kind: match_end_no_dummy, refs: [xmout]}
+  - name: layout_match_one_unit_rotated
+    gate: layout_match
+    plant: plant_match_rotated_unit.py
+    expect: {status: fail, kind: match_orientation, refs: [xmout, xmref]}
   - name: long_min_width_output_line
     gate: pex_sim
     plant: plant_pex_long_output_line.py

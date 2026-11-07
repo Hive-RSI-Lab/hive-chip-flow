@@ -128,7 +128,7 @@ verbs:
       - do: "scripts/layout_gen.py --workspace {ws}"
         why: "runs the generator and writes layout/<block>.gds + its
               abstract - a generator that does not run is caught here,
-              before three gates each rebuild it"
+              before four gates each rebuild it"
       - gate: drc
         why: "0 violations from klayout's GF180 signoff deck"
       - gate: lvs
@@ -137,6 +137,10 @@ verbs:
         why: "CVC on the extracted layout: no device over its rated
               voltage, no wrong well or bulk tie, no floating gate, no
               forward-biased diode"
+      - gate: layout_match
+        why: "the matching: rows read off the extraction: centroids
+              within tol_um, one unit size and orientation, dummies at
+              the ends (not applicable without matching:)"
       - gate: pex_sim
         why: "magic-extracted parasitics, post-layout bench at typical,
               every measure inside post_layout_bounds"
@@ -144,7 +148,7 @@ verbs:
         why: "operating point on the extraction at every corner: no wire
               or cut over the DRM's DC EM limit, every rail's IR drop
               inside the bound"
-      - note: "drc/lvs/erc/pex_sim/em_ir failing: the fix loop again - work orders
+      - note: "drc/lvs/erc/layout_match/pex_sim/em_ir failing: the fix loop again - work orders
                go to the layout-fixer, who edits the generator only.
                Write log/P5-digest.md before H2."
       - agent: reviewer
@@ -155,7 +159,7 @@ verbs:
         why: "the person signs off the layout before release (docs/
               design.md 1.4); submitting to a shuttle is always theirs"
       - do: "scripts/state.py set-phase --workspace {ws} --phase P6"
-        why: "enter P6 - release. No --force: drc, lvs, erc, pex_sim and em_ir must
+        why: "enter P6 - release. No --force: drc, lvs, erc, layout_match, pex_sim and em_ir must
               each have a recorded result; a gap here is a refusal to
               fix, never a phase jump"
       - gate: release
@@ -280,8 +284,8 @@ verbs:
   layout:
     summary: Write or change a block's layout generator (layout/
       gen_<block>.py - gdsfactory code placing GF180 primitives and routing
-      them explicitly), regenerate the GDS and re-run drc, lvs, erc, pex_sim
-      and em_ir.
+      them explicitly), regenerate the GDS and re-run drc, lvs, erc, layout_match,
+      pex_sim and em_ir.
       Layout is code; nobody edits the GDS.
     doc: skills/ade/reference/recipes/layout.md
     workspace: required
@@ -302,10 +306,10 @@ verbs:
               and sizing/, pins in the netlist's subckt order. No web
               tools."
       - do: "scripts/state.py edit --workspace {ws} --class layout_code_edit --note \"layout\""
-        why: "declare the edit - marks drc, lvs, erc, pex_sim, em_ir and
-              release stale"
+        why: "declare the edit - marks drc, lvs, erc, layout_match, pex_sim, em_ir
+              and release stale"
       - do: "scripts/layout_gen.py --workspace {ws}"
-        why: "the generator must run and write a GDS before three gates
+        why: "the generator must run and write a GDS before four gates
               each rebuild it"
       - gate: drc
         why: "klayout's GF180 signoff deck, 0 violations"
@@ -315,6 +319,10 @@ verbs:
         why: "CVC on the extracted layout: no device over its rated
               voltage, no wrong well or bulk tie, no floating gate, no
               forward-biased diode"
+      - gate: layout_match
+        why: "the matching: rows read off the extraction: centroids
+              within tol_um, one unit size and orientation, dummies at
+              the ends (not applicable without matching:)"
       - gate: pex_sim
         why: "post-layout bench at typical against post_layout_bounds"
       - gate: em_ir

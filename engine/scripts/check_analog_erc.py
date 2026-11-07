@@ -579,12 +579,24 @@ def locate(dev: dict, ext: list[dict]) -> list[list[float]]:
             if (e["model"], e["gate"], tuple(e["terms"]), e["w"], e["l"]) == sig]
 
 
+def _unit_of(cand: dict, dev: dict) -> bool:
+    """`dev` is one unit of `cand` drawn as a row of equal units (a matched
+    row, #118): same model, nets and L, and cand's W a whole number of dev's."""
+    if not (cand["w"] and dev["w"]) or cand["w"] <= dev["w"]:
+        return False
+    n = cand["w"] / dev["w"]
+    return abs(n - round(n)) < 1e-6 and _signature(dict(cand, w=dev["w"])) \
+        == _signature(dev)
+
+
 def schematic_refdes(ws: Path, dev: dict) -> str | None:
     """The netlist/*.cir device with this one's model, nets and size, when
-    exactly one matches (`x<ref> d g s b model w= l=`)."""
+    exactly one matches (`x<ref> d g s b model w= l=`). With none of the
+    same size, the one device it is a unit of (a matched row draws a device
+    as equal units, which LVS merges back)."""
     if dev["class"] != "mos":
         return None
-    hits = []
+    hits, units = [], []
     for path in sorted((ws / "netlist").glob("*.cir")):
         for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
             t = line.split()
@@ -595,10 +607,15 @@ def schematic_refdes(ws: Path, dev: dict) -> str | None:
             cand = {"class": "mos", "model": dev["model"],
                     "nets": dict(zip("dgsb", t[1:5])),
                     "w": _um(p.get("w")), "l": _um(p.get("l"))}
-            if _signature(cand) == _signature(dev) \
-                    and cand["nets"]["b"] == dev["nets"]["b"]:
+            if cand["nets"]["b"] != dev["nets"]["b"]:
+                continue
+            if _signature(cand) == _signature(dev):
                 hits.append(t[0])
-    return hits[0] if len(hits) == 1 else None
+            elif _unit_of(cand, dev):
+                units.append(t[0])
+    if hits:
+        return hits[0] if len(hits) == 1 else None
+    return units[0] if len(units) == 1 else None
 
 
 def load_waivers(ws: Path) -> list[dict]:

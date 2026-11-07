@@ -276,6 +276,9 @@ gate_inputs:
     # erc reads netlist/ only to name a finding's schematic refdes
     erc:            [layout, netlist, spec_yaml, erc_waivers, pdk_version,
                      pdk_magic, pdk_klayout]
+    # layout_match reads netlist/ to tell a unit's device by its nets
+    layout_match:   [layout, netlist, spec_yaml, pdk_version, pdk_magic,
+                     pdk_klayout]
     pex_sim:        [layout, tb, layout_ref, netlist, spec_yaml, pdk_version,
                      pdk_models, pdk_magic, pdk_klayout]
     # em_ir (#120): the same regenerated layout and extraction as pex_sim,
@@ -434,7 +437,7 @@ edit_classes:
       mutates: [spec_yaml, spec_md]
       stale_artifacts: []
       gates: [spec_lint, netlist_lint, sim_tt, sim_pvt, bench_strength, mc,
-              drc, lvs, erc, pex_sim, em_ir, release]
+              drc, lvs, erc, layout_match, pex_sim, em_ir, release]
       human_hold: 2
     netlist_edit:
       # "marks every analog gate" (1.6); hold matches rtl_edit's weight - a
@@ -442,7 +445,7 @@ edit_classes:
       mutates: [netlist]
       stale_artifacts: []
       gates: [netlist_lint, sim_tt, sim_pvt, bench_strength, mc, drc, lvs,
-              erc, pex_sim, em_ir, release]
+              erc, layout_match, pex_sim, em_ir, release]
       human_hold: 1
     sizing_edit:
       mutates: [sizing]
@@ -454,7 +457,7 @@ edit_classes:
       # are the gates reading it, and every gate this class names re-runs
       mutates: [layout, layout_ref]
       stale_artifacts: []
-      gates: [drc, lvs, erc, pex_sim, em_ir, release]
+      gates: [drc, lvs, erc, layout_match, pex_sim, em_ir, release]
       human_hold: 1
     erc_waiver_edit:
       # spec/erc_waivers.yaml: a waiver is a claim a device is safe, so it

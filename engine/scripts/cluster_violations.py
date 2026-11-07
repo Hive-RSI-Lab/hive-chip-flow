@@ -313,6 +313,8 @@ CHECK_HINTS: dict[str, str] = {
     # erc (#122): a bulk tie, a floating gate or an overvoltage is fixed in
     # the generator (or the netlist it must match, which lvs then checks)
     "analog_erc": "layout",
+    # layout_match (#118): a row drawn in the wrong pattern is the generator's
+    "layout_match": "layout",
     "pex_sim": "layout",
     # em_ir (#120): a narrow wire, too few cuts or a long rail is the
     # generator's; a missing operating-point bench is a refusal, not a kind

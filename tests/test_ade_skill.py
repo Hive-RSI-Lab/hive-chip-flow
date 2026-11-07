@@ -216,8 +216,8 @@ def test_every_corpus_fault_kind_has_a_remediation_reference():
                 manifest.setdefault(k, set()).add(gate)
     assert manifest, "no corpus fault kinds found - did the corpus move?"
     gate_to_check = {"drc": "analog_drc", "lvs": "analog_lvs",
-                     "erc": "analog_erc", "pex_sim": "pex_sim",
-                     "em_ir": "analog_em_ir"}
+                     "erc": "analog_erc", "layout_match": "layout_match",
+                     "pex_sim": "pex_sim", "em_ir": "analog_em_ir"}
     for kind, gates in sorted(manifest.items()):
         checks = {gate_to_check[g] for g in gates if g in gate_to_check}
         ref = fix_dispatch.remediation_ref(kind, rem_dir, checks)

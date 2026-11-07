@@ -15,3 +15,7 @@ erc_nets:
 # mirror copies its reference only while both sources sit at the same
 # voltage, and 2 mV between them moves iout by gm x 2 mV, about 2 %.
 ir_drop_mv: 2
+# The row layout_match reads (check_layout_match): xmref and xmout's units
+# share one centroid, one size and one orientation, dummies at both ends.
+matching:
+  - {devices: [xmref, xmout], style: common_centroid, tol_um: 0.05}

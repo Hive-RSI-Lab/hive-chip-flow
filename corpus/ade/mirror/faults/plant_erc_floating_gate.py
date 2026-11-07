@@ -1,6 +1,6 @@
 """plant_erc_floating_gate.py - ade/mirror `erc` fault: the iref_node bus
-stops short of xmout's gate pad, so nothing drives xmout's gate (a missing
-wire). xmref's diode connection is untouched. CVC reports xmout's gate as a
+stops short of the last xmout unit's gate pad, so nothing drives that
+unit's gate (a missing wire). xmref's diode connection is untouched. CVC reports xmout's gate as a
 floating (HI-Z) input and the erc gate names the device.
 """
 from __future__ import annotations
