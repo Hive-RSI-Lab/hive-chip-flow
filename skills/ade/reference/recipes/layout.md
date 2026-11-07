@@ -30,7 +30,7 @@ If it doesn't, spawn the bench-writer in PEX MODE first.
 |---|---|---|
 | drc | klayout GF180 signoff deck, per rule | layout-fixer (`analog_drc.md` remediation, by rule family) |
 | lvs | netgen, layout vs netlist at its sizing | layout-fixer, unless the netlist is what is wrong |
-| pex_sim | magic extraction with R and C, pex bench at each `pex_corners` corner and `pex_rc_knobs` knob | layout-fixer for `measure_out_of_bounds`, bench-writer for `measure_missing` |
+| pex_sim | magic extraction with R and C, pex bench at each `pex_corners` corner, `pex_rc_knobs` knob and `pex_rc_corners` variant | layout-fixer for `measure_out_of_bounds`, bench-writer for `measure_missing` |
 
 Declare `layout_code_edit` after every generator change, including each
 fix, and re-run the gate that failed. A pex bench change also needs a
@@ -40,13 +40,18 @@ hashed inputs, so only the mark stales it.
 ## Honest limits
 
 `pex_sim` runs its corners on magic's extractor only. klayout_pex is not
-wired in, and wire R and C do not move with the corner (a corner moves the
+wired in, and a `pex_corners` corner does not move wire R and C (it moves the
 devices, the passives, the temperature and the supply). `pex_rc_knobs: [c_high]`
 or `all` in spec.yaml adds a run per knob with every R and C scaled by a pinned
 factor, at the slow/hot corner for a `_high` knob and fast/cold for a `_low`
 one. The factors (engine/reference/pex_rc_knobs.yaml) are an approximation, not
 foundry RC corners, and each knob is one more ngspice run, so turn them on for
-a block whose speed a wire limits. Absent a `pex_corners`, the corners are typical, slow/hot and
+a block whose speed a wire limits. `pex_rc_corners: [hrhc]` or `all` runs the
+PDK's real RC corners instead: one more extraction per magic variant, each at
+its paired process (engine/reference/pex_rc_variants.yaml: hrhc with ss, lrlc
+with ff, hrlc with sf, lrhc with fs). A path through many vias needs these,
+since a variant moves a via by up to x3.33 and an `r_high` knob by x1.156.
+That is four runs at most, not the sixteen of the full cross. Absent a `pex_corners`, the corners are typical, slow/hot and
 sim_pvt's worst per measure; a run that must see every corner says
 `pex_corners: all`. An
 `rm1` poly resistor extracts through a per-run patched copy of the PDK's

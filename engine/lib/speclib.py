@@ -120,6 +120,10 @@ CHECK_KINDS = {"sim", "formal", "both", "measure"}
 #                        pex bench, from engine/reference/pex_rc_knobs.yaml. An
 #                        approximation, each knob one more ngspice run. Absent:
 #                        wire R and C as extracted
+#     pex_rc_corners: "all" | [name, ...]   optional; the PDK's own RC corners:
+#                        one more magic extraction and ngspice run per variant
+#                        in engine/reference/pex_rc_variants.yaml, each with the
+#                        process the table pairs it with. Absent: none
 
 ADE_MEASURE_CORNER_KINDS = {"default", "all"}
 # the gates that run ngspice, each with a --timeout and a default of its own
@@ -272,6 +276,14 @@ def lint_spec_ade(spec: dict, rel_path: str = "spec/spec.yaml") -> list[dict]:
                 isinstance(n, str) for n in field)):
             bad("bad_pex_rc_knobs", "spec.yaml 'pex_rc_knobs' must be \"all\" "
                                     "or a non-empty list of knob names")
+
+    if "pex_rc_corners" in spec:
+        field = spec["pex_rc_corners"]
+        if field != "all" and not (isinstance(field, list) and field and all(
+                isinstance(n, str) for n in field)):
+            bad("bad_pex_rc_corners", "spec.yaml 'pex_rc_corners' must be "
+                                      "\"all\" or a non-empty list of variant "
+                                      "names")
 
     return out
 

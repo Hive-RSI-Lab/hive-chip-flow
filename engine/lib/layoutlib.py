@@ -722,7 +722,8 @@ def uncount_rnode_caps(ext_text: str, res_ext_text: str,
 
 
 def run_magic_extract(work_dir, gds_path, topcell: str, *, parasitics: bool,
-                      timeout: float = 180.0) -> tuple[Path, str]:
+                      timeout: float = 180.0,
+                      variant: str | None = None) -> tuple[Path, str]:
     """Extract the GDS to SPICE with magic. Without parasitics this is the
     LVS netlist (`<topcell>.spice`, docs/spikes/glayout.md's "extract all;
     ext2spice"). With parasitics (`<topcell>.pex.spice`) it adds every
@@ -739,7 +740,12 @@ def run_magic_extract(work_dir, gds_path, topcell: str, *, parasitics: bool,
     back off), so the netlist written is magic's with those lines scaled.
 
     Order matters: `ext2spice lvs` resets cthresh and rthresh to infinity,
-    so it must come before the thresholds, never after them."""
+    so it must come before the thresholds, never after them.
+
+    `variant` extracts at that RC variant of the tech's ngspice style (hrhc and
+    its siblings), for both passes. magic only prints a complaint about a style
+    its tech lacks and carries on at the nominal one, so the .ext's own `style`
+    line is checked and anything else is a refusal."""
     work_dir = Path(work_dir)
     base = work_dir / topcell
     out_path = work_dir / (f"{topcell}.pex.spice" if parasitics
@@ -749,6 +755,8 @@ def run_magic_extract(work_dir, gds_path, topcell: str, *, parasitics: bool,
                       (".ext", ".res.ext", ".sim", ".nodes")))
     tech = magic_tech(work_dir)
     lines = _magic_head(tech, gds_path, topcell)
+    if variant:
+        lines.append(f"extract style ngspice({variant})")
     naming_log = ""
     if parasitics:
         proc = run_eda(["magic", "-noconsole", "-dnull"], cwd=work_dir,
@@ -786,6 +794,13 @@ def run_magic_extract(work_dir, gds_path, topcell: str, *, parasitics: bool,
                     f"magic extraction wrote no {need.name} to check "
                     f"{out_path.name}'s capacitance against: {out[-2000:]}")
         ext_text = ext_path.read_text(encoding="utf-8", errors="replace")
+        if variant and not re.search(
+                rf"^style\s+ngspice\({re.escape(variant)}\)\s*$", ext_text, re.M):
+            raise LayoutError(
+                f"magic extracted {ext_path.name} at another style than "
+                f"ngspice({variant}), so a bench on it would read the wrong "
+                "wires - check that the PDK's magic tech still has this "
+                f"variant: {out[-2000:]}")
         pex_text, uncounted = uncount_rnode_caps(
             ext_text, res_path.read_text(encoding="utf-8", errors="replace"),
             out_path.read_text(encoding="utf-8", errors="replace"))

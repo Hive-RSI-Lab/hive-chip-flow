@@ -360,7 +360,10 @@ gates:
       # typical, slow/hot, sim_pvt's worst per measure), measuring what
       # parasitics move (the mirror's output pole), and at each `pex_rc_knobs`
       # knob the spec opts into: every R and C scaled by a pinned factor, paired
-      # with the slow or fast corner (an approximation, not foundry RC corners).
+      # with the slow or fast corner (an approximation, not foundry RC corners),
+      # and at each `pex_rc_corners` variant: a separate extraction at magic's
+      # hrhc, lrlc, hrlc or lrhc, paired with its process in pex_rc_variants.yaml
+      # and hashed in the gate's record as its own view.
       # klayout_pex as a second extractor is not wired up yet.
       phase: P5
       tool: pex_sim

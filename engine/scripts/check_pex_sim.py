@@ -57,10 +57,27 @@ a `pair: ss` knob with the sweep's slow, hot, low-supply corner, a `pair: ff`
 knob with its fast, cold, high-supply corner, whether or not the corner set
 above holds that corner. The scaling is an approximation and not a foundry RC
 corner, as the table says: one factor for all layers, and vias move as little
-as wires. (The PDK's magic tech does hold RC variants, `ngspice(hrhc)` and its
-siblings; this gate does not extract at them.) Findings name the knob too, in refs and in the message, and the report
-adds `rc_knobs`, each knob's corner, factors and values. A knob with no bound
-scored at its corner is a refusal: the run it asked for would measure nothing.
+as wires: a quick envelope. Findings name the knob too, in refs and in the
+message, and the report adds `rc_knobs`, each knob's corner, factors and values.
+A knob with no bound scored at its corner is a refusal: the run it asked for
+would measure nothing.
+
+RC corners. spec.yaml's `pex_rc_corners` ("all" or a list of names, absent means
+none, since each is one more extraction and ngspice run) asks for the real thing:
+magic extracts the layout again at that variant of the PDK's tech, `ngspice(hrhc)`
+and its siblings, where each layer and each via has its own R and C. Each variant
+runs once, with the one process engine/reference/pex_rc_variants.yaml pairs it
+with: hrhc with the sweep's slow corner, lrlc with its fast corner, hrlc with sf
+and lrhc with fs, whether or not the corner set above holds that corner. A variant
+whose process the sweep lacks is refused. A finding names the variant in refs and
+in the message. The netlist is log/pex_sim/<top>.pex.ordered.<variant>.spice, with
+the magic files under log/pex_sim/rc_<variant>/; it gets the same ground, probe and
+no-parasitics checks as the nominal one. The report adds `rc_variants`, each one's
+corner, pair, netlist, hash, parasitic counts and values, and gate.py records each
+netlist's hash and pair in the gate's state entry as a view of its own
+(statelib.views_of): editing the file, or re-pairing the variant in the table,
+stales the gate. A variant with no bound scored at its corner is a refusal, before
+any extraction.
 
 The bench template carries substitution tokens, filled by str.format: `{pdk}`
 (the resolved toolchain's PDK root) and `{extracted}` (the parasitic netlist
@@ -304,21 +321,23 @@ def typical_corner(sweep: list[dict]) -> dict:
     return min(tts, key=lambda c: (abs(c["supply_pct"]), abs(c["temp_c"] - 27)))
 
 
-def slow_corner(sweep: list[dict]) -> dict | None:
+def slow_corner(sweep: list[dict], process: str = "ss") -> dict | None:
     """The sweep's slow, hot, low-supply corner, passives moving with the
-    transistors (ss, not ss_pff, on a tie). None with no ss corner."""
-    slows = [c for c in sweep if c["process"] == "ss"]
+    transistors (ss, not ss_pff, on a tie). None with no such corner. sf takes
+    this same temperature and supply (corners.yaml)."""
+    slows = [c for c in sweep if c["process"] == process]
     return min(slows, key=lambda c: (-c["temp_c"], c["supply_pct"],
-                                     corners_mod.passive_of(c) != "ss"),
+                                     corners_mod.passive_of(c) != process),
                default=None)
 
 
-def fast_corner(sweep: list[dict]) -> dict | None:
+def fast_corner(sweep: list[dict], process: str = "ff") -> dict | None:
     """slow_corner's mirror: the fast, cold, high-supply corner, passives moving
-    with the transistors. None with no ff corner."""
-    fasts = [c for c in sweep if c["process"] == "ff"]
+    with the transistors. None with no such corner. fs takes this same
+    temperature and supply (corners.yaml)."""
+    fasts = [c for c in sweep if c["process"] == process]
     return min(fasts, key=lambda c: (c["temp_c"], -c["supply_pct"],
-                                     corners_mod.passive_of(c) != "ff"),
+                                     corners_mod.passive_of(c) != process),
                default=None)
 
 
@@ -448,6 +467,23 @@ def rc_knob_runs(field, sweep: list[dict]) -> list[dict]:
             for name in (list(knobs) if field == "all" else field)]
 
 
+def rc_variant_runs(field, sweep: list[dict]) -> list[dict]:
+    """The extractions a spec's `pex_rc_corners` asks for, each {variant, pair,
+    corner}, in table order for "all" and in the spec's order otherwise. Raises
+    CheckError on a field spec_lint would refuse."""
+    if field is None:
+        return []
+    table = corners_mod.rc_variants()
+    problem = corners_mod.rc_variants_problem(field, sweep, table)
+    if problem:
+        raise CheckError(problem)
+    corner_of = {"ss": slow_corner, "sf": slow_corner,
+                 "ff": fast_corner, "fs": fast_corner}
+    return [{"variant": name, "pair": table[name]["pair"],
+             "corner": corner_of[table[name]["pair"]](sweep, table[name]["pair"])}
+            for name in (list(table) if field == "all" else field)]
+
+
 def unaware_tokens(template: str, corners: list[dict],
                    passives: list[str]) -> list[str]:
     """The tokens the bench must use for `corners` and does not. Pure."""
@@ -531,7 +567,7 @@ def run(argv=None):
         # bare workspace has no sweep to read, so typical is all there is
         sweep, field, nominal_vdd = [dict(BASE, name="tt")], None, None
         corner_list, source, unswept = sweep, "no spec.yaml: typical only", []
-        knob_runs = []
+        knob_runs, variant_runs = [], []
     else:
         sweep, _scoped = sim_run.spec_sweep(ws)
         field, nominal_vdd = spec.get("pex_corners"), (spec.get("supply")
@@ -540,6 +576,7 @@ def run(argv=None):
             field, sweep, bound_rows,
             None if field is not None else fresh_sim_pvt_results(ws))
         knob_runs = rc_knob_runs(spec.get("pex_rc_knobs"), sweep)
+        variant_runs = rc_variant_runs(spec.get("pex_rc_corners"), sweep)
 
     template = bench_tpl.read_text(encoding="utf-8")
     if "{vdd}" in template and (isinstance(nominal_vdd, bool) or not isinstance(
@@ -578,14 +615,16 @@ def run(argv=None):
         f"bench-writer), or keep it typical-only with `pex_corners: "
         f"[{typical_corner(sweep)['name']}]` in spec.yaml", "check_pex_sim")
         for token in unaware_tokens(
-            template, corner_list + [k["corner"] for k in knob_runs], passives)]
-    if knob_runs and "{extracted}" not in template:
+            template, corner_list + [k["corner"] for k in knob_runs + variant_runs],
+            passives)]
+    if (knob_runs or variant_runs) and "{extracted}" not in template:
         refused.append(checklib.violation(
             "pex_sim", "error", rel_bench, topcell, "pex_bench_not_corner_aware",
             ["extracted"], f"{bench_tpl.name} never uses {{extracted}}, and "
-            "spec.yaml's pex_rc_knobs needs it to reach the scaled netlist: "
-            "every knob would simulate the nominal wires and pass unseen. Use "
-            "the token in the bench (the bench-writer)", "check_pex_sim"))
+            "spec.yaml's pex_rc_knobs and pex_rc_corners need it to reach their "
+            "netlists: every run would simulate the nominal wires and pass "
+            "unseen. Use the token in the bench (the bench-writer)",
+            "check_pex_sim"))
     refused += [checklib.violation(
         "pex_sim", "error", rel_bounds, topcell, "sim_bound_not_swept",
         [b["measure"]], f"{b['measure']}: its bound is scoped to "
@@ -681,6 +720,44 @@ def run(argv=None):
         layoutlib.fresh(scaled[knob])
         scaled[knob].write_text(text, encoding="utf-8")
 
+    # each RC corner is an extraction of its own. A variant that would measure
+    # nothing stops the gate before the first one
+    for run_ in variant_runs:
+        if not scored_at(run_["corner"]):
+            raise CheckError(
+                f"pex_rc_corners asks for {run_['variant']}, which runs at "
+                f"{run_['corner']['name']}, and no bound in {bounds_path.name} "
+                "is scored there: a run with nothing to score is a refusal")
+    views: dict[str, dict] = {}
+    for run_ in variant_runs:
+        variant = run_["variant"]
+        vdir = work_dir / f"rc_{variant}"
+        vdir.mkdir(exist_ok=True)
+        vraw, _log = layoutlib.run_magic_extract(
+            vdir, gds_path.resolve(), topcell, parasitics=True, variant=variant)
+        vtext = vraw.read_text(encoding="utf-8", errors="replace")
+        vcounts = layoutlib.count_parasitics(vtext)
+        if not vcounts["r"] and not vcounts["c"]:
+            raise CheckError(
+                f"{variant}: {vraw.name} carries no R and no C line - magic "
+                "extracted no parasitics at this variant")
+        ground = ground_finding(ref_text, ref_pins, vtext, topcell, rel_gds)
+        unrun = ([ground] if ground is not None else []) + probe_findings(
+            bench_text, ref_text, vtext, topcell, rel_gds)
+        if unrun:
+            for v in unrun:
+                v["refs"] = [*v["refs"], variant]
+                v["msg"] = f"at RC variant {variant}: {v['msg']}"
+            payload = checklib.report(
+                SCRIPT, ws / "layout", unrun, topcell=topcell, gds=rel_gds,
+                extracted=str(extracted.relative_to(ws)),
+                parasitics=parasitics, measured={})
+            return payload, args.out
+        view = work_dir / f"{topcell}.pex.ordered.{variant}.spice"
+        layoutlib.fresh(view)
+        view.write_text(reorder_pins(vtext, topcell, ref_pins), encoding="utf-8")
+        views[variant] = {"path": view, "parasitics": vcounts}
+
     by_corner: dict[str, dict] = {}
     not_scored = []
     for corner in corner_list:
@@ -702,6 +779,19 @@ def run(argv=None):
                             corner, scored_at(corner), f"{cname}__{knob}", where,
                             [cname, knob], scaled[knob])})
 
+    variant_rows = []
+    for run_ in variant_runs:
+        corner, variant = run_["corner"], run_["variant"]
+        cname, view = corner["name"], views[variant]
+        variant_rows.append({
+            "variant": variant, "corner": cname, "pair": run_["pair"],
+            "netlist": str(view["path"].relative_to(ws)),
+            "sha256": statelib.hash_artifact(view["path"], "text_eol"),
+            "parasitics": view["parasitics"],
+            "measured": run_bench(corner, scored_at(corner), f"{cname}__{variant}",
+                                  f"{cname} / {variant}", [cname, variant],
+                                  view["path"])})
+
     if not by_corner:
         raise CheckError(
             f"no bound in {bounds_path.name} is scored at any of "
@@ -715,7 +805,8 @@ def run(argv=None):
         extracted=str(extracted.relative_to(ws)),
         parasitics=parasitics, measured=measured, corners=corner_names,
         corner_source=source, measured_by_corner=by_corner,
-        not_scored=not_scored, **({"rc_knobs": rc_runs} if rc_runs else {}))
+        not_scored=not_scored, **({"rc_knobs": rc_runs} if rc_runs else {}),
+        **({"rc_variants": variant_rows} if variant_rows else {}))
     return payload, args.out
 
 

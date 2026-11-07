@@ -17,7 +17,7 @@ chip-flow/
   engine/scripts/            state.py gate.py task_router.py fix_dispatch.py jobs.py faults.py optimise.py
                              bench.py attest.py release.py check_env.py check_<gate>.py ...
   engine/lib/                checklib safelib statelib benchlib simlib speclib
-  engine/reference/          gates.yaml invalidation.yaml tasks.yaml corners.yaml pex_rc_knobs.yaml tt/ (the TT template, pinned)
+  engine/reference/          gates.yaml invalidation.yaml tasks.yaml corners.yaml pex_rc_knobs.yaml pex_rc_variants.yaml tt/ (the TT template, pinned)
   skills/{vde,ade,msde}/     SKILL.md agents/ reference/{tasks.yaml,recipes/,remediations/,topologies/} templates/
   corpus/<skill>/<design>/   spec.md spec.yaml reference solution faults/ holdout/
   evals/                     ladder.py fixtures/ cvdp/ results/ ladder.md
@@ -46,7 +46,7 @@ New: `eda`, `check_env.py`, `jobs.py`, `faults.py` (corpus faults and per-run mu
 
 A block is `blocks/<name>/` in the project's repo, so gate commits work. `state.py init` makes `brief/`, `spec/` (`spec.md` and `spec.yaml`), `rtl/` or `netlist/`, `tb/`, `holdout/`, `formal/`, `synth/`, `harden/` (the TT project: `info.yaml`, `config.json`, generated `tt_um_<name>.v`), `layout/`, `sizing/`, `optimise/`, `reports/`, `log/` and `state_snapshots/`. LibreLane runs go under `runs/`, gitignored.
 
-`spec.yaml` is the machine-readable half of the spec, and `spec_lint` refuses a block without one. It carries `requirements: [{id, text, check: sim|formal|both|measure, bounds?}]`, `ports` and a `tt_pins` map, `clock: {period_ns, domains, primary}` (`primary` names the domain `period_ns` constrains, and harden needs it when there is more than one), `must_keep` (cells an optimiser may not remove, such as a hand-instantiated ring), `author` (what release writes into the staged `info.yaml`: blank is refused; without the key, the block's own `info.yaml` author, else `Hive`), and for analog blocks `supply`, `corners`, `measures` with per-corner bounds, `post_layout_bounds`, an optional `pex_rc_knobs` (`"all"` or knob names from `engine/reference/pex_rc_knobs.yaml`) that adds `pex_sim` runs with the extracted R and C scaled, and an optional `sim_timeout_s: {<gate>: seconds}` that sets the ngspice time limit of `netlist_lint`, `sim_tt`, `sim_pvt`, `mc`, `bench_strength` or `pex_sim` (at most 3600 s; a gate's `--timeout` overrides it, and a run past it is never a pass).
+`spec.yaml` is the machine-readable half of the spec, and `spec_lint` refuses a block without one. It carries `requirements: [{id, text, check: sim|formal|both|measure, bounds?}]`, `ports` and a `tt_pins` map, `clock: {period_ns, domains, primary}` (`primary` names the domain `period_ns` constrains, and harden needs it when there is more than one), `must_keep` (cells an optimiser may not remove, such as a hand-instantiated ring), `author` (what release writes into the staged `info.yaml`: blank is refused; without the key, the block's own `info.yaml` author, else `Hive`), and for analog blocks `supply`, `corners`, `measures` with per-corner bounds, `post_layout_bounds`, an optional `pex_rc_knobs` (`"all"` or knob names from `engine/reference/pex_rc_knobs.yaml`) that adds `pex_sim` runs with the extracted R and C scaled as a quick envelope, an optional `pex_rc_corners` (`"all"` or variant names from `engine/reference/pex_rc_variants.yaml`) that extracts once per named magic RC variant and runs each at its paired process corner, and an optional `sim_timeout_s: {<gate>: seconds}` that sets the ngspice time limit of `netlist_lint`, `sim_tt`, `sim_pvt`, `mc`, `bench_strength` or `pex_sim` (at most 3600 s; a gate's `--timeout` overrides it, and a run past it is never a pass).
 
 `state.json` is schema version 3, `/hwde`'s v2 with these additions:
 
@@ -127,7 +127,7 @@ Analog (`/ade`):
 | mc | ngspice Monte Carlo, only when the spec asks | yield at or above the spec | a window typical meets but mismatch misses (not applicable when the spec asks for no MC) |
 | drc | magic and klayout | 0 | a planted spacing violation |
 | lvs | netgen, extracted layout versus the sized netlist | match | a device sized differently in the generator than in the netlist |
-| pex_sim | magic ext2spice with parasitics (klayout_pex second), then the bench at typical and the worst corners (`pex_corners`), plus any opted-in scaled R and C runs (`pex_rc_knobs`) | every measure inside `post_layout_bounds` at each | an output routed on a long minimum-width metal1 line |
+| pex_sim | magic ext2spice with parasitics (klayout_pex second), then the bench at typical and the worst corners (`pex_corners`), plus any opted-in scaled R and C runs (`pex_rc_knobs`) and real RC corners (`pex_rc_corners`: one extraction per magic variant, each at its paired process, each hashed in the gate's record as its own view) | every measure inside `post_layout_bounds` at each | an output routed on a long minimum-width metal1 line |
 | release | attest, strict | as digital | as digital |
 
 Mixed-signal (`/msde`):

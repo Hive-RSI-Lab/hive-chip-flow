@@ -51,6 +51,7 @@ import yaml
 # engine/lib/statelib.py -> parents[0]=engine/lib, parents[1]=engine
 DEFAULT_MAP = Path(__file__).resolve().parents[1] / "reference" / "invalidation.yaml"
 DEFAULT_GATES = Path(__file__).resolve().parents[1] / "reference" / "gates.yaml"
+RC_VARIANTS_PATH = Path(__file__).resolve().parents[1] / "reference" / "pex_rc_variants.yaml"
 
 _MAP_CACHE: dict[tuple[str, float], dict] = {}
 _STRENGTH_CACHE: dict[tuple[str, float], dict] = {}
@@ -818,8 +819,36 @@ def gate_strength(skill: str, gate: str,
     return (load_strengths(path).get(skill) or {}).get(gate, 0)
 
 
+def views_of(facts: dict | None) -> dict[str, dict]:
+    """The extracted views a gate result carries beyond its one nominal
+    netlist (pex_sim's `rc_variants`), each kept in the gate's record: name ->
+    {path, sha256, pair}."""
+    return {r["variant"]: {"path": r["netlist"], "sha256": r["sha256"],
+                           "pair": r["pair"]}
+            for r in (facts or {}).get("rc_variants") or []}
+
+
+def view_changes(gate_entry: dict, ws: Path) -> list[str]:
+    """`view:<name>` for each recorded view that no longer stands: its file on
+    disk differs from the hash recorded, or the table now pairs it with another
+    process. A file that is not there (a clean checkout: log/ is not tracked) is
+    not judged; the gate's inputs, which include the tech and the spec, vouch
+    for what a re-extraction would give."""
+    views = (gate_entry.get("last") or {}).get("views") or {}
+    if not views:
+        return []
+    table = yaml.safe_load(RC_VARIANTS_PATH.read_text(encoding="utf-8"))
+    pairs = (table or {}).get("variants") or {}
+    return sorted(
+        f"view:{name}" for name, v in views.items()
+        if (pairs.get(name) or {}).get("pair") != v.get("pair")
+        or ((ws / v["path"]).exists()
+            and hash_artifact(ws / v["path"], "text_eol") != v.get("sha256")))
+
+
 def gate_freshness(gate_entry: dict, current: dict[str, str | None],
-                   gate: str = "", strength: int = 0) -> dict:
+                   gate: str = "", strength: int = 0,
+                   views_changed: list[str] | None = None) -> dict:
     """Verdict for one recorded gate entry against current hashes and the
     gate's current `strength` (gates.yaml).
 
@@ -830,6 +859,7 @@ def gate_freshness(gate_entry: dict, current: dict[str, str | None],
                 (or an unreadable one) reads as 0.
     strength_stale: present only when the record's strength is below the
                 gate's: the reason, naming the gate and both values.
+    views_changed: view_changes' answer, which counts as changed inputs.
     """
     recorded = (gate_entry.get("last") or {}).get("inputs")
     marks = gate_entry.get("stale") or []
@@ -840,7 +870,8 @@ def gate_freshness(gate_entry: dict, current: dict[str, str | None],
     # to the gate's row after it ran - the PDK, a side spec) is unvouched
     # for: stale, not fresh (#113/#138)
     changed = sorted({k for k, v in recorded.items() if current.get(k) != v}
-                     | (set(current) - set(recorded)))
+                     | (set(current) - set(recorded))
+                     | set(views_changed or ()))
     hash_valid = not changed
     verdict = {"hash_valid": hash_valid, "changed_inputs": changed,
                "stale_marks": marks, "fresh": hash_valid and not marks}
@@ -918,7 +949,8 @@ def freshness_report(data: dict, ws: Path,
     for gname, gentry in (data.get("gates") or {}).items():
         current = gate_input_hashes(ws, skill, gname, imap, registry)
         verdict = gate_freshness(gentry, current, gname,
-                                 gate_strength(skill, gname))
+                                 gate_strength(skill, gname),
+                                 view_changes(gentry, ws))
         gates_out[gname] = {
             "status": gentry.get("status"),
             "recorded_inputs": (gentry.get("last") or {}).get("inputs"),

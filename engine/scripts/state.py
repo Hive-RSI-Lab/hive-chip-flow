@@ -495,6 +495,9 @@ class State:
                  or k == "corners"}
         if facts:
             entry["facts"] = facts
+        views = statelib.views_of(result.get("facts"))
+        if views:
+            entry["views"] = views
         g = self.data["gates"].setdefault(
             gate, {"phase": phase or result.get("phase"), "status": None,
                    "attempts": 0, "last": None, "history": []})

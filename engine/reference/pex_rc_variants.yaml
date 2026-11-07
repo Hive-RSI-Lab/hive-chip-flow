@@ -1,0 +1,29 @@
+# pex_rc_variants.yaml - the magic extraction variants pex_sim can extract at
+# (spec.yaml `pex_rc_corners`, check_pex_sim.py's docstring), and the process
+# corner each one runs with. This table is the one place that pairing is stated.
+# Consumed by engine/scripts/corners.py. Never edited per block.
+#
+# These are the PDK's own RC corners, not a scale factor. Each name is a
+# variant of libs.tech/magic/gf180mcuD.tech's `style ngspice`, h or l for high
+# or low wire and contact resistance, then h or l for high or low capacitance:
+#   metal1-4 90 mohm/sq nominal, 104 at hr, 76 at lr; metal5 40, 49, 31.
+#   contacts and vias 4500 to 8000 mohm nominal, 15000 at hr, 0 at lr.
+#   area capacitance about +8.6% at hc and -7.3% at lc (median over layer pairs).
+# So via resistance moves x3.3 at hr where a wire moves x1.16, which is what the
+# scaled knobs in pex_rc_knobs.yaml cannot do.
+#
+# `pair` is a process name. hrhc goes with ss and lrlc with ff, so the worst wire
+# meets the worst transistor (slow and hot, fast and cold, as the sweep's corners
+# pair them). The two mixed variants have no slow or fast direction of their own,
+# since a path can be R-dominated or C-dominated, so they go with the two mixed
+# device corners and run at those corners' temperature and supply: sf hot and low,
+# fs cold and high (corners.yaml).
+#
+# THE LIMIT: this is four runs, not the sixteen variant-by-process pairs. A path
+# slowed by wire R more than by C could be slowest at hrlc with ss, and that run
+# is not made here; hrlc runs at sf.
+variants:
+  hrhc: {pair: ss}
+  lrlc: {pair: ff}
+  hrlc: {pair: sf}
+  lrhc: {pair: fs}

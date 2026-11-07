@@ -94,6 +94,7 @@ import yaml  # noqa: E402
 SCRIPT = "corners"
 DEFAULT_YAML = ENGINE / "reference" / "corners.yaml"
 RC_KNOBS_YAML = ENGINE / "reference" / "pex_rc_knobs.yaml"
+RC_VARIANTS_YAML = ENGINE / "reference" / "pex_rc_variants.yaml"
 REQUIRED_AXES = ("process", "temperature_c", "supply_pct")
 # the PDK's passive sections exist for these process names only
 PDK_PASSIVE = ("typical", "ss", "ff")
@@ -170,30 +171,65 @@ def rc_knobs(path: Path | str = RC_KNOBS_YAML) -> dict[str, dict]:
     return knobs
 
 
-def rc_knobs_problem(field, sweep: list[dict],
-                     knobs: dict[str, dict]) -> str | None:
-    """What is wrong with a spec's `pex_rc_knobs`, or None. spec_lint and the
-    gate both ask here. A knob whose paired process the sweep lacks would have
-    no corner to run at, so it is refused rather than dropped."""
+def rc_variants(path: Path | str = RC_VARIANTS_YAML) -> dict[str, dict]:
+    """The pinned table pex_sim's `pex_rc_corners` picks from: magic variant
+    name -> {pair}, the one statement of which process each variant runs with.
+    Malformed is a refusal."""
+    p = Path(path)
+    if not p.is_file():
+        raise CheckError(f"no pex_rc_variants.yaml at {p}")
+    table = (yaml.safe_load(p.read_text(encoding="utf-8")) or {}).get("variants")
+    if not isinstance(table, dict) or not table:
+        raise CheckError(f"{p}: 'variants' must be a non-empty mapping")
+    for name, v in table.items():
+        if not (isinstance(v, dict)
+                and v.get("pair") in ("ss", "ff", "sf", "fs")):
+            raise CheckError(f"{p}: variant {name!r} needs a pair of ss, ff, "
+                             "sf or fs")
+    return table
+
+
+def _paired_field_problem(key: str, noun: str, table_path: Path, field,
+                          sweep: list[dict],
+                          table: dict[str, dict]) -> str | None:
+    """What is wrong with a spec field that picks from a table whose rows each
+    pair with a process, or None. A row whose process the sweep lacks would
+    have no corner to run at, so it is refused rather than dropped."""
     if field == "all":
-        names = list(knobs)
+        names = list(table)
     elif (isinstance(field, list) and field
           and all(isinstance(n, str) for n in field)):
         names = field
     else:
-        return ("spec.yaml 'pex_rc_knobs' must be \"all\" or a non-empty list "
-                f"of knob names from {sorted(knobs)}")
-    bad = [n for n in names if n not in knobs]
+        return (f"spec.yaml '{key}' must be \"all\" or a non-empty list "
+                f"of {noun} names from {sorted(table)}")
+    bad = [n for n in names if n not in table]
     if bad:
-        return (f"spec.yaml 'pex_rc_knobs' names {bad}, which "
-                f"pex_rc_knobs.yaml does not pin: {sorted(knobs)}")
+        return (f"spec.yaml '{key}' names {bad}, which "
+                f"{table_path.name} does not pin: {sorted(table)}")
     swept = {c["process"] for c in sweep}
-    unpaired = [n for n in names if knobs[n]["pair"] not in swept]
+    unpaired = [n for n in names if table[n]["pair"] not in swept]
     if unpaired:
-        return (f"spec.yaml 'pex_rc_knobs' names {unpaired}, each paired with "
+        return (f"spec.yaml '{key}' names {unpaired}, each paired with "
                 "a process the spec's corners do not sweep: "
-                + ", ".join(f"{n} needs {knobs[n]['pair']}" for n in unpaired))
+                + ", ".join(f"{n} needs {table[n]['pair']}" for n in unpaired))
     return None
+
+
+def rc_knobs_problem(field, sweep: list[dict],
+                     knobs: dict[str, dict]) -> str | None:
+    """What is wrong with a spec's `pex_rc_knobs`, or None. spec_lint and the
+    gate both ask here."""
+    return _paired_field_problem("pex_rc_knobs", "knob", RC_KNOBS_YAML, field,
+                                 sweep, knobs)
+
+
+def rc_variants_problem(field, sweep: list[dict],
+                        table: dict[str, dict]) -> str | None:
+    """What is wrong with a spec's `pex_rc_corners`, or None. spec_lint and the
+    gate both ask here."""
+    return _paired_field_problem("pex_rc_corners", "variant", RC_VARIANTS_YAML,
+                                 field, sweep, table)
 
 
 def passive_of(corner: dict, device: str | None = None) -> str:
