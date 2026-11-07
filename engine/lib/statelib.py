@@ -718,6 +718,40 @@ def write_harden_records(ws: Path, skill: str, gate: str, imap: dict,
     return written
 
 
+def harden_outputs_changed(ws: Path, skill: str, gate: str, imap: dict,
+                           registry: dict | None = None) -> list[dict]:
+    """The harden outputs `gate` writes (gate_writes) whose files no longer
+    hash to what its outputs.json recorded when it passed (#164): a LEF, SDF
+    or SPEF swapped after the harden, which no gate's own inputs may hold.
+    One {kind, path, record} per changed kind. With no runs/ the record is
+    what every gate reads, so there is nothing to compare; with runs/ a
+    missing or unreadable record vouches for nothing and every output there
+    counts as changed."""
+    changed = []
+    for harden_dir, outputs in harden_record_targets(
+            ws, skill, gate, imap, registry).items():
+        if not (harden_dir / "runs").is_dir():
+            continue
+        record = harden_dir / HARDEN_RECORD
+        try:
+            recorded = json.loads(record.read_text(encoding="utf-8"))["outputs"]
+            if not isinstance(recorded, dict):
+                recorded = {}
+        except (OSError, ValueError, KeyError, TypeError):
+            recorded = {}
+        for kind in (imap.get("gate_writes", {}).get(skill) or {}).get(gate) or []:
+            norm = imap["artifact_kinds"][kind]["norm"]
+            p = ws / kind_path(kind, imap, registry)
+            where = (p, ".") if norm == "harden_signoff" else _in_harden_runs(p)
+            if not where or where[0] != harden_dir:
+                continue
+            if hash_artifact(p, norm) != recorded.get(where[1]):
+                changed.append({"kind": kind,
+                                "path": p.relative_to(ws).as_posix(),
+                                "record": record.relative_to(ws).as_posix()})
+    return changed
+
+
 def kind_path(kind: str, imap: dict, registry: dict | None = None) -> str:
     """Workspace-relative path for a standard artifact kind. A registry
     entry registered under the kind's name overrides the default template -

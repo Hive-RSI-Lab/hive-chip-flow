@@ -9,8 +9,10 @@ it, byte for byte.
 
 A tie is read off invalidation.yaml: a gate reads a file when one of its input
 kinds covers the file's path, so its recorded input hash holds that file. Files
-a harden run writes that no later gate hashes (an msde LEF, SDF, SPEF) tie to
-the harden gate as `produced`, which is the weaker claim and says so.
+a harden run writes that no gate but release hashes (an msde SDF, SPEF) tie to
+the harden gate as `produced`, which is the weaker claim and says so; release
+holds them to the hashes the harden recorded (#164). The msde LEF is read by
+precheck.
 
 A file in the tree with no tie refuses the release (`deliverable_untied`),
 except test/ (not silicon, listed as such). A hand-kept copy under a block's
