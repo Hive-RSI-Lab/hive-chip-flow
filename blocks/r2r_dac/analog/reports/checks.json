@@ -1,7 +1,7 @@
 {
  "skill": "ade",
  "block": "r2r_dac_analog",
- "ts": "2026-11-07T17:19:32",
+ "ts": "2026-11-07T18:24:04",
  "pdk": {
   "name": "gf180mcuD",
   "open_pdks": "1689ac3f2dc763876eaf967227c7dfe831b031ae",
@@ -43,6 +43,29 @@
     "layout": "dir_text:889449a57e56e4c2cab666ce1481936e988d284cf7e8717638791f7715a62c67",
     "spec_yaml": "json_canonical:8c9cd25a18e9f52cb3d6890c8bb10c49e0fd4727727abbe712a4ce5fc7367fb4",
     "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+    "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
+    "pdk_klayout": "dir_text:876da90e8aab65b830b36eca12bd720adfe8240a0952872419d9f2b4abda605d"
+   },
+   "reason": null
+  },
+  {
+   "gate": "em_ir",
+   "applies": true,
+   "ran": true,
+   "ok": true,
+   "tool": "analog_em_ir",
+   "version": 1,
+   "status": "pass",
+   "attempts": 1,
+   "ts": "2026-11-07T18:24:04",
+   "inputs": {
+    "layout": "dir_text:889449a57e56e4c2cab666ce1481936e988d284cf7e8717638791f7715a62c67",
+    "tb": "dir_text:f39ddda9f2efd5463da75d99f486ff1ea8d2038b91027869426db82f0bf513e4",
+    "layout_ref": "dir_text:3877121e758def7d2fcd326931f83d5dfad6ae2f65fec2e70b868dfdf45a8f9a",
+    "netlist": "dir_text:2c6d358ba4c3ec93f5dc910e1777df9a3f5418293791a715229fa1b8d22d1e4e",
+    "spec_yaml": "json_canonical:8c9cd25a18e9f52cb3d6890c8bb10c49e0fd4727727abbe712a4ce5fc7367fb4",
+    "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+    "pdk_models": "dir_text:84e0f27991c27acae27ec5243fd0d1587f7bfb2655e802ed0eb92a811cf5f7f8",
     "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
     "pdk_klayout": "dir_text:876da90e8aab65b830b36eca12bd720adfe8240a0952872419d9f2b4abda605d"
    },
@@ -148,12 +171,12 @@
    "tool": "pex_sim",
    "version": 1,
    "status": "pass",
-   "attempts": 5,
-   "ts": "2026-11-07T17:17:52",
+   "attempts": 6,
+   "ts": "2026-11-07T18:23:53",
    "inputs": {
     "layout": "dir_text:889449a57e56e4c2cab666ce1481936e988d284cf7e8717638791f7715a62c67",
     "tb": "dir_text:f39ddda9f2efd5463da75d99f486ff1ea8d2038b91027869426db82f0bf513e4",
-    "layout_ref": "dir_text:c4aa1a8579f2b576c7bbfb34464926cef64b1f078bacd41d28ec3e82650f2e7e",
+    "layout_ref": "dir_text:3877121e758def7d2fcd326931f83d5dfad6ae2f65fec2e70b868dfdf45a8f9a",
     "netlist": "dir_text:2c6d358ba4c3ec93f5dc910e1777df9a3f5418293791a715229fa1b8d22d1e4e",
     "spec_yaml": "json_canonical:8c9cd25a18e9f52cb3d6890c8bb10c49e0fd4727727abbe712a4ce5fc7367fb4",
     "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
@@ -219,5 +242,5 @@
    "reason": null
   }
  ],
- "attestation_sha256": "4f5e62a8b5c07707f3c7ec4733fcbee3c6fd4bbcf71d14c2c9c66af068739580"
+ "attestation_sha256": "5ef4590a402a41b19a62abbe2002a36443747dc9599d85993eb1ef53158eda89"
 }
