@@ -22,8 +22,8 @@
  "facts": {
   "top": "ece298a_counter",
   "run_tag": "run",
-  "resumed": true,
-  "wall_s": 46.15,
+  "resumed": false,
+  "wall_s": 49.04,
   "run_dir": "harden/runs/run",
   "metrics": {
    "design__instance__count": 1402,
@@ -220,8 +220,8 @@
     }
    },
    "config_sha256": "f86ce9db491412ccc0ac48e5d05139a34f8fef6e05c529c9239f10a4c3cd2de4",
-   "resolved_sha256": "b9f081be7e9cf249553da01722bd9a47246a09ed81c4795b4f98f4f77a5359bb",
-   "wall_s": 46.15
+   "resolved_sha256": "c08b26a1f23374e825df23d299923350ea3c0762ccf960114a3fb3aff9979c51",
+   "wall_s": 49.04
   },
   "signoff_metrics": {
    "antenna__violating__nets": {
@@ -301,6 +301,6 @@
   "pdk_netgen": "dir_text:8164f65bb7d1bef6e27af4c13b1c6ede50973cec7aec482556abb23881aceb04"
  },
  "strength_at_start": 1,
- "recorded_ts": "2026-11-06T20:05:23",
- "attempts": 8
+ "recorded_ts": "2026-11-06T23:41:23",
+ "attempts": 9
 }

@@ -1,0 +1,37 @@
+{
+ "_comment": "A planted upstream diff: one gf180 rule (power_pins_min_width) changed in tech_data.py. precheck_drift.py must fail on it, and the CI job proves it does before it trusts a pass. Nothing here is real upstream history.",
+ "action_yml": "inputs:\n  tools-ref:\n    description: 'Override tt-support-tools branch/tag/commit'\n    default: 'main'\n    required: false\n",
+ "compare": {
+  "status": "ahead",
+  "ahead_by": 1,
+  "behind_by": 0,
+  "total_commits": 1,
+  "commits": [
+   {
+    "sha": "c0ffee00c0ffee00c0ffee00c0ffee00c0ffee00",
+    "commit": {
+     "author": {
+      "date": "2026-11-06T00:00:00Z"
+     },
+     "message": "fix(precheck): raise the gf180mcuD power pin min width (planted)"
+    }
+   }
+  ],
+  "files": [
+   {
+    "filename": "precheck/tech_data.py",
+    "status": "modified",
+    "additions": 1,
+    "deletions": 1,
+    "patch": "@@ -233,7 +233,7 @@ power_pins_min_width = {\n     \"sky130A\": 1200,  # 1.2 um\n     \"ihp-sg13g2\": 2100,  # 2.1 um\n-    \"gf180mcuD\": 800,  # 0.8 um\n+    \"gf180mcuD\": 1000,  # 1.0 um\n }"
+   }
+  ]
+ },
+ "commit_files": {
+  "c0ffee00c0ffee00c0ffee00c0ffee00c0ffee00": [
+   "precheck/tech_data.py"
+  ]
+ },
+ "requirements": "klayout>=0.30.8,<0.31.0\n    # via tt-precheck (pyproject.toml)\n",
+ "tree": null
+}
