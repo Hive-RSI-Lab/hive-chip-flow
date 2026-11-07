@@ -11,3 +11,7 @@ mc: {enabled: true, runs: 20, yield_min: 0.95, seed: 1}
 # diode sets its voltage: CVC models that node as at most one Vth (0.6 V).
 erc_nets:
   iref_node: {min: 0, max: 0.6}
+# The row layout_match reads (check_layout_match): xmref and xmout's units
+# share one centroid, one size and one orientation, dummies at both ends.
+matching:
+  - {devices: [xmref, xmout], style: common_centroid, tol_um: 0.05}

@@ -309,7 +309,8 @@ import gate as gate_mod  # noqa: E402
 
 ADE_SPEC = ("top: current_mirror\nsupply: {vdd: 3.3}\n"
             "devices: [xmref, xmout]\ncorners: default\nmeasures:\n"
-            "  - name: iout_raw\n    bounds: {min: 18e-6, max: 32e-6}\n")
+            "  - name: iout_raw\n    bounds: {min: 18e-6, max: 32e-6}\n"
+            "matching:\n  - {devices: [xmref, xmout], style: common_centroid}\n")
 ADE_MC_ON = "mc: {enabled: true, runs: 4, yield_min: 0.75}\n"
 ADE_GATES = sorted(g for g in statelib.load_map()["gate_inputs"]["ade"]
                   if g != "release")
@@ -373,6 +374,21 @@ def test_ade_release_passes_when_every_gate_is_fresh(tmp_path, capsys):
         (ENGINE / "reference" / "checks.schema.json").read_text()))
 
 
+def test_ade_release_without_matching_declares_layout_match_not_applicable(
+        tmp_path, capsys):
+    ws = make_ade_ws(tmp_path)
+    spec = ws / "spec" / "spec.yaml"
+    spec.write_text(spec.read_text().split("matching:")[0], encoding="utf-8")
+    owed = [g for g in ADE_OWED if g != "layout_match"]
+    record_ade(ws, owed)
+    code, out = release(ws, capsys)
+    assert code == 0, out
+    checks_doc = json.loads((ws / "reports" / "checks.json").read_text())
+    lm = next(c for c in checks_doc["checks"] if c["gate"] == "layout_match")
+    assert lm["ok"] is True and lm["ran"] is False
+    assert "not applicable" in lm["reason"]
+
+
 def test_ade_release_refuses_a_fresh_workspace(tmp_path, capsys):
     ws = make_ade_ws(tmp_path)
     code, out = release(ws, capsys)
@@ -429,10 +445,11 @@ def test_ade_release_refuses_after_netlist_edit(tmp_path, capsys):
     code, out = release(ws, capsys)
     assert code == 1, out
     # pex_sim reads the reference netlist for the extracted cell's pins,
-    # erc for each finding's schematic refdes
+    # erc for each finding's schematic refdes, layout_match for the
+    # matched devices' terminals
     assert not_ready_gates(out) == {"netlist_lint", "sim_tt", "sim_pvt",
                                     "bench_strength", "lvs", "pex_sim",
-                                    "erc"}, out
+                                    "erc", "layout_match"}, out
 
 
 def test_ade_release_owes_mc_when_the_spec_asks_for_it(tmp_path, capsys):

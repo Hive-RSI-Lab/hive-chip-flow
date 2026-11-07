@@ -140,6 +140,14 @@ CHECK_KINDS = {"sim", "formal", "both", "measure"}
 #                        over the absolute floor (default 0). At least one
 #                        max_*_pct, and max_dc_pct with aggressors
 #                        (symmetric_nets(); check_pex_sim.py)
+#     matching: [{devices: [a, b, ...], style: common_centroid | interdigitate,
+#                 tol_um?}]   optional; the devices a layout draws as one
+#                        row of equal units (#118). layout_match reads the
+#                        extracted row: unit centroids within tol_um
+#                        (default 0.05, common_centroid only), one unit
+#                        W/L, one orientation mix, a dummy or equal device
+#                        beside every end unit (matching();
+#                        check_layout_match.py)
 
 ADE_MEASURE_CORNER_KINDS = {"default", "all"}
 # the gates that run ngspice, each with a --timeout and a default of its own
@@ -292,6 +300,13 @@ def lint_spec_ade(spec: dict, rel_path: str = "spec/spec.yaml") -> list[dict]:
                                   "number >= 0, and aggressors a list of net "
                                   "names other than the pair's")
 
+    if "matching" in spec and matching(spec) is None:
+        bad("bad_matching", "spec.yaml 'matching' must be a list of "
+                            "{devices: [a, b, ...], style: common_centroid "
+                            "or interdigitate, tol_um?: a number > 0} with "
+                            "two or more different device names, no device "
+                            "in two groups")
+
     if "pex_corners" in spec:
         field = spec["pex_corners"]
         if field != "all" and not (isinstance(field, list) and field and all(
@@ -404,6 +419,39 @@ def erc_nets(spec: dict) -> dict | None:
         if "min" in vals and vals["min"] > vals["max"]:
             return None
         out[pin] = vals
+    return out
+
+
+MATCH_STYLES = ("common_centroid", "interdigitate")
+MATCH_TOL_UM = 0.05
+
+
+def matching(spec: dict) -> list[dict] | None:
+    """spec.yaml's `matching` as [{devices: [lower-case names], style,
+    tol_um}] ([] when the field is absent), or None when malformed
+    (lint_spec_ade refuses that, and so does check_layout_match.py)."""
+    field = spec.get("matching", []) if isinstance(spec, dict) else []
+    if not isinstance(field, list):
+        return None
+    out, seen = [], set()
+    for row in field:
+        if not (isinstance(row, dict) and set(row) <= {"devices", "style", "tol_um"}):
+            return None
+        devs = row.get("devices")
+        if not (isinstance(devs, list) and len(devs) >= 2 and all(
+                isinstance(d, str) and d.strip() for d in devs)):
+            return None
+        names = [d.strip().lower() for d in devs]
+        if len(set(names)) != len(names) or seen & set(names):
+            return None
+        seen |= set(names)
+        if row.get("style") not in MATCH_STYLES:
+            return None
+        tol = row.get("tol_um", MATCH_TOL_UM)
+        if isinstance(tol, bool) or not isinstance(tol, (int, float)) \
+                or not math.isfinite(tol) or tol <= 0:
+            return None
+        out.append({"devices": names, "style": row["style"], "tol_um": float(tol)})
     return out
 
 

@@ -1162,7 +1162,9 @@ def run_klayout_lvs(work_dir, gds_path, topcell: str, ref_spice,
     """The PDK's klayout LVS deck (run_lvs.py, variant D, gf180mcu_gnd
     substrate) on gds_path against ref_spice, already in klayout_reference()
     form. Returns (matched, the run's log, the .lvsdb). A run with neither
-    verdict line, or no .lvsdb, is a LayoutError."""
+    verdict line, or no .lvsdb, is a LayoutError. --combine merges parallel
+    devices first, as netgen does: a device drawn as a row of equal units
+    (a matched row, #118) is one schematic device of their summed W."""
     deck = klayout_lvs_dir()
     work_dir = Path(work_dir).resolve()
     if work_dir.exists():
@@ -1174,7 +1176,8 @@ def run_klayout_lvs(work_dir, gds_path, topcell: str, ref_spice,
     proc = run_eda(
         ["python3", str(deck / "run_lvs.py"), f"--layout={gds}",
          f"--netlist={Path(ref_spice).resolve()}", "--variant=D",
-         f"--run_dir={work_dir}", f"--topcell={topcell}", "--run_mode=deep"],
+         f"--run_dir={work_dir}", f"--topcell={topcell}", "--run_mode=deep",
+         "--combine"],
         cwd=work_dir, timeout=timeout)
     out = (proc.stdout or "") + (proc.stderr or "")
     logs = sorted(work_dir.glob("*.log"))

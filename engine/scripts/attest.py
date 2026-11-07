@@ -253,10 +253,18 @@ def _macro_lib_not_applicable(ws: Path) -> str | None:
     return check_macro_lib.not_applicable_at_release(ws)
 
 
+def _layout_match_not_applicable(ws: Path) -> str | None:
+    """/ade's `layout_match` (#118), not applicable only when spec.yaml
+    declares no `matching:` groups: nothing is drawn as a matched row."""
+    import check_layout_match
+    return check_layout_match.not_applicable_at_release(ws)
+
+
 # (skill, gate) -> fn(ws) -> reason str when the block's own spec declares
 # the gate not applicable, None when the gate is owed. Deliberately a short
 # explicit list, never a general carve-out (see applicable_gates).
 NOT_APPLICABLE = {("ade", "mc"): _mc_not_applicable,
+                  ("ade", "layout_match"): _layout_match_not_applicable,
                   ("vde", "cdc"): _cdc_not_applicable,
                   ("msde", "macro_lib"): _macro_lib_not_applicable}
 

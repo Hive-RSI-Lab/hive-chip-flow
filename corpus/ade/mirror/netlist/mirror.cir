@@ -5,4 +5,9 @@
 .subckt current_mirror iref_node iout vdd vss
 xmref iref_node iref_node vss vss nfet_03v3 w=4e-6 l=5e-7
 xmout iout      iref_node vss vss nfet_03v3 w=8e-6 l=5e-7
+* The layout draws the row D B A B D (layout/gen_mirror.py): xmout as two
+* 4um units either side of xmref, a dummy at each end. The dummies are
+* drawn, so they are in the schematic too, every terminal on vss.
+xmdum1 vss vss vss vss nfet_03v3 w=4e-6 l=5e-7
+xmdum2 vss vss vss vss nfet_03v3 w=4e-6 l=5e-7
 .ends current_mirror
