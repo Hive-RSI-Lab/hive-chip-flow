@@ -86,7 +86,7 @@ jobs:
   # issues: write, and the job reading upstream doesn't.
   report:
     needs: drift
-    if: failure() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request')
+    if: failure() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:

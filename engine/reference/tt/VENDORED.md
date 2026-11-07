@@ -21,7 +21,7 @@ Fetched with git, pinned at these commits (M4, docs/design.md "### M4."):
   needed here.
 
 - `tt-support-tools/` from https://github.com/TinyTapeout/tt-support-tools
-  @ `01d5d2814fa9dd61e9d211e0b235a4a592a9316a` (main, 2026-08-20) -
+  @ `9d13ff3e3e6202090740110438c6a10c1d62ca0f` (main, 2026-11-05) -
   Apache-2.0 (`LICENSE`). Kept: `tech.py` (the per-PDK LibreLane config
   `ttlib.py` imports directly - `tech_map["gf180mcuD"]` - rather than
   copying its numbers by hand), `tech/gf180mcuD/tile_sizes.yaml` (DIE_AREA
