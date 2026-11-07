@@ -903,6 +903,272 @@ def test_line_passing_every_corner_fails_at_c_high_and_names_both(tmp_path):
     assert out["measured_by_corner"]["ss"]["f3db"] >= 5e8
 
 
+def test_variant_table_pairs_each_magic_variant_with_one_process():
+    import corners as corners_mod
+    table = corners_mod.rc_variants()
+    assert {k: v["pair"] for k, v in table.items()} == {
+        "hrhc": "ss", "lrlc": "ff", "hrlc": "sf", "lrhc": "fs"}
+    assert not set(table) & set(corners_mod.rc_knobs())
+
+
+def test_variant_runs_pair_from_the_table_and_refuse_a_grid_without_the_pair():
+    runs = check_pex_sim.rc_variant_runs("all", SWEEP)
+    assert [(r["variant"], r["pair"], r["corner"]["name"]) for r in runs] == [
+        ("hrhc", "ss", "ss"), ("lrlc", "ff", "ff"),
+        ("hrlc", "sf", "sf"), ("lrhc", "fs", "fs")]
+    assert check_pex_sim.rc_variant_runs(None, GRID) == []
+    # GRID sweeps typical and ss: hrhc has its pair, the others do not.
+    assert [r["variant"] for r in
+            check_pex_sim.rc_variant_runs(["hrhc"], GRID)] == ["hrhc"]
+    for unpaired in ("lrlc", "hrlc", "lrhc"):
+        with pytest.raises(CheckError, match=unpaired):
+            check_pex_sim.rc_variant_runs([unpaired], GRID)
+
+
+def _rc_variant_extract(monkeypatch, seen=None):
+    """A fake extraction whose R and C differ per variant, as magic's do."""
+    import layoutlib
+    numbers = {None: ("12.5", "0.1f"), "hrhc": ("40", "0.2f"),
+               "lrlc": ("1", "0.05f"), "hrlc": ("40", "0.05f"),
+               "lrhc": ("1", "0.2f")}
+
+    def extracted(work_dir, gds, cell, parasitics, variant=None):
+        if seen is not None:
+            seen.append(variant)
+        p = work_dir / f"{cell}.pex.spice"
+        r, c = numbers[variant]
+        p.write_text(f".subckt blk a b\nR0 a b {r}\nC0 a b {c}\n.ends\n",
+                     encoding="utf-8")
+        return p, ""
+
+    monkeypatch.setattr(layoutlib, "run_magic_extract", extracted)
+
+
+def _rc_variant_block(ws, field, bounds, bench=None):
+    _spec(ws, f"top: blk\nsupply: {{vdd: 3.3}}\npex_corners: [ss]\n"
+              f"pex_rc_corners: {field}\n")
+    (ws / "netlist" / "blk.cir").write_text(
+        ".subckt blk a b\nR1 a b 1k\n.ends\n", encoding="utf-8")
+    (ws / "layout_ref" / "blk_pex_tb.cir").write_text(
+        bench or ".lib x {corner}\n.temp {temp_c}\nv1 a 0 {vdd}\n"
+        ".include {extracted}\n.end\n", encoding="utf-8")
+    (ws / "layout_ref" / "blk_pex_tb.bounds.json").write_text(
+        json.dumps({"measures": bounds}), encoding="utf-8")
+
+
+def test_variant_extracts_its_own_netlist_and_the_finding_names_it(
+        unlaunchable_eda, tmp_path, monkeypatch):
+    import layoutlib
+    import statelib
+    ws = unlaunchable_eda
+    seen = []
+    _rc_variant_extract(monkeypatch, seen)
+    _rc_variant_block(ws, "[hrhc]", {"x": {"min": 1}})
+    decks = {}
+
+    def sim(bench, cwd, timeout, failed_measures):
+        decks[bench.name] = bench.read_text(encoding="utf-8")
+        return "x = 0.5\n" if ".hrhc.spice" in decks[bench.name] else "x = 2\n"
+    monkeypatch.setattr(layoutlib, "run_ngspice", sim)
+    code, out = run_json(["--workspace", str(ws)], tmp_path)
+    assert code == 1, out
+    assert seen == [None, "hrhc"]
+    assert set(decks) == {"blk_pex_tb__tt.cir", "blk_pex_tb__ss.cir",
+                          "blk_pex_tb__ss__hrhc.cir"}
+    assert ".temp 125" in decks["blk_pex_tb__ss__hrhc.cir"]
+    [v] = out["violations"]
+    assert v["kind"] == "measure_out_of_bounds"
+    assert set(v["refs"]) == {"x", "ss", "hrhc"}
+    assert "x @ ss / hrhc = 0.5" in v["msg"]
+    [run] = out["rc_variants"]
+    assert (run["variant"], run["corner"], run["pair"]) == ("hrhc", "ss", "ss")
+    assert run["measured"] == {"x": 0.5}
+    assert run["netlist"] == "log/pex_sim/blk.pex.ordered.hrhc.spice"
+    netlist = ws / run["netlist"]
+    assert "R0 a b 40" in netlist.read_text(encoding="utf-8")
+    assert run["sha256"] == statelib.hash_artifact(netlist, "text_eol")
+    # the nominal netlist is still the nominal extraction
+    assert "R0 a b 12.5" in (ws / "log" / "pex_sim" / "blk.pex.ordered.spice"
+                             ).read_text(encoding="utf-8")
+
+
+def test_no_variant_asked_means_no_variant_extraction_and_no_report_field(
+        unlaunchable_eda, tmp_path, monkeypatch):
+    import layoutlib
+    ws = unlaunchable_eda
+    seen = []
+    _rc_variant_extract(monkeypatch, seen)
+    _rc_variant_block(ws, "[hrhc]", {"x": {"min": 1}})
+    spec = ws / "spec" / "spec.yaml"
+    spec.write_text(spec.read_text(encoding="utf-8").replace(
+        "pex_rc_corners: [hrhc]\n", ""), encoding="utf-8")
+    monkeypatch.setattr(layoutlib, "run_ngspice",
+                        lambda bench, cwd, timeout, failed_measures: "x = 2\n")
+    code, out = run_json(["--workspace", str(ws)], tmp_path)
+    assert code == 0, out
+    assert seen == [None]
+    assert "rc_variants" not in out
+
+
+def test_variant_bench_that_hardcodes_the_netlist_is_not_corner_aware(
+        unlaunchable_eda, tmp_path, monkeypatch):
+    ws = unlaunchable_eda
+    _rc_variant_extract(monkeypatch)
+    _rc_variant_block(ws, "[hrhc]", {"x": {"min": 1}},
+                      bench=".lib x {corner}\n.temp {temp_c}\nv1 a 0 {vdd}\n"
+                            ".include blk.pex.spice\n.end\n")
+    code, out = run_json(["--workspace", str(ws)], tmp_path)
+    assert code == 1, out
+    assert {v["kind"] for v in out["violations"]} == {"pex_bench_not_corner_aware"}
+    assert any("extracted" in v["refs"] for v in out["violations"])
+
+
+def test_spec_asking_a_variant_its_sweep_lacks_is_refused_before_extracting_it(
+        unlaunchable_eda, tmp_path, monkeypatch, capsys):
+    ws = unlaunchable_eda
+    _rc_variant_block(ws, "[hrlc]", {"x": {"min": 1}})
+    spec = ws / "spec" / "spec.yaml"
+    spec.write_text(spec.read_text(encoding="utf-8").replace(
+                        "pex_corners: [ss]", "pex_corners: all")
+                    + "corners: {grid: {process: [typical, ss, ff], "
+                      "temp_c: [-40, 25, 125], supply_pct: [-10, 0, 10]}}\n",
+                    encoding="utf-8")
+    seen = []
+    _rc_variant_extract(monkeypatch, seen)
+    code, out = run_err(["--workspace", str(ws)], capsys)
+    assert code == 2, out
+    assert "hrlc needs sf" in out["error"]
+    # The nominal extraction comes first, as it always has; the variant is not run.
+    assert seen == [None]
+
+
+def test_view_is_stale_when_its_file_or_its_pair_changes(tmp_path):
+    import statelib
+    view = tmp_path / "log" / "b.hrhc.spice"
+    view.parent.mkdir()
+    view.write_text("R0 a b 40\n", encoding="utf-8")
+    facts = {"rc_variants": [{
+        "variant": "hrhc", "pair": "ss", "corner": "ss",
+        "netlist": "log/b.hrhc.spice",
+        "sha256": statelib.hash_artifact(view, "text_eol")}]}
+    views = statelib.views_of(facts)
+    assert views == {"hrhc": {"path": "log/b.hrhc.spice", "pair": "ss",
+                              "sha256": facts["rc_variants"][0]["sha256"]}}
+    assert statelib.views_of({}) == {}
+    entry = {"last": {"inputs": {"a": "1"}, "views": views}}
+    assert statelib.view_changes(entry, tmp_path) == []
+    fresh = statelib.gate_freshness(entry, {"a": "1"}, "pex_sim", 0,
+                                    statelib.view_changes(entry, tmp_path))
+    assert fresh["fresh"] is True
+
+    view.write_text("R0 a b 41\n", encoding="utf-8")
+    changed = statelib.view_changes(entry, tmp_path)
+    assert changed == ["view:hrhc"]
+    verdict = statelib.gate_freshness(entry, {"a": "1"}, "pex_sim", 0, changed)
+    assert verdict["fresh"] is False
+    assert verdict["changed_inputs"] == ["view:hrhc"]
+
+    # a clean checkout has no log/: the gate's inputs vouch for it
+    view.unlink()
+    assert statelib.view_changes(entry, tmp_path) == []
+
+    # the table moved the pairing under the record
+    moved = {"last": {"views": {"hrhc": dict(views["hrhc"], pair="ff")}}}
+    assert statelib.view_changes(moved, tmp_path) == ["view:hrhc"]
+
+
+def test_record_gate_keeps_the_views_a_result_carries(tmp_path):
+    import state
+    st = state.State.init(tmp_path / "ws", "ade", "blk")
+    st.record_gate("pex_sim", {"status": "pass", "facts": {"rc_variants": [{
+        "variant": "lrlc", "pair": "ff", "corner": "ff",
+        "netlist": "log/b.lrlc.spice", "sha256": "text_eol:abc"}]}})
+    assert st.data["gates"]["pex_sim"]["last"]["views"] == {"lrlc": {
+        "path": "log/b.lrlc.spice", "sha256": "text_eol:abc", "pair": "ff"}}
+
+
+@pytest.mark.slow
+def test_unknown_variant_is_refused_since_magic_only_complains(tmp_path):
+    """magic carries on at nominal after an unknown style: the .ext must say."""
+    import layoutlib
+    ws, gds, top = _unlabelled_mirror(tmp_path)
+    with pytest.raises(layoutlib.LayoutError, match="hxhx"):
+        layoutlib.run_magic_extract(ws / "log", gds, top, parasitics=True,
+                                    variant="hxhx")
+
+
+# #254: the 50um mirror line, whose numbers were posted on #160. hrhc and lrlc
+# are the PDK's own variants, against the C and R the knobs only approximate.
+@pytest.mark.slow
+def test_fifty_um_line_at_the_real_variants_matches_the_posted_numbers(tmp_path):
+    ws = make_ws(tmp_path, "mirror")
+    gen = ws / "layout" / "gen_mirror.py"
+    gen.write_text(gen.read_text(encoding="utf-8").replace(
+        '    d = out["d"]\n    labels.append(("iout", (d[0] + d[2]) / 2, '
+        '(d[1] + d[3]) / 2, L1LBL))\n',
+        '    d = out["d"]\n    y = (d[1] + d[3]) / 2\n'
+        '    layoutlib.rect(top, d[0], y - 0.115, d[2] + 50.0, y + 0.115, L1)\n'
+        '    layoutlib.rect(top, d[2] + 50.0, y - 0.5, d[2] + 51.0, y + 0.5, L1)\n'
+        '    labels.append(("iout", d[2] + 50.5, y, L1LBL))\n'), encoding="utf-8")
+    assert "d[2] + 50.0" in gen.read_text(encoding="utf-8")
+    _spec(ws, (ws / "spec" / "spec.yaml").read_text(encoding="utf-8")
+          + "pex_corners: all\npex_rc_corners: all\n")
+    code, out = run_json(["--workspace", str(ws)], tmp_path)
+    assert code == 1, out
+    by = {r["variant"]: r for r in out["rc_variants"]}
+    assert {k: v["corner"] for k, v in by.items()} == {
+        "hrhc": "ss", "lrlc": "ff", "hrlc": "sf", "lrhc": "fs"}
+    posted = {"hrhc": 467.4e6, "lrlc": 572.1e6, "hrlc": 493.3e6, "lrhc": 537.5e6}
+    for name, want in posted.items():
+        assert by[name]["measured"]["f3db"] == pytest.approx(want, abs=0.1e6), name
+    assert out["measured_by_corner"]["ss"]["f3db"] == pytest.approx(475.9e6, abs=0.1e6)
+    assert out["measured_by_corner"]["ff"]["f3db"] == pytest.approx(560.5e6, abs=0.1e6)
+
+
+@pytest.mark.slow
+def test_line_failing_only_at_hrhc_names_the_variant(tmp_path):
+    ws = make_ws(tmp_path, "mirror")
+    _plant(ws, "plant_pex_line_fails_at_hrhc.py")
+    code, out = run_json(["--workspace", str(ws)], tmp_path)
+    assert code == 1, out
+    [v] = out["violations"]
+    assert v["kind"] == "measure_out_of_bounds"
+    assert set(v["refs"]) == {"f3db", "ss", "hrhc"}
+    assert "f3db @ ss / hrhc" in v["msg"]
+    assert all(m["f3db"] >= 5e8 for m in out["measured_by_corner"].values())
+    assert {r["knob"] for r in out["rc_knobs"]} == {"r_high"}
+
+
+# A plain line and a via chain with nearly the same nominal pole: the plain line
+# passes hrhc and the chain fails it, so the vias decide, and r_high misses it.
+@pytest.mark.slow
+def test_via_chain_that_r_high_misses_fails_at_hrhc_and_a_plain_line_does_not(
+        tmp_path):
+    chain = make_ws(tmp_path / "chain", "mirror")
+    _plant(chain, "plant_pex_via_chain_fails_at_hrhc.py")
+    code, out = run_json(["--workspace", str(chain)], tmp_path)
+    assert code == 1, out
+    [v] = out["violations"]
+    assert set(v["refs"]) == {"f3db", "ss", "hrhc"}
+    [knob] = out["rc_knobs"]
+    assert (knob["knob"], knob["corner"]) == ("r_high", "ss")
+    assert knob["measured"]["f3db"] >= 5e8
+    chain_ss = out["measured_by_corner"]["ss"]["f3db"]
+
+    line = make_ws(tmp_path / "line", "mirror")
+    _plant(line, "plant_pex_line_fails_at_c_high.py")
+    spec_path = line / "spec" / "spec.yaml"
+    spec_path.write_text(spec_path.read_text(encoding="utf-8").replace(
+        "pex_rc_knobs: [c_high]\n", "pex_corners: [ss]\npex_rc_corners: [hrhc]\n"),
+        encoding="utf-8")
+    code, out = run_json(["--workspace", str(line)], tmp_path)
+    assert code == 0, out["violations"]
+    line_ss = out["measured_by_corner"]["ss"]["f3db"]
+    assert abs(line_ss - chain_ss) < 2e6
+    [run] = out["rc_variants"]
+    assert run["variant"] == "hrhc" and run["measured"]["f3db"] >= 5e8
+
+
 @pytest.mark.slow
 def test_pinned_knobs_bound_the_pdk_files_they_cite():
     """pex_rc_knobs.yaml says where its numbers come from: read those files."""

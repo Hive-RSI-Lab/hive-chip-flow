@@ -86,6 +86,18 @@ faults:
     expect:
       status: fail
       kind: measure_out_of_bounds
+  - name: output_line_fails_only_at_hrhc
+    gate: pex_sim
+    plant: plant_pex_line_fails_at_hrhc.py
+    expect:
+      status: fail
+      kind: measure_out_of_bounds
+  - name: via_chain_r_high_misses_hrhc_catches
+    gate: pex_sim
+    plant: plant_pex_via_chain_fails_at_hrhc.py
+    expect:
+      status: fail
+      kind: measure_out_of_bounds
   - name: release_netlist_changed_after_sim
     gate: release
     plant: plant_release.py

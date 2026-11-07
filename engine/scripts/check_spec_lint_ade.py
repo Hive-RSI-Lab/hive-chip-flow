@@ -134,6 +134,19 @@ def run(argv=None):
                 violations.append(checklib.violation(
                     "spec_lint", "error", SPEC_REL, None, "bad_pex_rc_knobs",
                     [], problem, "corners"))
+        variants = spec.get("pex_rc_corners")
+        if swept is not None and not any(
+                v["kind"] == "bad_pex_rc_corners"
+                for v in violations) and variants:
+            problem = corners_mod.rc_variants_problem(
+                variants, corners_mod.spec_corners(
+                    corners_mod.load(), spec.get("corners", "default"),
+                    passives=corners_mod.PASSIVE_DEVICES),
+                corners_mod.rc_variants())
+            if problem:
+                violations.append(checklib.violation(
+                    "spec_lint", "error", SPEC_REL, None, "bad_pex_rc_corners",
+                    [], problem, "corners"))
     tt = corners_mod.corners_by_name(corners_mod.load(), ["tt"])[0]
     matching, waived = speclib.lint_matching_measures(
         spec, rel_path=SPEC_REL, mc_corner_names=corners_mod.names_of(tt))

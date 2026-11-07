@@ -13,9 +13,9 @@ would simulate as typical and pass unseen, so nothing was run. Routes to
     .temp {temp_c}
     vdd_src vdd 0 dc {vdd}
 
-A spec with `pex_rc_knobs` also needs the bench to include the netlist through
+A spec with `pex_rc_knobs` or `pex_rc_corners` also needs the bench to include the netlist through
 `.include {extracted}` (the finding's ref is `extracted`): a hard-coded path
-would run every knob on the wires as extracted.
+would run every knob and variant on the wires as extracted.
 
 Anything that was a fraction of 3.3 V (stimulus levels, a measure's threshold)
 must follow `{vdd}` too. Then check the bounds still mean what they should

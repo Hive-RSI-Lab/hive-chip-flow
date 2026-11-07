@@ -17,8 +17,14 @@ A finding naming a knob (`f3db @ ss / c_high (C x1.2, R x1)`) is the same fix:
 it passed on the wires as extracted and failed with them scaled, so the route
 has too little margin.
 
+A finding naming an RC variant (`f3db @ ss / hrhc`) failed on the PDK's own RC
+corner, a separate extraction whose netlist is
+`log/pex_sim/<top>.pex.ordered.hrhc.spice`. If an `r_high` knob passed where
+hrhc fails, look at the vias first: a variant moves a via by up to x3.33 and a
+wire by x1.156, so add vias in parallel rather than widening the wire.
+
 **Trap:** `pex_sim` runs a chosen set of corners, on magic's extractor only,
-with RC knobs only if the spec opts in, and no foundry RC corners (SKILL.md's
-Known limits) - prefer a fix with real margin
+with RC knobs and RC variants only if the spec opts in (SKILL.md's Known
+limits) - prefer a fix with real margin
 over one that only just clears the bound. Widening a bound, or scoping it
 away from the failing corner, is a spec decision, not a layout fix.

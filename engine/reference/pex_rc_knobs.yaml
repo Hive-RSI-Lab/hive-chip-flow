@@ -2,7 +2,8 @@
 # extracted netlist (spec.yaml `pex_rc_knobs`, check_pex_sim.py's docstring).
 # Consumed by engine/scripts/corners.py. Never edited per block.
 #
-# THIS IS AN APPROXIMATION, NOT FOUNDRY RC CORNERS. One factor scales every R
+# THIS IS AN APPROXIMATION, NOT FOUNDRY RC CORNERS: a quick envelope. The real
+# ones are the magic variants in pex_rc_variants.yaml (`pex_rc_corners`). One factor scales every R
 # line and one scales every C line, whatever the layer. A real corner moves
 # each layer by its own amount and moves contact and via resistance much more
 # than wire resistance, which one factor cannot do. The numbers below bound the
