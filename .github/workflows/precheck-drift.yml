@@ -1,0 +1,122 @@
+# Does the tt-support-tools commit we pin still decide precheck the way the
+# shuttle's does? (#133) engine/scripts/precheck_drift.py compares the pin
+# with the shuttle's tools-ref through GitHub's API, read-only, and goes red
+# when a gf180-relevant path changed, naming the files and commits. Changes to
+# another PDK only warn. It runs no EDA tool, so it takes the runner's python3
+# and gh with the default token, and none of the toolchain test.yml unpacks.
+name: precheck-drift
+
+# Daily, because what it watches moves upstream, not here. A PR or a push to
+# main runs it only when it touches the pin or this check: upstream moving
+# must not turn an unrelated PR red. The daily run is what reports that.
+on:
+  schedule:
+    - cron: '17 6 * * *'
+  pull_request:
+    paths:
+      - engine/reference/tt/**
+      - engine/scripts/precheck_drift.py
+      - tests/fixtures/precheck_drift/**
+      - .github/workflows/precheck-drift.yml
+  push:
+    branches: [main]
+    paths:
+      - engine/reference/tt/**
+      - engine/scripts/precheck_drift.py
+      - tests/fixtures/precheck_drift/**
+      - .github/workflows/precheck-drift.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: precheck-drift-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  drift:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      # The plant: a fake upstream diff to one gf180 rule goes through the same
+      # code as the real compare and has to fail, by name. A checker that
+      # can't fail proves nothing by passing, so this runs first.
+      - name: A planted gf180 rule change must fail
+        run: |
+          set +e
+          python3 engine/scripts/precheck_drift.py \
+            --fixture tests/fixtures/precheck_drift/plant.json \
+            --out plant.json
+          rc=$?
+          set -e
+          test "$rc" -eq 1 || { echo "the plant exited $rc, not 1"; exit 1; }
+          python3 - <<'PY'
+          import json
+          found = json.load(open("plant.json"))["violations"]
+          gf180 = [v for v in found if v["kind"] == "precheck_drift_gf180"]
+          assert gf180, f"the plant was not reported: {found}"
+          assert "precheck/tech_data.py" in gf180[0]["msg"], gf180[0]["msg"]
+          assert "c0ffee00" in gf180[0]["msg"], gf180[0]["msg"]
+          PY
+
+      - name: The pin against the shuttle's tools-ref
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 engine/scripts/precheck_drift.py \
+            --out drift.json --summary drift.md
+          status=$?
+          cat drift.md >> "$GITHUB_STEP_SUMMARY"
+          exit "$status"
+        shell: bash +e {0}
+
+      - name: Keep the report for the report job
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: precheck-drift
+          path: drift.md
+          if-no-files-found: ignore
+
+  # A red daily run tells nobody, so it files one issue and keeps it current.
+  # A PR's red shows on the PR. On its own job so that only this holds
+  # issues: write, and the job reading upstream doesn't.
+  report:
+    needs: drift
+    if: failure() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: precheck-drift
+      - name: File or update the issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="precheck-drift is red: the pin and the shuttle's tools-ref disagree"
+          {
+            echo "Run: $RUN_URL"
+            echo
+            # No report means the compare refused or the plant failed: the
+            # run's log says which.
+            cat drift.md 2>/dev/null || echo "The job left no report: read the run's log."
+            echo
+            echo "Fix: engine/reference/tt/VENDORED.md, \"Bumping the pin\"."
+          } > body.md
+          number=$(gh api --paginate "repos/$REPO/issues?state=open&per_page=100" \
+            --jq ".[] | select(.title == \"$title\") | .number" | head -n 1)
+          if [ -n "$number" ]; then
+            gh api -X PATCH "repos/$REPO/issues/$number" -F body=@body.md --silent
+            echo "updated #$number"
+          else
+            gh api -X POST "repos/$REPO/issues" -f title="$title" -F body=@body.md --jq .html_url
+          fi
