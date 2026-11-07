@@ -63,6 +63,10 @@ setup) - a finding is never resolved by weakening what checks it.
    netlist uses global ground `0` and the layout never names it - add a
    non-pin text label `"0"` on the ground net's drawing layer; never a
    pin label, never a ground pin in `netlist/`.
+   **`pex_sim` `symmetry_violated`** (`symmetry_violated.md`): a pair in
+   spec.yaml's `symmetric_nets` extracted with different C or R - route
+   the two nets as mirror images (same length, layers, vias, neighbours);
+   never touch the spec's bounds.
 4. Re-run the failed gate: `$CFH/bin/eda python $CFH/engine/scripts/
    gate.py --gate <gate> --skill ade --workspace <ws>`. Your findings must
    be gone; a NEW finding that was not there before is a regression -

@@ -18,7 +18,10 @@ xmln1/xmln2, xmlp1/xmlp2, xmrp/xmrn, xmron/xmrop), pad nets mirrored, and
 the one place outp and outn must cross (the latch's cross-coupling) is two
 short metal2 tracks, twisted on the axis so that each output runs half
 its length on the track beside the NFET row and half on the one beside
-the PFET row's nwell.
+the PFET row's nwell. At the twist each output crosses in an L of its own,
+outn's in metal1 under the tracks and outp's, mirrored, in metal3 over
+them, so both pass the same vias and length of metal. spec.yaml's
+symmetric_nets holds outp/outn (and inp/inn) to it at pex_sim.
 
 Short outputs. Every fF on outp/outn slows the regeneration the bench's
 decision delay measures. Each latch inverter is one column, its NFET under
@@ -36,7 +39,9 @@ latch columns and nothing of an output leaves the middle of the cell.
                   the row, a P+ tap (vss) at each end
   tail channel    tail (metal2)               input pair sources down to it
   tail row        xmtail, alone on the axis
-  bottom channel  clk, vss (metal2)           xmtail's gate and source
+  bottom channel  clk, vss (metal2)           xmtail's gate and source,
+                                              and a vss stub mirroring
+                                              the source's under the drain
   inp and inn run straight down from their gates to pins of their own; a
   metal1 column beyond each end joins the two clk tracks.
 
@@ -54,6 +59,10 @@ import layoutlib  # noqa: E402
 L1 = layoutlib.GF180_LAYER["metal1"]
 L1LBL = layoutlib.GF180_LAYER["metal1_label"]
 L2 = layoutlib.GF180_LAYER["metal2"]
+V2 = layoutlib.GF180_LAYER["via2"]
+L3 = layoutlib.GF180_LAYER["metal3"]
+VIA2_SIZE = 0.26  # the PDK's via2 cut, as via1's
+VIA2_ENC = 0.07   # metal2 and metal3 enclosure of it, as via1's
 NWELL = layoutlib.GF180_LAYER["nwell"]
 
 CELL = "strongarm_comparator"
@@ -71,9 +80,10 @@ STUB = 0.30       # metal1 pad stub width
 TRACK = 0.40      # metal2 track width, the via1 landing's own size
 TRACK_PITCH = 0.80
 GAP = 0.80        # a row's pads to the first track of a channel
-TWIST_X = 0.80     # the outn twist's vias, either side of the axis
+TWIST_X = 0.80     # the twist's vias, either side of the axis
 GATE_VIA_SHIFT = 0.05  # a latch gate strip's via, off its axis, away from
                        # the drain strip beside it (0.23um to it at zero)
+SHIELD_GAP = 0.30  # xmtail's vss shield stub, below its drain pad
 VIA_OUT = 0.10     # a pad stub's via, outward of the stub's centre
 PSUB_TAP_DX = 2.67  # a P+ tap's near edge from the outer NFET's centre
 NTAP_DX = 2.67      # an N+ tap's near edge from the outer PFET's centre
@@ -168,6 +178,15 @@ def generate():
     def half(net, x):
         return net + ("<" if x < 0 else ">")
 
+    def via2_at(cx, cy):
+        """A metal2-to-metal3 via, as layoutlib.via1 draws a via1: the cut
+        and a 0.40um square of each metal around it."""
+        h = VIA2_SIZE / 2
+        layoutlib.rect(top, cx - h, cy - h, cx + h, cy + h, V2)
+        e = h + VIA2_ENC
+        for layer in (L2, L3):
+            layoutlib.rect(top, cx - e, cy - e, cx + e, cy + e, layer)
+
     def via_at(chan, net, x):
         x = round(x, 3)
         layoutlib.via1(top, x, chan_y[chan][net])
@@ -198,21 +217,29 @@ def generate():
         shift = -GATE_VIA_SHIFT if n["cx"] < 0 else GATE_VIA_SHIFT
         via_at("mid", half(n["g"], n["cx"]), n["cx"] + shift)
 
-    # the twist, on the axis: outn climbs from its low track to its high one
-    # in metal1 (a via at each end), outp drops from high to low in metal2
-    # across that metal1. TWIST_X clears each via's metal2 landing from the
-    # other net's metal2 by more than M2's spacing.
+    # the twist, on the axis, one net's crossing the other's mirror image:
+    # outn climbs from its low track to its high one in an L of metal1 under
+    # the tracks (a via1 at each end), outp from its low track to its high
+    # one in the same L, mirrored, of metal3 over them (a via2 at each end).
+    # Both outputs then pass the same two cuts and the same length of
+    # crossing metal; outp dropping straight down in metal2 instead gave
+    # outn two via1s more, ~9 ohm more pin-to-gate R than outp (pex_sim's
+    # symmetric_nets check). TWIST_X clears each via's metal2 landing from
+    # the other net's metal2 by more than M2's spacing.
     via_at("mid", "outn<", -TWIST_X)
     via_at("mid", "outn>", TWIST_X)
-    # one L of metal1: the horizontal starts at the vertical's outer edge,
-    # so the corner is square (starting it on the vertical's centreline left
-    # a 0.21um diagonal neck there, under M1.1's 0.23um)
+    # one L: the horizontal starts at the vertical's outer edge, so the
+    # corner is square (starting it on the vertical's centreline left a
+    # 0.21um diagonal neck there, under M1.1's 0.23um)
     vstrip(-TWIST_X - STUB / 2, -TWIST_X + STUB / 2, lo, hi)
     layoutlib.rect(top, -TWIST_X - STUB / 2, hi - STUB / 2, TWIST_X,
                    hi + STUB / 2, L1)
-    land.setdefault(("mid", "outp<"), []).append(0.0)
-    land.setdefault(("mid", "outp>"), []).append(0.0)
-    layoutlib.rect(top, -TRACK / 2, lo, TRACK / 2, hi, L2)
+    for x, net in ((TWIST_X, "outp>"), (-TWIST_X, "outp<")):
+        via2_at(x, twist[net])
+        land.setdefault(("mid", net), []).append(x)
+    layoutlib.rect(top, TWIST_X - STUB / 2, lo, TWIST_X + STUB / 2, hi, L3)
+    layoutlib.rect(top, -TWIST_X, hi - STUB / 2, TWIST_X + STUB / 2,
+                   hi + STUB / 2, L3)
 
     # --- in-row joins: dp/dn in the NFET row, outn/outp and vdd in the PFET row
     def join(a, a_side, b, b_side):
@@ -258,11 +285,16 @@ def generate():
     # --- bottom channel: xmtail's gate to clk, its source to vss
     gb = xmtail["pads"]["gate_bot"]
     vstrip(gb[0], gb[2], gb[1] + 0.2, bot_y["clk"] - TRACK / 2)
-    via_at("bot", "clk", GATE_VIA_SHIFT)  # away from the vss stub
+    via_at("bot", "clk", 0.0)
     ts = xmtail["pads"]["s"]
     x0, x1 = outer(ts, "s")
     vstrip(x0, x1, ts[1] + 0.2, bot_y["vss"] - TRACK / 2)
     via_at("bot", "vss", stub_via_x(x0, x1, "s"))
+    # and its mirror image right of the axis, stopped short of the drain
+    # pad: without it the source stub screens xmtail's clk strip from inp
+    # but not from inn, and inn picks up 6% more clk coupling than inp.
+    vstrip(-x1, -x0, td[1] - SHIELD_GAP, bot_y["vss"] - TRACK / 2)
+    via_at("bot", "vss", -stub_via_x(x0, x1, "s"))
 
     # --- inp, inn: straight down from their gate_bot pads to their pins
     for ref in ("xmip", "xmin"):

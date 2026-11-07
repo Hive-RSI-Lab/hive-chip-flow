@@ -117,6 +117,23 @@ finding for the layout generator, one per net, and no bench is run. A
 probe of a net the reference does not have either is a bench bug, not a
 layout one, and is left to ngspice to refuse.
 
+Symmetric nets are checked before the bench too, from the extraction
+alone. spec.yaml's `symmetric_nets` (speclib.symmetric_nets) lists pairs
+that must route alike - a differential output, a charge pump's UP/DN -
+each `{nets: [a, b], max_dc_pct, max_dr_pct, min_dc_ff, min_dr_ohm,
+aggressors}`. For each net, net_parasitics reads its total C (every C line
+from one of its nodes to another net's: ground, substrate and coupling), its
+R from the node named for it (where its label, the pin, is) to the worst of
+the nodes a device touches, solved over extresist's R network, and its C to
+each other net. A pair whose C, R or C to a named aggressor differs by more
+than the bound's percentage of the pair's mean, and by more than the floor
+(0 unless the spec sets one), is a `symmetry_violated` finding with both
+values, for the layout generator. A declared net the reference netlist
+lacks is a refusal; one the extraction never names is
+`symmetry_net_unlabelled` and no bench is run, as for a probe. The report
+adds `symmetry`, each pair's values and the mismatch of each quantity
+checked. The bench still runs after a violation, so its findings join it.
+
 The bench run has a time limit: --timeout when given, else the spec's
 `sim_timeout_s: {pex_sim: N}` (speclib.sim_timeout; a large RC netlist can
 take minutes), else 120 s, per corner. A run past it is a refusal whose
@@ -294,6 +311,173 @@ def probe_findings(bench_text: str, ref_text: str, extracted_text: str,
         f"\"{net}\" on that net's drawing layer (e.g. metal1 34/0), not on "
         "a pin/label layer, which would add a port and change the pin set",
         "magic") for net in sorted(missing)]
+
+
+# ---- symmetric nets ----------------------------------------------------------
+def _net_of(node: str) -> str:
+    return layoutlib._pex_net(node).lower()
+
+
+def net_parasitics(pex_text: str, nets) -> dict[str, dict]:
+    """Each net's parasitics in an extracted netlist, {net: {c_ff, r_ohm,
+    c_to: {other: ff}, terminals}}, nets lowercased. A net's nodes are its
+    own name and extresist's sub-nodes of it (name.tN, name.nN).
+
+    c_ff is every C line between one of the net's nodes and a node of
+    another net: ground, substrate and coupling alike. r_ohm is the worst
+    effective resistance, through the net's own R lines, from the node named
+    for the net (where its label is) to a node of it a device touches: zero
+    for a net extresist never split. A device node the R network does not
+    reach from the label is a refusal, not a zero."""
+    import numpy as np
+
+    want = {n.lower() for n in nets}
+    c_to = {n: {} for n in want}
+    edges = {n: [] for n in want}
+    dev_nodes = {n: set() for n in want}
+    for line in netlistlib.join_continuations(pex_text):
+        parts = netlistlib.strip_comment(line).split()
+        if not parts or parts[0][:1].lower() not in "xrcmdq":
+            continue
+        letter = parts[0][:1].lower()
+        pos = [t for t in parts[1:] if "=" not in t]
+        if letter in "rc":
+            if len(pos) < 3:
+                continue
+            a, b = pos[0].lower(), pos[1].lower()
+            value = netlistlib.spice_number(pos[2])
+            na, nb = _net_of(a), _net_of(b)
+            if value is None:
+                continue
+            if letter == "c" and na != nb:
+                for x, y in ((na, nb), (nb, na)):
+                    if x in want:
+                        c_to[x][y] = c_to[x].get(y, 0.0) + value * 1e15
+            elif letter == "r" and na == nb and na in want and a != b:
+                edges[na].append((a, b, value))
+            continue
+        terms = pos[:-1] if letter == "x" else pos[:NODE_COUNT.get(letter, 0)]
+        for t in terms:
+            if _net_of(t) in want:
+                dev_nodes[_net_of(t)].add(t.lower())
+
+    out = {}
+    for net in sorted(want):
+        r_ohm = 0.0
+        if edges[net]:
+            nodes = sorted({x for a, b, _ in edges[net] for x in (a, b)} | {net})
+            idx = {n: i for i, n in enumerate(nodes)}
+            lap = np.zeros((len(nodes), len(nodes)))
+            for a, b, r in edges[net]:
+                if r <= 0:
+                    raise CheckError(f"the extracted netlist gives net {net} "
+                                     f"a resistor of {r} ohm between {a} and {b}")
+                i, j = idx[a], idx[b]
+                lap[i, i] += 1 / r
+                lap[j, j] += 1 / r
+                lap[i, j] -= 1 / r
+                lap[j, i] -= 1 / r
+            keep = [i for i in range(len(nodes)) if i != idx[net]]
+            reached = {net}
+            grow = True
+            while grow:  # the nodes the R network joins to the label's node
+                grow = False
+                for a, b, _ in edges[net]:
+                    if (a in reached) != (b in reached):
+                        reached |= {a, b}
+                        grow = True
+            far = sorted(n for n in dev_nodes[net] if n in idx and n not in reached)
+            if far:
+                raise CheckError(
+                    f"net {net}: device node(s) {far} are on R lines the "
+                    f"network never joins to the node {net} itself - the "
+                    "pin-to-device R cannot be read")
+            if keep:
+                inv = np.linalg.pinv(lap[np.ix_(keep, keep)])
+                pos_of = {nodes[i]: k for k, i in enumerate(keep)}
+                r_ohm = max((float(inv[pos_of[n], pos_of[n]])
+                             for n in dev_nodes[net] if n in pos_of), default=0.0)
+        out[net] = {"c_ff": round(sum(c_to[net].values()), 5),
+                    "r_ohm": round(r_ohm, 4),
+                    "c_to": {k: round(v, 5) for k, v in sorted(c_to[net].items())},
+                    "terminals": len(dev_nodes[net])}
+    return out
+
+
+def _mismatch(a: float, b: float) -> float:
+    """|a - b| as a percentage of the pair's mean (0 for two zeros)."""
+    mean = (a + b) / 2
+    return 0.0 if mean == 0 else abs(a - b) / mean * 100.0
+
+
+def symmetry_findings(rows: list[dict], ref_text: str, extracted_text: str,
+                      topcell: str, rel_gds: str, rel_spec: str
+                      ) -> tuple[list[dict], list[dict]]:
+    """The findings of spec.yaml's symmetric_nets on the extracted netlist,
+    and one report row per pair. A pair's quantity fails when it differs by
+    more than its max_*_pct of the pair's mean and by more than its floor.
+    A declared net the reference lacks is a refusal (a spec error); one the
+    reference has and the extraction does not name is `symmetry_net_unlabelled`
+    for the layout generator, as an unlabelled probe is."""
+    if not rows:
+        return [], []
+    ref_nodes, ext_nodes = element_nodes(ref_text), element_nodes(extracted_text)
+    ext_nets = {_net_of(n) for n in ext_nodes}
+    findings, report = [], []
+    named = sorted({n.lower() for r in rows for n in r["nets"] + r["aggressors"]})
+    unknown = [n for n in named if n not in ref_nodes]
+    if unknown:
+        raise CheckError(
+            f"{rel_spec} symmetric_nets names {unknown}, which the reference "
+            f"{topcell} netlist does not have - a pair the gate cannot find is "
+            "a refusal. Fix the net names in spec.yaml (the spec-writer)")
+    unlabelled = [n for n in named if n not in ext_nets]
+    for net in unlabelled:
+        findings.append(checklib.violation(
+            "pex_sim", "error", rel_gds, topcell, "symmetry_net_unlabelled",
+            [net], f"spec.yaml's symmetric_nets names {topcell}'s net {net!r}, "
+            "which the reference has, but the extracted netlist has no node "
+            f"{net!r} - magic keeps a net's name only where the layout labels "
+            "it. Fix in layout/gen_<block>.py (the layout-fixer): put a "
+            f"non-pin text label \"{net}\" on that net's drawing layer (e.g. "
+            "metal1 34/0)", "magic"))
+    if unlabelled:
+        return findings, report
+    par = net_parasitics(extracted_text, named)
+    for row in rows:
+        a, b = (n.lower() for n in row["nets"])
+        pa, pb = par[a], par[b]
+        checks = [("C", "c_ff", "fF", row["max_dc_pct"], row["min_dc_ff"],
+                   pa["c_ff"], pb["c_ff"], [])]
+        checks.append(("R", "r_ohm", "ohm", row["max_dr_pct"], row["min_dr_ohm"],
+                       pa["r_ohm"], pb["r_ohm"], []))
+        for g in (x.lower() for x in row["aggressors"]):
+            checks.append((f"C to {g}", "c_ff", "fF", row["max_dc_pct"],
+                           row["min_dc_ff"], pa["c_to"].get(g, 0.0),
+                           pb["c_to"].get(g, 0.0), [g]))
+        entry = {"nets": [a, b], a: {k: pa[k] for k in ("c_ff", "r_ohm")},
+                 b: {k: pb[k] for k in ("c_ff", "r_ohm")}, "checked": []}
+        for what, _key, unit, pct, floor, va, vb, extra in checks:
+            if pct is None:
+                continue
+            diff, off = abs(va - vb), _mismatch(va, vb)
+            entry["checked"].append({"quantity": what, a: va, b: vb,
+                                     "mismatch_pct": round(off, 3)})
+            if off > pct and diff > floor:
+                findings.append(checklib.violation(
+                    "pex_sim", "error", rel_gds, topcell, "symmetry_violated",
+                    [a, b, *extra],
+                    f"{a} and {b} must route alike (spec.yaml symmetric_nets), "
+                    f"and the extracted netlist gives {a} {va:.4g} {unit} and "
+                    f"{b} {vb:.4g} {unit} of {what}: {off:.1f}% apart, over "
+                    f"the {pct:g}% bound"
+                    + (f" and {diff:.4g} {unit} apart, over the {floor:g} {unit} "
+                       "floor" if floor else "")
+                    + ". Fix in layout/gen_<block>.py (the layout-fixer): give "
+                    "the two nets mirrored routes of the same length, layers "
+                    "and vias", "magic"))
+        report.append(entry)
+    return findings, report
 
 
 # ---- the corner set ---------------------------------------------------------
@@ -603,6 +787,19 @@ def run(argv=None):
             parasitics=parasitics, measured={})
         return payload, args.out
 
+    rows = speclib.symmetric_nets(spec) if spec is not None else []
+    if rows is None:
+        raise CheckError("spec.yaml 'symmetric_nets' is malformed - run "
+                         "spec_lint first")
+    violations, symmetry = symmetry_findings(
+        rows, ref_text, raw_text, topcell, rel_gds, "spec/spec.yaml")
+    if any(v["kind"] == "symmetry_net_unlabelled" for v in violations):
+        payload = checklib.report(
+            SCRIPT, ws / "layout", violations, topcell=topcell, gds=rel_gds,
+            extracted=str(extracted.relative_to(ws)),
+            parasitics=parasitics, measured={}, symmetry=symmetry)
+        return payload, args.out
+
     corner_names = [c["name"] for c in corner_list]
     rel_bounds = str(bounds_path.relative_to(ws))
     rel_bench = str(bench_tpl.relative_to(ws))
@@ -632,12 +829,11 @@ def run(argv=None):
         "would never be scored", "check_pex_sim") for b in unswept]
     if refused:
         payload = checklib.report(
-            SCRIPT, ws / "layout", refused, topcell=topcell, gds=rel_gds,
+            SCRIPT, ws / "layout", violations + refused, topcell=topcell,
+            gds=rel_gds,
             extracted=str(extracted.relative_to(ws)), parasitics=parasitics,
             measured={}, corners=corner_names, corner_source=source)
         return payload, args.out
-
-    violations = []
 
     def run_bench(corner: dict, scored: list[dict], stem: str, where: str,
                   refs: list[str], netlist: Path = extracted) -> dict:
@@ -805,7 +1001,8 @@ def run(argv=None):
         extracted=str(extracted.relative_to(ws)),
         parasitics=parasitics, measured=measured, corners=corner_names,
         corner_source=source, measured_by_corner=by_corner,
-        not_scored=not_scored, **({"rc_knobs": rc_runs} if rc_runs else {}),
+        not_scored=not_scored, **({"symmetry": symmetry} if symmetry else {}),
+        **({"rc_knobs": rc_runs} if rc_runs else {}),
         **({"rc_variants": variant_rows} if variant_rows else {}))
     return payload, args.out
 

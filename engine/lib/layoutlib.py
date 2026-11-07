@@ -54,6 +54,8 @@ GF180_LAYER = {
     "metal1": (34, 0),
     "via1": (35, 0),
     "metal2": (36, 0),
+    "via2": (38, 0),
+    "metal3": (42, 0),
     "metal1_label": (34, 10),
     "metal2_label": (36, 10),
     "res_mk": (110, 5),

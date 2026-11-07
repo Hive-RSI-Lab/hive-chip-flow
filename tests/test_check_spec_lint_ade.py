@@ -359,3 +359,28 @@ def test_matching_measure_scoped_away_from_tt_is_refused(tmp_path, capsys):
     assert [v["kind"] for v in out["violations"]] == ["mismatch_measure_not_at_tt"]
     code, out = _lint(tmp_path / "t", capsys, text.replace("[ss, ff]", "[tt, ss]"))
     assert code == 0, out
+
+
+@pytest.mark.parametrize("field, ok", [
+    ("[{nets: [outp, outn], max_dc_pct: 5, max_dr_pct: 5}]", True),
+    ("[{nets: [outp, outn], max_dr_pct: 5, min_dr_ohm: 2}]", True),
+    ("[{nets: [outp, outn], max_dc_pct: 5, aggressors: [clk]}]", True),
+    ("[{nets: [outp], max_dc_pct: 5}]", False),
+    ("[{nets: [outp, OUTP], max_dc_pct: 5}]", False),
+    ("[{nets: [outp, outn]}]", False),
+    ("[{nets: [outp, outn], min_dc_ff: 1}]", False),
+    ("[{nets: [outp, outn], max_dc_pct: -1}]", False),
+    ("[{nets: [outp, outn], max_dc_pct: true}]", False),
+    ("[{nets: [outp, outn], max_dc_pct: 5, aggressors: [outp]}]", False),
+    ("[{nets: [outp, outn], max_dr_pct: 5, aggressors: [clk]}]", False),
+    ("[{nets: [outp, outn], max_dc_pct: 5, max_pct: 5}]", False),
+    ("{nets: [outp, outn]}", False),
+])
+def test_symmetric_nets_field(tmp_path, capsys, field, ok):
+    ws = make_ws(tmp_path, GOOD_YAML + f"symmetric_nets: {field}\n")
+    code = check_spec_lint_ade.main(["--workspace", str(ws)])
+    out = capsys.readouterr().out
+    if ok:
+        assert code == 0, out
+    else:
+        assert code == 1 and "bad_symmetric_nets" in out, out

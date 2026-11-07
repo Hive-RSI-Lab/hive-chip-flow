@@ -46,6 +46,10 @@ faults:
     gate: pex_sim
     plant: plant_pex_long_output_line.py
     expect: {status: fail, kind: measure_out_of_bounds}
+  - name: asymmetric_output_detour
+    gate: pex_sim
+    plant: plant_pex_asymmetric_output.py
+    expect: {status: fail, kind: symmetry_violated}
   - name: release_netlist_changed_after_sim
     gate: release
     plant: plant_release.py
