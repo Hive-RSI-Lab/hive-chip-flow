@@ -354,6 +354,22 @@ gates:
       max_count: 0
       fault: "a device sized differently in the generator than in the netlist (also: a swapped net, a missing via1, a metal2 short)"
       description: "Match."
+    erc:
+      # #122: reliability ERC with CVC (cvc_rv) on magic's extraction of
+      # the regenerated layout: gate-oxide and junction overvoltage against
+      # each device class's rating, well and bulk ties, floating gates and
+      # forward-biased diodes, each finding naming the device, terminal,
+      # voltage and layout position. Pin voltages come from supply.vdd and
+      # spec.yaml's erc_nets; waivers from spec/erc_waivers.yaml (reason and
+      # owner required; one that matches nothing is itself an error). CVC's
+      # leak checks report as warnings. `analog_erc`, as drc's note above.
+      phase: P5
+      tool: analog_erc
+      strength: 0
+      fail_severities: [error]
+      max_count: 0
+      fault: "a 3.3 V device driven from a 6 V net (also: a floating gate, a PMOS whose nwell tap is on vss)"
+      description: "0 unwaived reliability errors from CVC."
     pex_sim:
       # M9: magic's extraction with every capacitor and extresist's wire
       # resistance (a netlist with neither is refused; every net magic

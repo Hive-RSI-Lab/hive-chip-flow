@@ -120,6 +120,9 @@ artifact_kinds:
   # the owner's per-mutant rulings on mutate/bench_strength survivors
   # (engine/lib/rulingslib.py); optional - absent hashes to None
   mutant_rulings: {path: "spec/mutant_rulings.yaml", norm: json_canonical}
+  # check_analog_erc.py's per-device waivers (#122); optional - absent
+  # hashes to None. Its own file so a waiver re-runs erc alone.
+  erc_waivers:   {path: "spec/erc_waivers.yaml", norm: json_canonical}
   # check_cdc.py's input-port domains and waivers. Its own file so a waiver
   # re-runs cdc, not every gate that reads spec.yaml.
   cdc_waivers: {path: "spec/cdc.yaml", norm: json_canonical}
@@ -270,6 +273,9 @@ gate_inputs:
     drc:            [layout, spec_yaml, pdk_version, pdk_magic, pdk_klayout]
     lvs:            [layout, netlist, spec_yaml, sizing, pdk_version,
                      pdk_magic, pdk_netgen, pdk_klayout]
+    # erc reads netlist/ only to name a finding's schematic refdes
+    erc:            [layout, netlist, spec_yaml, erc_waivers, pdk_version,
+                     pdk_magic, pdk_klayout]
     pex_sim:        [layout, tb, layout_ref, netlist, spec_yaml, pdk_version,
                      pdk_models, pdk_magic, pdk_klayout]
     release:        [netlist, layout, sizing, spec_yaml, pdk_version]
@@ -423,7 +429,7 @@ edit_classes:
       mutates: [spec_yaml, spec_md]
       stale_artifacts: []
       gates: [spec_lint, netlist_lint, sim_tt, sim_pvt, bench_strength, mc,
-              drc, lvs, pex_sim, release]
+              drc, lvs, erc, pex_sim, release]
       human_hold: 2
     netlist_edit:
       # "marks every analog gate" (1.6); hold matches rtl_edit's weight - a
@@ -431,7 +437,7 @@ edit_classes:
       mutates: [netlist]
       stale_artifacts: []
       gates: [netlist_lint, sim_tt, sim_pvt, bench_strength, mc, drc, lvs,
-              pex_sim, release]
+              erc, pex_sim, release]
       human_hold: 1
     sizing_edit:
       mutates: [sizing]
@@ -443,8 +449,15 @@ edit_classes:
       # gate reading it, and every gate this class names re-runs anyway
       mutates: [layout, layout_ref]
       stale_artifacts: []
-      gates: [drc, lvs, pex_sim, release]
+      gates: [drc, lvs, erc, pex_sim, release]
       human_hold: 1
+    erc_waiver_edit:
+      # spec/erc_waivers.yaml: a waiver is a claim a device is safe, so it
+      # holds 2 like cdc_waiver_edit. Nothing but erc reads the file.
+      mutates: [erc_waivers]
+      stale_artifacts: []
+      gates: [erc, release]
+      human_hold: 2
   msde:
     spec_edit:
       mutates: [spec_yaml, spec_md]

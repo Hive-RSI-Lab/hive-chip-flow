@@ -428,9 +428,11 @@ def test_ade_release_refuses_after_netlist_edit(tmp_path, capsys):
         ".subckt current_mirror a b c\n.ends\n", encoding="utf-8")
     code, out = release(ws, capsys)
     assert code == 1, out
-    # pex_sim reads the reference netlist for the extracted cell's pins
+    # pex_sim reads the reference netlist for the extracted cell's pins,
+    # erc for each finding's schematic refdes
     assert not_ready_gates(out) == {"netlist_lint", "sim_tt", "sim_pvt",
-                                    "bench_strength", "lvs", "pex_sim"}, out
+                                    "bench_strength", "lvs", "pex_sim",
+                                    "erc"}, out
 
 
 def test_ade_release_owes_mc_when_the_spec_asks_for_it(tmp_path, capsys):

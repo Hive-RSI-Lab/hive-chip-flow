@@ -310,6 +310,9 @@ KIND_PREFIX_HINTS: tuple[tuple[str, str], ...] = (
 CHECK_HINTS: dict[str, str] = {
     "analog_drc": "layout",
     "analog_lvs": "layout",
+    # erc (#122): a bulk tie, a floating gate or an overvoltage is fixed in
+    # the generator (or the netlist it must match, which lvs then checks)
+    "analog_erc": "layout",
     "pex_sim": "layout",
 }
 

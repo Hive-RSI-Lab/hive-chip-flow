@@ -1,0 +1,8 @@
+* NGSPICE file created from current_mirror.ext - technology: gf180mcuD
+
+.subckt current_mirror iref_node iout vdd vss
+X0 vdd vdd vdd vss pfet_03v3 ad=2.6p pd=9.3u as=5.2p ps=18.6u w=4u l=0.5u
+X1 iout iref_node vss vss nfet_03v3 ad=4.88p pd=17.22u as=4.88p ps=17.22u w=8u l=0.5u
+X2 iref_node iref_node vss vss nfet_03v3 ad=2.44p pd=9.22u as=2.44p ps=9.22u w=4u l=0.5u
+.ends
+
