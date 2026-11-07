@@ -17,10 +17,12 @@ REPO = Path(__file__).resolve().parents[1]
 ENGINE = REPO / "engine"
 SCRIPTS = ENGINE / "scripts"
 CORPUS_MIRROR = REPO / "corpus" / "ade" / "mirror"
+CORPUS_BANDGAP = REPO / "corpus" / "ade" / "bandgap"
 sys.path.insert(0, str(SCRIPTS))
 sys.path.insert(0, str(ENGINE / "lib"))
 
-import pytest  # noqa: E402
+import pytest
+import yaml  # noqa: E402
 
 import check_mc  # noqa: E402
 import sim_run  # noqa: E402
@@ -488,13 +490,36 @@ def test_bench_multiplying_a_netlist_subckt_reaches_both_copies(tmp_path):
 
 
 def test_multiplied_model_not_rewritten_is_reported_unless_it_has_no_mismatch():
-    text = ("XE a elsewhere m=4\nXQ c b e pnp_10p00x10p00 m=8\n"
+    text = ("XE a elsewhere m=4\n"
             "XR a b 0 nplus_u w=1u l=1u m=2\nXC a b cap_mim_1f0_m2m3_noshield m=2\n"
             "XF a elsewhere m=1\n")
     new, done = check_mc.add_par_for_multiplier(text)
     assert new == text
-    assert [d["instance"] for d in done] == ["XE", "XQ"]
+    assert [d["instance"] for d in done] == ["XE"]
     assert all("unhandled" in d for d in done)
+
+
+def test_multiplied_bipolar_gets_par_flat_and_in_a_carrier():
+    new, done = check_mc.add_par_for_multiplier(
+        "XQ c b e pnp_10p00x10p00 m=8\nXN c b e s npn_05p00x05p00 m=2\n"
+        "XO c b e pnp_05p00x00p42\n"
+        ".subckt cell c b e\nXI c b e pnp_05p00x05p00 m=2\n.ends\n"
+        "XU c b e cell m=4\n")
+    lines = new.split("\n")
+    assert "XQ c b e pnp_10p00x10p00 m=8 par=8" in lines
+    assert "XN c b e s npn_05p00x05p00 m=2 par=2" in lines
+    assert "XO c b e pnp_05p00x00p42" in lines
+    assert "XI c b e pnp_05p00x05p00 m=2 par={mc_mult*(2)}" in lines
+    assert "XU c b e cell m=4 mc_mult=4" in lines
+    assert not any("unhandled" in d for d in done)
+
+
+def test_bandgap_rung_asks_for_mc_and_its_m8_pnp_is_rewritten():
+    spec = yaml.safe_load((CORPUS_BANDGAP / "spec.yaml").read_text(encoding="utf-8"))
+    assert spec["mc"]["enabled"] is True
+    _, done = check_mc.add_par_for_multiplier(
+        (CORPUS_BANDGAP / "netlist" / "bandgap.cir").read_text(encoding="utf-8"))
+    assert done == [{"instance": "xq2", "model": "pnp_10p00x10p00", "m": "8"}]
 
 
 def test_unknown_model_inside_a_carrier_is_reported():
@@ -579,6 +604,69 @@ def test_real_hierarchical_m_mismatch_matches_the_wider_device(
     assert planted > 1.5, planted
     assert _hier_vgs(tmp_path, lines, True, False, tag, n)[0] \
         == _hier_vgs(tmp_path, lines, False, False, tag, n)[0]
+
+
+@pytest.mark.slow
+def test_real_pnp_m8_mismatch_follows_the_pdk_scaling(tmp_path):
+    # Known answer: one seeded op over 200 diode-connected pnp_10p00x10p00
+    # at the same current density, m=8 at 8 uA next to m=1 at 1 uA. The PDK
+    # has no larger pnp and sets sigma per geometry, so the answer is its
+    # documented term, mis_*/sqrt(par): the rewritten m=8 has 1/sqrt(8)=0.354
+    # of the m=1 sigma. The planted fault - the netlist as written, no par -
+    # draws one unit's sigma, a ratio about 1. With mismatch off, the rewrite
+    # leaves the DC point exactly where it was. numdgt: this sigma is tens
+    # of uV, below `print all`'s default six digits at a 0.7 V node.
+    import re
+    import statistics
+
+    import corners as corners_mod
+    import simlib
+
+    n = 200
+    lines = ["* pnp m=8 vs m=1"]
+    for i in range(n):
+        lines += [f"XA{i} 0 0 a{i} pnp_10p00x10p00 m=8",
+                  f"IA{i} 0 a{i} 8u",
+                  f"XB{i} 0 0 b{i} pnp_10p00x10p00",
+                  f"IB{i} 0 b{i} 1u"]
+    net = tmp_path / "ka.cir"
+    net.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    header = (CORPUS_BANDGAP / "tb" / "bandgap_tb.cir").read_text(
+        encoding="utf-8").split(".temp {{TEMP_C}}")[0]
+    header = header[header.index(".include '{{PDK}}"):]
+    bench = (header + ".temp {{TEMP_C}}\n.include '{{NETLIST}}'\n"
+             ".control\nset numdgt=10\nop\nprint all\n.endc\n.end\n")
+    eda = sim_run.EDA_BIN
+    root = sim_run.toolchain_root(eda)
+    tt = corners_mod.corners_by_name(corners_mod.load(), ["tt"])[0]
+
+    def vbe(fixed: bool, mismatch: bool):
+        out = tmp_path / f"{'par' if fixed else 'asis'}_{int(mismatch)}"
+        nl, done = (check_mc.mc_netlist(net, out) if fixed else (net, []))
+        assert len(done) == (n if fixed else 0)
+        text = check_mc.inject_mc_params(bench, 7, False) if mismatch \
+            else bench
+        deck = out / "ka_tb.cir"
+        out.mkdir(parents=True, exist_ok=True)
+        deck.write_text(simlib.materialize(
+            text, sim_run.build_subs(root, nl, tt, 3.3, {})), encoding="utf-8")
+        stdout, _, _ = simlib.run_ngspice(eda, deck, out, 120)
+        v = {k.lower(): float(x) for k, x in re.findall(
+            r"^\s*(\S+)\s*=\s*([-+0-9.eE]+)\s*$", stdout, re.MULTILINE)}
+        return ([v[f"a{i}"] for i in range(n)], [v[f"b{i}"] for i in range(n)])
+
+    a_fix, b = vbe(True, True)
+    ratio = statistics.stdev(a_fix) / statistics.stdev(b)
+    print(f"pnp m=8 par=8 sd {statistics.stdev(a_fix)*1e6:.1f} uV, "
+          f"m=1 sd {statistics.stdev(b)*1e6:.1f} uV, ratio {ratio:.3f}")
+    assert 0.354 * 0.75 < ratio < 0.354 * 1.25, ratio
+    a_asis, b2 = vbe(False, True)
+    assert b2 == b  # same seed, same draws for the untouched devices
+    planted = statistics.stdev(a_asis) / statistics.stdev(b)
+    print(f"planted ratio {planted:.3f}")
+    assert 0.75 < planted < 1.25, planted
+    # DC point: with mismatch off the rewrite changes nothing
+    assert vbe(True, False)[0] == vbe(False, False)[0]
 
 
 @pytest.mark.slow

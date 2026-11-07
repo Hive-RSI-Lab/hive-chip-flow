@@ -32,15 +32,15 @@ agauss()-driven per-instance mismatch parameters (mis_vth, mis_k, mis_r,
 ...), and yield = the fraction with zero bound violations, scored against
 `mc.yield_min`.
 
-The PDK's MOS mismatch term reads the instance's `par` but not its `m`, so
-an `m=N` device would draw one unit's sigma (sqrt(N) too much). The MC
-decks therefore include a copy of the netlist in which every multiplied
-nfet_*/pfet_* instance also carries `par=N`, and an `m=N` on a user subckt
-carries down to the MOS inside it, multiplying across levels
+The PDK's MOS and pnp mismatch terms read the instance's `par` but not its
+`m`, so an `m=N` device would draw one unit's sigma (sqrt(N) too much). The
+MC decks therefore include a copy of the netlist in which every multiplied
+nfet_*/pfet_*/pnp_*/npn_* instance also carries `par=N`, and an `m=N` on a
+user subckt carries down to the devices inside it, multiplying across levels
 (add_par_for_multiplier; the same for the bench), listed in the report's
-`par_added`. A multiplied bipolar, or a multiplied subckt defined outside
-the netlist and bench, is listed there as `unhandled`: its sigma stays
-pessimistic. The block's own netlist is never edited.
+`par_added`. A multiplied subckt defined outside the netlist and bench is
+listed there as `unhandled`: its sigma stays pessimistic. The block's own
+netlist is never edited.
 
 Two refusals a caller must not be able to talk this gate out of: `mc.runs:
 0` is refused outright (CheckError, exit 2), never silently widened back up
@@ -116,16 +116,18 @@ def inject_mc_params(template_text: str, seed: int, do_global: bool) -> str:
 # computes p_sqrtarea = sqrt((l-par_l)*par*(w-par_w)) and passes `m` only to
 # its inner MOSFET, so an `m=N` instance gets ONE unit's mismatch sigma,
 # sqrt(N) too large. (The poly/diffusion resistors set mis_r=0 - no
-# per-instance mismatch at all - and the MIM caps carry none either.)
-_MOS_MODEL_RE = re.compile(r"^[np]fet_0[356]v[03](?:_dss|_nvt)?$",
+# per-instance mismatch at all - and the MIM caps carry none either.) The
+# pnp_* subckts divide theirs (mis_is_*, mis_bf_*) by sqrt(par) the same way;
+# the npn_* take `par` and carry no mismatch term, so par=N changes nothing.
+_PAR_MODEL_RE = re.compile(r"^(?:[np]fet_0[356]v[03](?:_dss|_nvt)?"
+                           r"|(?:pnp|npn)_.+)$",
                            re.IGNORECASE)
 _PARAM_RE = re.compile(
     r"(?<![\w.])(m|par)\s*=\s*('[^']*'|\{\{[^}]*\}\}|\{[^}]*\}|[^\s]+)",
     re.IGNORECASE)
 _FIRST_PARAM_RE = re.compile(r"\s[\w.]+\s*=")
 # PDK devices whose `m` needs no `par`: their mismatch term is zero or absent
-# (resistors set mis_r=0, MIM caps carry none). Bipolars do read `par`, so a
-# multiplied one is reported as unhandled like any other model not rewritten.
+# (resistors set mis_r=0, MIM caps carry none).
 _NO_PAR_MODEL_RE = re.compile(
     r"^(?:cap_|nplus_|pplus_|npolyf_|ppolyf_|nwell|rm\d|tm\d|efuse|diode_)",
     re.IGNORECASE)
@@ -227,7 +229,7 @@ def _subckt_blocks(text: str) -> tuple[dict, list]:
                 continue
             walk.append((stack[-1] if stack else None, group))
             if stack:
-                if _MOS_MODEL_RE.match(found[1]):
+                if _PAR_MODEL_RE.match(found[1]):
                     defs[stack[-1]]["mos"] = True
                 else:
                     defs[stack[-1]]["calls"].add(found[1].lower())
@@ -235,8 +237,8 @@ def _subckt_blocks(text: str) -> tuple[dict, list]:
 
 
 def _carriers(texts: list[str]) -> tuple[set[str], dict]:
-    """The subckts that must carry a multiplier down to their MOS: those
-    holding a MOS at any depth and sitting under an `m=N` instance at any
+    """The subckts that must carry a multiplier down to their devices: those
+    holding a par-reading device at any depth and sitting under an `m=N` instance at any
     depth, over every text the deck includes (a bench may multiply a subckt
     its netlist defines). Also returns the joined definitions."""
     defs: dict[str, dict] = {}
@@ -272,24 +274,24 @@ def _carriers(texts: list[str]) -> tuple[set[str], dict]:
 
 def add_par_for_multiplier(text: str, others: Iterable[str] = ()
                            ) -> tuple[str, list[dict]]:
-    """Make the PDK's mismatch term see each MOS's total area, keeping the
+    """Make the PDK's mismatch term see each device's total area, keeping the
     DC point (m=N par=N: the right sigma as well; m=4 alone measured sd
     3.9 mV against 1.8 mV for the same total width).
 
-    An `X... <nfet_*/pfet_*> ... m=N` instance (N not 1) gets a matching
-    `par=N`. For an `X... <user subckt> ... m=N`, ngspice multiplies the
-    inner devices' `m` but `par` stays 1, so a subckt holding MOS (a
-    carrier, see _carriers) takes a MULT_PARAM parameter, the instance sets
-    it to N, nested instances multiply it, and each inner MOS gets
+    An `X... <nfet_*/pfet_*/pnp_*/npn_*> ... m=N` instance (N not 1) gets a
+    matching `par=N`. For an `X... <user subckt> ... m=N`, ngspice multiplies
+    the inner devices' `m` but `par` stays 1, so a subckt holding such a
+    device (a carrier, see _carriers) takes a MULT_PARAM parameter, the
+    instance sets it to N, nested instances multiply it, and each inner one gets
     par={MULT_PARAM*<own par or m>}. An instance that already writes `par`
     is left as it is.
 
     `others` are the other texts of the same deck, read only to find what
     is multiplied and defined across them. Returns (new text, [{instance,
     model, m}]): each one rewritten, with `subckt` when it sits in a
-    carrier, and with `unhandled` for a multiplied model not rewritten (a
-    bipolar, or a subckt this text set can't see into), which keeps one
-    unit's sigma (pessimistic). Used on the MC deck's copies only."""
+    carrier, and with `unhandled` for a multiplied subckt this text set can't
+    see into, which keeps one unit's sigma (pessimistic). Used on the MC
+    deck's copies only."""
     carriers, defs = _carriers([text, *others])
     _, walk = _subckt_blocks(text)
     lines = text.split("\n")
@@ -304,7 +306,7 @@ def add_par_for_multiplier(text: str, others: Iterable[str] = ()
         mval = _multiplier(params)
         carried = inside in carriers
         where = {"subckt": inside} if carried else {}
-        if _MOS_MODEL_RE.match(model):
+        if _PAR_MODEL_RE.match(model):
             if carried:
                 own = params.get("par") or params.get("m")
                 par = (f"{{{MULT_PARAM}*({_bare(own)})}}" if own
@@ -330,9 +332,9 @@ def add_par_for_multiplier(text: str, others: Iterable[str] = ()
                 and not _NO_PAR_MODEL_RE.match(model):
             done.append({
                 "instance": name, "model": model, "m": mval or "1", **where,
-                "unhandled": "not rewritten (a bipolar, or defined outside "
-                             "the netlist and bench), so it keeps one unit's "
-                             "mismatch: sqrt(N) pessimistic"})
+                "unhandled": "defined outside the netlist and bench, so "
+                             "what it holds keeps one unit's mismatch: "
+                             "sqrt(N) pessimistic"})
     return "\n".join(lines), done
 
 
@@ -437,9 +439,9 @@ def run(argv=None):
 
     out_dir = ws / OUT_SUBDIR
     shutil.rmtree(out_dir, ignore_errors=True)
-    # m=N MOS instances get par=N in the MC copy of the netlist (and of each
-    # bench), or the PDK gives them one unit's mismatch: sqrt(N) too much.
-    # An m=N on a user subckt carries down to its MOS the same way, and a
+    # m=N MOS and bipolar instances get par=N in the MC copy of the netlist
+    # (and of each bench), or the PDK gives them one unit's mismatch: sqrt(N)
+    # too much. An m=N on a user subckt carries down the same way, and a
     # bench may multiply a subckt the netlist defines, so each sees the rest.
     bench_texts = {bench: bench.read_text(encoding="utf-8")
                    for bench, _ in sim_run.find_benches(ws)}
