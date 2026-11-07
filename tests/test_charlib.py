@@ -211,7 +211,100 @@ def test_assemble_transposes_derates_and_drops_what_was_not_measured():
     assert "internal_power" not in text and "gone" not in text
     # what comes out is readable again, with a template of the right size
     again = charlib.parse_liberty(text)
-    assert [g.args for g in again.sub("lu_table_template")] == ["charlib_delay"]
+    assert [g.args for g in again.sub("lu_table_template")] == \
+        ["charlib_delay_3x2"]
+
+
+def _fake_power(slews, loads):
+    rows = [[0.01 * (i + j + 1) for j in range(len(loads))]
+            for i in range(len(slews))]
+    return {"slews": slews, "loads": loads,
+            "arcs": [{"pin": "ZN", "related_pin": "I", "when": "",
+                      "rise": rows, "fall": rows}],
+            "hidden": [],
+            "leakage": {"states": [{"when": "I", "value_uw": 2e-5},
+                                   {"when": "!I", "value_uw": 5e-5}],
+                        "cell_uw": 5e-5}}
+
+
+def test_power_leakage_and_limits_land_where_sta_reads_them():
+    lib = charlib.parse_liberty(charlib.assemble(
+        raw_lctime([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]),
+        charlib.corner_header(HEADER, "x__tt", 3.3, 25, False), TERMS,
+        [0.2, 0.4, 1.0], [0.01, 0.02],
+        [charlib.ramp_of(s, TERMS) for s in (0.2, 0.4, 1.0)])[1])
+    cell = lib.sub("cell")[0]
+    if not cell.sub("pg_pin"):
+        cell.groups.insert(0, charlib.parse_liberty(
+            "pg_pin(VDD) { pg_type : primary_power ; }"))
+    charlib.install_power(lib, cell, _fake_power([0.2, 0.4, 1.0], [0.01, 0.02]))
+    limits = charlib.install_limits(cell, [0.2, 0.4, 1.0], [0.01, 0.02])
+    assert limits == {"max_transition": 1.0, "max_capacitance": 0.02}
+    again = charlib.parse_liberty(charlib.write_liberty(lib))
+    cell = again.sub("cell")[0]
+    pins = {p.args: p for p in cell.sub("pin")}
+    assert pins["I"].attr("max_transition") == "1"
+    assert pins["I"].attr("max_capacitance") is None
+    assert pins["ZN"].attr("max_capacitance") == "0.02"
+    ip = pins["ZN"].sub("internal_power")[0]
+    rise = ip.sub("rise_power")[0]
+    assert rise.args == "charlib_power_3x2"
+    assert charlib.table(rise)[2] == [0.03, 0.04]
+    assert [g.args for g in again.sub("power_lut_template")] == \
+        ["charlib_power_3x2", "charlib_power_3"]
+    leak = cell.sub("leakage_power")
+    assert [g.attr("when") for g in leak] == ['"I"', '"!I"']
+    assert leak[0].attr("related_pg_pin") == "VDD"
+    assert cell.attr("cell_leakage_power") == "5e-05"
+
+
+def _one_cell_lib(cell, header=HEADER, template="t"):
+    body = (f"  lu_table_template({template}) {{ variable_1 : "
+            f"input_net_transition ; index_1(\"1, 2\"); }}\n")
+    return (header.replace("  lu_table_template(gone) { variable_1 : "
+                           "input_net_transition ; index_1(\"1, 2\"); }\n",
+                           body)
+            + CELL.replace("x__inv", cell) + "}\n")
+
+
+def test_merge_keeps_one_header_and_template_and_every_cell():
+    merged = charlib.parse_liberty(charlib.merge_libraries(
+        [_one_cell_lib("a"), _one_cell_lib("b")], "both"))
+    assert merged.args == "both"
+    assert [g.args for g in merged.sub("cell")] == ["a", "b"]
+    assert [g.args for g in merged.sub("lu_table_template")] == ["t"]
+    assert len(merged.sub("operating_conditions")) == 1
+
+
+@pytest.mark.parametrize("second,kind", [
+    (_one_cell_lib("b", HEADER.replace("nom_voltage : 3.3", "nom_voltage : 3")),
+     "corner_mismatch"),
+    (_one_cell_lib("b", HEADER.replace("temperature : 25 ;",
+                                       "temperature : 125 ;")),
+     "corner_mismatch"),
+    (_one_cell_lib("a"), "duplicate_cell"),
+    (_one_cell_lib("b").replace('index_1("1, 2")', 'index_1("1, 3")'),
+     "template_conflict"),
+])
+def test_merge_refuses_what_is_not_one_corner(second, kind):
+    with pytest.raises(charlib.Refused) as exc:
+        charlib.merge_libraries([_one_cell_lib("a"), second], "both")
+    assert exc.value.kind == kind
+
+
+def test_merge_cli_exit_codes(tmp_path, capsys):
+    import merge_lib
+    a, b = tmp_path / "a.lib", tmp_path / "b.lib"
+    a.write_text(_one_cell_lib("a"))
+    b.write_text(_one_cell_lib("b"))
+    out = tmp_path / "m.lib"
+    assert merge_lib.main(["--out", str(out), "--name", "m", str(a),
+                           str(b)]) == 0
+    assert json.loads(capsys.readouterr().out)["cells"] == ["a", "b"]
+    assert merge_lib.main(["--out", str(out), "--name", "m", str(a),
+                           str(a)]) == 2
+    report = json.loads(capsys.readouterr().out)
+    assert report["kind"] == "duplicate_cell" and report["remediation"]
 
 
 def test_assemble_refuses_axes_that_were_not_asked_for():
@@ -414,6 +507,49 @@ def test_known_answer_extracted_at_real_loads(cell, tmp_path):
         low, high = charlib.TOLERANCE_SHIPPED[("extracted", kind, "load>=20fF")]
         got = _band(rows, kinds, 0.020)
         assert low <= got[0] and got[1] <= high, (kind, got)
+    _assert_power_band(report, cell)
+
+
+def _power_groups(cell):
+    out = {}
+    for pin in cell.sub("pin"):
+        for ip in pin.sub("internal_power"):
+            key = (pin.args, (ip.attr("related_pin") or "").strip('"'),
+                   (ip.attr("when") or "").strip('"'))
+            for g in ip.groups:
+                out[key + (g.name,)] = g
+    return out
+
+
+def _assert_power_band(report, cell):
+    got, _, ship = _compare(report, cell)
+    band = charlib.POWER_BAND_SHIPPED
+    ours, theirs = _power_groups(got), _power_groups(ship)
+    assert ours and set(ours) <= set(theirs), set(ours) - set(theirs)
+    for key, g in ours.items():
+        s = theirs[key]
+        tol = band["hidden" if g.attr("index_2") is None else "output"]
+        slews = charlib.numbers(g.attr("index_1"))
+        if g.attr("index_2") is None:
+            ship_idx = charlib.numbers(s.attr("index_1"))
+            pairs = [(v, charlib.table(s)[0][charlib._nearest(ship_idx, sl)])
+                     for sl, v in zip(slews, charlib.table(g)[0])]
+        else:
+            loads = charlib.numbers(g.attr("index_2"))
+            pairs = [(charlib.table(g)[i][j], charlib._lookup(s, sl, ld))
+                     for i, sl in enumerate(slews) for j, ld in enumerate(loads)]
+        for v, sv in pairs:
+            assert abs(v - sv) <= max(tol["rel"] * abs(sv), tol["abs_pj"]), (
+                key, v, sv)
+    low, high = band["leakage_ratio"]
+    shipped = {(g.attr("when") or "").strip('"'): float(g.attr("value").strip('"'))
+               for g in ship.sub("leakage_power")}
+    states = report["corners"]["tt_025C"]["power"]["leakage"]["states"]
+    assert len(states) == 2 ** len(
+        [p for p in got.sub("pin") if p.attr("direction") == "input"])
+    for row in states:
+        ratio = row["value_uw"] / shipped[row["when"]]
+        assert low < ratio <= high, (row, shipped[row["when"]])
 
 
 @pytest.mark.slow
@@ -470,6 +606,21 @@ def test_planted_wrong_temperature_is_caught(tmp_path, monkeypatch):
 
 
 @pytest.mark.slow
+def test_planted_load_energy_left_in_is_caught(tmp_path, monkeypatch):
+    """Internal power that keeps the load's C*V^2 fails the power check at the
+    largest load, on the rising output only: a falling one draws nothing
+    from the supply for its load."""
+    monkeypatch.setattr(charlib, "_load_energy", lambda *_a: 0.0)
+    report = _run("inv_1", tmp_path / "out", slews=(1,), loads=(4,))
+    assert not report["ok"]
+    failed = report["corners"]["tt_025C"]["check"]["failed"]
+    assert failed and {p["table"] for p in failed} == {"rise_power"}, failed
+    for p in failed:
+        assert p["value_pj"] - p["bench_pj"] == pytest.approx(
+            3.3 * 3.3 * p["load"], rel=0.05)
+
+
+@pytest.mark.slow
 def test_hand_bench_agrees_with_the_table(tmp_path):
     """One point, a deck written out here by hand with no charlib helper:
     inv_1, tt, 25 C, library slew 0.2871 ns, 28.04 fF, input falling."""
@@ -480,6 +631,9 @@ def test_hand_bench_agrees_with_the_table(tmp_path):
     timing = [p for p in cell.sub("pin") if p.args == "ZN"][0].sub("timing")[0]
     table_delay = charlib.table(timing.sub("cell_rise")[0])[0][0]
     table_trans = charlib.table(timing.sub("rise_transition")[0])[0][0]
+    power = [p for p in cell.sub("pin") if p.args == "ZN"][0].sub(
+        "internal_power")[0]
+    table_rise_pj = charlib.table(power.sub("rise_power")[0])[0][0]
     ramp = 0.2871 * 0.5 / 0.4
     m = _pdk() / "libs.tech" / "ngspice"
     deck = tmp_path / "hand.cir"
@@ -495,21 +649,31 @@ Xd i zn vdd vdd 0 0 inv
 Vdd vdd 0 3.3
 Vi i 0 PWL(0 3.3 1n 3.3 {1 + ramp}n 0 20n 0)
 Cl zn 0 {_ref_load()}p
-.tran 0.5p 8n
+.tran 0.5p 13n
 .meas tran t50 WHEN v(zn)=1.65 RISE=1
 .meas tran t30 WHEN v(zn)=0.99 RISE=1
 .meas tran t70 WHEN v(zn)=2.31 RISE=1
+.meas tran q INTEG i(vdd) FROM=0.95n TO=12n
+.meas tran v0 FIND v(zn) AT=0.95n
+.meas tran v1 FIND v(zn) AT=12n
 .end
 """)
     eda = REPO / "bin" / "eda"
     run = subprocess.run([str(eda), "ngspice", "-b", str(deck)], cwd=tmp_path,
                          capture_output=True, text=True, timeout=300)
     got = {k: float(v) for k, v in re.findall(
-        r"^\s*(t\d+)\s*=\s*([-+.\deE]+)", run.stdout, re.M)}
+        r"^\s*(t\d+|q|v\d)\s*=\s*([-+.\deE]+)", run.stdout, re.M)}
     delay = got["t50"] * 1e9 - (1 + ramp / 2)
     trans = (got["t70"] - got["t30"]) * 1e9 / 0.5
     assert table_delay == pytest.approx(delay, rel=0.03)
     assert table_trans == pytest.approx(trans, rel=0.03)
+    # internal power: the supply's charge integral less what went into the load
+    # (C*V*dV on a rising output), in pJ
+    internal = (-3.3 * got["q"] - 3.3 * _ref_load() * 1e-12
+                * (got["v1"] - got["v0"])) * 1e12
+    assert table_rise_pj == pytest.approx(
+        internal, rel=charlib.POWER_TOLERANCE["rel"],
+        abs=charlib.POWER_TOLERANCE["abs_pj"])
 
 
 def _ref_load():
@@ -537,6 +701,52 @@ def test_opensta_reads_the_output(tmp_path):
     out = run.stdout + run.stderr
     assert "Error" not in out and "Warning" not in out, out
     assert full in out and "data arrival time" in out
+
+
+@pytest.mark.slow
+def test_opensta_flags_overload_with_the_merged_lib(tmp_path):
+    """inv_1 and nand2_1 merged into one corner lib. A net loaded past the
+    largest characterised load and driven past the largest slew is a
+    max_capacitance and a max_slew violation; a light one is neither."""
+    libs = []
+    for cell in ("inv_1", "nand2_1"):
+        report = _run(cell, tmp_path / cell, slews=(1, 3), loads=(1, 3))
+        assert report["ok"], report["corners"]["tt_025C"]["check"]["failed"]
+        libs.append(report["corners"]["tt_025C"]["lib"])
+        limits = report["corners"]["tt_025C"]["limits"]
+    merged = tmp_path / "merged.lib"
+    import merge_lib
+    assert merge_lib.main(["--out", str(merged), "--name", "both"] + libs) == 0
+    net = tmp_path / "n.v"
+    net.write_text(
+        f"module t(input a, input b, output y, output z);\n"
+        f"wire n; {LIB}__nand2_1 u1(.A1(a), .A2(b), .ZN(n));\n"
+        f"{LIB}__inv_1 u2(.I(n), .ZN(y));\n"
+        f"{LIB}__inv_1 u3(.I(b), .ZN(z));\nendmodule\n")
+    eda = REPO / "bin" / "eda"
+
+    def checks(load, slew):
+        tcl = tmp_path / "s.tcl"
+        tcl.write_text(
+            f"read_liberty {merged}\nread_verilog {net}\nlink_design t\n"
+            f"set_input_transition {slew} [get_ports a]\n"
+            "set_input_transition 0.1 [get_ports b]\n"
+            f"set_load {load} [get_ports y]\nset_load 0.005 [get_ports z]\n"
+            "report_check_types -max_capacitance -max_slew -violators\nexit\n")
+        run = subprocess.run([str(eda), "sta", str(tcl)], cwd=tmp_path,
+                             capture_output=True, text=True, timeout=300)
+        out = run.stdout + run.stderr
+        assert "Error" not in out, out
+        return out
+    light = checks(0.5 * limits["max_capacitance"],
+                   0.5 * limits["max_transition"])
+    assert "VIOLATED" not in light, light
+    heavy = checks(3 * limits["max_capacitance"],
+                   3 * limits["max_transition"])
+    lines = [ln for ln in heavy.splitlines() if "VIOLATED" in ln]
+    assert any(ln.split()[0] == "u2/ZN" for ln in lines), heavy
+    assert any(ln.split()[0] == "u1/A1" for ln in lines), heavy
+    assert not any(ln.split()[0].startswith("u3") for ln in lines), heavy
 
 
 @pytest.mark.slow
