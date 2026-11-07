@@ -15,6 +15,15 @@ with `sizing/sizing.yaml`'s overrides applied - a stale literal in
 `layout/gen_<block>.py` left over from an earlier sizing pass is the
 common case.
 
+**Where it is:** the gate runs the PDK's klayout LVS deck as well, and its
+own `lvs_mismatch` finding (`source: klayout`) carries `locations`: every
+unmatched net with its drawn shapes (`layer`, `bbox` in um, metals first)
+and every unmatched device with its `position` and both sides' parameters.
+An open shows as one reference net split over two layout nets, a short as
+one layout net named after two (`iout,vss`) - the shape that joins them is
+among its shapes. The full cross-reference is the `lvsdb` file it names
+(KLayout's netlist browser opens it).
+
 **Trap:** never edit `netlist/` or `sizing/` to match a wrong layout - LVS
 exists to catch the layout drifting from the design of record, and "fixing"
 it by moving the reference defeats the entire point (docs/design.md

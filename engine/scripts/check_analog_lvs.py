@@ -40,6 +40,16 @@ A netgen result counts as PASS only on a final "Circuits match uniquely."
 with no property error anywhere in the log (layoutlib.run_netgen_lvs), so a
 device sized differently in the generator than in the netlist (gates.yaml's
 own planted ade.lvs fault) fails here even though the topology matches.
+
+A second opinion runs on the same GDS against the same sized reference:
+the PDK's own klayout LVS deck (libs.tech/klayout/tech/lvs/run_lvs.py,
+#117), its reference translated to the deck's device classes
+(layoutlib.klayout_reference). The block passes only when both match.
+Both failing gives an lvs_mismatch from each, klayout's carrying every
+unmatched net with its drawn shapes (layer, bbox in um) and every
+unmatched device with its position and both sides' parameters, read from
+the lvsdb. One failing is lvs_extractors_disagree with both reports: an
+extraction is wrong, so neither verdict counts.
 """
 from __future__ import annotations
 
@@ -150,6 +160,83 @@ def with_std_cells(ref_text: str) -> tuple[str, list[str]]:
     return (cells_text + ref_text if cells else ref_text), cells
 
 
+def klayout_schematic(text: str, ref_cell: str, topcell: str,
+                      deck: Path) -> str:
+    """The sized reference netgen reads, as the klayout deck's reader
+    takes it (layoutlib.klayout_reference), its top subckt named as the
+    layout's top cell: the deck pairs circuits by name and has no
+    equate."""
+    out = layoutlib.klayout_reference(text, deck)
+    if ref_cell.lower() != topcell.lower():
+        out = re.sub(rf"^(\s*\.subckt\s+){re.escape(ref_cell)}(?=\s)",
+                     lambda m: m.group(1) + topcell, out,
+                     flags=re.IGNORECASE | re.MULTILINE)
+    return out
+
+
+def describe_klayout(findings: list[dict], log: str) -> str:
+    """One line per unmatched klayout pin, net or device, each with where
+    it is: a net's drawn shapes (layer and bbox in um), a device's
+    position and both sides' parameters."""
+    lines = []
+    for f in findings:
+        if f["what"] == "net":
+            at = "; ".join(f"{s['layer']} {s['bbox']}"
+                           for s in f["shapes"][:8])
+            if len(f["shapes"]) > 8:
+                at += f"; +{len(f['shapes']) - 8} more"
+            lines.append(f"net {f['layout_net']} (reference "
+                         f"{f['reference_net']}) {f['status']}"
+                         f" at {at or 'nothing in the layout'}")
+        elif f["what"] == "device":
+            lines.append(f"device {f['layout_device']} (reference "
+                         f"{f['reference_device']}) {f['status']} at "
+                         f"{f.get('position')}: layout "
+                         f"{f.get('layout_params')} vs reference "
+                         f"{f.get('reference_params')}")
+        else:
+            lines.append(f"pin {f['layout_pin']} (reference "
+                         f"{f['reference_pin']}) {f['status']}")
+    if not lines:
+        tail = "\n".join(log.strip().splitlines()[-20:])
+        lines.append(f"no unmatched object named; log tail: {tail}")
+    return "\n".join(lines)
+
+
+def lvs_violations(rel_ref: str, ref_cell: str, matched: bool,
+                   netgen_excerpt: str, netgen_log: str, kl_matched: bool,
+                   kl_summary: str, kl_findings: list[dict],
+                   rel_db: str) -> list[dict]:
+    """The block passes only when both extractors match. Both failing is
+    an lvs_mismatch from each; one failing is lvs_extractors_disagree,
+    carrying both reports - never a pass on the one that matched."""
+    if matched and kl_matched:
+        return []
+    if not matched and not kl_matched:
+        return [
+            checklib.violation(
+                "analog_lvs", "error", rel_ref, ref_cell, "lvs_mismatch", [],
+                f"netgen LVS did not report a clean unique match: "
+                f"{netgen_excerpt}", "netgen"),
+            checklib.violation(
+                "analog_lvs", "error", rel_ref, ref_cell, "lvs_mismatch", [],
+                f"klayout LVS: netlists don't match: {kl_summary}",
+                "klayout", locations=kl_findings, lvsdb=rel_db)]
+    says = {True: "match", False: "mismatch"}
+    return [checklib.violation(
+        "analog_lvs", "error", rel_ref, ref_cell,
+        "lvs_extractors_disagree", [],
+        f"netgen says {says[matched]}, klayout says {says[kl_matched]} - "
+        "the two extractors disagree on the same GDS and sized reference, "
+        "so neither verdict stands; find which extraction is wrong and fix "
+        f"it or the design. netgen: {netgen_excerpt}\nklayout: {kl_summary}",
+        "analog_lvs",
+        netgen={"matched": matched, "log": netgen_log,
+                "excerpt": netgen_excerpt},
+        klayout={"matched": kl_matched, "lvsdb": rel_db,
+                 "findings": kl_findings})]
+
+
 def run(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--workspace", required=True, help="block workspace")
@@ -189,21 +276,36 @@ def run(argv=None):
         work_dir, extracted_spice.name, topcell,
         ref_for_lvs, ref_cell, out_log.name)
 
+    # the second opinion: the PDK's klayout deck on the same GDS against
+    # the same sized reference (#117)
+    deck = layoutlib.klayout_lvs_dir()
+    kl_ref = work_dir / f"{block}.klayout.cir"
+    kl_ref.write_text(klayout_schematic(text, ref_cell, topcell, deck),
+                      encoding="utf-8")
+    kl_dir = work_dir / "klayout"
+    kl_matched, kl_log, lvsdb = layoutlib.run_klayout_lvs(
+        kl_dir, gds_path, topcell, kl_ref)
+    kl_findings = ([] if kl_matched else
+                   layoutlib.klayout_lvs_findings(lvsdb, gds_path, topcell))
+
     rel_ref = str(ref_path.relative_to(ws))
-    violations = []
-    if not matched:
-        excerpt = "\n".join(lvs_text.strip().splitlines()[-40:])
-        violations.append(checklib.violation(
-            "analog_lvs", "error", rel_ref, ref_cell, "lvs_mismatch", [],
-            f"netgen LVS did not report a clean unique match: {excerpt}",
-            "netgen"))
+    rel_db = str(lvsdb.relative_to(ws))
+    netgen_excerpt = "\n".join(lvs_text.strip().splitlines()[-40:])
+    kl_summary = describe_klayout(kl_findings, kl_log)
+    violations = lvs_violations(
+        rel_ref, ref_cell, matched, netgen_excerpt,
+        str(out_log.relative_to(ws)), kl_matched, kl_summary, kl_findings,
+        rel_db)
 
     payload = checklib.report(
         SCRIPT, ws / "layout", violations, topcell=topcell,
         gds=str(gds_path.relative_to(ws)), reference=rel_ref,
         reference_cell=ref_cell, sizing_applied=applied,
         std_cells_flattened=std_cells,
-        log=str(out_log.relative_to(ws)))
+        log=str(out_log.relative_to(ws)),
+        extractors={"netgen": "match" if matched else "mismatch",
+                    "klayout": "match" if kl_matched else "mismatch"},
+        klayout_reference=str(kl_ref.relative_to(ws)), lvsdb=rel_db)
     return payload, args.out
 
 
