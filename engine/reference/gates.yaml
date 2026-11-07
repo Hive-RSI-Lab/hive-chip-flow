@@ -370,6 +370,21 @@ gates:
       max_count: 0
       fault: "a 3.3 V device driven from a 6 V net (also: a floating gate, a PMOS whose nwell tap is on vss)"
       description: "0 unwaived reliability errors from CVC."
+    layout_match:
+      # #118: the matched rows spec.yaml's `matching:` declares, read off
+      # magic's extraction of the regenerated layout and the GDS's gates:
+      # each device's unit centroid within tol_um of the others'
+      # (common_centroid), one unit W/L, one orientation mix, an equal
+      # device beside every end unit. netgen merges parallel units, so lvs
+      # and pex_sim pass a wrong pattern. Not applicable when the spec
+      # declares no matching (attest re-reads the spec at release).
+      phase: P5
+      tool: layout_match
+      strength: 0
+      fail_severities: [error]
+      max_count: 0
+      fault: "a common-centroid row drawn AABB instead of ABBA (also: the end dummies removed, one unit rotated)"
+      description: "Every matching group's row: centroids within tol_um, one unit size and orientation, dummies at the ends."
     pex_sim:
       # M9: magic's extraction with every capacitor and extresist's wire
       # resistance (a netlist with neither is refused; every net magic

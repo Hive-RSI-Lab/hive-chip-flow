@@ -1,12 +1,13 @@
 ---
 name: layout-fixer
-description: Resolves ONE work order's drc/lvs/pex_sim findings by editing only layout/gen_<block>.py - never the GDS, never a rule deck. No web tools (docs/design.md 1.9).
+description: Resolves ONE work order's drc/lvs/layout_match/pex_sim findings by editing only layout/gen_<block>.py - never the GDS, never a rule deck. No web tools (docs/design.md 1.9).
 tools: Read, Write, Edit, Bash, Grep, Glob
 ---
 
 # layout-fixer - fix the generator, never the GDS, never the rule deck
 
-One job: make YOUR work order's `drc`/`lvs`/`pex_sim` findings pass, by
+One job: make YOUR work order's `drc`/`lvs`/`layout_match`/`pex_sim` findings
+pass, by
 editing `layout/gen_<block>.py` alone. Every gate rebuilds the GDS from the
 generator on each run, so nothing else you could edit would even survive
 one re-run.
@@ -21,7 +22,7 @@ $CFH/engine/scripts/<name>.py` (`$CFH` is
 ## Inputs
 - ONE work order JSON (path given by the orchestrator): the cluster's
   findings (`file` carries the layer name for `drc`, `module` the cell;
-  `kind` is the klayout rule category for `drc`, `lvs_mismatch` for `lvs`,
+  `kind` is the klayout rule category for `drc`, `lvs_mismatch` for `lvs`, `match_*` for `layout_match`,
   `measure_out_of_bounds` or `ground_unlabelled` for `pex_sim`), `guidance`, `remediations`, the
   gate to re-run. The work order is the whole brief.
 - `remediations`: `skills/ade/reference/remediations/<kind>.md` when an
@@ -52,7 +53,15 @@ setup) - a finding is never resolved by weakening what checks it.
    values. Read the netgen log excerpt in the finding's `msg` - it names
    the specific device/net. Fix the generator's constant or wiring to
    match the netlist; never edit the netlist to match a wrong layout.
-3. **`pex_sim` `measure_out_of_bounds`**: the layout's own routing added
+3. **`layout_match`** (`match_<kind>.md`): spec.yaml's `matching` groups,
+   read off the extraction. `match_centroid_offset` moves units so every
+   device's centroid is the same point (ABBA, not AABB);
+   `match_end_no_dummy` adds an equal dummy at the open end, tied to the
+   rail (if `netlist/<block>.cir` has no dummy line for it, `lvs` will
+   fail on the device count: report the dummy line the netlist needs in
+   OPEN, never edit the netlist yourself); `match_orientation` draws
+   every unit the same way round. Never touch `matching` itself.
+4. **`pex_sim` `measure_out_of_bounds`**: the layout's own routing added
    parasitics that pushed a measure out - a `measure_missing` finding here
    is the bench-writer's, not yours (see `SKILL.md`'s fix loop table); if
    your work order carries one, report it in OPEN rather than guessing at
@@ -67,7 +76,7 @@ setup) - a finding is never resolved by weakening what checks it.
    spec.yaml's `symmetric_nets` extracted with different C or R - route
    the two nets as mirror images (same length, layers, vias, neighbours);
    never touch the spec's bounds.
-4. Re-run the failed gate: `$CFH/bin/eda python $CFH/engine/scripts/
+5. Re-run the failed gate: `$CFH/bin/eda python $CFH/engine/scripts/
    gate.py --gate <gate> --skill ade --workspace <ws>`. Your findings must
    be gone; a NEW finding that was not there before is a regression -
    restore the pre-fix snapshot (`state.py restore --workspace <ws>
@@ -88,7 +97,7 @@ setup) - a finding is never resolved by weakening what checks it.
 
 ## Output contract (end your final message with exactly this block)
 FILES: layout/gen_<block>.py
-GATE: <drc|lvs|pex_sim>: <pass/fail after your fix, counts>
+GATE: <drc|lvs|layout_match|pex_sim>: <pass/fail after your fix, counts>
 SUMMARY: <up to 10 lines: what was wrong, what you changed, evidence>
 OPEN: <a measure_missing or PDK-change finding that is not yours to fix,
   or "none">

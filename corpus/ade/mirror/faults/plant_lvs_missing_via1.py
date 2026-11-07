@@ -1,10 +1,10 @@
 """plant_lvs_missing_via1.py - ade/mirror `lvs` fault (#117): an open.
 
-gen_mirror.py joins the two bottom gate pads (iref_node) with one metal1
+gen_mirror.py joins the row's bottom gate pads (iref_node) with one metal1
 bus. Here that bus stops at xmref's drain drop, and a metal2 bridge carries
-iref_node on to xmout's gate pad instead: a via1 lands the bridge on the
-metal1 bus at xmref's end, and the via1 at xmout's end is missing. xmout's
-gate is left on a net of its own, so both extractors must see iref_node
+iref_node on to the last xmout unit's gate pad instead: a via1 lands the
+bridge on the metal1 bus at xmref's end, and the via1 at the far end is
+missing. That xmout unit's gate is left on a net of its own, so both extractors must see iref_node
 split in two, and klayout must locate the bridge (BRIDGE below, metal2).
 """
 from __future__ import annotations
@@ -22,9 +22,10 @@ NEW = (
 OLD_LABEL = 'labels.append(("iref_node", (d[2] + g1[0]) / 2'
 NEW_LABEL = 'labels.append(("iref_node", (d[0] + d[2]) / 2'
 # the planted metal2 bridge in the mirror's own frame (um), from
-# fet_pads: xmref's drain pad ends at x=1.28, xmout's bottom gate pad at
-# x=3.63, both bottom gate pads span y -0.67..-0.29
-BRIDGE = (0.88, -0.67, 3.63, -0.29)
+# fet_pads on the DBABD row (unit i at x = 3i): xmref's drain pad (unit 2)
+# ends at x=7.28, the last xmout unit's bottom gate pad (unit 3) at
+# x=9.63, the bottom gate pads span y -0.67..-0.29
+BRIDGE = (6.88, -0.67, 9.63, -0.29)
 
 
 def plant(ws) -> None:

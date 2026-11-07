@@ -163,6 +163,29 @@ def test_parallel_fingers_are_one_finding(tmp_path):
     assert out[0]["severity"] == "info"
 
 
+def _mos(d, g, s, w, b="vss"):
+    return {"class": "mos", "model": "nfet_03v3", "w": w, "l": 0.5,
+            "nets": {"d": d, "g": g, "s": s, "b": b}}
+
+
+def test_schematic_refdes_names_a_matched_rows_unit(tmp_path):
+    (tmp_path / "netlist").mkdir()
+    (tmp_path / "netlist" / "m.cir").write_text(
+        ".subckt m iref_node iout vss\n"
+        "xmref iref_node iref_node vss vss nfet_03v3 w=4e-6 l=5e-7\n"
+        "xmout iout iref_node vss vss nfet_03v3 w=8e-6 l=5e-7\n.ends\n",
+        encoding="utf-8")
+    # drawn as is, and as one of xmout's two 4u units (#118)
+    assert erc.schematic_refdes(tmp_path, _mos("iref_node", "iref_node", "vss", 4.0)) \
+        == "xmref"
+    assert erc.schematic_refdes(tmp_path, _mos("iout", "iref_node", "vss", 8.0)) == "xmout"
+    assert erc.schematic_refdes(tmp_path, _mos("iout", "iref_node", "vss", 4.0)) == "xmout"
+    # not a whole share of it, on other nets, or wider than it: no refdes
+    assert erc.schematic_refdes(tmp_path, _mos("iout", "iref_node", "vss", 3.0)) is None
+    assert erc.schematic_refdes(tmp_path, _mos("iout", "vss", "vss", 4.0)) is None
+    assert erc.schematic_refdes(tmp_path, _mos("iout", "iref_node", "vss", 16.0)) is None
+
+
 def test_count_with_no_entry_is_erc_unparsed(tmp_path):
     counts = dict(erc.parse_counts(COUNTS), **{"HI-Z Inputs": 2})
     out = _findings(tmp_path, counts=counts)

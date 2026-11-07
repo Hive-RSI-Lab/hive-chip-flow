@@ -384,3 +384,29 @@ def test_symmetric_nets_field(tmp_path, capsys, field, ok):
         assert code == 0, out
     else:
         assert code == 1 and "bad_symmetric_nets" in out, out
+
+
+@pytest.mark.parametrize("field, ok", [
+    ("[{devices: [xm1, xm2], style: common_centroid}]", True),
+    ("[{devices: [xm1, xm2, xm3], style: interdigitate, tol_um: 0.1}]", True),
+    ("[{devices: [xm1, xm2], style: common_centroid},"
+     " {devices: [xm3, xm4], style: interdigitate}]", True),
+    ("[{devices: [xm1], style: common_centroid}]", False),
+    ("[{devices: [xm1, XM1], style: common_centroid}]", False),
+    ("[{devices: [xm1, xm2], style: common_centroid},"
+     " {devices: [xm2, xm3], style: common_centroid}]", False),
+    ("[{devices: [xm1, xm2]}]", False),
+    ("[{devices: [xm1, xm2], style: abba}]", False),
+    ("[{devices: [xm1, xm2], style: common_centroid, tol_um: 0}]", False),
+    ("[{devices: [xm1, xm2], style: common_centroid, tol_um: true}]", False),
+    ("[{devices: [xm1, xm2], style: common_centroid, dummies: 2}]", False),
+    ("{devices: [xm1, xm2], style: common_centroid}", False),
+])
+def test_matching_field(tmp_path, capsys, field, ok):
+    ws = make_ws(tmp_path, GOOD_YAML + f"matching: {field}\n")
+    code = check_spec_lint_ade.main(["--workspace", str(ws)])
+    out = capsys.readouterr().out
+    if ok:
+        assert code == 0, out
+    else:
+        assert code == 1 and "bad_matching" in out, out

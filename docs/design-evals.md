@@ -127,6 +127,7 @@ Three areas of quality, and process reported apart. Each signal is read from a g
 | bench strength | verification (analog) | device mutants (size doubled, connection removed, type flipped, bias halved), the share the bench kills | `bench_strength` (`check_bench_strength.py`) |
 | analog DRC and LVS | implementation (analog) | on the GDS regenerated from the layout code | `drc`, `lvs` (`check_analog_drc.py`, `check_analog_lvs.py`) |
 | analog reliability ERC | implementation (analog) | CVC on the extracted layout: device ratings, bulk ties, floating gates, diodes | `erc` (`check_analog_erc.py`) |
+| matched-device layout | implementation (analog) | the extracted rows of `spec.yaml`'s `matching:` groups: centroid offset, unit size, orientation, end dummies | `layout_match` (`check_layout_match.py`) |
 | post-layout margins | implementation (analog) | magic extraction with R and C, then the measures again | `pex_sim` (`check_pex_sim.py`) |
 | co-simulation | function (msde) | one cocotb bench drives the Icarus digital side against the ngspice analog block | `cosim` (`check_cosim.py`) |
 | top DRC, LVS, precheck | implementation (msde) | on the assembled top with the analog macro | `top_harden`, `top_drc`, `top_lvs`, `precheck` |

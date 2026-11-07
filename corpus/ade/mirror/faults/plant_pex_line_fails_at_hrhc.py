@@ -1,22 +1,22 @@
 """plant_pex_line_fails_at_hrhc.py - ade/mirror `pex_sim` fault only a real RC
-corner sees: the iout pin moves to the far end of a 38um run of 0.23um metal1,
+corner sees: the iout pin moves to the far end of a 18.5um run of 0.23um metal1,
 and the spec asks for every magic RC variant. DRC and LVS stay clean. The output
 pole clears its 500 MHz floor at every PVT corner on the wires as extracted (ss
-506.3 MHz, the lowest) and at lrlc @ ff (612.0), hrlc @ sf (524.5) and
-lrhc @ fs (576.5). It falls under the floor only at hrhc @ ss (498.4).
+504.8 MHz, the lowest) and at lrlc @ ff (614.0), hrlc @ sf (523.5) and
+lrhc @ fs (578.6). It falls under the floor only at hrhc @ ss (497.7).
 """
 from __future__ import annotations
 
 from pathlib import Path
 
-OLD = '''    d = out["d"]
+OLD = '''    d = iout_pad
     labels.append(("iout", (d[0] + d[2]) / 2, (d[1] + d[3]) / 2, L1LBL))
 '''
-NEW = '''    d = out["d"]
+NEW = '''    d = iout_pad
     y = (d[1] + d[3]) / 2
-    layoutlib.rect(top, d[0], y - 0.115, d[2] + 38.0, y + 0.115, L1)
-    layoutlib.rect(top, d[2] + 38.0, y - 0.5, d[2] + 39.0, y + 0.5, L1)
-    labels.append(("iout", d[2] + 38.5, y, L1LBL))
+    layoutlib.rect(top, d[0], y - 0.115, d[2] + 18.5, y + 0.115, L1)
+    layoutlib.rect(top, d[2] + 18.5, y - 0.5, d[2] + 19.5, y + 0.5, L1)
+    labels.append(("iout", d[2] + 19.0, y, L1LBL))
 '''
 
 

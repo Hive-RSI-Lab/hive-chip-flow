@@ -669,7 +669,7 @@ def test_a_stale_sim_pvt_record_is_no_record(tmp_path, monkeypatch):
 
 def _unlabelled_mirror(tmp_path):
     """The mirror with iref_node's label taken out: magic names that net
-    itself (a_38_n132#), which extresist used to strip of its couplings."""
+    itself (a_638_n132#), which extresist used to strip of its couplings."""
     ws = make_ws(tmp_path, "mirror")
     gen = ws / "layout" / "gen_mirror.py"
     text = gen.read_text(encoding="utf-8")
@@ -689,8 +689,8 @@ def test_unlabelled_net_keeps_its_coupling_through_extresist(tmp_path):
     out, _log = layoutlib.run_magic_extract(ws / "log", gds, top,
                                             parasitics=True)
     text = out.read_text(encoding="utf-8")
-    assert any(ln.split()[1:3] in (["a_38_n132", "iout"],
-                                   ["iout", "a_38_n132"])
+    assert any(ln.split()[1:3] in (["a_638_n132", "iout"],
+                                   ["iout", "a_638_n132"])
                for ln in text.splitlines() if ln.startswith("C"))
 
 
@@ -700,7 +700,7 @@ def test_unnamed_net_losing_its_coupling_is_a_refusal(tmp_path, monkeypatch):
     import layoutlib
     ws, gds, top = _unlabelled_mirror(tmp_path)
     monkeypatch.setattr(layoutlib, "name_unlabelled_nets", lambda ext: [])
-    with pytest.raises(layoutlib.LayoutError, match="a_38_n132-iout"):
+    with pytest.raises(layoutlib.LayoutError, match="a_638_n132-iout"):
         layoutlib.run_magic_extract(ws / "log", gds, top, parasitics=True)
 
 
@@ -1128,16 +1128,17 @@ def test_unknown_variant_is_refused_since_magic_only_complains(tmp_path):
                                     variant="hxhx")
 
 
-# #254: the 50um mirror line, whose numbers were posted on #160. hrhc and lrlc
-# are the PDK's own variants, against the C and R the knobs only approximate.
+# #254: the 50um mirror line, first posted on #160 and re-measured on the
+# two-tap row (#118). hrhc and lrlc are the PDK's own variants, against the
+# C and R the knobs only approximate.
 @pytest.mark.slow
 def test_fifty_um_line_at_the_real_variants_matches_the_posted_numbers(tmp_path):
     ws = make_ws(tmp_path, "mirror")
     gen = ws / "layout" / "gen_mirror.py"
     gen.write_text(gen.read_text(encoding="utf-8").replace(
-        '    d = out["d"]\n    labels.append(("iout", (d[0] + d[2]) / 2, '
+        '    d = iout_pad\n    labels.append(("iout", (d[0] + d[2]) / 2, '
         '(d[1] + d[3]) / 2, L1LBL))\n',
-        '    d = out["d"]\n    y = (d[1] + d[3]) / 2\n'
+        '    d = iout_pad\n    y = (d[1] + d[3]) / 2\n'
         '    layoutlib.rect(top, d[0], y - 0.115, d[2] + 50.0, y + 0.115, L1)\n'
         '    layoutlib.rect(top, d[2] + 50.0, y - 0.5, d[2] + 51.0, y + 0.5, L1)\n'
         '    labels.append(("iout", d[2] + 50.5, y, L1LBL))\n'), encoding="utf-8")
@@ -1149,11 +1150,11 @@ def test_fifty_um_line_at_the_real_variants_matches_the_posted_numbers(tmp_path)
     by = {r["variant"]: r for r in out["rc_variants"]}
     assert {k: v["corner"] for k, v in by.items()} == {
         "hrhc": "ss", "lrlc": "ff", "hrlc": "sf", "lrhc": "fs"}
-    posted = {"hrhc": 467.4e6, "lrlc": 572.1e6, "hrlc": 493.3e6, "lrhc": 537.5e6}
+    posted = {"hrhc": 425.7e6, "lrlc": 521.0e6, "hrlc": 451.1e6, "lrhc": 487.6e6}
     for name, want in posted.items():
         assert by[name]["measured"]["f3db"] == pytest.approx(want, abs=0.1e6), name
-    assert out["measured_by_corner"]["ss"]["f3db"] == pytest.approx(475.9e6, abs=0.1e6)
-    assert out["measured_by_corner"]["ff"]["f3db"] == pytest.approx(560.5e6, abs=0.1e6)
+    assert out["measured_by_corner"]["ss"]["f3db"] == pytest.approx(434.2e6, abs=0.1e6)
+    assert out["measured_by_corner"]["ff"]["f3db"] == pytest.approx(508.3e6, abs=0.1e6)
 
 
 @pytest.mark.slow
