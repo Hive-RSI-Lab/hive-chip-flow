@@ -21,7 +21,7 @@
  "violations": [],
  "facts": {
   "attestation": "reports/checks.json",
-  "attestation_sha256": "b7583880a7bf768ebaefc26c465f7681b5c2a4516c453d07a9ce934c4f785a5b",
+  "attestation_sha256": "6e9923d642640af806fe3384fd168b362441c2a795aa9b64092fd9e5c92aa685",
   "disposition": "gates-green",
   "waived": [],
   "tt_submission": {
@@ -43,7 +43,7 @@
     "librelane_pdk": "f6eeac7dad085ffcc829ccfd721f7b4ce39edcf7",
     "tt_support_tools": "01d5d2814fa9dd61e9d211e0b235a4a592a9316a",
     "gds": "top/harden/runs/run/final/gds/tt_um_r2r_dac_digital.gds",
-    "gds_sha256": "417e255a71db03d7e135fc3713597fd2598acba938ccaa38b9ac9aa7be3c0e45",
+    "gds_sha256": "b88c4a95905c5679dc2f5aec4f2b2df79d054c311db301b8222cbec18517019d",
     "lef": "top/harden/runs/run/final/lef/tt_um_r2r_dac_digital.lef",
     "lef_sha256": "b50dc910d16c3e4f12517c477d2a4e9f4f139fdd4eb6d9e0a449b32ac292f864",
     "gl": "top/harden/runs/run/final/pnl/tt_um_r2r_dac_digital.pnl.v",
@@ -59,7 +59,7 @@
      "top_module": "tt_um_r2r_dac_digital",
      "pdk": "gf180mcuD",
      "gds_path": "gds/tt_um_r2r_dac_digital.gds",
-     "gds_sha256": "417e255a71db03d7e135fc3713597fd2598acba938ccaa38b9ac9aa7be3c0e45",
+     "gds_sha256": "b88c4a95905c5679dc2f5aec4f2b2df79d054c311db301b8222cbec18517019d",
      "lef_path": "lef/tt_um_r2r_dac_digital.lef",
      "lef_sha256": "b50dc910d16c3e4f12517c477d2a4e9f4f139fdd4eb6d9e0a449b32ac292f864",
      "verilog_path": "src/project.v",
@@ -79,9 +79,12 @@
   "analog_sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
   "digital_side_spec": "json_canonical:e52fd5cabc96bf3cfe80463861809e640516e763ffe6d5ad341dd19366f87352",
   "analog_side_spec": "json_canonical:61734e544be2b0cd5fb5d3373df1e39f971c980f0e71decd49621c97736c30bd",
+  "top_lef": "dir_text:dbbd34264b05f925f61dd12f35471f307411c5a6652bafae4c2567e1a8300713",
+  "top_sdf": "dir_text:cf618dc1e824ade7cd5a740fa62ddf6c944dbe70e23113c6eee22a56527dccf0",
+  "top_spef": "dir_text:e22f95dbdcae89004abfc4b760095bfadd2c77db1225a288d7f708d4dfa2ca1d",
   "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2"
  },
  "strength_at_start": 0,
- "recorded_ts": "2026-11-06T06:05:49",
- "attempts": 17
+ "recorded_ts": "2026-11-06T20:03:58",
+ "attempts": 19
 }

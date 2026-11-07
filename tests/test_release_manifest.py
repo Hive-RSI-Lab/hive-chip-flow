@@ -9,6 +9,7 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
 import yaml
 
 REPO = Path(__file__).resolve().parents[1]
@@ -72,9 +73,13 @@ def make_msde_tile(tmp_path: Path, overlay: bool = False) -> Path:
 
 
 def regate(ws: Path, skill: str = "msde") -> None:
+    """Every gate passes; the harden records the outputs it hands on, as
+    gate.py does on a pass."""
+    imap = statelib.load_map()
     st = state_mod.State.load(ws / "state.json")
-    for g in statelib.load_map()["gate_inputs"][skill]:
+    for g in imap["gate_inputs"][skill]:
         st.record_gate(g, {"status": "pass"})
+        statelib.write_harden_records(ws.resolve(), skill, g, imap)
     st.save()
 
 
@@ -114,8 +119,13 @@ def test_every_deliverable_names_the_gates_that_hold_it(tmp_path, capsys):
     assert gates["top_drc"]["kind"] == "top_gds"
     assert gates["top_drc"]["verdict"] == "pass" and gates["top_drc"]["fresh"]
     assert gates["top_drc"]["inputs_sha256"]
-    # no gate after top_harden hashes the LEF: the record says only that
-    assert [t["relation"] for t in files[f"lef/{TOP}.lef"]["gates"]] == ["produced"]
+    # #164 known answer: precheck hashes the LEF it copies in, and on an
+    # unchanged run that read is fresh
+    lef = {t["gate"]: t for t in files[f"lef/{TOP}.lef"]["gates"]}
+    assert set(lef) == {"precheck", "top_harden"}
+    assert lef["precheck"]["relation"] == "read"
+    assert lef["precheck"]["kind"] == "top_lef" and lef["precheck"]["fresh"]
+    assert lef["top_harden"]["relation"] == "produced"
     assert {t["gate"] for t in files["src/core.v"]["gates"]} >= {"top_harden", "cosim"}
     assert files[".github/workflows/gds.yaml"]["gates"][0]["gate"] == "release"
 
@@ -225,6 +235,69 @@ def test_no_manifest_is_an_error_not_a_pass(tmp_path, capsys):
 
 
 # ------------------------------------------------------------ stale, untied
+
+def _refusals(ws: Path, capsys) -> list[dict]:
+    code = check_release.main(["--workspace", str(ws)])
+    out = json.loads(capsys.readouterr().out)
+    assert code == 1, out
+    assert manifest(ws)["released"] is False
+    return out["violations"]
+
+
+def test_lef_swapped_after_top_harden_refuses_as_stale(tmp_path, capsys):
+    """#164 plant: the gates pass, then a different abstract lands in
+    final/lef. precheck and release read it stale, and release names it."""
+    ws = make_msde_tile(tmp_path)
+    released(ws, capsys)
+    lef = ws / "top" / "harden" / "runs" / "run" / "final" / "lef" / f"{TOP}.lef"
+    lef.write_bytes(b"some other abstract")
+    rep = statelib.freshness_report(
+        state_mod.State.load(ws / "state.json").data, ws)
+    assert rep["gates"]["precheck"]["changed_inputs"] == ["top_lef"]
+    assert rep["gates"]["release"]["changed_inputs"] == ["top_lef"]
+    assert set(rep["summary"]["stale"]) == {"precheck", "release"}
+    msgs = {v["kind"]: v["msg"] for v in _refusals(ws, capsys)}
+    assert "top_lef" in msgs["harden_output_changed"]
+    assert "top_harden" in msgs["harden_output_changed"]
+    assert "precheck: stale" in msgs["gate_not_ready"]
+    assert "top_lef" in msgs["gate_not_ready"]
+
+
+@pytest.mark.parametrize("view,kind", [("spef/max", "top_spef"),
+                                       ("sdf", "top_sdf")])
+def test_timing_view_swapped_after_top_harden_refuses(tmp_path, capsys,
+                                                      view, kind):
+    """No gate but release reads the SDF or SPEF: release holds them to the
+    hashes top_harden recorded, so re-running it does not launder a swap."""
+    ws = make_msde_tile(tmp_path)
+    d = ws / "top" / "harden" / "runs" / "run" / "final" / view
+    d.mkdir(parents=True, exist_ok=True)
+    (d / f"{TOP}.{kind[4:]}").write_bytes(b"other parasitics")
+    st = state_mod.State.load(ws / "state.json")
+    st.record_gate("release", {"status": "pass"})   # release re-recorded
+    st.save()
+    violations = _refusals(ws, capsys)
+    assert [v["kind"] for v in violations] == ["harden_output_changed"]
+    assert kind in violations[0]["msg"]
+
+
+def test_a_clone_reads_the_new_views_from_the_harden_record(tmp_path, capsys):
+    """git carries no runs/: the LEF, SDF and SPEF hashes come from
+    outputs.json, so the gates that read them stay fresh (#239)."""
+    ws = make_msde_tile(tmp_path)
+    rep0 = statelib.freshness_report(
+        state_mod.State.load(ws / "state.json").data, ws)
+    assert rep0["summary"]["stale"] == []
+    record = json.loads((ws / "top" / "harden" / "outputs.json").read_text())
+    assert {"runs/run/final/lef", "runs/run/final/spef"} <= set(record["outputs"])
+    import shutil
+    shutil.rmtree(ws / "top" / "harden" / "runs")
+    rep = statelib.freshness_report(
+        state_mod.State.load(ws / "state.json").data, ws)
+    assert rep["summary"]["stale"] == []
+    assert statelib.harden_outputs_changed(
+        ws, "msde", "top_harden", statelib.load_map()) == []
+
 
 def test_rtl_edit_after_top_harden_refuses_as_stale(tmp_path, capsys):
     ws = make_msde_tile(tmp_path)

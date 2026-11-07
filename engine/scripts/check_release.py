@@ -47,6 +47,12 @@ it (manifestlib.py, issue #132). A file in the tree no gate holds refuses as
 `deliverable_untied`. A refused release writes the manifest too, marked
 `released: false`; checks.json's tt_submission holds the digest of a released
 one. `chip-flow release --verify DIR` checks a submission tree against it.
+
+A tile's harden outputs must still be the ones its harden recorded in
+harden/outputs.json when it passed (#164): a LEF, SDF or SPEF swapped after
+the harden refuses as `harden_output_changed`, naming the kind. The LEF is
+also an input of precheck and the LEF, SDF and SPEF of release, so the swap
+reads stale in the state too.
 """
 from __future__ import annotations
 
@@ -147,6 +153,16 @@ def run(argv=None):
     except ValueError:
         waivers = []    # attest.build above has already refused on this
     if is_tile:
+        # #164: what the harden handed on is what it recorded: a LEF, SDF or
+        # SPEF swapped since reads here, though no gate's inputs hold it
+        harden_gate = manifestlib.HARDEN_GATE[skill]
+        swapped = statelib.harden_outputs_changed(
+            ws, skill, harden_gate, statelib.load_map())
+        if swapped:
+            att, problems = None, problems + [
+                f"harden_output_changed: {c['kind']} ({c['path']}) is not what "
+                f"{harden_gate} recorded in {c['record']} when it passed; "
+                f"re-run {harden_gate}" for c in swapped]
         ship, tt_record = ttship.release_check(ws, repo, skill=skill)
         if ship:
             att, problems = None, problems + ship
@@ -183,6 +199,8 @@ def run(argv=None):
                            if ":" in p else None,
                            "nested_not_released" if p.startswith("nested_")
                            else "tt_ship_mismatch" if p.startswith("tt_")
+                           else "harden_output_changed"
+                           if p.startswith("harden_output_changed")
                            else "deliverable_untied"
                            if p.startswith("deliverable_untied")
                            else "gate_not_ready", [], p, "attest")

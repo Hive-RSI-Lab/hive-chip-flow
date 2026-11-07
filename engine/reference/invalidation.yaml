@@ -149,6 +149,13 @@ artifact_kinds:
   top_spec:      {path: "top/spec/spec.yaml", norm: json_canonical}
   top_macros:    {path: "top/macros", norm: dir_text}
   top_pnl:       {path: "top/harden/runs/run/final/pnl", norm: dir_text}
+  # #164: the abstract precheck copies in and release stages into lef/, and
+  # the timing views release archives. No gate after top_harden but release
+  # reads the SDF or SPEF, so release also holds all of top_harden's final
+  # views to the hashes in its outputs.json (harden_output_changed).
+  top_lef:       {path: "top/harden/runs/run/final/lef", norm: dir_text}
+  top_sdf:       {path: "top/harden/runs/run/final/sdf", norm: dir_text}
+  top_spef:      {path: "top/harden/runs/run/final/spef", norm: dir_text}
   # the assembled top's SDC (check_top_harden.top_sdc): the integrator's
   # own top.sdc when there is one, else the digital side's design SDC with
   # each crossing port moved onto the macro's pin; both optional
@@ -309,10 +316,14 @@ gate_inputs:
     # gate_writes below.
     top_lvs:  [top_gds, top_spec, top_macros, top_pnl, pdk_version,
                pdk_magic, pdk_netgen]
-    precheck: [top_gds, interface, pdk_version, pdk_magic, pdk_klayout]
+    # precheck: the GDS and the LEF it copies into its design dir (#164)
+    precheck: [top_gds, top_lef, interface, pdk_version, pdk_magic,
+               pdk_klayout]
+    # release stages the LEF into the shuttle tree and archives the SDF and
+    # SPEF (manifestlib.ARCHIVE_VIEWS), #164
     release:  [interface, digital_rtl, analog_layout, digital_spec,
                analog_netlist, analog_sizing, digital_side_spec,
-               analog_side_spec, pdk_version]
+               analog_side_spec, top_lef, top_sdf, top_spef, pdk_version]
 
 # What each gate writes that another gate reads, per skill (#147). It is
 # where the order of gates comes from: gate G is downstream of gate U when U
@@ -328,7 +339,8 @@ gate_writes:
     harden:     [harden, harden_config]
   msde:
     macro_lib:  [macro_lib]
-    top_harden: [top_gds, top_spec, top_macros, top_pnl]
+    top_harden: [top_gds, top_spec, top_macros, top_pnl, top_lef, top_sdf,
+                 top_spef]
 
 # Edit-class taxonomy -> what an edit of that class makes stale (docs/
 # design.md 1.6, one block per skill).

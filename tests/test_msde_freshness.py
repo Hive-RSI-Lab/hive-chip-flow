@@ -7,6 +7,10 @@ it and the gates after those (#147), and leaves the others fresh. The expected
 sets are written out here from what each check script opens, not read back
 from invalidation.yaml, so a row that drops an input fails this test.
 
+#164: the LEF precheck copies in and release stages, and the SDF and SPEF
+release archives, are inputs of the gates that read them, so a swapped view
+stales those gates and no others.
+
 #138: gate records pin the PDK. A changed open_pdks commit, model file or
 liberty stales the gates that read it through PDK_ROOT and no other; a record
 made before a kind joined its gate's row reads stale, not fresh.
@@ -99,6 +103,9 @@ def msde_block(ws: Path) -> state_mod.State:
     _w(ws / "top" / "macros" / "blk_analog.spice", ".subckt blk_analog\n.ends\n")
     _w(ws / "top" / "harden" / "runs" / "run" / "final" / "gds" / "t.gds", "G")
     _w(ws / "top" / "harden" / "runs" / "run" / "final" / "pnl" / "t.v", "N")
+    for view, text in (("lef", "L"), ("sdf", "S"), ("spef", "P")):
+        _w(ws / "top" / "harden" / "runs" / "run" / "final" / view
+           / f"t.{view}", text)
     for g in MSDE_GATES:
         st.record_gate(g, {"status": "pass"})
     st.save()
@@ -128,8 +135,9 @@ def _set(doc, keys, value):
 
 
 # the gates that read what top_harden writes (gate_writes, #147): an edit
-# that stales top_harden stales them too, before it has rewritten top/
-AFTER_TOP_HARDEN = {"top_drc", "top_lvs", "precheck"}
+# that stales top_harden stales them too, before it has rewritten top/.
+# release reads its LEF, SDF and SPEF (#164).
+AFTER_TOP_HARDEN = {"top_drc", "top_lvs", "precheck", "release"}
 
 # (what is edited, the edit, the gates that read it - from the scripts, plus
 # the gates after a stale one)
@@ -184,6 +192,20 @@ PLANTED = {
         lambda ws: (lambda: _w(ws / "top" / "macros" / "blk_analog.spice",
                                ".subckt blk_analog x\n.ends\n")),
         {"top_lvs"}),
+    # #164: precheck copies the LEF into its design dir and release stages
+    # it; release archives the SDF and SPEF, which no other gate reads
+    "top LEF": (
+        lambda ws: (lambda: _w(ws / "top" / "harden" / "runs" / "run" /
+                               "final" / "lef" / "t.lef", "L2")),
+        {"precheck", "release"}),
+    "top SDF": (
+        lambda ws: (lambda: _w(ws / "top" / "harden" / "runs" / "run" /
+                               "final" / "sdf" / "t.sdf", "S2")),
+        {"release"}),
+    "top SPEF": (
+        lambda ws: (lambda: _w(ws / "top" / "harden" / "runs" / "run" /
+                               "final" / "spef" / "t.spef", "P2")),
+        {"release"}),
     "top powered netlist": (
         lambda ws: (lambda: _w(ws / "top" / "harden" / "runs" / "run" /
                                "final" / "pnl" / "t.v", "N2")),

@@ -111,9 +111,13 @@ def plant(ws: Path, text: str) -> None:
 
 
 def pass_every_gate(ws: Path) -> None:
+    """Every gate passes; harden records the outputs it hands on, as gate.py
+    does on a pass (#239, #164)."""
+    imap = statelib.load_map()
     st = state_mod.State.load(ws / "state.json")
-    for g in statelib.load_map()["gate_inputs"]["vde"]:
+    for g in imap["gate_inputs"]["vde"]:
         st.record_gate(g, {"status": "pass"})
+        statelib.write_harden_records(ws.resolve(), "vde", g, imap)
     st.save()
 
 
