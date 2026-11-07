@@ -3,6 +3,7 @@ a corpus test and a lab script all compute the same numbers the same way.
 
     coherent_tone(fs, n, fin_target)      -> {fin, bin, fs, n}
     dynamic(samples, fs, fin, nbits)      -> sndr/snr/sfdr/thd/enob (dB, bits)
+    dynamic_measures(res)                 -> those five, as a bench scores them
     static_ramp(codes_or_volts, nbits)    -> dnl/inl, missing codes, monotonic
     static_histogram(codes, nbits, sine)  -> the same, from a code histogram
 
@@ -179,6 +180,15 @@ def dynamic(samples, fs: float, fin: float, nbits: int,
         "n": n,
         "harmonic_bins": harm,
     }
+
+
+DYNAMIC_MEASURES = ("sndr", "snr", "sfdr", "thd", "enob")
+
+
+def dynamic_measures(res: dict) -> dict[str, float]:
+    """The scalar measures a bench scores from dynamic(), named as a spec
+    names them: sndr, snr, sfdr (dB), thd (dBc) and enob (bits)."""
+    return {k: float(res[k]) for k in DYNAMIC_MEASURES}
 
 
 def _nanmax_abs(a: np.ndarray) -> float:

@@ -59,6 +59,16 @@ file reads it back and scores engine/lib/convlib.py's static_ramp measures
 (dnl_max_abs, inl_max_abs, inl_best_fit_max_abs, monotonic,
 missing_code_count) as if ngspice had printed them. A sweep missing, short or
 not in code order is a sim_static_ramp_refused error, never a pass.
+
+Tone: the dynamic counterpart (issue #167). A bench that samples a
+converter's response to a sine writes one sample per line with
+`wrdata {{TONE_FILE}} <vector>` (lines of `x y`: x the sample index 0, 1,
+... or its time, k/fs from any start) and declares the record with a
+comment line, `* tone: fs=1e6 fin=5.37e3 nbits=8 n=256`; this file scores
+convlib.dynamic's sndr, snr, sfdr, thd and enob as if ngspice had printed
+them. fin must put a whole, coprime number of periods in the record
+(convlib.coherent_tone picks one). A record that is missing, short,
+unevenly spaced or not coherent is a sim_tone_refused error, never a pass.
 """
 from __future__ import annotations
 
@@ -86,6 +96,8 @@ DEFAULT_TIMEOUT = 60.0
 MAX_BENCH_TIMEOUT = 3600.0
 BENCH_TIMEOUT_RE = re.compile(r"^\*\s*sim_timeout_s\s*[:=]\s*(\S+)", re.M | re.I)
 STATIC_RAMP_RE = re.compile(r"^\*\s*static_ramp_codes\s*[:=]\s*(\d+)\b", re.M | re.I)
+TONE_RE = re.compile(r"^\*\s*tone\s*:(.*)$", re.M | re.I)
+TONE_KEYS = ("fs", "fin", "nbits", "n")
 PDK_REL = Path("foss") / "pdks" / "gf180mcuD"
 
 
@@ -236,6 +248,66 @@ def static_ramp_measures(path: Path, codes: int | None) -> dict[str, float]:
     return convlib.ramp_measures(convlib.static_ramp([float(y) for y in ys]))
 
 
+def tone_decl(bench_text: str) -> dict:
+    """The bench's `* tone: fs=.. fin=.. nbits=.. n=..` line, as numbers.
+    Raises convlib.Refused bad_input when it is missing or incomplete."""
+    import convlib
+    m = TONE_RE.search(bench_text)
+    if not m:
+        raise convlib.Refused("bad_input", "the bench uses {{TONE_FILE}} with "
+                              "no `* tone: fs=.. fin=.. nbits=.. n=..` line")
+    decl = {}
+    for tok in m.group(1).split():
+        key, sep, val = tok.partition("=")
+        if not sep:
+            continue
+        try:
+            decl[key.lower()] = float(val)
+        except ValueError:
+            raise convlib.Refused("bad_input", f"`* tone:` {key}={val} is not "
+                                  "a number") from None
+    missing = [k for k in TONE_KEYS if k not in decl]
+    if missing:
+        raise convlib.Refused("bad_input", f"`* tone:` line has no "
+                              f"{', '.join(missing)}")
+    for k in ("nbits", "n"):
+        if decl[k] != int(decl[k]):
+            raise convlib.Refused("bad_input", f"`* tone:` {k} must be an integer")
+        decl[k] = int(decl[k])
+    return decl
+
+
+def tone_measures(path: Path, decl: dict) -> dict[str, float]:
+    """convlib.dynamic's measures of a `wrdata` tone record. Raises
+    convlib.Refused for anything but decl's n finite, evenly spaced samples
+    (spacing 1, the index, or 1/fs, the time) or a record not coherent."""
+    import convlib
+    if not path.is_file():
+        raise convlib.Refused("no_record", f"ngspice wrote no {path.name}")
+    xs, ys = [], []
+    try:
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if line.strip():
+                x, y = line.split()
+                xs.append(float(x))
+                ys.append(float(y))
+    except ValueError as exc:
+        raise convlib.Refused("bad_input", f"{path.name} is not `x sample` "
+                              f"lines: {exc}") from exc
+    n = decl["n"]
+    if len(ys) != n:
+        raise convlib.Refused("bad_input", f"{path.name} holds {len(ys)} "
+                              f"samples; the bench declared n={n}")
+    step = 1.0 if n < 2 or abs(xs[1] - xs[0] - 1.0) < 1e-6 else 1.0 / decl["fs"]
+    off = [abs(x - xs[0] - k * step) for k, x in enumerate(xs)]
+    if max(off, default=0.0) > 1e-6 * step:
+        raise convlib.Refused("bad_input", f"{path.name}'s samples are not "
+                              f"evenly spaced at 1/fs ({step:g}): the record "
+                              "is not a sampled tone")
+    return convlib.dynamic_measures(convlib.dynamic(
+        ys, decl["fs"], decl["fin"], decl["nbits"]))
+
+
 def run_bench_at_corner(eda_bin: Path, bench_name: str,
                         bench_template_text: str, bounds: list[dict],
                         subs: dict, corner: dict, out_dir: Path,
@@ -254,6 +326,11 @@ def run_bench_at_corner(eda_bin: Path, bench_name: str,
         ramp_path = out_dir / f"{stem}.ramp"
         ramp_path.unlink(missing_ok=True)
         subs = {**subs, "RAMP_FILE": ramp_path.name}
+    tone_path = None
+    if "{{TONE_FILE}}" in bench_template_text:
+        tone_path = out_dir / f"{stem}.tone"
+        tone_path.unlink(missing_ok=True)
+        subs = {**subs, "TONE_FILE": tone_path.name}
     text = simlib.materialize(bench_template_text, subs)
     deck_path = out_dir / f"{stem}.cir"
     deck_path.write_text(text, encoding="utf-8")
@@ -275,6 +352,17 @@ def run_bench_at_corner(eda_bin: Path, bench_name: str,
                 check, "error", bench_name, None, "sim_static_ramp_refused",
                 [exc.kind, corner["name"]],
                 f"{bench_name} @ {corner['name']}: static_ramp refused: {exc}",
+                "convlib"))
+    if tone_path is not None:
+        import convlib
+        try:
+            measures.update(tone_measures(
+                tone_path, tone_decl(bench_template_text)))
+        except convlib.Refused as exc:
+            violations.append(checklib.violation(
+                check, "error", bench_name, None, "sim_tone_refused",
+                [exc.kind, corner["name"]],
+                f"{bench_name} @ {corner['name']}: tone refused: {exc}",
                 "convlib"))
     if err_kinds:
         tail_lines = [ln for ln in (stderr or stdout).strip().splitlines() if ln.strip()]

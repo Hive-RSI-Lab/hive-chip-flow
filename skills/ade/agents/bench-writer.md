@@ -64,8 +64,12 @@ A converter's static curve is not computed in `.control`. Write the sweep with
 `set numdgt=15` first and a `* static_ramp_codes: <N>` comment line; sim_run
 scores it through `engine/lib/convlib.py`'s `static_ramp` as `dnl_max_abs`,
 `inl_max_abs` (endpoint line), `inl_best_fit_max_abs`, `monotonic` and
-`missing_code_count`. A bench or lab script with a sampled tone calls
-`convlib.dynamic` the same way, with fin from `convlib.coherent_tone`.
+`missing_code_count`. A converter's dynamic measures are not computed in
+`.control` either. Sample the tone once per 1/fs and write the record with
+`wrdata {{TONE_FILE}} <vector>`, with a `* tone: fs=<Hz> fin=<Hz> nbits=<N>
+n=<samples>` comment line. Take fin from `convlib.coherent_tone`. sim_run
+scores the record through `convlib.dynamic` as `sndr`, `snr`, `sfdr`, `thd`
+and `enob`. A cosim or lab bench calls `convlib.dynamic` itself.
 
 **Hard rules:** never read or write `netlist/`. Never write a bound
 looser than the spec's own to make a future sizing pass easier - a bench
