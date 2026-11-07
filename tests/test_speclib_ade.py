@@ -300,3 +300,21 @@ def test_bound_tighter_than_spec_is_a_violation():
     out = speclib.lint_measures_vs_bench_bounds(
         _spec_with_corners(None), _bench_bounds(min=9e6, max=10e6))
     assert [v["kind"] for v in out] == ["bench_bound_value_mismatch"]
+
+
+def test_erc_nets_reads_power_and_ranges():
+    spec = {**GOOD_SPEC, "erc_nets": {"iref_node": {"min": 0, "max": 0.6},
+                                      "vhi": {"power": 6}}}
+    assert speclib.lint_spec_ade(spec) == []
+    assert speclib.erc_nets(spec) == {"iref_node": {"min": 0.0, "max": 0.6},
+                                      "vhi": {"power": 6.0}}
+    assert speclib.erc_nets(GOOD_SPEC) == {}
+
+
+def test_malformed_erc_nets_is_a_violation():
+    for bad in ({"iout": {"min": 1, "max": 0}}, {"iout": {"max": 3}},
+                {"iout": {"power": "3.3"}}, ["iout"], {"iout": {"power": True}}):
+        spec = {**GOOD_SPEC, "erc_nets": bad}
+        assert speclib.erc_nets(spec) is None, bad
+        kinds = {v["kind"] for v in speclib.lint_spec_ade(spec)}
+        assert "bad_erc_nets" in kinds, bad

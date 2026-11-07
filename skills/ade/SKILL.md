@@ -123,10 +123,11 @@ P6 -> done and never visits P7/P8.
 | mc | P4 | Monte Carlo yield >= `mc.yield_min`, only when `mc.enabled: true`; an `m=N` MOS or bipolar gets `par=N` in the MC deck, or the PDK gives it one unit's mismatch, and an `m=N` on a user subckt carries down to the devices inside (a subckt defined elsewhere is listed `unhandled` in `par_added`) | netlist/, tb/, spec mc |
 | drc | P5 | 0 findings from klayout's GF180 signoff deck (magic DRC is not run) | layout/gen_<block>.py |
 | lvs | P5 | netgen: the generated layout matches `netlist/<block>.cir` at its sizing | layout/, netlist/, sizing |
+| erc | P5 | CVC on the extracted layout: no unwaived device over its rating (gate oxide, junctions), wrong well or bulk tie, floating gate or forward-biased diode; pins at `supply.vdd`, or `erc_nets`; waivers in `spec/erc_waivers.yaml` need a reason and an owner | layout/, spec/erc_waivers.yaml |
 | pex_sim | P5 | magic extraction with R and C, then the pex bench at typical inside its bounds | layout/, layout_ref/ |
 | release | P6 | every gate above fresh-pass on the current inputs (`mc` may be declared not applicable) | state.json |
 
-drc, lvs and pex_sim each rebuild the GDS from the generator on every run.
+drc, lvs, erc and pex_sim each rebuild the GDS from the generator on every run.
 Every gate that runs ngspice cuts a run off at its default limit (60 s;
 30 s for netlist_lint, 120 s for pex_sim). A block whose benches are slow, such
 as a pex bench on a large RC netlist, sets `sim_timeout_s: {<gate>: <seconds>}`
@@ -179,7 +180,7 @@ On gate fail (exit 1, `failing` findings with `kind`/`file`/`module`):
    | sizing | sizing/sizing.yaml | `sizing_edit` (or `netlist_edit` when the fixer moved a value in netlist/) | sim_tt, sim_pvt, bench_strength, mc; lvs, pex_sim once a layout exists |
    | testbench | tb/ | nothing - ade has no bench edit class; the tb/ hash stales what reads it | spec_lint (its bench cross-check is not hashed), then the failed gate and every P4 gate after it |
    | testbench | layout_ref/ | `layout_code_edit` - the pex bench is not a hashed input, only the mark stales pex_sim | pex_sim |
-   | layout | layout/gen_<block>.py | `layout_code_edit` | drc, lvs, pex_sim |
+   | layout | layout/gen_<block>.py | `layout_code_edit` | drc, lvs, erc, pex_sim |
 
 6. Re-run the gate that failed with `--workspace` - every attempt records.
 7. A fixer that regressed: `state.py restore --workspace <ws> --label

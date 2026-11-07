@@ -124,6 +124,12 @@ CHECK_KINDS = {"sim", "formal", "both", "measure"}
 #                        one more magic extraction and ngspice run per variant
 #                        in engine/reference/pex_rc_variants.yaml, each with the
 #                        process the table pairs it with. Absent: none
+#     erc_nets: {<pin>: {power: V} | {min: V, max: V}}   optional; the
+#                        voltage the ERC gate (check_analog_erc.py) gives a
+#                        pin other than supply.vdd's `vdd` and the 0 V
+#                        `vss`/`gnd`: a supply at `power` volts, or a signal
+#                        anywhere in [min, max]. Absent: a signal pin swings
+#                        0 V to supply.vdd (erc_nets())
 
 ADE_MEASURE_CORNER_KINDS = {"default", "all"}
 # the gates that run ngspice, each with a --timeout and a default of its own
@@ -263,6 +269,11 @@ def lint_spec_ade(spec: dict, rel_path: str = "spec/spec.yaml") -> list[dict]:
         if problem:
             bad("bad_sim_timeout", problem)
 
+    if "erc_nets" in spec and erc_nets(spec) is None:
+        bad("bad_erc_nets", "spec.yaml 'erc_nets' must map each pin name to "
+                            "{power: volts} or {min: volts, max: volts} "
+                            "with min <= max")
+
     if "pex_corners" in spec:
         field = spec["pex_corners"]
         if field != "all" and not (isinstance(field, list) and field and all(
@@ -352,6 +363,30 @@ def footprint_um(spec: dict) -> dict | None:
                 or not 0 < v < float("inf"):
             return None
     return {"width": float(fp["width"]), "height": float(fp["height"])}
+
+
+def erc_nets(spec: dict) -> dict | None:
+    """spec.yaml's `erc_nets` as {pin: {"power": V} | {"min": V, "max": V}}
+    with float volts ({} when absent), or None when malformed
+    (lint_spec_ade refuses that, and so does check_analog_erc.py)."""
+    field = spec.get("erc_nets", {}) if isinstance(spec, dict) else {}
+    if not isinstance(field, dict):
+        return None
+    out = {}
+    for pin, rng in field.items():
+        if not (isinstance(pin, str) and pin.strip() and isinstance(rng, dict)
+                and set(rng) in ({"power"}, {"min", "max"})):
+            return None
+        vals = {}
+        for k, v in rng.items():
+            if isinstance(v, bool) or not isinstance(v, (int, float)) \
+                    or not math.isfinite(v):
+                return None
+            vals[k] = float(v)
+        if "min" in vals and vals["min"] > vals["max"]:
+            return None
+        out[pin] = vals
+    return out
 
 
 def harden_signoff(spec: dict) -> dict | None:

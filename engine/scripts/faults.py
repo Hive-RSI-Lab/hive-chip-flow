@@ -10,7 +10,8 @@ rung into a scratch workspace and confirms the UNTOUCHED reference passes
 every gate its `faults/manifest.yaml` names; then, for each manifest entry,
 makes a FRESH scratch copy, imports its `plant.py` and calls `plant(ws)`,
 runs the ONE named gate, and checks the result against `expect` ({status:
-pass|fail, kind: <a kind among the failing findings>}) - "the suite passes
+pass|fail, kind: <a kind among the failing findings>, refs: <names one
+failing finding of that kind must all carry>}) - "the suite passes
 when every fault is caught with the expected finding and the untouched
 reference passes every gate" (docs/design.md section 3). A fault whose
 gate must refuse rather than run (a gate that did not run is a refusal,
@@ -162,6 +163,20 @@ def check_expect(fault_name: str, result: dict, expect: dict) -> list[str]:
         if want_kind not in kinds:
             problems.append(f"{fault_name}: expected a failing finding of "
                             f"kind {want_kind!r}, got {sorted(k for k in kinds if k)}")
+    want_refs = expect.get("refs")
+    if want_refs:
+        # the finding must NAME what was planted (a device, a net), not
+        # just be of the right kind somewhere in the block
+        want = {str(r) for r in want_refs}
+        named = [v for v in result.get("failing", [])
+                 if (not want_kind or v.get("kind") == want_kind)
+                 and want <= {str(r) for r in v.get("refs") or []}]
+        if not named:
+            problems.append(f"{fault_name}: expected a failing finding"
+                            + (f" of kind {want_kind!r}" if want_kind else "")
+                            + f" naming {sorted(want)}, got "
+                            + str(sorted({(v.get('kind'), tuple(v.get('refs') or []))
+                                          for v in result.get('failing', [])})))
     return problems
 
 

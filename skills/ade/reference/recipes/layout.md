@@ -1,4 +1,4 @@
-# layout - generator code to a GDS that passes drc, lvs and pex_sim
+# layout - generator code to a GDS that passes drc, lvs, erc and pex_sim
 
 Layout is code (docs/design.md 5). The layout-writer writes
 `layout/gen_<block>.py`, `layout_gen.py` runs it, and klayout, netgen and
@@ -24,12 +24,13 @@ If it doesn't, spawn the bench-writer in PEX MODE first.
   them by position).
 - `layoutlib.finalize()` last, which snaps to the grid and flattens.
 
-## The three gates, and who fixes what
+## The four gates, and who fixes what
 
 | gate | reads | a failure goes to |
 |---|---|---|
 | drc | klayout GF180 signoff deck, per rule | layout-fixer (`analog_drc.md` remediation, by rule family) |
 | lvs | netgen, layout vs netlist at its sizing | layout-fixer, unless the netlist is what is wrong |
+| erc | CVC on the extraction: overvoltage per device rating, well and bulk ties, floating gates, forward-biased diodes; pin voltages from `supply.vdd` and `erc_nets` | layout-fixer (`analog_erc.md`); a pin range that is wrong is a spec fix |
 | pex_sim | magic extraction with R and C, pex bench at each `pex_corners` corner, `pex_rc_knobs` knob and `pex_rc_corners` variant | layout-fixer for `measure_out_of_bounds`, bench-writer for `measure_missing` |
 
 Declare `layout_code_edit` after every generator change, including each

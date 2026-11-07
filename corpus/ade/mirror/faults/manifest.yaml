@@ -80,6 +80,19 @@ faults:
     expect:
       status: fail
       kind: lvs_mismatch
+  # erc (CVC on the extraction): each plant must fail AND name the device
+  - name: erc_3v3_device_on_6v_net
+    gate: erc
+    plant: plant_erc_overvoltage.py
+    expect: {status: fail, kind: overvoltage_vgs, refs: [xmout, iout]}
+  - name: erc_floating_gate
+    gate: erc
+    plant: plant_erc_floating_gate.py
+    expect: {status: fail, kind: floating_gate, refs: [iout, vss]}
+  - name: erc_pmos_nwell_tap_on_vss
+    gate: erc
+    plant: plant_erc_bulk_tie.py
+    expect: {status: fail, kind: bulk_tie, refs: [vdd, vss]}
   - name: long_min_width_output_line
     gate: pex_sim
     plant: plant_pex_long_output_line.py
