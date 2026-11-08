@@ -350,7 +350,65 @@ def lint_spec_ade(spec: dict, rel_path: str = "spec/spec.yaml") -> list[dict]:
                                       "\"all\" or a non-empty list of variant "
                                       "names")
 
+    out += _lint_feedback(spec, bad)
     return out
+
+
+# a block whose top name says it closes a loop (an op amp, an LDO, a PLL)
+FEEDBACK_NAME_RE = r"(^|_)(ota|opamp|op_amp|amp|ldo|regulator|pll)(_|$)"
+STABILITY_MEASURE = "pm_deg"
+
+
+def _lint_feedback(spec: dict, bad) -> list[dict]:
+    """spec.yaml `feedback: true` says the block closes a loop (issue #100):
+    a loop needs a stability measure, so the spec must bound `pm_deg` (the
+    stb_tb template's Tian phase margin) with a `min`, at every corner the
+    spec sweeps - a margin met at tt alone is the PLL buffer's failure. A
+    top name that reads as a loop (FEEDBACK_NAME_RE) with no `feedback`
+    key is a warning, `feedback_undeclared`: the owner says yes or no.
+    Calls `bad` for each finding; returns [] (the caller's list holds them)."""
+    import re
+
+    fb = spec.get("feedback")
+    if fb is not None and not isinstance(fb, bool):
+        bad("bad_feedback", "spec.yaml 'feedback' must be true or false")
+        return []
+    if fb is None:
+        top = spec.get("top")
+        if isinstance(top, str) and re.search(FEEDBACK_NAME_RE, top.lower()):
+            bad("feedback_undeclared",
+                f"top {top!r} reads as a block that closes a loop, but "
+                "spec.yaml has no 'feedback' key: say 'feedback: true' (and "
+                f"bound {STABILITY_MEASURE}) or 'feedback: false'",
+                refs=[top], severity="warning")
+        return []
+    if not fb:
+        return []
+    m = next((m for m in spec.get("measures") or []
+              if isinstance(m, dict) and m.get("name") == STABILITY_MEASURE),
+             None)
+    bounds = m.get("bounds") if m else None
+    if not isinstance(bounds, dict) or not isinstance(bounds.get("min"),
+                                                      (int, float)):
+        bad("feedback_no_stability",
+            f"spec.yaml says 'feedback: true' but has no measure "
+            f"{STABILITY_MEASURE!r} with a 'min' bound: a loop needs a "
+            "phase margin (skills/ade/templates/stb_tb.cir)",
+            refs=[STABILITY_MEASURE])
+        return []
+    scope = m.get("corners", "default")
+    if not isinstance(scope, str) or scope not in ADE_MEASURE_CORNER_KINDS:
+        bad("stability_not_all_corners",
+            f"measure {STABILITY_MEASURE!r} is scoped to corners "
+            f"{m.get('corners')}: a feedback block's phase margin is bound "
+            "at every corner the spec sweeps ('default' or 'all')",
+            refs=[STABILITY_MEASURE])
+    if m.get("severity", "error") != "error":
+        bad("stability_not_error",
+            f"measure {STABILITY_MEASURE!r} has severity "
+            f"{m.get('severity')!r}: a feedback block's phase margin is an "
+            "error bound", refs=[STABILITY_MEASURE])
+    return []
 
 
 def _timeout_ok(v) -> bool:

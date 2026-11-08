@@ -1,0 +1,60 @@
+* ota_stb_tb.cir - loop stability of the two_stage_miller_ota in unity-gain
+* feedback (spec.md, Requirement), from skills/ade/templates/stb_tb.cir.
+* Tian's method: the loop is broken at no point. A 0 V source vprobe sits in
+* the feedback wire between the amp output `out` and the feedback node `fb`
+* (tied to inn); one AC run injects 1 V in series (vprobe), a second 1 A in
+* shunt (iprobe), and T = (Tv*Ti - 1)/(Tv + Ti + 2) is the loop gain with
+* every loading in place (the template's header has the derivation).
+.include '{{PDK}}/libs.tech/ngspice/design.spice'
+.lib '{{PDK}}/libs.tech/ngspice/sm141064.spice' {{CORNER}}
+.lib '{{PDK}}/libs.tech/ngspice/sm141064.spice' {{MIM_CORNER}}
+.temp {{TEMP_C}}
+.include '{{NETLIST}}'
+{{SIZING}}
+
+.param vddp={{VDD}} vcm='vddp/2' ib=10u cl=2p
+vdd_src vdd 0 {vddp}
+vss_src vss 0 0
+vin inp 0 dc {vcm}
+ibias_src 0 ibias dc {ib}
+* --- DUT BEGIN
+xdut inp fb out vdd vss ibias two_stage_miller_ota
+cload out 0 {cl}
+* --- DUT END
+vprobe fb out dc 0 ac 1
+iprobe 0 out dc 0 ac 0
+
+.control
+set noaskquit
+op
+let iq_v = -i(vdd_src)
+let vos_v = v(out) - v(inp)
+ac dec 40 1 100g
+let tv = -v(out)/v(fb)
+alter @vprobe[acmag] = 0
+alter @iprobe[acmag] = 1
+ac dec 40 1 100g
+let ti = (1 + i(vprobe))/i(vprobe)
+let tl = (ac1.tv*ti - 1)/(ac1.tv + ti + 2)
+let iq_r = op1.iq_v
+let vos_r = op1.vos_v
+let tdb = db(tl)
+let tph = cph(tl)*180/pi
+meas ac ugf_v when tdb=0 fall=1
+meas ac ph_ugf find tph at=ugf_v
+meas ac a0_v find tdb at=10
+meas ac f180 when tph=-180 fall=1
+meas ac g180 find tdb at=f180
+let pm_v = 180 + ph_ugf
+let gm_v = -g180
+echo
+echo "  Measurements for AC Analysis (ota_stb_tb, computed in .control)"
+echo "pm_deg = $&pm_v"
+echo "gm_db = $&gm_v"
+echo "ugf_hz = $&ugf_v"
+echo "a0_db = $&a0_v"
+echo "iq = $&iq_r"
+echo "vos = $&vos_r"
+echo
+.endc
+.end

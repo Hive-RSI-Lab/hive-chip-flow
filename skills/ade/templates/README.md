@@ -16,6 +16,15 @@ when a corpus rung isn't a close enough match.
   (a `sim_not_settled` finding) instead of a number clamped to the
   window. See `skills/ade/agents/bench-writer.md`.
 
+- `stb_tb.cir`, `psrr_tb.cir`, `noise_tb.cir` - the three benches a
+  block in feedback owes (issue #100), each with fixed `.measure` names:
+  `pm_deg`, `gm_db`, `ugf_hz` (and `a0_db`) from Tian's loop gain, the loop
+  never broken; `psrr_dc_db` and `psrr_at_f_db` from AC on vdd; and
+  `onoise_rms_v`, the output noise integrated over a stated band, with the
+  per-device split printed after the measures and not scored. A spec with
+  `feedback: true` must bound `pm_deg` at every corner (spec_lint's
+  `feedback_no_stability`). `corpus/ade/ota/` runs all three.
+
 Two sidecar shapes an agent has to get right and this template does not
 cover directly (they differ from each other - see
 `corpus/ade/mirror/tb/mirror_tb.bounds.json` vs

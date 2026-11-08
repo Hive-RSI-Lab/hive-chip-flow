@@ -860,6 +860,28 @@ def test_b_source_mutants_keep_the_expression_delimiters():
     assert got["bx_gain_halved"][1] == "bx a 0 i={(v(b)*2)*0.5} tc1=0"
 
 
+def test_cap_mutants_halve_and_remove_a_mim_and_a_plain_cap():
+    """Issue #100: a compensation cap gets cap_halved and cap_removed, never
+    size_doubled or connection_removed."""
+    import netlistlib
+    text = ("xcc d2 out cap_mim_2f0_m4m5_noshield c_width=cc_w c_length=cc_w\n"
+            "cc1 a b 2p\n"
+            "cc2 a b {cval} m=1\n")
+    muts = netlistlib.device_mutants(text, ["xcc", "cc1", "cc2"])
+    assert sorted(m["kind"] for m in muts) == ["cap_halved"] * 3 + \
+        ["cap_removed"] * 3
+    got = {m["id"]: m["apply"](text).splitlines() for m in muts}
+    assert got["xcc_cap_halved"][0].split()[3:5] == [
+        "cap_mim_2f0_m4m5_noshield", "c_width={(cc_w)*0.5}"]
+    assert "c_length=cc_w" in got["xcc_cap_halved"][0]
+    assert got["cc1_cap_halved"][1] == "cc1 a b 1e-12"
+    assert got["cc2_cap_halved"][2] == "cc2 a b {(cval)*0.5} m=1"
+    assert got["xcc_cap_removed"][0] == \
+        "* xcc removed by bench_strength (cap_removed)"
+    assert got["cc1_cap_removed"][1:] == [
+        "* cc1 removed by bench_strength (cap_removed)", text.splitlines()[2]]
+
+
 def test_an_undeclared_b_source_is_named_not_counted(tmp_path, monkeypatch, capsys):
     code, out = run_with_extra(tmp_path, monkeypatch, capsys, BSRC_LINE)
     assert code == 1 and not errors(out), out

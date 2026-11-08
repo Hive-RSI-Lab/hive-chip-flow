@@ -1,0 +1,33 @@
+* ota.cir - the two_stage_miller_ota subcircuit (skills/ade/reference/
+* topologies/two_stage_miller_ota.sp, this rung's own sizing). A subckt
+* LIBRARY, never directly runnable: the tb/ benches put it in unity-gain
+* feedback (out tied to inn) and drive it.
+*
+* Stage 1: NMOS pair xm1/xm2 on the tail xmt, PMOS mirror load xm3/xm4.
+* Stage 2: PMOS common source xm6 with the NMOS sink xm7. xmb is the bias
+* diode: the bench forces a current into the ibias pin and xmt/xm7 mirror
+* it. xcc is the Miller compensation cap from the first stage's output d2
+* to out, a MIM cap (cap_mim_2f0_m4m5_noshield, 2 fF/um^2, the MIM the
+* benches' {{MIM_CORNER}} section corners).
+* inp rising pulls d2 down and out up: inp is the non-inverting input.
+*
+* Sizing: every W/L is a GLOBAL .param named in sizing/sizing.yaml, with the
+* defaults below equal to that file's values (the bench's {{SIZING}} line
+* comes after this file and wins). Device lines use bare names (w=w_in, not
+* w={w_in}) so bench_strength's size mutant ("*2") is honoured.
+.param w_b=4e-6 w_t=8e-6 l_b=1e-6
+.param w_in=10e-6 l_in=1e-6
+.param w_ld=4e-6 l_ld=1e-6
+.param w_2=80e-6 w_s=80e-6 l_2=1e-6
+.param cc_w=32e-6
+.subckt two_stage_miller_ota inp inn out vdd vss ibias
+xmb  ibias ibias vss  vss nfet_03v3 w=w_b  l=l_b
+xmt  tail  ibias vss  vss nfet_03v3 w=w_t  l=l_b
+xm1  d1    inn   tail vss nfet_03v3 w=w_in l=l_in
+xm2  d2    inp   tail vss nfet_03v3 w=w_in l=l_in
+xm3  d1    d1    vdd  vdd pfet_03v3 w=w_ld l=l_ld
+xm4  d2    d1    vdd  vdd pfet_03v3 w=w_ld l=l_ld
+xm6  out   d2    vdd  vdd pfet_03v3 w=w_2  l=l_2
+xm7  out   ibias vss  vss nfet_03v3 w=w_s  l=l_b
+xcc  d2    out   cap_mim_2f0_m4m5_noshield c_width=cc_w c_length=cc_w
+.ends two_stage_miller_ota

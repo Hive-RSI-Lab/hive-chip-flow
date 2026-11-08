@@ -1,0 +1,8 @@
+[
+  {"measure": "pm_deg", "min": 60, "sensitivity": 0.05},
+  {"measure": "gm_db", "min": 10},
+  {"measure": "ugf_hz", "min": 5.0e6},
+  {"measure": "a0_db", "min": 80},
+  {"measure": "iq", "min": 1.5e-4, "max": 3.5e-4},
+  {"measure": "vos", "min": -1.0e-3, "max": 1.0e-3}
+]

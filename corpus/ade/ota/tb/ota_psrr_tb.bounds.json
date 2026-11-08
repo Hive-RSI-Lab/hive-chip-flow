@@ -1,0 +1,4 @@
+[
+  {"measure": "psrr_dc_db", "min": 80},
+  {"measure": "psrr_at_f_db", "min": 30}
+]
