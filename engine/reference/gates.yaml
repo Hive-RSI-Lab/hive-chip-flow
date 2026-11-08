@@ -427,13 +427,17 @@ gates:
       # spec.yaml's ir_drop_mv (default 2 % of supply.vdd); ir_rails: [] is a
       # block with no supply pin, EM alone. A current magic's geometry cannot
       # place, or a cut it draws where the GDS has none, is a refusal.
+      # #268: each PDK poly resistor's body |I|/W against its DRM limit and
+      # each head's contact row per contact; a block with
+      # <block>_emir_tran_tb.cir is also held over its .tran window to the
+      # mean, RMS and duty-scaled peak of em_limits.yaml's `pulsed:`.
       phase: P5
       tool: analog_em_ir
       strength: 0
       fail_severities: [error]
       max_count: 0
       fault: "a supply strap narrowed to minimum width (also: a via array cut to one cut)"
-      description: "0 wires or cuts over the DC EM limit; every rail's IR drop inside the bound."
+      description: "0 wires, cuts, resistor bodies or head rows over the EM limit (DC, and pulsed with a transient bench); every rail's IR drop inside the bound."
     release:
       # Real now, the same tool as vde's row (check_release.py ->
       # attest.build()): every ade gate above needs a fresh recorded pass or

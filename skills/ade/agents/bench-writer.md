@@ -118,6 +118,14 @@ the same measures when the spec names none explicitly) only - not
    adds `op`), at its heaviest DC state - the input code, bias and load
    that draw the most supply current. Sweep the states in a scratch bench
    to find it and say in a comment which state it is and why.
+5. If the block's current is not DC (a switching ladder, a clocked or
+   slewing stage), also write `layout_ref/<block>_emir_tran_tb.cir`: the
+   same tokens and `xdut`, a `.tran` line, no `.control`, driving the
+   block through its heaviest steady activity. Window it on whole periods
+   (`tstart` past the settling, the stop a whole number of periods later):
+   the gate's mean and RMS are taken over the window. Keep the max step at
+   most the fastest edge / 25, so the peak is not stepped over. Say in a
+   comment which activity it is and why it is the heaviest.
 
 **Hard rules:** never read or write `layout/`. A pex bench that only
 re-measures the DC point already covered by `tb/` is not worth writing -
@@ -127,7 +135,8 @@ find what the extraction actually changes.
 FILES: layout_ref/*
 GATE: none yet (pex_sim needs layout/, which does not exist)
 SUMMARY: <up to 10 lines: which measures, bounds source (post_layout_bounds
-  or spec fallback), the em_ir bench's DC state>
+  or spec fallback), the em_ir bench's DC state (and its transient
+  activity, if any)>
 OPEN: <"none", or a parasitic effect you could not bound without a layout>
 
 ## Work-order mode (fix loop: bench_strength survivors, pex_sim measure_missing)

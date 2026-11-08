@@ -25,25 +25,31 @@ Routing, one scheme for every net:
   - a dummy's two ends are stubbed to the vss track the same way;
   - every internal net is labelled on its metal1 track (34/0 text: a net
     name for the extraction, never a pin);
-  - each buffer's Z gets a via1 inside its Z metal1 and a metal2 stub left
-    to its d_k track; the buffer stack sits below the resistor rows so no
+  - each buffer's Z gets Z_CUTS via1s along its Z metal1 band (its edges
+    peak near 2 mA) and a metal2 stub left to its d_k track; the buffer stack sits below the resistor rows so no
     Z stub crosses a resistor stub;
-  - vss: the resistors' substrate taps are joined by one metal1 strip at
-    their x, which drops to a metal2 bus under everything; the bus lands on
-    the vss track (rtb's end) and on a metal2 strip joining the buffers'
-    VSS rails. vdd: a metal2 strip joining the buffers' VDD rails.
   - supplies for the tile's PDN (its Metal4 stripes join a macro only on
-    Metal3): vss is a metal3 strap along the bottom, the full cell width,
-    over the metal2 vss bus and joined to it by via2s; vdd is a metal3
-    strap along the top, the full width, reached by the vdd metal2 strip
-    run up to it and a via2. Nothing else is on metal3, nothing above it.
+    Metal3): vss is a metal3 strap along the bottom, vdd one along the
+    top, each the full cell width and STRAP_H tall. The resistors'
+    substrate taps are joined by one metal1 strip at their x, which drops
+    to the vss strap; the vss track (rtb's end) drops to it too, each
+    through a via1 and via2 array.
+  - the buffers' rails: each VDD and VSS rail is carried right of the row
+    on a RAIL_H metal1 extension, drawn from the right filltie's left
+    edge (its own rail necks down to a 0.34um tap stalk), to a metal2 pad of the same size, joined
+    by a via1 array; a via2 array lands it on a metal3 riser, vdd's
+    running up into the top strap, vss's down into the bottom one. The
+    rails carry the bit drivers' switching current (the em_ir transient
+    bench), so every hop is wide and many-cut. Nothing else is on metal3,
+    nothing above it.
 Pins are labelled in the subckt's own order. Every signal pin is a metal2
 track out to the cell's RIGHT edge, labelled on metal2 at that edge (the
 tile router lands there, never on buried metal): each buffer's I gets a
 via1 at its right end and a metal2 wire right, at the I strip's own y,
 past the row's end; vout's top-left stub is carried on right the same way.
-The wires dip to metal1 for 3um to pass under the vdd/vss metal2 strips,
-then come back up to a short metal2 pin stub at the edge. Each Z stub
+The wires dip to metal1 for 4.4um between the bridge via1s (BR_X0,
+BR_X1), clear of the rails' pads, then come back up to a short metal2
+pin stub at the edge. Each Z stub
 runs in the lower Z metal1 band, 0.4um below the I wire. vdd and vss are
 labelled on their metal3 straps.
 """
@@ -58,11 +64,13 @@ import layoutlib  # noqa: E402
 L1 = layoutlib.GF180_LAYER["metal1"]
 L2 = layoutlib.GF180_LAYER["metal2"]
 L2LBL = layoutlib.GF180_LAYER["metal2_label"]
+VIA1 = layoutlib.GF180_LAYER["via1"]
 VIA2 = (38, 0)
 L3 = (42, 0)
 L3LBL = (42, 10)
 VIA2_SIZE = 0.26
-STRAP_H = 1.0          # metal3 supply strap height
+STRAP_H = 2.8          # metal3 supply strap height (the vss one clear of row 0)
+CUT_PITCH = 0.52       # via1/via2 array pitch (0.26 cut, 0.26 space)
 
 CELL = "r2r_dac_analog"
 PINS = [f"dac_code[{k}]" for k in range(7, -1, -1)] + ["vout", "vdd", "vss"]
@@ -86,13 +94,18 @@ TIE_W = 1.12
 # The Z via's metal2 pad (y 0.90-1.30) sits 0.445um below the I wire's
 # (1.745-2.145), over M2.2a's 0.28um.
 Z_VIA = (22.68, 1.10)
+Z_CUTS = 4             # via1s along Z's band: its edges peak near 2 mA
 I_VIA = (9.50, 1.945)
-# right of the rows: the bridge's via1s, the vdd/vss strips between them
+# right of the rows: the bridge's via1s (at the I wires' y), the rails'
+# pads (at the rails' y, 0.945um clear of the I wires) and two metal3
+# risers over both, vdd's left of vss's
 BR_X0 = 0.6            # first bridge via1, past the row's end
-VDD_DX = 2.0           # vdd metal2 strip, past the row's end
-VSS_DX = 3.5           # vss metal2 strip, past the row's end
 BR_X1 = 5.0            # second bridge via1, past the row's end
 EDGE_DX = 6.0          # the cell's right edge, past the row's end
+RAIL_H = 1.6           # rail extension and pad height
+PAD_X = (0.3, 5.7)     # rail pads, past the row's end
+VDD_RISER = (0.0, 2.7)  # metal3 vdd riser, past the row's end
+VSS_RISER = (3.0, 6.0)  # metal3 vss riser, past the row's end
 
 
 def resistor_nets():
@@ -123,11 +136,34 @@ def matched_rows():
     return [(RU_L, full), (RB_L, trims)]
 
 
-def via2(top, cx, cy):
-    """A metal2-to-metal3 cut; the metal2 wire (0.4 wide) and the metal3
-    strap it sits in enclose it."""
+def cut_array(top, x0, y0, x1, y1, layer, enc=0.07):
+    """Fill the box (x0, y0, x1, y1) with 0.26 cuts at CUT_PITCH, each
+    `enc` inside it, centred on the 5nm grid; returns the cut count."""
     h = VIA2_SIZE / 2
-    layoutlib.rect(top, cx - h, cy - h, cx + h, cy + h, VIA2)
+    span_x = round(x1 - x0 - 2 * (enc + h), 6)
+    span_y = round(y1 - y0 - 2 * (enc + h), 6)
+    if span_x < 0 or span_y < 0:
+        raise layoutlib.LayoutError(f"no room for a cut in {x0, y0, x1, y1}")
+    nx, ny = int(span_x // CUT_PITCH) + 1, int(span_y // CUT_PITCH) + 1
+    cx0 = (x0 + x1) / 2 - (nx - 1) * CUT_PITCH / 2
+    cy0 = (y0 + y1) / 2 - (ny - 1) * CUT_PITCH / 2
+    for i in range(nx):
+        for j in range(ny):
+            cx = round((cx0 + i * CUT_PITCH) / 0.005) * 0.005
+            cy = round((cy0 + j * CUT_PITCH) / 0.005) * 0.005
+            layoutlib.rect(top, cx - h, cy - h, cx + h, cy + h, layer)
+    return nx * ny
+
+
+def drop_to_strap(top, cx, cy):
+    """A via1 and via2 stack rising from (cx, cy): metal1 and metal2 pads
+    one wire (W) wide, 1.2um tall, landing on the metal3 strap above them;
+    as wide as the wire, so the cell's outline stays the bus's."""
+    x0, y0, x1, y1 = cx - W / 2, cy - W / 2, cx + W / 2, cy + 1.2 - W / 2
+    for layer in (L1, L2):
+        layoutlib.rect(top, x0, y0, x1, y1, layer)
+    cut_array(top, x0, y0, x1, y1, VIA1)
+    cut_array(top, x0, y0, x1, y1, VIA2)
 
 
 def std_cell(name):
@@ -257,7 +293,8 @@ def generate():
             ref.move((x, dy))
         k = r  # bit k in row k
         zx, zy = x_buf + Z_VIA[0], ty(r, Z_VIA[1])
-        layoutlib.via1(top, zx, zy)
+        for j in range(Z_CUTS):     # leftward, under the wire to the track
+            layoutlib.via1(top, zx - j * CUT_PITCH, zy)
         dx = track_x[f"d{k}"]
         layoutlib.rect(top, dx - W / 2, zy - W / 2, zx + W / 2, zy + W / 2, L2)
         layoutlib.via1(top, dx, zy)
@@ -265,31 +302,32 @@ def generate():
         layoutlib.via1(top, x_buf + I_VIA[0], iy)
         edge_pins.append((f"dac_code[{k}]", x_buf + I_VIA[0], iy))
 
-    # supply rails: VSS at y = 0, 2H, 4H, ...; VDD at H, 3H, ...
-    x_vdd = x_row_end + VDD_DX
-    x_vss = x_row_end + VSS_DX
+    # supply rails: VSS at y = 0, 2H, 4H, ...; VDD at H, 3H, ...; each
+    # carried right on a RAIL_H metal1 extension, drawn over the right
+    # filltie (whose own 0.6 rail narrows to its 0.34 tap stalk) to a
+    # metal2 pad, via1 array between, and a via2 array to its supply's
+    # metal3 riser
     vdd_ys = [CELL_H * j for j in range(1, n_bufs + 1, 2)]
     vss_ys = [CELL_H * j for j in range(0, n_bufs + 1, 2)]
-    for y in vdd_ys:
-        layoutlib.rect(top, x_row_end - 0.5, y - 0.3, x_vdd + 0.3, y + 0.3, L1)
-        layoutlib.via1(top, x_vdd, y)
-    for y in vss_ys:
-        layoutlib.rect(top, x_row_end - 0.5, y - 0.3, x_vss + 0.3, y + 0.3, L1)
-        layoutlib.via1(top, x_vss, y)
-    layoutlib.rect(top, x_vdd - W / 2, min(vdd_ys) - W / 2, x_vdd + W / 2,
-                   max(vdd_ys) + W / 2, L2)
-    layoutlib.rect(top, x_vss - W / 2, y_bus - W / 2, x_vss + W / 2,
-                   max(vss_ys) + W / 2, L2)
+    px0, px1 = x_row_end + PAD_X[0], x_row_end + PAD_X[1]
+    risers = {"vdd": (x_row_end + VDD_RISER[0], x_row_end + VDD_RISER[1]),
+              "vss": (x_row_end + VSS_RISER[0], x_row_end + VSS_RISER[1])}
+    rh = RAIL_H / 2
+    for net, ys in (("vdd", vdd_ys), ("vss", vss_ys)):
+        r0, r1 = risers[net]
+        for y in ys:
+            layoutlib.rect(top, x_tie1, y - rh, px1, y + rh, L1)
+            layoutlib.rect(top, px0, y - rh, px1, y + rh, L2)
+            cut_array(top, px0, y - rh, px1, y + rh, VIA1)
+            cut_array(top, max(px0, r0), y - rh, min(px1, r1), y + rh, VIA2)
 
     # ---------------------------------------------------------- vss
+    # the substrate taps' strip and the vss track drop to the vss strap
     sx, s0, s1 = sub_x
     layoutlib.rect(top, s0, y_bus - W / 2, s1, y_res_top, L1)
     sxv = round(sx / 0.005) * 0.005
-    layoutlib.via1(top, sxv, y_bus)
-    layoutlib.rect(top, sxv - W / 2, y_bus - W / 2, x_vss + W / 2,
-                   y_bus + W / 2, L2)
-    layoutlib.via1(top, track_x["vss"], y_bus)
-    layoutlib.via1(top, x_vss, y_bus)
+    drop_to_strap(top, sxv, y_bus)
+    drop_to_strap(top, track_x["vss"], y_bus)
 
     # ---------------------------------------------------------- vout
     # carried right from its track along its top stub's y (that stub's own
@@ -310,31 +348,23 @@ def generate():
     # ---------------------------------------------------------- metal3
     bb = top.dbbox()
     x_l, x_r = bb.left, bb.right
-    # vss: strap over the metal2 vss bus (its lower edge at the bus's),
-    # via2 cuts along the bus clear of the bus's via1s
-    vss_y0 = y_bus - W / 2
+    # vss: strap along the bottom, its lower edge at the cell's (the
+    # drops' pads); its riser comes down into it from the top VSS rail
+    vss_y0 = bb.bottom
     vss_y1 = vss_y0 + STRAP_H
+    if vss_y1 > -0.3:
+        raise layoutlib.LayoutError("the vss strap reaches the buffer rows")
     layoutlib.rect(top, x_l, vss_y0, x_r, vss_y1, L3)
-    v1_xs = (sxv, track_x["vss"], x_vss)
-    n_v2 = 0
-    x = sxv + 2.0
-    while x < x_vss - 1.0:
-        xv = round(x / 0.005) * 0.005
-        if all(abs(xv - v) > 1.0 for v in v1_xs):
-            via2(top, xv, y_bus)
-            n_v2 += 1
-        x += 10.0
-    if n_v2 == 0:
-        raise layoutlib.LayoutError("no via2 from the vss bus to its strap")
+    r0, r1 = risers["vss"]
+    layoutlib.rect(top, r0, vss_y0, r1, max(vss_ys) + rh, L3)
     labels.append(("vss", x_l + 1.0, (vss_y0 + vss_y1) / 2, L3LBL))
-    # vdd: strap along the top; the vdd metal2 strip runs up to it
+    # vdd: strap along the top; its riser goes up into it from the lowest
+    # VDD rail
     vdd_y1 = bb.top
     vdd_y0 = vdd_y1 - STRAP_H
-    vdd_yc = round((vdd_y0 + vdd_y1) / 2 / 0.005) * 0.005
     layoutlib.rect(top, x_l, vdd_y0, x_r, vdd_y1, L3)
-    layoutlib.rect(top, x_vdd - W / 2, max(vdd_ys), x_vdd + W / 2,
-                   vdd_yc + W / 2, L2)
-    via2(top, x_vdd, vdd_yc)
+    r0, r1 = risers["vdd"]
+    layoutlib.rect(top, r0, min(vdd_ys) - rh, r1, vdd_y1, L3)
     labels.append(("vdd", x_l + 1.0, (vdd_y0 + vdd_y1) / 2, L3LBL))
 
     labels.sort(key=lambda lbl: PINS.index(lbl[0]))

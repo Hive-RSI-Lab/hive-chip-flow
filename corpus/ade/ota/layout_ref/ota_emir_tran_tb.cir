@@ -1,0 +1,29 @@
+* ota_emir_tran_tb.cir - the transient the em_ir gate
+* (engine/scripts/check_analog_em_ir.py) reads pulsed EM from (issue #268):
+* I_avg, I_rms and I_peak per strap and via over the window the .tran line
+* sets, at every corner of the spec's sweep. The gate fills in the pdk path,
+* the extracted netlist and the corner's process, temperature and supply;
+* no .control block, the gate adds the save, the run and the raw write.
+*
+* The OTA's pulsed state: the unity-gain follower of the em_ir op bench
+* (10uA into ibias) slewing a 1 V step (vdd/2 -/+ 0.5 V) into its 2 pF
+* load, the edge that pushes the second stage's xm6/xm7 current through out
+* and the supplies. Period 2 us (1 us per level, far past its settling);
+* the .tran tstart of 2 us skips the first period, so the window is exactly
+* one whole period, steady state. The peak is read during the 10 ns input
+* edges and the slew after them, so the max step is 400 ps, the edge over 25.
+.include '{pdk}/libs.tech/ngspice/design.spice'
+.lib '{pdk}/libs.tech/ngspice/sm141064.spice' {corner}
+.lib '{pdk}/libs.tech/ngspice/sm141064.spice' {mim_corner}
+.include '{extracted}'
+.temp {temp_c}
+
+.param vddp={vdd} vlo='vddp/2-0.5' vhi='vddp/2+0.5'
+vdd vdd 0 dc {vdd}
+vin inp 0 pulse({{vlo}} {{vhi}} 50n 10n 10n 990n 2u)
+ibias_src 0 ibias dc 10u
+xdut inp out out vdd 0 ibias two_stage_miller_ota
+cload out 0 2p
+
+.tran 100p 4u 2u 400p
+.end
