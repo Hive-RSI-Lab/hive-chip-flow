@@ -4,7 +4,7 @@
  "block": "r2r_dac",
  "workspace": "blocks/r2r_dac",
  "created": "2026-09-25T05:42:01",
- "updated": "2026-11-08T09:51:13",
+ "updated": "2026-11-08T09:51:39",
  "phase": "P4",
  "toolchain": null,
  "gates": {
@@ -1184,14 +1184,14 @@
   "top_drc": {
    "phase": "P3",
    "status": "pass",
-   "attempts": 17,
+   "attempts": 18,
    "last": {
-    "ts": "2026-11-08T01:23:30",
+    "ts": "2026-11-08T09:51:39",
     "status": "pass",
     "failing_count": 0,
     "total": 0,
     "inputs": {
-     "top_gds": "dir_text:391fd6ebf81476e47d1ab8084aaf9f27e544f599b01b1cb2472b8d185c03e6c9",
+     "top_gds": "dir_text:2243d599fa33f822b244078e43e4f49e4b3b600a0655414af2fdf6c7bace7ae6",
      "top_spec": "json_canonical:d863d5e4ac42eb90b849bfae8bc19ecdb8167ca2c310bd40cdb64c48a4355186",
      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
      "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
@@ -1506,6 +1506,25 @@
      "total": 0,
      "inputs": {
       "top_gds": "dir_text:391fd6ebf81476e47d1ab8084aaf9f27e544f599b01b1cb2472b8d185c03e6c9",
+      "top_spec": "json_canonical:d863d5e4ac42eb90b849bfae8bc19ecdb8167ca2c310bd40cdb64c48a4355186",
+      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+      "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
+      "pdk_klayout": "dir_text:876da90e8aab65b830b36eca12bd720adfe8240a0952872419d9f2b4abda605d"
+     },
+     "strength": 0,
+     "job": null,
+     "facts": {
+      "magic_count": 0,
+      "klayout_count": 0
+     }
+    },
+    {
+     "ts": "2026-11-08T09:51:39",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "top_gds": "dir_text:2243d599fa33f822b244078e43e4f49e4b3b600a0655414af2fdf6c7bace7ae6",
       "top_spec": "json_canonical:d863d5e4ac42eb90b849bfae8bc19ecdb8167ca2c310bd40cdb64c48a4355186",
       "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
       "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
@@ -5348,8 +5367,8 @@
   "top_gds": {
    "path": "top/harden/runs/run/final/gds",
    "kind": "top_gds",
-   "sha256": "dir_text:391fd6ebf81476e47d1ab8084aaf9f27e544f599b01b1cb2472b8d185c03e6c9",
-   "hashed": "2026-11-08T01:24:04"
+   "sha256": "dir_text:2243d599fa33f822b244078e43e4f49e4b3b600a0655414af2fdf6c7bace7ae6",
+   "hashed": "2026-11-08T09:51:39"
   },
   "analog_spec": {
    "path": "analog/spec/spec.yaml",
@@ -5361,7 +5380,7 @@
    "path": "${PDK_ROOT}/SOURCES",
    "kind": "pdk_version",
    "sha256": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
-   "hashed": "2026-11-08T09:51:13"
+   "hashed": "2026-11-08T09:51:39"
   },
   "pdk_models": {
    "path": "${PDK_ROOT}/libs.tech/ngspice",
@@ -5421,13 +5440,13 @@
    "path": "${PDK_ROOT}/libs.tech/magic",
    "kind": "pdk_magic",
    "sha256": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
-   "hashed": "2026-11-08T09:51:06"
+   "hashed": "2026-11-08T09:51:39"
   },
   "pdk_klayout": {
    "path": "${PDK_ROOT}/libs.tech/klayout",
    "kind": "pdk_klayout",
    "sha256": "dir_text:876da90e8aab65b830b36eca12bd720adfe8240a0952872419d9f2b4abda605d",
-   "hashed": "2026-11-08T09:51:06"
+   "hashed": "2026-11-08T09:51:39"
   },
   "pdk_netgen": {
    "path": "${PDK_ROOT}/libs.tech/netgen",
@@ -5439,7 +5458,7 @@
    "path": "top/spec/spec.yaml",
    "kind": "top_spec",
    "sha256": "json_canonical:d863d5e4ac42eb90b849bfae8bc19ecdb8167ca2c310bd40cdb64c48a4355186",
-   "hashed": "2026-11-08T01:23:32"
+   "hashed": "2026-11-08T09:51:39"
   },
   "top_macros": {
    "path": "top/macros",
@@ -6918,6 +6937,14 @@
    "gate": "cosim",
    "status": "pass",
    "attempt": 21,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-11-08T09:51:39",
+   "event": "gate",
+   "gate": "top_drc",
+   "status": "pass",
+   "attempt": 18,
    "failing_count": 0
   }
  ]
