@@ -38,6 +38,7 @@ sys.path.insert(0, str(SCRIPTS))
 sys.path.insert(0, str(ENGINE / "lib"))
 import checklib  # noqa: E402
 import corners as corners_mod  # noqa: E402
+import padlib  # noqa: E402
 import simlib  # noqa: E402
 import speclib  # noqa: E402
 
@@ -77,6 +78,36 @@ def measure_corner_names(field) -> set[str]:
     sweep = corners_mod.spec_corners(corners_mod.load(), field,
                                      passives=corners_mod.PASSIVE_DEVICES)
     return set().union(*(corners_mod.names_of(c) for c in sweep))
+
+
+def ua_pin_violations(ws: Path, spec: dict, found: list[dict]) -> list[dict]:
+    """Every `ua_pins` entry must be a port of the top's `.subckt` in
+    netlist/*.cir: sim_run puts the ua pad model on that port of every
+    top instance in every bench. No netlist yet (spec_lint runs before the
+    designer writes one) leaves it to sim_run, which refuses then."""
+    if any(v["kind"] in ("bad_ua_pins", "no_top") for v in found):
+        return []
+    pins = padlib.ua_pins_of(spec)
+    nets = sorted((ws / "netlist").glob("*.cir"))
+    if not pins or not nets:
+        return []
+    top = spec["top"]
+    try:
+        ports = padlib.top_ports(
+            nets[0].read_text(encoding="utf-8", errors="replace"), top)
+    except padlib.PadRefused as exc:
+        return [checklib.violation(
+            "spec_lint", "error", SPEC_REL, None, "ua_pin_not_a_port",
+            list(pins), f"ua_pins: {exc}", "padlib")]
+    lower = {p.lower() for p in ports}
+    bad = [p for p in pins if p.lower() not in lower]
+    if not bad:
+        return []
+    return [checklib.violation(
+        "spec_lint", "error", SPEC_REL, None, "ua_pin_not_a_port", bad,
+        f"ua_pins {bad} are not ports of {top} ({', '.join(ports)}): the ua "
+        "pad model goes on a port of the top's instance in every bench",
+        "padlib")]
 
 
 def run(argv=None):
@@ -147,6 +178,7 @@ def run(argv=None):
                 violations.append(checklib.violation(
                     "spec_lint", "error", SPEC_REL, None, "bad_pex_rc_corners",
                     [], problem, "corners"))
+    violations += ua_pin_violations(ws, spec, violations)
     tt = corners_mod.corners_by_name(corners_mod.load(), ["tt"])[0]
     matching, waived = speclib.lint_matching_measures(
         spec, rel_path=SPEC_REL, mc_corner_names=corners_mod.names_of(tt))

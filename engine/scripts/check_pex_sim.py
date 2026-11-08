@@ -197,6 +197,7 @@ import kpexlib  # noqa: E402
 import layoutlib  # noqa: E402
 import layout_gen  # noqa: E402
 import netlistlib  # noqa: E402
+import padlib  # noqa: E402
 import sim_run  # noqa: E402
 import simlib  # noqa: E402
 import speclib  # noqa: E402
@@ -662,6 +663,10 @@ def bound_list(measures: dict, where: str) -> list[dict]:
             if not isinstance(b, dict):
                 raise CheckError(f"{where}: measure {name!r} must be a "
                                  "{min, max, corners} mapping or a list of them")
+            if b.get("pad", "both") not in padlib.PAD_SCOPES:
+                raise CheckError(
+                    f"{where}: measure {name!r}: pad must be one of "
+                    f"{', '.join(padlib.PAD_SCOPES)}, got {b.get('pad')!r}")
             out.append({**b, "measure": name})
     return out
 
@@ -1025,6 +1030,7 @@ def run(argv=None):
         sweep, field, nominal_vdd = [dict(BASE, name="tt")], None, None
         corner_list, source, unswept = sweep, "no spec.yaml: typical only", []
         knob_runs, variant_runs, fill_modes = [], [], []
+        ua_pins, board = [], {}
     else:
         sweep, _scoped = sim_run.spec_sweep(ws)
         field, nominal_vdd = spec.get("pex_corners"), (spec.get("supply")
@@ -1036,6 +1042,7 @@ def run(argv=None):
         variant_runs = rc_variant_runs(spec.get("pex_rc_corners"), sweep)
         try:
             fill_modes = filllib.modes_of(spec.get("pex_fill"))
+            ua_pins, board = padlib.ua_pins_of(spec), padlib.board_of(spec)
         except ValueError as exc:
             raise CheckError(f"{exc} - run spec_lint first") from exc
 
@@ -1050,6 +1057,39 @@ def run(argv=None):
         return template.format(pdk=pdk, extracted=netlist.resolve(),
                                **corner_tokens(corner, nominal_vdd))
     bench_text = deck(corner_list[0])
+
+    # a spec with ua_pins runs every bench bare and again with TT's pad on
+    # each ua pin of every instance of the extracted cell (#112). A bench
+    # the pad cannot be put in is a refusal: its "pad" runs would only be
+    # bare runs again
+    conditions = padlib.conditions_of(spec) if spec is not None else [None]
+
+    def pad_deck(text: str, corner: dict) -> str:
+        vdd = corner_tokens(corner, nominal_vdd)["vdd"]
+        return padlib.insert_pads(
+            text, topcell, ref_pins or [], ua_pins, padlib.pad_subckt(
+                pdk, corner["process"], float(vdd) if vdd else 0.0,
+                board))[0]
+    if ua_pins:
+        try:
+            if not nominal_vdd:
+                raise padlib.PadRefused(
+                    "ua_pad_not_inserted", "spec.yaml has no numeric "
+                    "'supply.vdd', and the pad's ESD diodes sit on DVDD")
+            pad_deck(bench_text, corner_list[0])
+        except padlib.PadRefused as exc:
+            payload = checklib.report(
+                SCRIPT, ws / "layout", [checklib.violation(
+                    "pex_sim", "error", str(bench_tpl.relative_to(ws)), topcell,
+                    exc.kind, ["pad"], f"{bench_tpl.name}: {exc} - every "
+                    "bench of a spec with ua_pins runs through the pad model "
+                    "too (engine/lib/padlib.py), so put an instance of "
+                    f"{topcell} with every port on it in the bench",
+                    "check_pex_sim")], topcell=topcell,
+                gds=str(gds_path.relative_to(ws)),
+                extracted=str(extracted.relative_to(ws)),
+                parasitics=parasitics, measured={})
+            return payload, args.out
 
     # a floating ground or an unlabelled probe is not a bench worth running:
     # the findings alone
@@ -1119,13 +1159,38 @@ def run(argv=None):
             extractor_crosscheck=crosscheck)
         return payload, args.out
 
+    pad_runs: list[dict] = []
+
     def run_bench(corner: dict, scored: list[dict], stem: str, where: str,
                   refs: list[str], netlist: Path = extracted) -> dict:
-        """One ngspice run at `corner`: the values of `scored`, and their
-        findings appended to `violations`, each naming `where`."""
+        """run_once in each of the spec's pad conditions: the bare run's
+        values (the pad runs' go to pad_runs), each condition scoring only
+        the bounds padlib.scored_in gives it."""
+        measured: dict = {}
+        for cond in conditions:
+            mine = [b for b in scored if padlib.scored_in(b, cond)]
+            if not mine:
+                continue
+            if cond != "pad":
+                measured = run_once(corner, mine, stem, where, refs, netlist)
+                continue
+            pad_runs.append({"run": where, "corner": corner["name"],
+                             "measured": run_once(
+                                 corner, mine, f"{stem}__pad", f"{where} / pad",
+                                 [*refs, "pad"], netlist, pad=True)})
+        return measured
+
+    def run_once(corner: dict, scored: list[dict], stem: str, where: str,
+                 refs: list[str], netlist: Path = extracted,
+                 pad: bool = False) -> dict:
+        """One ngspice run at `corner`, through the ua pad model when `pad`:
+        the values of `scored`, and their findings appended to
+        `violations`, each naming `where`."""
         bench_path = work_dir / f"{block}_pex_tb__{stem}.cir"
         layoutlib.fresh(bench_path)
-        bench_path.write_text(deck(corner, netlist), encoding="utf-8")
+        text = deck(corner, netlist)
+        bench_path.write_text(pad_deck(text, corner) if pad else text,
+                              encoding="utf-8")
 
         # a meas whose trigger/target never happened (a latch that decided
         # the wrong way never lets outn fall) comes back by name and is a
@@ -1311,7 +1376,8 @@ def run(argv=None):
         **({"symmetry": symmetry} if symmetry else {}),
         **({"rc_knobs": rc_runs} if rc_runs else {}),
         **({"rc_variants": variant_rows} if variant_rows else {}),
-        **({"fill": fill["facts"]} if fill is not None else {}))
+        **({"fill": fill["facts"]} if fill is not None else {}),
+        **({"pad_runs": pad_runs} if ua_pins else {}))
     return payload, args.out
 
 

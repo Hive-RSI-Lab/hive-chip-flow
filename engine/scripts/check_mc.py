@@ -103,6 +103,7 @@ import checklib  # noqa: E402
 import corners as corners_mod  # noqa: E402
 import sim_run  # noqa: E402
 import rulingslib  # noqa: E402
+import padlib  # noqa: E402
 import simlib  # noqa: E402
 import speclib  # noqa: E402
 from checklib import CheckError  # noqa: E402
@@ -791,7 +792,8 @@ def worst_corner(bench: str, bounds: list[dict], nominal: list[dict],
             continue
         names = r["names"]
         for b in bounds:
-            if not simlib.scored_at(b, names):
+            if not simlib.scored_at(b, names) \
+                    or not padlib.scored_in(b, r.get("condition")):
                 continue
             key = b["measure"].lower()
             sd = (tt_stats.get(key) or {}).get("sigma")

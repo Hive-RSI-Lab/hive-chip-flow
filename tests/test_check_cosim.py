@@ -205,6 +205,161 @@ def test_run_detects_ngspice_non_convergence_via_monkeypatched_run_cocotb(
     assert "ngspice_non_convergence" in kinds
 
 
+# ------------------------------------------------------- the ua pad (#112)
+PAD_NETLIST = """* block on a ua pad
+.subckt leaf a b
+r1 a b 1k
+.ends leaf
+.subckt blk code_0 vout vdd vss
+.param ru=5k
+x1 code_0 vout leaf
+cp vout vss 1p
+.ends blk
+"""
+
+
+def _pad_cosim_ws(tmp_path, netlist=PAD_NETLIST, bench_names_netlist=True,
+                  bounds=None):
+    ws = tmp_path / "ws"
+    tb = ws / "tb"
+    tb.mkdir(parents=True)
+    (ws / "interface.yaml").write_text("signals: []\nua_pins:\n  vout: 0\n",
+                                       encoding="utf-8")
+    spec = ws / "analog" / "spec"
+    spec.mkdir(parents=True)
+    (spec / "spec.yaml").write_text("top: blk\nsupply: {vdd: 3.3}\n",
+                                    encoding="utf-8")
+    (tb / "top.v").write_text("module top; endmodule\n", encoding="utf-8")
+    (tb / "test_top.py").write_text(
+        "SPICE = 'ideal.sp'\n" if bench_names_netlist else "", encoding="utf-8")
+    (tb / "ideal.sp").write_text(netlist, encoding="utf-8")
+    (tb / "bounds.json").write_text(json.dumps(
+        bounds or {"m": {"min": 0, "max": 1}}), encoding="utf-8")
+    (tb / "cosim_bench.json").write_text(json.dumps({
+        "top": "top", "bounds": "bounds.json",
+        "analog_netlist": "ideal.sp", "analog_kind": "ideal",
+    }), encoding="utf-8")
+    return ws
+
+
+def _fake_cocotb(ws, values, seen):
+    """run_cocotb stand-in: records which tb/ ran and which netlist it saw,
+    writes the measures beside that tb/ (as a bench does, HERE.parent)."""
+    def fake(build_dir, test_dir, sources, hdl_toplevel, test_modules_,
+             results_xml, **kwargs):
+        text = (test_dir / "ideal.sp").read_text(encoding="utf-8")
+        cond = "pad" if "tt_ua_pad" in text else "no_pad"
+        seen.append((cond, test_dir))
+        build_dir.mkdir(parents=True, exist_ok=True)
+        (build_dir / "sim.log").write_text("", encoding="utf-8")
+        results_xml.parent.mkdir(parents=True, exist_ok=True)
+        results_xml.write_text(
+            '<testsuites><testsuite><testcase name="test_top.case"/>'
+            '</testsuite></testsuites>', encoding="utf-8")
+        rep = test_dir.parent / "reports"
+        rep.mkdir(parents=True, exist_ok=True)
+        (rep / "cosim_measures.json").write_text(json.dumps({
+            **values[cond], "digital_toggles": 1, "edge_times_ns": [1.0],
+            "spice_time_reached_ns": 2.0}), encoding="utf-8")
+        return results_xml
+    return fake
+
+
+def _no_toolchain(monkeypatch):
+    monkeypatch.setattr(check_cosim, "toolchain_root", lambda: Path("/tc"))
+    monkeypatch.setattr(check_cosim.layoutlib, "pdk_root",
+                        lambda: Path("/pdk"))
+
+
+def test_wrap_subckt_pads_puts_the_block_behind_the_pad():
+    import padlib
+    text, block, ins = padlib.wrap_subckt_pads(
+        PAD_NETLIST, ["vout"], padlib.pad_subckt("/pdk", "tt", 3.3))
+    assert block == "blk"
+    assert ins == [{"instance": "blk", "port": "vout", "node": "vout"}]
+    assert ".subckt blk__core code_0 vout vdd vss" in text
+    assert ".ends blk__core" in text
+    assert ".subckt leaf a b" in text and ".ends leaf" in text
+    assert ("xcore code_0 vout__ua_die_vout vdd vss blk__core"
+            in text.splitlines())
+    assert ("xuapad_vout vout__ua_die_vout vout tt_ua_pad"
+            in text.splitlines())
+    # the wrapper keeps the block's name and ports: the bench loads it as is
+    assert ".subckt blk code_0 vout vdd vss" in text.splitlines()
+
+
+def test_wrap_subckt_pads_refuses_a_netlist_with_no_block_on_the_pin():
+    import padlib
+    with pytest.raises(padlib.PadRefused) as exc:
+        padlib.wrap_subckt_pads(PAD_NETLIST, ["vref"], "")
+    assert exc.value.kind == "ua_pad_not_inserted"
+    two = PAD_NETLIST + ".subckt other vout\nr1 vout 0 1k\n.ends other\n"
+    with pytest.raises(padlib.PadRefused):
+        padlib.wrap_subckt_pads(two, ["vout"], "")
+
+
+def test_cosim_runs_bare_and_padded(tmp_path, monkeypatch, capsys):
+    ws = _pad_cosim_ws(tmp_path)
+    seen = []
+    _no_toolchain(monkeypatch)
+    monkeypatch.setattr(check_cosim.cocotblib, "run_cocotb", _fake_cocotb(
+        ws, {"no_pad": {"m": 0.5}, "pad": {"m": 1.5}}, seen))
+    code = check_cosim.main(["--workspace", str(ws)])
+    out = json.loads(capsys.readouterr().out)
+    assert [c for c, _ in seen] == ["no_pad", "pad"]
+    assert seen[0][1] == ws / "tb"
+    # the bench's own tb/ is never rewritten
+    assert "tt_ua_pad" not in (ws / "tb" / "ideal.sp").read_text()
+    assert code == 1, out
+    bad = [v for v in out["violations"]]
+    assert len(bad) == 1 and bad[0]["kind"] == "measure_out_of_bounds"
+    assert "pad" in bad[0]["refs"] and bad[0]["msg"].startswith("[pad] ")
+    assert out["measures"]["m"] == 0.5
+    assert out["pad"]["measures"]["m"] == 1.5
+    assert out["pad"]["block"] == "blk"
+
+
+def test_cosim_bare_scoped_bound_is_not_scored_through_the_pad(
+        tmp_path, monkeypatch, capsys):
+    ws = _pad_cosim_ws(tmp_path, bounds={"m": {"min": 0, "max": 1,
+                                               "pad": "bare"}})
+    _no_toolchain(monkeypatch)
+    monkeypatch.setattr(check_cosim.cocotblib, "run_cocotb", _fake_cocotb(
+        ws, {"no_pad": {"m": 0.5}, "pad": {"m": 1.5}}, []))
+    assert check_cosim.main(["--workspace", str(ws)]) == 0, \
+        capsys.readouterr().out
+
+
+def test_cosim_refuses_a_bench_with_a_ua_pin_and_no_pad_model(
+        tmp_path, monkeypatch, capsys):
+    # planted: the ua pin is on no subckt port, so no pad can go in
+    ws = _pad_cosim_ws(tmp_path, netlist=PAD_NETLIST.replace("vout", "out"))
+    seen = []
+    _no_toolchain(monkeypatch)
+    monkeypatch.setattr(check_cosim.cocotblib, "run_cocotb", _fake_cocotb(
+        ws, {}, seen))
+    code = check_cosim.main(["--workspace", str(ws)])
+    out = json.loads(capsys.readouterr().out)
+    assert code == 1 and not seen, out
+    assert [v["kind"] for v in out["violations"]] == ["ua_pad_not_inserted"]
+
+
+def test_cosim_refuses_a_bench_that_never_loads_its_netlist(
+        tmp_path, monkeypatch, capsys):
+    ws = _pad_cosim_ws(tmp_path, bench_names_netlist=False)
+    _no_toolchain(monkeypatch)
+    code = check_cosim.main(["--workspace", str(ws)])
+    out = json.loads(capsys.readouterr().out)
+    assert code == 1, out
+    assert [v["kind"] for v in out["violations"]] == ["ua_pad_not_inserted"]
+
+
+def test_cosim_bound_with_a_bad_pad_scope_is_an_error(tmp_path, capsys):
+    ws = _pad_cosim_ws(tmp_path, bounds={"m": {"max": 1, "pad": "never"}})
+    assert check_cosim.main(["--workspace", str(ws)]) == 2
+    assert "pad" in json.loads(capsys.readouterr().out)["remediation"]
+
+
 # --------------------------------------------------------------------- slow
 def make_ws(tmp_path: Path) -> Path:
     ws = tmp_path / "ws"
@@ -275,3 +430,22 @@ def test_msde_cosim_hashes_the_sides_its_bench_reads(tmp_path):
     # an unrelated side file stays out of cosim's inputs
     (ws / "analog" / "layout").mkdir(parents=True)
     assert "analog_layout" not in kinds
+
+
+@pytest.mark.slow
+def test_dac_tile_cosim_runs_through_the_ua_pad(tmp_path, capsys):
+    # interface.yaml puts vout on ua[0]: the gate runs the bench bare and
+    # with dac_tile_ideal behind the TT pad model, and both meet the bounds
+    sys.path.insert(0, str(REPO / "tests"))
+    import faults
+    ws = faults.make_scratch_workspace(
+        tmp_path, REPO / "corpus" / "msde" / "dac_tile", "msde", "dac_tile",
+        block="dac_tile")
+    code = check_cosim.main(["--workspace", str(ws)])
+    out = json.loads(capsys.readouterr().out)
+    assert code == 0, out
+    assert out["pad"]["block"] == "dac_tile_ideal"
+    padded = (ws / out["pad"]["netlist"]).read_text(encoding="utf-8")
+    assert "xuapad_vout vout__ua_die_vout vout tt_ua_pad" in padded
+    # the pad run is a different circuit, not a second bare run
+    assert out["pad"]["measures"]["vout_11"] != out["measures"]["vout_11"]
