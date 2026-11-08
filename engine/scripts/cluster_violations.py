@@ -290,7 +290,8 @@ FIXER_HINTS: dict[str, str] = {
     "lvs_mismatch": "layout",
     # lvs_extractors_disagree stays unmapped ("review"): netgen and klayout
     # read the same GDS differently, an extraction question before it is
-    # the generator's
+    # the generator's; pex_extractors_disagree likewise (magic and kpex
+    # read the same GDS's capacitance differently)
     "measure_out_of_bounds": "layout",
     "measure_missing": "testbench",
     "pex_bench_not_corner_aware": "testbench",

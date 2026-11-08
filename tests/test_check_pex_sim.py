@@ -28,6 +28,19 @@ CORPUS = REPO / "corpus" / "ade"
 GATES_YAML = ENGINE / "reference" / "gates.yaml"
 
 
+REAL_CROSSCHECK = check_pex_sim.extractor_crosscheck
+
+
+@pytest.fixture(autouse=True)
+def _no_kpex_outside_slow_tests(request, monkeypatch):
+    """The fast tests stub magic, so there is no GDS for kpex to extract:
+    they stub the cross-check too (its own tests below call
+    REAL_CROSSCHECK). The slow tests run the real one."""
+    if request.node.get_closest_marker("slow") is None:
+        monkeypatch.setattr(check_pex_sim, "extractor_crosscheck",
+                            lambda *a, **k: ([], {"stubbed": True}))
+
+
 def _pex_sim_gate_row():
     rows = _yaml.safe_load(GATES_YAML.read_text(encoding="utf-8"))["gates"]["ade"]
     return rows["pex_sim"]
@@ -346,6 +359,13 @@ def test_labelled_probes_run_the_bench(unlaunchable_eda, tmp_path,
     assert out["measured"] == {"x": 0.5}
 
 
+def _crosscheck_agrees(out, nets):
+    """magic and kpex 2.5D agree on the clean block, on these nets at least."""
+    assert not [v for v in out["violations"]
+                if v["kind"] == "pex_extractors_disagree"], out["violations"]
+    assert nets <= {r["net"] for r in out["extractor_crosscheck"]["nets"]}
+
+
 @pytest.mark.slow
 def test_clean_mirror_pex_sim_passes(tmp_path):
     ws = make_ws(tmp_path, "mirror")
@@ -359,6 +379,7 @@ def test_clean_mirror_pex_sim_passes(tmp_path):
     assert set(out["measured_by_corner"]) == set(out["corners"])
     gate_result = gate.evaluate("pex_sim", _pex_sim_gate_row(), out)
     assert gate_result["status"] == "pass"
+    _crosscheck_agrees(out, {"iout", "iref_node", "vss"})
 
 
 @pytest.mark.slow
@@ -372,6 +393,7 @@ def test_clean_r2r_dac_pex_sim_passes(tmp_path):
     assert abs(m["vout_lsb_frac"] - 0.2) < 0.006
     assert abs(m["vout_msb_frac"] - 0.6) < 0.018
     assert abs(m["vout_both_frac"] - 0.8) < 0.024
+    _crosscheck_agrees(out, {"blsb", "bmsb", "vout"})
 
 
 @pytest.mark.slow
@@ -400,6 +422,7 @@ def test_clean_comparator_symmetric_nets_pass(tmp_path):
     for e in pairs.values():
         assert {c["quantity"] for c in e["checked"]} == {"C", "R", "C to clk"}
         assert all(c["mismatch_pct"] <= 5 for c in e["checked"])
+    _crosscheck_agrees(out, {"clk", "inn", "inp", "outn", "outp"})
 
 
 @pytest.mark.slow
@@ -1440,3 +1463,117 @@ def test_a_pair_net_the_extraction_never_names_is_unlabelled():
         _rows(), PAIR_REF, ext, "pair", "g", "spec/spec.yaml")
     assert [(v["kind"], v["refs"]) for v in found] == [
         ("symmetry_net_unlabelled", ["b"])]
+
+
+# ---- the second extractor (kpex 2.5D, issue #116) ----------------------------
+XC_REF = (".subckt blk a b vdd vss\nM1 a b vss vss nfet_03v3 L=1u W=1u\n"
+          "M2 a b vdd vdd pfet_03v3 L=1u W=1u\n.ends blk\n")
+XC_EXT = ('substrate "vss" 1 0 0 0 m1 0 0 100 10\n'
+          'node "vdd" 1 10 0 0 m1 5000 300 0 0\n'
+          'node "a" 1 10 0 0 m1 0 0 0 0\n'
+          'node "b" 1 10 0 0 m1 0 0 0 0\n')
+XC_BENCH = ("xdut na nb nvdd 0 blk\n.control\ntran 1n 1u\n"
+            "meas tran x find v(na) at=1u\nprint v(xdut.b)\n.endc\n")
+XC_MAGIC = (".subckt blk a b vdd vss\nM1 a b vss vss nfet_03v3 L=1u W=1u\n"
+            "M2 a b vdd vdd pfet_03v3 L=1u W=1u\nC0 a vss 1f\nC1 b vss 1f\n"
+            "C2 a b 0.2f\nC3 vdd vss 3f\n.ends\n")
+
+
+def _xc_kpex(kpex_caps):
+    def fake(work_dir, gds_path, topcell, timeout=None):
+        work_dir = Path(work_dir)
+        out = work_dir / "out" / f"{topcell}__{topcell}"
+        out.mkdir(parents=True)
+        netlist = out / f"{topcell}_k25d_pex_netlist.spice"
+        netlist.write_text(
+            f".SUBCKT {topcell} a b vss\n"
+            "M$1 a b vss vss nfet_03v3 L=1U W=1U\n"
+            "M$2 a b vdd vdd pfet_03v3 L=1U W=1U\n" + kpex_caps
+            + f".ENDS {topcell}\n", encoding="utf-8")
+        log = work_dir / "kpex.log"
+        log.write_text("", encoding="utf-8")
+        return netlist, log
+    return fake
+
+
+def _xc_run(tmp_path, monkeypatch, kpex_caps):
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    ext = tmp_path / "blk.ext"
+    ext.write_text(XC_EXT, encoding="utf-8")
+    monkeypatch.setattr(check_pex_sim.kpexlib, "run_kpex", _xc_kpex(kpex_caps))
+    return REAL_CROSSCHECK(ws, tmp_path / "blk.gds", "blk", "layout/blk.gds",
+                           XC_REF, ["a", "b", "vdd", "vss"], XC_BENCH,
+                           XC_MAGIC, ext)
+
+
+def test_probed_dut_nets_reads_inner_probes_and_bound_pins():
+    assert check_pex_sim.probed_dut_nets(XC_BENCH, "blk",
+                                         ["a", "b", "vdd", "vss"]) == {"a", "b"}
+
+
+def test_crosscheck_agreeing_extractors_is_no_finding(tmp_path, monkeypatch):
+    found, report = _xc_run(tmp_path, monkeypatch,
+                            "Cext_1 a b 0.21f\nCext_2 VSUBS a 1.05f\n"
+                            "Cext_3 VSUBS b 1.0f\nCext_4 VSUBS vdd 9f\n")
+    assert found == []
+    assert {r["net"] for r in report["nets"]} == {"a", "b"}
+    assert report["couplings"][0]["nets"] == ["a", "b"]
+    # the well's net and, with a well in the block, the substrate
+    assert {r["net"] for r in report["not_compared"]} == {"vdd", "vss"}
+    assert report["substrate"] == "vss" and report["probed"] == ["a", "b"]
+
+
+def test_crosscheck_a_net_past_tolerance_is_a_finding_with_both_values(
+        tmp_path, monkeypatch):
+    found, _ = _xc_run(tmp_path, monkeypatch,
+                       "Cext_1 a b 0.21f\nCext_2 VSUBS a 1.5f\n"
+                       "Cext_3 VSUBS b 1.0f\n")
+    assert [(v["kind"], v["refs"]) for v in found] == [
+        ("pex_extractors_disagree", ["a"])]
+    assert found[0]["magic_ff"] == pytest.approx(1.2)
+    assert found[0]["kpex_ff"] == pytest.approx(1.71)
+
+
+def test_crosscheck_kpex_failing_is_a_refusal(tmp_path, monkeypatch):
+    ext = tmp_path / "blk.ext"
+    ext.write_text(XC_EXT, encoding="utf-8")
+
+    def broken(*a, **k):
+        raise check_pex_sim.kpexlib.KpexError("no netlist")
+    monkeypatch.setattr(check_pex_sim.kpexlib, "run_kpex", broken)
+    with pytest.raises(CheckError, match="second extractor"):
+        REAL_CROSSCHECK(tmp_path, tmp_path / "blk.gds", "blk", "layout/blk.gds",
+                        XC_REF, ["a", "b", "vdd", "vss"], XC_BENCH, XC_MAGIC,
+                        ext)
+
+
+@pytest.mark.slow
+def test_a_dropped_label_is_caught_by_kpex_with_lost_couplings_off(
+        tmp_path, monkeypatch):
+    """The plant: the comparator's tail net loses the label
+    name_unlabelled_nets gives it, and lost_couplings is off, so only the
+    cross-check is left to see magic's extresist drop the couplings onto
+    the unnamed net: inn and inp come out ~30% below kpex."""
+    import layoutlib
+    orig = layoutlib.name_unlabelled_nets
+
+    def dropped(ext_text):
+        cmds, out, i = orig(ext_text), [], 0
+        while i < len(cmds):
+            if (cmds[i].startswith("box values") and i + 1 < len(cmds)
+                    and " a_n1350_n934 " in cmds[i + 1] + " "):
+                i += 2
+                continue
+            out.append(cmds[i])
+            i += 1
+        assert len(out) < len(cmds), "the tail net's label was not found"
+        return out
+    monkeypatch.setattr(layoutlib, "name_unlabelled_nets", dropped)
+    monkeypatch.setattr(layoutlib, "lost_couplings", lambda *a, **k: [])
+    ws = make_ws(tmp_path, "comparator")
+    code, out = run_json(["--workspace", str(ws)], tmp_path)
+    assert code == 1, out
+    bad = {r for v in out["violations"]
+           if v["kind"] == "pex_extractors_disagree" for r in v["refs"]}
+    assert {"inn", "inp"} <= bad

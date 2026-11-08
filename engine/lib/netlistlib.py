@@ -466,9 +466,10 @@ def _bgain_mutant(ref: str, src: dict) -> dict:
 
 NGSPICE_TOLERANCES = {"reltol": 1e-3, "abstol": 1e-12, "vntol": 1e-6}
 SPICE_SCALE = {"t": 1e12, "g": 1e9, "meg": 1e6, "k": 1e3, "mil": 25.4e-6,
-               "m": 1e-3, "u": 1e-6, "n": 1e-9, "p": 1e-12, "f": 1e-15}
+               "m": 1e-3, "u": 1e-6, "n": 1e-9, "p": 1e-12, "f": 1e-15,
+               "a": 1e-18}
 SPICE_NUMBER_RE = re.compile(
-    r"^([-+]?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?)(meg|mil|[tgkmunpf])?[a-z]*$",
+    r"^([-+]?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?)(meg|mil|[tgkmunpfa])?[a-z]*$",
     re.IGNORECASE)
 OPTIONS_RE = re.compile(r"^\s*\.?options?\s+(.*)$", re.IGNORECASE)
 TRAN_RE = re.compile(r"^\s*\.?tran\s+(.*)$", re.IGNORECASE)
