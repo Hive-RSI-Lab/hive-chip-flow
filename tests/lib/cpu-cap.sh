@@ -55,6 +55,23 @@ _cpu_cap_tree() {
   done
 }
 
+# _cpu_cap_nap SECS PID|-PGID: wait up to SECS (whole seconds) while PID,
+# or any process of group PGID, is still there, looking every 0.1 s, so a
+# command that ends early is seen at once rather than at the next whole
+# poll: a quick smoke used to cost a full poll of wall, every verdict two
+# more seconds of TERM grace. The wait is `read -t` on a pipe nobody
+# writes, a builtin: a forked `sleep` every 0.1 s would add its own CPU to
+# the very cutime this file measures.
+_cpu_cap_nap() {
+  local i fd line
+  exec {fd}<> <(:)
+  for ((i = 0; i < $1 * 10; i++)); do
+    kill -0 -- "$2" 2>/dev/null || break
+    read -r -t 0.1 -u "$fd" line || true
+  done
+  exec {fd}<&-
+}
+
 # _cpu_cap_reaped: print the CPU ticks of everything this shell has reaped
 # (its own cutime + cstime). $BASHPID, not $$: in a subshell $$ is still the
 # parent. The caller takes a difference, so earlier children don't count.
@@ -129,14 +146,14 @@ cpu_cap() {
     if [ "$wall_s" -gt 0 ] && [ $((SECONDS - start)) -ge "$wall_s" ]; then
       CPU_CAP_VERDICT=hang; CPU_CAP_HANG_WHY=wall; break
     fi
-    sleep "$poll_s"
+    _cpu_cap_nap "$poll_s" "$pid"
   done
   CPU_CAP_WALL=$((SECONDS - start))
 
   if [ -n "$CPU_CAP_VERDICT" ]; then
     used="$_CPU_CAP_TICKS"
     kill -TERM -- "-$pid" 2>/dev/null || true
-    sleep 2
+    _cpu_cap_nap 2 "-$pid"
     kill -KILL -- "-$pid" 2>/dev/null || true
     wait "$pid" 2>/dev/null || true
   else
