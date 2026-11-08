@@ -599,6 +599,22 @@ case "$TOOL" in
     run_elf "$T/foss/tools/ngspice/bin/ngspice" "$@"
     ;;
 
+  # Xyce: the second simulator a stability bench is cross-checked on (issue
+  # #100, tests/test_stb_bench.py); its Trilinos libraries sit in its own lib/.
+  # The image's liblapack/libblas/libopenblas are /etc/alternatives symlinks
+  # that resolve on the host, so the image's own copies go first.
+  Xyce|xyce)
+    _ul="$T/usr/lib/x86_64-linux-gnu"
+    BASE_LIBPATH="$T/foss/tools/xyce/lib:$_ul/openblas-pthread:$BASE_LIBPATH"
+    # Xyce is an OpenMPI build: a serial run is an MPI singleton, which by
+    # default spawns orted (an ELF outside the loader) - kept in-process, with
+    # the help files and components found under the image's prefix, and the
+    # interconnect components the image has no libraries for left unnamed.
+    OPAL_PREFIX="$T/usr" OMPI_MCA_ess_singleton_isolated=1 \
+      OMPI_MCA_mca_base_component_show_load_errors=0 \
+      run_elf "$T/foss/tools/xyce/bin/Xyce" "$@"
+    ;;
+
   # ---- layout / DRC / LVS ---------------------------------------------------
   klayout)
     # klayout's Qt Network/Multimedia modules pull in two plugin .so's kept

@@ -279,6 +279,9 @@ FIXER_HINTS: dict[str, str] = {
     "survivor_connection_removed": "testbench",
     "survivor_type_flipped": "testbench",
     "survivor_bias_halved": "testbench",
+    # a capacitor's two mutants (a compensation cap halved or removed)
+    "survivor_cap_halved": "testbench",
+    "survivor_cap_removed": "testbench",
     # a behavioural B source's two mutants; survivor_output_stuck is the
     # same key as mutate's class above, and routes the same way
     "survivor_gain_halved": "testbench",

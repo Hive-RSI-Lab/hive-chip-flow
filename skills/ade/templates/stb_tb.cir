@@ -1,0 +1,75 @@
+* stb_tb.cir - loop stability (Tian's method) for a block in feedback.
+* Copy it into tb/<block>_stb_tb.cir, replace the block between the DUT
+* markers with the block's own instance (its output wired to `out`, its
+* feedback input to `fb`) and set the .param line from spec/spec.yaml. The
+* measure names are fixed - pm_deg, gm_db, ugf_hz (and a0_db, the loop
+* gain at 10 Hz) - so spec_lint's feedback rule and every rung read the
+* same ones. corpus/ade/ota/tb/ota_stb_tb.cir is a working copy.
+*
+* WHY TIAN: the loop is never broken, so every DC operating point and every
+* loading (the feedback network on the output, the output on the input) is
+* exactly the closed loop's. A 0 V source vprobe sits in the feedback wire
+* from `out` to `fb`. Run 1 injects 1 V AC in series (vprobe) and reads the
+* voltage ratio Tv = -v(out)/v(fb); run 2 injects 1 A AC in shunt into
+* `out` (iprobe) and reads the current ratio Ti = (1 + i(vprobe))/i(vprobe).
+* The loop gain is T = (Tv*Ti - 1)/(Tv + Ti + 2) (Tian et al., IEEE TCAS-I
+* 48(9), 2001). It is checked against a break-the-loop bench (1 GH in the
+* wire, 1 GF to an AC source) within 2 degrees of PM in tests/
+* test_stb_bench.py.
+*
+* MEASURES: ugf_hz where |T| falls through 0 dB; pm_deg = 180 + phase(T)
+* there; gm_db = -|T| in dB where the phase falls through -180 (no -180
+* crossing below the sweep's top leaves gm_db unprinted, which sim_tt
+* reports as a measure that did not run: widen the sweep, never drop the
+* bound). Phase is cph (continuous), in degrees.
+*
+* The DC operating point and the quiescent current come from the `op`
+* first; ngspice keeps them in plot op1, so read them as op1.<vector>.
+.include '{{PDK}}/libs.tech/ngspice/design.spice'
+.lib '{{PDK}}/libs.tech/ngspice/sm141064.spice' {{CORNER}}
+.temp {{TEMP_C}}
+.include '{{NETLIST}}'
+{{SIZING}}
+
+.param vddp={{VDD}} vcm='vddp/2' cl=2p
+vdd_src vdd 0 {vddp}
+vss_src vss 0 0
+vin inp 0 dc {vcm}
+* --- DUT BEGIN (edit: the block's instance; its feedback input is fb)
+xdut inp fb out vdd vss <block>
+cload out 0 {cl}
+* --- DUT END
+vprobe fb out dc 0 ac 1
+iprobe 0 out dc 0 ac 0
+
+.control
+set noaskquit
+op
+let iq_v = -i(vdd_src)
+ac dec 40 1 100g
+let tv = -v(out)/v(fb)
+alter @vprobe[acmag] = 0
+alter @iprobe[acmag] = 1
+ac dec 40 1 100g
+let ti = (1 + i(vprobe))/i(vprobe)
+let tl = (ac1.tv*ti - 1)/(ac1.tv + ti + 2)
+let iq_r = op1.iq_v
+let tdb = db(tl)
+let tph = cph(tl)*180/pi
+meas ac ugf_v when tdb=0 fall=1
+meas ac ph_ugf find tph at=ugf_v
+meas ac a0_v find tdb at=10
+meas ac f180 when tph=-180 fall=1
+meas ac g180 find tdb at=f180
+let pm_v = 180 + ph_ugf
+let gm_v = -g180
+echo
+echo "  Measurements for AC Analysis (stb_tb, computed in .control)"
+echo "pm_deg = $&pm_v"
+echo "gm_db = $&gm_v"
+echo "ugf_hz = $&ugf_v"
+echo "a0_db = $&a0_v"
+echo "iq = $&iq_r"
+echo
+.endc
+.end

@@ -43,6 +43,10 @@ measures:
     bounds: {min?: <num>, max?: <num>}   # at least one
     corners: default | all | [<name>,...]  # optional
     severity: error | warning      # optional, default error
+feedback: true | false            # true when the block closes a loop (an
+                                    # op amp in feedback, an LDO, a PLL):
+                                    # then a `pm_deg` measure with a `min`,
+                                    # error severity, default/all corners
 split_devices: [{refdes, cell, why}]   # only when an /msde analog brief
                                     # says the split put GF180 std cells in
                                     # this macro (bit drivers); copy them

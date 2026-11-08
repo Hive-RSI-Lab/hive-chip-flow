@@ -354,3 +354,47 @@ def test_nominal_only_measures_are_the_statistical_none_ones():
          "mc_waiver": "nominal"},
         {"name": "vin_offset", "bounds": {"min": -1, "max": 1}}]}
     assert speclib.nominal_only_measures(spec) == {"vdiff"}
+
+
+# ---- feedback: a loop needs a stability measure (issue #100) ----------------
+PM = {"name": "pm_deg", "bounds": {"min": 60}}
+
+
+def _fb(**kw):
+    return {**GOOD_SPEC, "top": "two_stage_miller_ota", **kw}
+
+
+def _kinds(spec):
+    return {v["kind"]: v for v in speclib.lint_spec_ade(spec)}
+
+
+def test_feedback_with_a_pm_bound_at_every_corner_is_clean():
+    assert speclib.lint_spec_ade(_fb(feedback=True,
+                                     measures=GOOD_SPEC["measures"] + [PM])) == []
+    assert speclib.lint_spec_ade(_fb(feedback=False)) == []
+
+
+def test_feedback_must_be_a_bool():
+    assert "bad_feedback" in _kinds(_fb(feedback="yes"))
+
+
+def test_a_loop_named_top_without_feedback_is_a_warning():
+    v = _kinds(_fb())["feedback_undeclared"]
+    assert v["severity"] == "warning"
+    assert speclib.lint_spec_ade(dict(GOOD_SPEC)) == []  # current_mirror
+
+
+def test_feedback_without_a_pm_min_is_the_named_fault():
+    assert "feedback_no_stability" in _kinds(_fb(feedback=True))
+    only_max = {"name": "pm_deg", "bounds": {"max": 90}}
+    assert "feedback_no_stability" in _kinds(
+        _fb(feedback=True, measures=[only_max]))
+
+
+def test_pm_scoped_to_some_corners_or_a_warning_is_flagged():
+    k = _kinds(_fb(feedback=True, measures=[{**PM, "corners": ["tt"]}]))
+    assert "stability_not_all_corners" in k
+    k = _kinds(_fb(feedback=True, measures=[{**PM, "severity": "warning"}]))
+    assert "stability_not_error" in k
+    assert speclib.lint_spec_ade(
+        _fb(feedback=True, measures=[{**PM, "corners": "all"}])) == []

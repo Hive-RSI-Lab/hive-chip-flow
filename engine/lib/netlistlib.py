@@ -316,14 +316,32 @@ def device_mutants(netlist_text: str, device_refs: list[str],
     behavioural `b...` source in netlist_text gets two: output_stuck (its
     expression replaced by 0) and gain_halved (its expression times 0.5,
     kept inside the line's own '...' or {...}); one parse_bsources() marks
-    unmutable gets none. Any other declared ref gets none either - the
-    caller names it (parse_elements, unmutable_reason)."""
+    unmutable gets none. A capacitor - a PDK cap `x...` instance
+    (cap_size_key) or a plain `c...` element (parse_capacitors) - gets
+    cap_halved (its c_width, or its value, times 0.5) and cap_removed (its
+    line commented out): a compensation cap's job is a phase margin, so a
+    bench that cannot see it gone or halved is not a stability bench (issue
+    #100). Any other declared ref gets none either - the caller names it
+    (parse_elements, unmutable_reason)."""
     devices = {d["ref"]: d for d in parse_devices(netlist_text)}
     sources = parse_sources(bench_text) if bench_text else {}
     bsources = parse_bsources(netlist_text)
+    caps = parse_capacitors(netlist_text)
     mutants: list[dict] = []
     for ref in device_refs:
         dev = devices.get(ref)
+        if dev is not None and cap_size_key(dev) is not None:
+            # a PDK capacitor (cap_mim_*, cap_nmos_*...): halved and removed
+            # stand in for size_doubled and connection_removed - a 2-pin
+            # cap with one pin floated IS a removed cap, said plainly
+            mutants.append(_cap_halved_mutant(ref, dev, cap_size_key(dev)))
+            mutants.append(_cap_removed_mutant(ref, dev["line"]))
+            continue
+        cap = caps.get(ref.lower())
+        if cap is not None:
+            mutants.append(_cap_halved_mutant(ref, cap, None))
+            mutants.append(_cap_removed_mutant(ref, cap["line"]))
+            continue
         if dev is not None:
             model = dev["model"]
             # a MOSFET's w/l, or a gf180mcu_fd_pr resistor's r_width/r_length
@@ -347,6 +365,73 @@ def device_mutants(netlist_text: str, device_refs: list[str],
         if src is not None:
             mutants.append(_bias_mutant(ref, src))
     return mutants
+
+
+CAP_RE = re.compile(r"^\s*([cC]\S*)\s+(\S+)\s+(\S+)\s+(\S+)(.*)$")
+
+
+def cap_size_key(dev: dict) -> str | None:
+    """The size param a PDK capacitor instance (model cap_*, GF180's
+    c_width/c_length) is halved on, or None when dev is not one."""
+    if not dev["model"].startswith("cap_"):
+        return None
+    return "c_width" if "c_width" in dev["params"] else None
+
+
+def parse_capacitors(netlist_text: str) -> dict[str, dict]:
+    """{ref.lower(): {ref, nodes, value, rest, line}} for every plain
+    `c<ref> n1 n2 VALUE ...` element outside .control."""
+    lines = netlist_text.splitlines()
+    out = {}
+    for el in parse_elements(netlist_text):
+        if el["kind"] != "capacitor":
+            continue
+        m = CAP_RE.match(strip_comment(lines[el["line"] - 1]))
+        if m:
+            ref, n1, n2, val, rest = m.groups()
+            out[ref.lower()] = {"ref": ref, "nodes": [n1, n2], "value": val,
+                                "rest": rest.strip(), "line": el["line"]}
+    return out
+
+
+def _halved(value: str) -> str:
+    num = spice_number(value)
+    if num is not None:
+        return repr(num * 0.5)
+    else:
+        # a brace expression or an SI-suffixed value: one expression, as
+        # _size_mutant does, or ngspice drops a bare `*0.5`
+        inner = value.strip()
+        if inner.startswith("{") and inner.endswith("}"):
+            inner = inner[1:-1]
+        return "{(" + inner + ")*0.5}"
+
+
+def _cap_halved_mutant(ref: str, dev: dict, key: str | None) -> dict:
+    def apply(text: str) -> str:
+        if key is None:  # a plain c element: its value
+            tail = f" {dev['rest']}" if dev["rest"] else ""
+            new_line = (f"{dev['ref']} {dev['nodes'][0]} {dev['nodes'][1]} "
+                        f"{_halved(dev['value'])}{tail}")
+        else:
+            params = dict(dev["params"])
+            params[key] = _halved(params[key])
+            new_line = _rebuild_device_line(dev, dev["model"], dev["nodes"],
+                                            params)
+        return _replace_line(text, dev["line"], new_line)
+    what = f"{key} halved" if key else "value halved"
+    return {"id": f"{ref}_cap_halved", "ref": ref, "kind": "cap_halved",
+            "target": "netlist", "describe": f"{ref}: capacitor {what}",
+            "apply": apply}
+
+
+def _cap_removed_mutant(ref: str, lineno: int) -> dict:
+    def apply(text: str) -> str:
+        return _replace_line(text, lineno,
+                             f"* {ref} removed by bench_strength (cap_removed)")
+    return {"id": f"{ref}_cap_removed", "ref": ref, "kind": "cap_removed",
+            "target": "netlist", "describe": f"{ref}: capacitor removed",
+            "apply": apply}
 
 
 def _replace_line(text: str, lineno: int, new_line: str) -> str:
