@@ -27,7 +27,7 @@ person signs off between stages. Submitting a tile is always the person's.
 ## Test and score
 
 - **Test**, `bin/chip-flow test`, every change: upstream's engine suite
-  without its real-tool tests (`tests/check-engine.sh`, held to 120 s of CPU)
+  without its real-tool tests (`tests/check-engine.sh`, held to 120 s of CPU on the reference box, scaled to the runner by a calibration)
   with the workaround probes (`tests/test_workarounds.py`), then every
   corpus rung's planted faults that need no harden, each caught by its gate
   (`tests/test_corpus_faults.py`).
