@@ -98,6 +98,12 @@ class LayoutError(RuntimeError):
     run is a refusal, never a pass")."""
 
 
+class LvsBlackBox(LayoutError):
+    """netgen ran but compared a cell as an empty black box (no netlist
+    defines it and the PDK setup has no class for it): an LVS verdict
+    against the netlists, which a caller may record rather than refuse."""
+
+
 _toolchain_root_cache: Path | None = None
 
 
@@ -207,6 +213,39 @@ def nwell_tap(size: float = 1.0):
     c.add_polygon([(mo, mo), (mo + mm, mo), (mo + mm, mo + mm),
                   (mo, mo + mm)], layer=GF180_LAYER["metal1"])
     return c
+
+
+def _device_cell(model: str, kind: str, size, name: str | None):
+    import devicelib  # lazy: devicelib imports layoutlib
+
+    e = devicelib.CATALOG.get(model)
+    if e is None or e["kind"] != kind:
+        raise LayoutError(f"{model} is not a catalogued gf180mcuD {kind}")
+    why = devicelib.not_ready(model)
+    if why:
+        raise LayoutError(why)
+    try:
+        return devicelib.build(model, size, name=name)
+    except devicelib.DeviceError as exc:
+        raise LayoutError(str(exc)) from exc
+
+
+def mos_cap(model: str, lc: float, wc: float, name: str | None = None):
+    """A labelled gf180mcuD MOS capacitor (pins G, SD and its tap), drawn
+    by the PDK pcell. Only a model whose devices.yaml row passed every
+    step (pdk_devices.py, #137); anything else is a LayoutError."""
+    return _device_cell(model, "mos_cap", (lc, wc), name)
+
+
+def diode(model: str, la: float, wa: float, name: str | None = None):
+    """A labelled gf180mcuD diode (pins A, K), as mos_cap()."""
+    return _device_cell(model, "diode", (la, wa), name)
+
+
+def bjt(model: str, name: str | None = None):
+    """The PDK's fixed layout of a gf180mcuD BJT, labelled C B E [S], as
+    mos_cap()."""
+    return _device_cell(model, "bjt", (), name)
 
 
 VIA1_SIZE = 0.26  # the PDK's own via1 cut (draw_fet.py's via_size)
@@ -1572,14 +1611,16 @@ def std_cell_subckts(netlist_text: str) -> tuple[str, list[str]]:
 
 def run_netgen_lvs(work_dir, extracted_spice, extracted_cell: str,
                    ref_spice, ref_cell: str, out_log,
-                   timeout: float = 120.0) -> tuple[bool, str]:
+                   timeout: float = 120.0,
+                   setup: Path | None = None) -> tuple[bool, str]:
     """netgen LVS under the PDK's own setup (device classes, pin
     permutations, which properties to compare and which - ad/pd/as/ps, nf -
     to drop). A match is the top cell's last "Final result:" line reading
     "Circuits match uniquely." with no property error anywhere in the log.
     Refuses (LayoutError) when netgen had to black-box a cell whose
-    properties it does not compare."""
-    setup = netgen_setup()
+    properties it does not compare. `setup` swaps in another setup file
+    (a test plants a misspelt device class in a copy); default the PDK's."""
+    setup = Path(setup) if setup is not None else netgen_setup()
     # netgen writes out_log relative to its own cwd (work_dir) - resolve it
     # there regardless of the caller's own cwd.
     log_path = Path(work_dir) / out_log
@@ -1605,7 +1646,7 @@ def run_netgen_lvs(work_dir, extracted_spice, extracted_cell: str,
     blind = sorted({c.lower() for c in _PLACEHOLDER_RE.findall(out + text)}
                    - compared_devices(setup))
     if blind:
-        raise LayoutError(
+        raise LvsBlackBox(
             f"netgen compared {', '.join(blind)} as black boxes: neither "
             "netlist defines them and the PDK setup gives them no property "
             "rules, so LVS cannot see inside them. Give the reference their "
