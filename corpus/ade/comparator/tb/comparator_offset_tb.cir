@@ -34,10 +34,14 @@ cloadn outn 0 10f
 evid vid 0 inp inn 1
 vhalf vid vmid 0.5m
 
-* Max step 2 ps: the clock edge (50 ps) over 25 (sim_run tran_step_coarse).
-* At the default 20 ps step vin_offset carried about 1.5% step error
-* (docs/xsim.md).
-.tran 20p 644n 0 2p
+* Max step 5 ps, the clock edge (50 ps) over 10. vin_offset is read at
+* outn's crossing after the latch has regenerated, not during the edge, and
+* xsim measured it within 0.4% of Xyce at 5 ps (0.07% from 2 ps), against
+* 1.8% at the default 20 ps step (docs/xsim.md). The edge over 25 that
+* comparator_tb needs costs this 644 ns bench 2.5x the run time under the
+* mc gate's hundreds of samples, for no change in vin_offset; so sim_run
+* warns tran_step_coarse here, and xsim is what settles it.
+.tran 20p 644n 0 5p
 .measure tran vin_offset FIND v(vmid) WHEN v(outn)=1.4 FALL=1
 
 .control

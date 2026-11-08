@@ -51,6 +51,9 @@ A measure taken during a source edge (a peak current, a crossing, a
 over 25: `.tran tstep tstop 0 tmax`. ngspice's default, min(tstep,
 span/50), read the comparator's tail-current peak 10% high (docs/xsim.md).
 The sim gates warn `tran_step_coarse` on a bench that is coarser.
+A long bench run many times (an mc offset ramp) may use a coarser step
+only where xsim shows its measure does not move: the comparator's
+offset bench runs at the edge over 10, and docs/xsim.md has the sweep.
 
 A settling-time measure starts from `templates/step_settle_tb.cir`. Its
 window comes from the expected settling (5x the spec's bound or 20x

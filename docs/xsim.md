@@ -109,7 +109,7 @@ Corpus:
 | ota_noise_xsim | onoise_rms | 33.895 uV | 33.921 uV | 0.08% |
 | comparator_tb | tdelay | 358.13 ps | 359.31 ps | 0.3% (timing, 5%) |
 | | itail_peak | 1.1772 mA | 1.1769 mA | 0.03% |
-| comparator_offset_tb | vin_offset | -240.09 uV | -239.33 uV | 0.3% |
+| comparator_offset_tb | vin_offset | -240.27 uV | -239.54 uV | 0.3% |
 
 All agree. The comparator benches did not at first: at ngspice's default
 step, min(tstep, span/50), itail_peak read 1.2989 mA against Xyce's
@@ -127,16 +127,33 @@ Sweeping ngspice's max step on comparator_tb (Xyce at 1 ps: 1.1747 mA):
 | 2 ps (edge/25) | 1.1772 mA | 0.2% |
 | 1 ps | 1.1755 mA | 0.07% |
 
-The fix is in the benches, not the bounds. Both gated benches now give
-their `.tran` a max step of the fastest edge over 25 (`.tran 10p 20n 0 2p`,
-`.tran 20p 644n 0 2p`). The sim gates (sim_run, so sim_tt, sim_pvt and
-netlist_lint) warn `tran_step_coarse` on a bench whose max step is coarser
+vin_offset needs less. It is read when outn crosses 1.4 V, after the latch
+has regenerated, not during the edge. Sweeping comparator_offset_tb (Xyce at
+2 ps: -239.33 uV; ngspice run time at tt on one core):
+
+| max step | vin_offset | off | run time |
+|---|---|---|---|
+| default (20 ps) | -243.56 uV | 1.8% | 0.7 s |
+| 10 ps | -240.98 uV | 0.7% | 1.3 s |
+| 5 ps (edge/10) | -240.27 uV | 0.4% | 2.5 s |
+| 2 ps (edge/25) | -240.09 uV | 0.3% | 6.1 s |
+
+The mc gate runs this bench for hundreds of samples per corner, so at 2 ps
+the comparator rung's slow test (`tests/test_corpus_faults.py`) ran past
+`tests/check-slow.sh`'s 1800 s cap.
+
+The fix is in the benches, not the bounds. comparator_tb gives its `.tran`
+a max step of the fastest edge over 25 (`.tran 10p 20n 0 2p`), and
+comparator_offset_tb the edge over 10 (`.tran 20p 644n 0 5p`): vin_offset
+there is within 0.1% of its 2 ps value at under half the run time. The sim
+gates (sim_run, so sim_tt, sim_pvt and netlist_lint) warn `tran_step_coarse` on a bench whose max step is coarser
 than its fastest PULSE or PWL edge over 25
 (`engine/lib/netlistlib.py:tran_step_coarse`). It is a warning, not an
 error: a measure read long after the edge (a settled value, a slow
 crossing) does not need the fine step, and only xsim can tell the two
-apart. A tran line written with `$&` vectors from `.control` (the step
-settling template) cannot be read and is not checked.
+apart. comparator_offset_tb is one such bench: it warns, and the sweep
+above is why that is fine. A tran line written with `$&` vectors from
+`.control` (the step settling template) cannot be read and is not checked.
 
 `tests/test_xsim.py` plants the comparator bench without its max step and
 expects xsim to flag itail_peak.
