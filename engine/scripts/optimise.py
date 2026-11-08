@@ -130,6 +130,7 @@ import checklib  # noqa: E402
 from check_synth import must_keep_missing  # noqa: E402
 import corners as corners_mod  # noqa: E402
 import sim_run  # noqa: E402
+import padlib  # noqa: E402
 import simlib  # noqa: E402
 import speclib  # noqa: E402
 import statelib  # noqa: E402
@@ -247,7 +248,8 @@ def full_corner_margin(results: list[dict],
                    else min(worst, MISSING_MEASURE_PENALTY)
             continue
         for b in bounds_by_bench.get(r["bench"], []):
-            if not simlib.scored_at(b, r["names"]):
+            if not simlib.scored_at(b, r["names"]) \
+                    or not padlib.scored_in(b, r.get("condition")):
                 continue
             key = b["measure"].lower()
             m = (measure_margin(r["measures"][key], b) if key in r["measures"]

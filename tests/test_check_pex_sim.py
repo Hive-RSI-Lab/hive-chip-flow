@@ -1672,3 +1672,56 @@ def test_clean_ota_post_fill_view_passes(tmp_path):
     for net in ("out", "d2", "inp", "inn"):
         c = fill["coupling"][net]
         assert c["c_ff_filled"] >= c["c_ff"]
+
+
+# ---- the ua pad model (#112) ------------------------------------------------
+
+def _pad_ws(ws, monkeypatch, bench_line="xd a b blk", bounds=None):
+    _rc_extract(monkeypatch)
+    _spec(ws, "top: blk\nsupply: {vdd: 3.3}\npex_corners: [tt]\n"
+          "ua_pins: [b]\n")
+    (ws / "netlist" / "blk.cir").write_text(
+        ".subckt blk a b\nR1 a b 1k\n.ends\n", encoding="utf-8")
+    (ws / "layout_ref" / "blk_pex_tb.cir").write_text(
+        f".lib x {{corner}}\n.temp {{temp_c}}\nv1 a 0 {{vdd}}\n{bench_line}\n"
+        ".end\n", encoding="utf-8")
+    (ws / "layout_ref" / "blk_pex_tb.bounds.json").write_text(
+        json.dumps({"measures": bounds or {"x": {"min": 1}}}),
+        encoding="utf-8")
+
+
+def test_a_ua_pin_spec_runs_the_pex_bench_bare_and_through_the_pad(
+        unlaunchable_eda, tmp_path, monkeypatch):
+    import layoutlib
+    ws = unlaunchable_eda
+    _pad_ws(ws, monkeypatch, bounds={"x": {"min": 3}})
+    decks = {}
+
+    def sim(bench, cwd, timeout, failed_measures):
+        decks[bench.name] = bench.read_text(encoding="utf-8")
+        return "x = 2.0\n"
+    monkeypatch.setattr(layoutlib, "run_ngspice", sim)
+    code, out = run_json(["--workspace", str(ws)], tmp_path)
+    assert code == 1, out
+    assert "tt_ua_pad" not in decks["blk_pex_tb__tt.cir"]
+    pad = decks["blk_pex_tb__tt__pad.cir"]
+    assert "xd a b__ua_die_xd_b blk" in pad
+    assert "xuapad_xd_b b__ua_die_xd_b b tt_ua_pad" in pad
+    assert "vdvdd dvdd 0 3.3" in pad
+    assert out["pad_runs"] == [{"run": "tt", "corner": "tt",
+                                "measured": {"x": 2.0}}]
+    assert sorted(v["msg"] for v in out["violations"]) == [
+        "x @ tt / pad = 2, outside bound [3, None]",
+        "x @ tt = 2, outside bound [3, None]"]
+
+
+def test_a_pex_bench_the_pad_cannot_go_in_is_refused(
+        unlaunchable_eda, tmp_path, monkeypatch):
+    import layoutlib
+    ws = unlaunchable_eda
+    _pad_ws(ws, monkeypatch, bench_line="r1 a b 1k")
+    monkeypatch.setattr(layoutlib, "run_ngspice",
+                        lambda *a, **k: pytest.fail("no bench may run"))
+    code, out = run_json(["--workspace", str(ws)], tmp_path)
+    assert code == 1, out
+    assert [v["kind"] for v in out["violations"]] == ["ua_pad_not_inserted"]

@@ -87,6 +87,7 @@ sys.path.insert(0, str(ENGINE / "lib"))
 import checklib  # noqa: E402
 import corners as corners_mod  # noqa: E402
 import netlistlib  # noqa: E402
+import padlib  # noqa: E402
 import simlib  # noqa: E402
 import speclib  # noqa: E402
 from checklib import CheckError  # noqa: E402
@@ -312,13 +313,21 @@ def tone_measures(path: Path, decl: dict) -> dict[str, float]:
 def run_bench_at_corner(eda_bin: Path, bench_name: str,
                         bench_template_text: str, bounds: list[dict],
                         subs: dict, corner: dict, out_dir: Path,
-                        timeout: float, check: str = "sim") -> dict:
+                        timeout: float, check: str = "sim",
+                        condition: str | None = None) -> dict:
     """Materialize `bench_template_text` with `subs`, run it, score it.
     `bench_name` is what violations/report entries call this bench (the
     real tb/ filename even when the text passed in is a mutant's - see
     check_bench_strength.py, which never writes a mutated bench to disk
-    under tb/ itself)."""
+    under tb/ itself). `condition` ("pad"/"no_pad", padlib) is the ua pad
+    condition of a spec with ua_pins: only the bounds scored in it
+    (padlib.scored_in) are scored, the result carries it, and every
+    violation names it (refs, msg, `condition`). The caller has already
+    put the pad into a "pad" run's text (padlib.insert_pads)."""
     stem = f"{Path(bench_name).stem}__{corner['name']}"
+    if condition == "pad":
+        stem += "__pad"
+    bounds = [b for b in bounds if padlib.scored_in(b, condition)]
     out_dir.mkdir(parents=True, exist_ok=True)
     # named after the deck: bench_strength runs mutants in parallel in one
     # directory, and an old sweep must never be scored as this run's
@@ -378,6 +387,14 @@ def run_bench_at_corner(eda_bin: Path, bench_name: str,
         failed_measures=failed, check=check,
         unsettled=simlib.parse_unsettled(stdout), names=names)
 
+    if condition is not None:
+        for v in violations:
+            v["refs"] = sorted(set(v["refs"]) | {condition})
+            v["msg"] = f"[{condition}] {v['msg']}"
+            for item in v.get("items", []):
+                item["msg"] = v["msg"]
+            v["condition"] = condition
+
     out = {
         "bench": bench_name, "corner": corner["name"], "names": sorted(names),
         "process": corner["process"],
@@ -388,7 +405,37 @@ def run_bench_at_corner(eda_bin: Path, bench_name: str,
     }
     if corner.get("pinned"):
         out["pinned"] = dict(corner["pinned"])
+    if condition is not None:
+        out["condition"] = condition
     return out
+
+
+def pad_setup(spec: dict, netlist_text: str) -> dict | None:
+    """The ua pad model's inputs for a spec with `ua_pins` - {pins, ports,
+    board} - or None for a spec without them. A malformed field is a
+    CheckError (spec_lint names it first); a top the netlist does not
+    declare is a padlib.PadRefused, scored by the caller."""
+    try:
+        pins = padlib.ua_pins_of(spec)
+        board = padlib.board_of(spec)
+    except ValueError as exc:
+        raise CheckError(f"{exc} - run spec_lint") from exc
+    if not pins:
+        return None
+    return {"pins": pins, "board": board,
+            "ports": padlib.top_ports(netlist_text, str(spec.get("top")))}
+
+
+def pad_bench(template_text: str, top: str, pad: dict, corner: dict,
+              vdd: str) -> str:
+    """`template_text` with the ua pad model on every ua pin of every top
+    instance, its diodes at the corner's process and DVDD at the run's
+    VDD. Raises padlib.PadRefused."""
+    text, _ = padlib.insert_pads(
+        template_text, top, pad["ports"], pad["pins"],
+        padlib.pad_subckt("{{PDK}}", corner["process"], float(vdd),
+                          pad["board"]))
+    return text
 
 
 def spec_sweep(ws: Path) -> tuple[list[dict], list[dict]]:
@@ -467,6 +514,22 @@ def run_workspace_benches(ws: Path, eda_bin: Path | None = None,
     not_scored = []
     out_of_scope = []
     not_run = []
+    # ua pins (padlib): every bench runs bare and through the pad model
+    try:
+        pad = pad_setup(spec, netlist_path.read_text(encoding="utf-8",
+                                                     errors="replace"))
+        pad_refused = None
+    except padlib.PadRefused as exc:
+        pad, pad_refused = None, exc
+    all_conditions = (padlib.conditions_of(spec) if pad or pad_refused
+                      else [None])
+    if pad_refused is not None:
+        not_run.append(checklib.violation(
+            check, "error", f"netlist/{netlist_path.name}", None,
+            pad_refused.kind, [str(spec.get("top"))],
+            f"{pad_refused}: spec.yaml lists ua_pins, so every bench must "
+            "also run through the ua pad model, and none can", "sim_run"))
+        all_conditions = ["no_pad"]
     for bench_path, bounds_path in find_benches(ws):
         bounds = simlib.load_bounds(bounds_path)
         template_text = bench_path.read_text(encoding="utf-8")
@@ -501,6 +564,22 @@ def run_workspace_benches(ws: Path, eda_bin: Path | None = None,
                 f"{coarse['limit']:.3g} (`.tran tstep tstop 0 tmax`), or "
                 f"check with xsim (docs/xsim.md) that the measure does not "
                 f"move with it", "sim_run"))
+        conditions = all_conditions
+        if pad is not None:
+            try:
+                pad_bench(template_text, str(spec.get("top")), pad,
+                          corner_list[0], "0")
+            except padlib.PadRefused as exc:
+                # a "pad" run with no pad in it is a second bare run:
+                # refused, never scored as the pad condition
+                conditions = [c for c in all_conditions if c != "pad"]
+                not_run.append(checklib.violation(
+                    check, "error", f"tb/{bench_path.name}", None,
+                    exc.kind, [bench_path.name, "pad"],
+                    f"{bench_path.name}: {exc}. spec.yaml lists ua_pins "
+                    f"({', '.join(pad['pins'])}), so the bench must "
+                    f"instantiate {spec.get('top')} by its ports for the "
+                    "pad model to go in", "sim_run"))
         ran = 0
         for corner in corner_list:
             # Brief: "don't run a (bench, corner) pair when every bound in
@@ -515,9 +594,22 @@ def run_workspace_benches(ws: Path, eda_bin: Path | None = None,
                               "corner"})
                 continue
             subs = build_subs(t_root, netlist_path, corner, nominal_vdd, sizing)
-            results.append(run_bench_at_corner(
-                eda_bin, bench_path.name, template_text, bounds, subs,
-                corner, out_dir, timeout, check=check))
+            for condition in conditions:
+                if not any(padlib.scored_in(b, condition) for b in bounds):
+                    not_scored.append({
+                        "bench": bench_path.name, "corner": corner["name"],
+                        "condition": condition,
+                        "reason": "no bound in the sidecar is scored in "
+                                  "this ua pad condition"})
+                    continue
+                text = template_text
+                if condition == "pad":
+                    text = pad_bench(template_text, str(spec.get("top")),
+                                     pad, corner, subs["VDD"])
+                results.append(run_bench_at_corner(
+                    eda_bin, bench_path.name, text, bounds, subs,
+                    corner, out_dir, timeout, check=check,
+                    condition=condition))
             ran += 1
         # Policy (planning seat): a bench whose bounds are all scoped away
         # from the corner being run "is skipped by sim_tt and listed in the

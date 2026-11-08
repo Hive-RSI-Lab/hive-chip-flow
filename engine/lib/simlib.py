@@ -217,7 +217,10 @@ def load_bounds(path: Path) -> list[dict]:
     change) is not a pass bound: no sim gate reads it, only bench_strength
     does (check_bench_strength.py). Nor is an optional `sensitivity_abs`
     (a finite number > 0, an absolute change in the measure's own units),
-    which needs `sensitivity_unit` beside it: "s", "V" or "A"."""
+    which needs `sensitivity_unit` beside it: "s", "V" or "A". An
+    optional `pad` ("both", the default, "bare" or "pad") is the ua pad
+    condition the bound is scored in when the spec lists ua_pins
+    (padlib.scored_in)."""
     data = load_json(path, "bounds sidecar")
     if not isinstance(data, list) or not data:
         raise CheckError(f"{path}: bounds sidecar must be a non-empty JSON "
@@ -265,6 +268,12 @@ def load_bounds(path: Path) -> list[dict]:
                                              for c in corners))):
             raise CheckError(f"{path}[{i}] ({name}): corners must be 'all' "
                              "or a non-empty list of corner names")
+        if entry.get("pad", "both") not in ("both", "bare", "pad"):
+            # padlib.PAD_SCOPES: the ua pad condition the bound is scored
+            # in, for a spec with ua_pins (padlib.scored_in)
+            raise CheckError(f"{path}[{i}] ({name}): pad must be 'both' "
+                             "(the default), 'bare' (scored with no ua "
+                             "pad model only) or 'pad'")
         out.append({**entry, "severity": sev})
     return out
 
