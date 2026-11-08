@@ -6,8 +6,10 @@ in a spec with no `mc: {enabled: true}`. sim_tt and sim_pvt run with the
 PDK's `sw_stat_mismatch=0`, so they check only its systematic part; the mc
 gate is the one gate that turns device mismatch on.
 
-**Cheapest fix first:** add `mc: {enabled: true, runs: 20, yield_min: ...}`
-and make sure the measure is scored at tt (the corner MC runs).
+**Cheapest fix first:** add `mc: {enabled: true, yield_min: ...}` (the
+gate sizes the run count from it) and make sure the measure is scored at
+tt (the corner MC always runs; its second run is each bench's worst
+sim_pvt corner).
 
 **Trap:** a waiver is only for a measure mismatch truly cannot move (a
 digital divide ratio; resistors, which GF180's ngspice models give no

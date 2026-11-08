@@ -11,7 +11,11 @@ A self-biased delta-VBE bandgap reference. `xq1`/`xq2` (with `xq2` run at
 (`xm1`-`xm4`); that current is mirrored into the output branch (`xm5`) and
 forced through `xr2` and `xq3`, summing a CTAT (complementary-to-absolute-
 temperature) `Vbe` with a PTAT drop across `xr2` to cancel each device's own
-temperature slope at the output node `vref`. `xms1`-`xms3` are a startup
+temperature slope at the output node `vref`. The core nfet pair `xm1`/`xm2`
+runs at `m=4`: the cell's R2/R1 gain multiplies their offset into `vref`,
+and at one unit Monte Carlo at the fast-cold corner (ff) put too many
+samples over `vref`'s max (vref sigma about 9.6 mV; at m=4 about 6 mV).
+`xms1`-`xms3` are a startup
 circuit that kicks the self-biased core out of its zero-current state on
 power-up.
 
@@ -39,8 +43,8 @@ its DC level, its move across the VDD line and its move across temperature),
   first-order bandgap's residual curvature is what this bounds.
 
 Real simulated values on this box (gf180mcuD, default corner set): vref
-1.18011-1.19217V across tt/ss/ff/sf/fs, vref_line_pp 0.0101-0.0116V,
-vref_tc_pp 0.00259-0.00317V - all comfortably inside spec.yaml's bounds
+1.18177-1.19401V across tt/ss/ff/sf/fs, vref_line_pp 0.0108-0.0113V,
+vref_tc_pp 0.00284-0.00394V - all comfortably inside spec.yaml's bounds
 ([1.16, 1.21]V, 15mV, 6mV).
 
 ## bench_strength scope
@@ -57,8 +61,10 @@ tied to each one's own source) moves any declared measure; only physically
 removing one does, and that is not a mutant this gate ever plants. Real
 silicon still needs the startup network for the process/mismatch corners
 this deterministic sim does not sweep - that is `mc`'s job, and this rung's
-`mc` block asks for it: 20 mismatch samples per bench at tt, 95% yield, with
-`xq2`'s `m=8` drawing the mismatch of eight units (`par=8` in the MC deck).
+`mc` block asks for it: mismatch samples per bench at tt and at sim_pvt's
+worst corner, enough of them (348 by default) that a 95%-confidence lower
+bound on the yield clears 95%, with `xq2`'s `m=8` and `xm1`/`xm2`'s `m=4`
+drawing the mismatch of that many units (`par=N` in the MC deck).
 
 ## Layout
 
