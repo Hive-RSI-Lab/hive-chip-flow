@@ -183,15 +183,16 @@ needs_pdk = pytest.mark.skipif(not layoutlib.pdk_root().is_dir(),
 @pytest.mark.slow
 @needs_pdk
 def test_check_reproduces_the_table(tmp_path):
-    # one that passes and one that fails at extraction, per kind
+    # passing models of three kinds, the pnp among them now it extracts as
+    # itself (#285), and one that fails at extraction
     models = ["cap_nmos_03v3", "diode_nd2ps_03v3", "npn_00p54x02p00",
-              "pnp_05p00x05p00"]
+              "pnp_05p00x05p00", "cap_pmos_03v3_b"]
     rc, out = _pdk_devices("--out", str(tmp_path), "--check",
                            "--models", *models, "--jobs", "4")
     assert rc == 0, out
     assert out["violations"] == []
     assert sorted(out["passed"]) == ["cap_nmos_03v3", "diode_nd2ps_03v3",
-                                     "npn_00p54x02p00"]
+                                     "npn_00p54x02p00", "pnp_05p00x05p00"]
 
 
 @pytest.mark.slow

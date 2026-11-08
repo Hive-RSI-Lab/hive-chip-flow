@@ -92,14 +92,22 @@ class FakeProc:
         self.stdout, self.stderr, self.returncode = stdout, stderr, returncode
 
 
-def fake_pdk(tmp_path, monkeypatch, tech=" calma MET1RES 110 11\n"):
+PNP_FIXED = (" device msubcircuit pnp_10p00x10p00 pnp *pdiff pwell,space/w"
+             " a1>99.0 a1<101.0\n")
+PNP_TYPO = (" device msubcircuit pnp_10p00x00p42 pnp pwell,space/w *pdiff error"
+            " a2>4.1 a2<4.3\n device msubcircuit pnp_10p00x10p00 pnp"
+            " pwell,space/w *pdiff error a2>99.0 a2<101.0\n")
+
+
+def fake_pdk(tmp_path, monkeypatch, tech=" calma MET1RES 110 11\n",
+             pnp=PNP_FIXED):
     pdk = tmp_path / "pdk" / "gf180mcuD"
     deck = pdk / layoutlib.DRC_DECK_REL
     deck.parent.mkdir(parents=True)
     deck.write_text("# fake deck\n", encoding="utf-8")
     magic = pdk / "libs.tech" / "magic" / "gf180mcuD.tech"
     magic.parent.mkdir(parents=True)
-    magic.write_text(tech + POLY_TECH, encoding="utf-8")
+    magic.write_text(tech + pnp + POLY_TECH, encoding="utf-8")
     models = pdk / "libs.tech" / "ngspice" / "sm141064.spice"
     models.parent.mkdir(parents=True)
     models.write_text(POLY_MODEL, encoding="utf-8")
@@ -405,6 +413,39 @@ def test_magic_tech_leaves_a_fixed_pdk_alone(tmp_path, monkeypatch):
 def test_magic_tech_refuses_an_unknown_rm1_mapping(tmp_path, monkeypatch):
     fake_pdk(tmp_path, monkeypatch, tech=" calma MET1 34 0\n")
     with pytest.raises(layoutlib.LayoutError, match="110/11"):
+        layoutlib.magic_tech(tmp_path)
+
+
+def test_magic_tech_selects_each_pnp_on_its_emitter_area(tmp_path, monkeypatch):
+    # the PDK's rules give *pdiff as the substrate, so a2 is 0 and the
+    # first rule names every pnp (#285); the fix makes the emitter
+    # terminal 1 (a1) and the collector terminal 2, with no substrate
+    fake_pdk(tmp_path, monkeypatch, pnp=PNP_TYPO)
+    text = layoutlib.magic_tech(tmp_path).read_text(encoding="utf-8")
+    assert (" device msubcircuit pnp_10p00x00p42 pnp *pdiff pwell,space/w"
+            " a1>4.1 a1<4.3\n") in text
+    assert (" device msubcircuit pnp_10p00x10p00 pnp *pdiff pwell,space/w"
+            " a1>99.0 a1<101.0\n") in text
+    assert "a2>" not in text
+
+
+def test_magic_tech_fixes_pnp_rules_and_rm1_together(tmp_path, monkeypatch):
+    fake_pdk(tmp_path, monkeypatch, tech=" calma MET2RES 110 11\n",
+             pnp=PNP_TYPO)
+    text = layoutlib.magic_tech(tmp_path).read_text(encoding="utf-8")
+    assert " calma MET1RES 110 11\n" in text and "a2>" not in text
+
+
+def test_magic_tech_refuses_an_unknown_pnp_rule(tmp_path, monkeypatch):
+    fake_pdk(tmp_path, monkeypatch,
+             pnp=" device msubcircuit pnp_10p00x10p00 pnp nwell *pdiff a3>1\n")
+    with pytest.raises(layoutlib.LayoutError, match="pnp rule"):
+        layoutlib.magic_tech(tmp_path)
+
+
+def test_magic_tech_refuses_a_tech_with_no_pnp_rule(tmp_path, monkeypatch):
+    fake_pdk(tmp_path, monkeypatch, pnp="")
+    with pytest.raises(layoutlib.LayoutError, match="no `device msubcircuit pnp_"):
         layoutlib.magic_tech(tmp_path)
 
 

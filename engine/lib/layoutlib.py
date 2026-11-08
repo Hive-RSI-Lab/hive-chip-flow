@@ -653,23 +653,69 @@ def magic_tech_source() -> Path:
     return pdk_root() / "libs.tech" / "magic" / f"{pdk_root().name}.tech"
 
 
+# The PDK's pnp rules (#285) give the collector as the one terminal and the
+# emitter's *pdiff as the substrate:
+#   device msubcircuit pnp_10p00x10p00 pnp pwell,space/w *pdiff error a2>99.0 a2<101.0
+# so the device has no second terminal, a2 is 0, no size range applies and
+# the first pnp rule names every pnp (all four sizes came out
+# pnp_10p00x00p42). The fix makes the emitter terminal 1 and the collector
+# terminal 2, with no substrate, and selects on a1 (the emitter area, as the
+# npn rules do over *ndiff):
+#   device msubcircuit pnp_10p00x10p00 pnp *pdiff pwell,space/w a1>99.0 a1<101.0
+# ext2spice writes an msubckt as terminal 2, gate, terminal 1, so the line
+# stays `C B E pnp_...`, sm141064's pin order, and with no substrate magic
+# writes no fourth pin (the .ext names it "None"). Proved on the PDK's four
+# pnp cells: each extracts as itself, `X0 C B E pnp_<size>`.
+_PNP_RULE = re.compile(
+    r"^(\s*device\s+msubcircuit\s+pnp_\S+\s+pnp)\s+(.*)$", re.M)
+_PNP_TYPO = re.compile(r"pwell,space/w \*pdiff error a2>(\S+) a2<(\S+)\s*")
+_PNP_FIXED = re.compile(r"\*pdiff pwell,space/w a1>(\S+) a1<(\S+)\s*")
+
+
+def _fix_pnp_rules(text: str, src) -> str:
+    rules = list(_PNP_RULE.finditer(text))
+    if not rules:
+        raise LayoutError(
+            f"{src} has no `device msubcircuit pnp_*` rule - check how this "
+            "PDK extracts its pnp before trusting an extraction")
+
+    def fix(m):
+        body = m.group(2)
+        if _PNP_FIXED.fullmatch(body):
+            return m.group(0)
+        t = _PNP_TYPO.fullmatch(body)
+        if not t:
+            raise LayoutError(
+                f"{src}: pnp rule `{m.group(0).strip()}` is neither the known "
+                "a2-on-substrate form nor its fix - check which size it "
+                "names before trusting an extraction")
+        return (f"{m.group(1)} *pdiff pwell,space/w "
+                f"a1>{t.group(1)} a1<{t.group(2)}")
+    return _PNP_RULE.sub(fix, text)
+
+
 def magic_tech(work_dir) -> Path | None:
-    """A copy of the PDK's magic tech with the rm1 input typo fixed, written
-    into work_dir, or None when the PDK already maps 110/11 to MET1RES.
-    Refuses a tech file that has neither line, rather than guess."""
+    """A copy of the PDK's magic tech with its known extraction faults fixed
+    (the rm1 input typo, the pnp size rules), written into work_dir, or None
+    when the PDK already has both right. Refuses a tech file that has
+    neither the fault nor its fix, rather than guess."""
     src = magic_tech_source()
     if not src.is_file():
         raise LayoutError(f"no magic tech file at {src}")
-    text = src.read_text(encoding="utf-8", errors="replace")
-    if _RM1_FIX in text:
+    orig = src.read_text(encoding="utf-8", errors="replace")
+    text = orig
+    if _RM1_FIX not in text:
+        if text.count(_RM1_TYPO) != 1:
+            raise LayoutError(
+                f"{src} maps GDS 110/11 neither to MET1RES nor through the "
+                "one known MET2RES typo - check how this PDK reads rm1 "
+                "before trusting an extraction")
+        text = text.replace(_RM1_TYPO, _RM1_FIX)
+    text = _fix_pnp_rules(text, src)
+    if text == orig:
         return None
-    if text.count(_RM1_TYPO) != 1:
-        raise LayoutError(
-            f"{src} maps GDS 110/11 neither to MET1RES nor through the one "
-            "known MET2RES typo - check how this PDK reads rm1 before "
-            "trusting an extraction")
     out = Path(work_dir) / src.name
-    out.write_text(text.replace(_RM1_TYPO, _RM1_FIX), encoding="utf-8")
+    out.write_text(text, encoding="utf-8")
     return out
 
 

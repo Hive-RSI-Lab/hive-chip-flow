@@ -449,8 +449,8 @@ devices:
     sizes:
     - []
     drc_ok: true
-    extract_ok: false
-    lvs_ok: false
+    extract_ok: true
+    lvs_ok: true
     sim_ok: true
     tt_legal: true
     corner_kind: bjt
@@ -458,7 +458,7 @@ devices:
     - bjt_typical
     - bjt_ss
     - bjt_ff
-    reason: 'pnp_05p00x00p42_cell: magic extracts [''pnp_10p00x00p42''], not one pnp_05p00x00p42'
+    reason: null
     tt_reason: null
   pnp_05p00x05p00:
     kind: bjt
@@ -466,8 +466,8 @@ devices:
     sizes:
     - []
     drc_ok: true
-    extract_ok: false
-    lvs_ok: false
+    extract_ok: true
+    lvs_ok: true
     sim_ok: true
     tt_legal: true
     corner_kind: bjt
@@ -475,7 +475,7 @@ devices:
     - bjt_typical
     - bjt_ss
     - bjt_ff
-    reason: 'pnp_05p00x05p00_cell: magic extracts [''pnp_10p00x00p42''], not one pnp_05p00x05p00'
+    reason: null
     tt_reason: null
   pnp_10p00x00p42:
     kind: bjt
@@ -500,8 +500,8 @@ devices:
     sizes:
     - []
     drc_ok: true
-    extract_ok: false
-    lvs_ok: false
+    extract_ok: true
+    lvs_ok: true
     sim_ok: true
     tt_legal: true
     corner_kind: bjt
@@ -509,7 +509,7 @@ devices:
     - bjt_typical
     - bjt_ss
     - bjt_ff
-    reason: 'pnp_10p00x10p00_cell: magic extracts [''pnp_10p00x00p42''], not one pnp_10p00x10p00'
+    reason: null
     tt_reason: null
   sc_diode:
     kind: diode
