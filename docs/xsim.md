@@ -109,7 +109,7 @@ Corpus:
 | ota_noise_xsim | onoise_rms | 33.895 uV | 33.921 uV | 0.08% |
 | comparator_tb | tdelay | 358.13 ps | 359.31 ps | 0.3% (timing, 5%) |
 | | itail_peak | 1.1772 mA | 1.1769 mA | 0.03% |
-| comparator_offset_tb | vin_offset | -240.27 uV | -239.54 uV | 0.3% |
+| comparator_offset_tb | vin_offset | -240.98 uV | -240.21 uV | 0.3% |
 
 All agree. The comparator benches did not at first: at ngspice's default
 step, min(tstep, span/50), itail_peak read 1.2989 mA against Xyce's
@@ -140,12 +140,15 @@ has regenerated, not during the edge. Sweeping comparator_offset_tb (Xyce at
 
 The mc gate runs this bench for hundreds of samples per corner, so at 2 ps
 the comparator rung's slow test (`tests/test_corpus_faults.py`) ran past
-`tests/check-slow.sh`'s 1800 s cap.
+`tests/check-slow.sh`'s 1800 s cap. At 5 ps it still did on CI: the rung
+took 523 s here against main's 172 s at the default step, about 150 s of
+which is this bench.
 
 The fix is in the benches, not the bounds. comparator_tb gives its `.tran`
 a max step of the fastest edge over 25 (`.tran 10p 20n 0 2p`), and
-comparator_offset_tb the edge over 10 (`.tran 20p 644n 0 5p`): vin_offset
-there is within 0.1% of its 2 ps value at under half the run time. The sim
+comparator_offset_tb the edge over 5 (`.tran 20p 644n 0 10p`): vin_offset
+there is 0.7% from Xyce, inside xsim's 2%, at a fifth of the 2 ps run
+time. The sim
 gates (sim_run, so sim_tt, sim_pvt and netlist_lint) warn `tran_step_coarse` on a bench whose max step is coarser
 than its fastest PULSE or PWL edge over 25
 (`engine/lib/netlistlib.py:tran_step_coarse`). It is a warning, not an
