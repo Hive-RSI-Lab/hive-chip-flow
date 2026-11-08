@@ -1,0 +1,13 @@
+* RC known answer, tran: t50 = RC ln 2 = 693.147 ns, v(1u) = 1 - 1/e
+* xsim: true
+.include '{{NETLIST}}'
+vin in 0 pulse(0 1 0 1p 1p 1 2) ac 1
+r1 in out 1k
+c1 out 0 1n
+.tran 1n 5u
+.measure tran t50 TRIG v(in) VAL=0.5 RISE=1 TARG v(out) VAL=0.5 RISE=1
+.measure tran v1u FIND v(out) AT=1u
+.control
+run
+.endc
+.end

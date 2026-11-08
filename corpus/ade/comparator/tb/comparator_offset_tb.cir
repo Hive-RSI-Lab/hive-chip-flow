@@ -15,6 +15,7 @@
 * fails the sample. (A PARAM measure averaging two FIND results would be
 * exact, but ngspice prints its expression as an "error" line, which
 * sim_run rightly reads as an engine error.)
+* xsim: true (plain SPICE: engine/scripts/xsim.py cross-checks it on Xyce)
 .include '{{PDK}}/libs.tech/ngspice/design.spice'
 .lib '{{PDK}}/libs.tech/ngspice/sm141064.spice' {{CORNER}}
 .temp {{TEMP_C}}

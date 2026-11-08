@@ -1,0 +1,8 @@
+* RC noise known answer: output noise of 1k into 1n, integrated by xsim
+* xsim: true
+.include '{{NETLIST}}'
+vin in 0 dc 0 ac 1
+r1 in out 1k
+c1 out 0 1n
+.noise v(out) vin dec 20 10 1meg
+.end
