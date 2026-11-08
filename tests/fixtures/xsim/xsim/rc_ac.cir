@@ -1,0 +1,13 @@
+* RC known answer, ac: f3db = 1/(2 pi RC) = 159.155 kHz, phase -45 deg there
+* xsim: true
+.include '{{NETLIST}}'
+vin in 0 pulse(0 1 0 1p 1p 1 2) ac 1
+r1 in out 1k
+c1 out 0 1n
+.ac dec 20 1k 10meg
+.measure ac f3db WHEN vm(out)=0.7071068 FALL=1
+.measure ac ph3db FIND vp(out) AT=159.155k
+.control
+run
+.endc
+.end

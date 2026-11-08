@@ -304,6 +304,13 @@ layout-fixer read `netlist/` and `sizing/` and edit only `layout/`.
   is a quick envelope, every R and C scaled by a pinned factor
   (engine/reference/pex_rc_knobs.yaml): one factor for all layers, and vias move
   as little as wires, so a via-heavy path needs `pex_rc_corners`.
+- **Only ngspice gates; Xyce is an on-demand cross-check.**
+  `engine/scripts/xsim.py --workspace DIR` runs every `* xsim: true` bench
+  (tb/ or xsim/, plain SPICE only) on ngspice and on the PDK's Xyce port at
+  tt. Values must agree within 2%, transient timing within 5%. It records
+  nothing and gates nothing. A difference is a question about the bench
+  (an ngspice-only default, a time-step-sensitive measure), not a verdict.
+  docs/xsim.md has the translation and results.
 - **Nothing cross-checks `post_layout_bounds`.** spec.yaml carries it by
   convention; `pex_sim` reads only `layout_ref/<block>_pex_tb.bounds.json`.
   The reviewer at H2 compares the two by hand.

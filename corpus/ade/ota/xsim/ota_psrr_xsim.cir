@@ -1,0 +1,29 @@
+* ota_psrr_xsim.cir - xsim: true. A plain-form supply-rejection bench for
+* the second-simulator cross-check (engine/scripts/xsim.py, issue #105): the
+* gated tb/ota_psrr_tb.cir computes PSRR in .control, which only ngspice
+* runs. Same buffer, 1 V AC on vdd: vm(out) is the supply-to-output gain
+* (PSRR = -20 log10 of it). Not a gate and not scored.
+* xsim: true (engine/scripts/xsim.py runs it on ngspice and Xyce)
+.include '{{PDK}}/libs.tech/ngspice/design.spice'
+.lib '{{PDK}}/libs.tech/ngspice/sm141064.spice' {{CORNER}}
+.lib '{{PDK}}/libs.tech/ngspice/sm141064.spice' {{MIM_CORNER}}
+.temp {{TEMP_C}}
+.include '{{NETLIST}}'
+{{SIZING}}
+
+.param vddp={{VDD}} vcm='vddp/2' ib=10u cl=2p
+vdd_src vdd 0 dc {vddp} ac 1
+vss_src vss 0 0
+vin inp 0 dc {vcm}
+ibias_src 0 ibias dc {ib}
+xdut inp out out vdd vss ibias two_stage_miller_ota
+cload out 0 {cl}
+
+.ac dec 20 1 1g
+.measure ac psg_dc FIND vm(out) AT=10
+.measure ac psg_100k FIND vm(out) AT=100k
+
+.control
+run
+.endc
+.end

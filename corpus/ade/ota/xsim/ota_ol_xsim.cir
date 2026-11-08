@@ -1,0 +1,38 @@
+* ota_ol_xsim.cir - xsim: true. A plain-form loop-gain bench for the
+* second-simulator cross-check (engine/scripts/xsim.py, issue #105): the
+* gated tb/ota_stb_tb.cir uses Tian's two-run .control method, which only
+* ngspice runs, so this deck measures the same loop with one plain .ac.
+* An L-C break: lbrk closes the loop at DC (the bias point is the unity-gain
+* buffer's), cbrk drives fb at AC, so v(fb) = 1 and the loop gain is
+* T = -v(out); etl gives T itself (phase 0 at DC, no +/-180 wrap). Not a
+* gate and not scored: xsim compares the engines' answers to each other.
+* xsim: true (engine/scripts/xsim.py runs it on ngspice and Xyce)
+.include '{{PDK}}/libs.tech/ngspice/design.spice'
+.lib '{{PDK}}/libs.tech/ngspice/sm141064.spice' {{CORNER}}
+.lib '{{PDK}}/libs.tech/ngspice/sm141064.spice' {{MIM_CORNER}}
+.temp {{TEMP_C}}
+.include '{{NETLIST}}'
+{{SIZING}}
+
+.param vddp={{VDD}} vcm='vddp/2' ib=10u cl=2p
+vdd_src vdd 0 {vddp}
+vss_src vss 0 0
+vin inp 0 dc {vcm}
+ibias_src 0 ibias dc {ib}
+xdut inp fb out vdd vss ibias two_stage_miller_ota
+cload out 0 {cl}
+lbrk out fb 1T
+cbrk fb drv 1T
+vdrv drv 0 dc 0 ac 1
+etl tl 0 0 out 1
+
+.ac dec 40 1 1g
+.measure ac a0_mag FIND vm(tl) AT=10
+.measure ac ugf_hz WHEN vm(tl)=1 FALL=1
+.measure ac ph_1meg FIND vp(tl) AT=1meg
+.measure ac ph_5meg FIND vp(tl) AT=5meg
+
+.control
+run
+.endc
+.end

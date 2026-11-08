@@ -1,0 +1,24 @@
+* ota_noise_xsim.cir - xsim: true. The output noise of tb/ota_noise_tb.cir in
+* the plain form xsim (engine/scripts/xsim.py, issue #105) runs in both
+* engines: a bare .noise card and no measures. xsim adds the engine's own
+* way to read the integrated rms output noise over the .noise sweep
+* (ngspice: onoise_total from the noise2 plot; Xyce: sqrt of INTEG onoise)
+* as the measure onoise_rms. Not a gate and not scored.
+* xsim: true (engine/scripts/xsim.py runs it on ngspice and Xyce)
+.include '{{PDK}}/libs.tech/ngspice/design.spice'
+.lib '{{PDK}}/libs.tech/ngspice/sm141064.spice' {{CORNER}}
+.lib '{{PDK}}/libs.tech/ngspice/sm141064.spice' {{MIM_CORNER}}
+.temp {{TEMP_C}}
+.include '{{NETLIST}}'
+{{SIZING}}
+
+.param vddp={{VDD}} vcm='vddp/2' ib=10u cl=2p
+vdd_src vdd 0 dc {vddp}
+vss_src vss 0 0
+vin inp 0 dc {vcm} ac 1
+ibias_src 0 ibias dc {ib}
+xdut inp out out vdd vss ibias two_stage_miller_ota
+cload out 0 {cl}
+
+.noise v(out) vin dec 20 10 1meg
+.end

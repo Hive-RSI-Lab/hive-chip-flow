@@ -11,6 +11,7 @@
 * building this gate - see engine/lib/simlib.py's own module docstring for
 * the case where skipping that step let ngspice "succeed" on a floating
 * node with singular-matrix warnings and a meaningless answer).
+* xsim: true (plain SPICE: engine/scripts/xsim.py cross-checks it on Xyce)
 .include '{{PDK}}/libs.tech/ngspice/design.spice'
 .lib '{{PDK}}/libs.tech/ngspice/sm141064.spice' {{CORNER}}
 .temp {{TEMP_C}}

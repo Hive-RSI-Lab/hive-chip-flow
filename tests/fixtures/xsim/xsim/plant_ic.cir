@@ -1,0 +1,11 @@
+* the plant with its .ic: a real initial condition, so the engines agree
+* xsim: true
+.include '{{NETLIST}}'
+vin in 0 dc 0
+r1 in out 1k
+c1 out 0 1n
+.ic v(out)=1
+.tran 1n 5u
+.measure tran v0 FIND v(out) AT=10n
+.measure tran v1u FIND v(out) AT=1u
+.end
