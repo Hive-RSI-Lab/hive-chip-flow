@@ -46,6 +46,12 @@ not `netlist/` (it does not exist yet).
    exist yet. Read your own bench back once: every spec measure has a
    matching `.measure`/bound pair, and back.
 
+A measure taken during a source edge (a peak current, a crossing, a
+`WHEN` on a ramp) needs a transient max step of at most the fastest edge
+over 25: `.tran tstep tstop 0 tmax`. ngspice's default, min(tstep,
+span/50), read the comparator's tail-current peak 10% high (docs/xsim.md).
+The sim gates warn `tran_step_coarse` on a bench that is coarser.
+
 A settling-time measure starts from `templates/step_settle_tb.cir`. Its
 window comes from the expected settling (5x the spec's bound or 20x
 topology.md's slowest-corner tau, whichever is longer), never a fixed

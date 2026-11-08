@@ -107,19 +107,39 @@ Corpus:
 | | ph_1meg / ph_5meg | -91.99 / -100.02 deg | -91.99 / -100.02 deg | <0.01% |
 | ota_psrr_xsim | psg_dc / psg_100k | 1.2669e-5 / 9.698e-3 | 1.2669e-5 / 9.694e-3 | 0.03% |
 | ota_noise_xsim | onoise_rms | 33.895 uV | 33.921 uV | 0.08% |
-| comparator_tb | tdelay | 357.1 ps | 352.2 ps | 1.4% (timing, 5%) |
-| | itail_peak | 1.2989 mA | 1.1887 mA | **8.5%** |
-| comparator_offset_tb | vin_offset | -243.6 uV | -253.5 uV | **3.9%** |
+| comparator_tb | tdelay | 358.13 ps | 359.31 ps | 0.3% (timing, 5%) |
+| | itail_peak | 1.1772 mA | 1.1769 mA | 0.03% |
+| comparator_offset_tb | vin_offset | -240.09 uV | -239.33 uV | 0.3% |
 
-The ota and the mirror agree. The comparator's two differences come from
-the time step, not the models. Rerun with a maximum step (`.tran 10p 20n 0
-1p`, and `.tran 20p 644n 0 2p` for the offset bench), the engines meet:
-- itail_peak: 1.1755 mA (ngspice) vs 1.1747 mA (Xyce), 0.07%;
-- vin_offset: -240.1 uV vs -239.3 uV, 0.3%.
+All agree. The comparator benches did not at first: at ngspice's default
+step, min(tstep, span/50), itail_peak read 1.2989 mA against Xyce's
+1.1887 mA (8.5%), and vin_offset -243.6 uV against -253.5 uV (3.9%). Both
+differences came from the time step, not the models. The default step was
+10 ps against a 50 ps clock edge, so the tail-current peak, taken during
+the edge, was read 10% high.
 
-So the gated comparator benches measure itail_peak with about 10% step
-error on ngspice, and vin_offset with about 1.5%. That says nothing about
-whether the design is good. It says how precise those two measures are.
+Sweeping ngspice's max step on comparator_tb (Xyce at 1 ps: 1.1747 mA):
+
+| max step | itail_peak | off |
+|---|---|---|
+| default (10 ps) | 1.2989 mA | 10.6% |
+| 5 ps (edge/10) | 1.2160 mA | 3.5% |
+| 2 ps (edge/25) | 1.1772 mA | 0.2% |
+| 1 ps | 1.1755 mA | 0.07% |
+
+The fix is in the benches, not the bounds. Both gated benches now give
+their `.tran` a max step of the fastest edge over 25 (`.tran 10p 20n 0 2p`,
+`.tran 20p 644n 0 2p`). The sim gates (sim_run, so sim_tt, sim_pvt and
+netlist_lint) warn `tran_step_coarse` on a bench whose max step is coarser
+than its fastest PULSE or PWL edge over 25
+(`engine/lib/netlistlib.py:tran_step_coarse`). It is a warning, not an
+error: a measure read long after the edge (a settled value, a slow
+crossing) does not need the fine step, and only xsim can tell the two
+apart. A tran line written with `$&` vectors from `.control` (the step
+settling template) cannot be read and is not checked.
+
+`tests/test_xsim.py` plants the comparator bench without its max step and
+expects xsim to flag itail_peak.
 
 ## Xyce's resistor A_R (for #271)
 

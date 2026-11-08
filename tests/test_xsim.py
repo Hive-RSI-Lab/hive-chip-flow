@@ -1,9 +1,10 @@
 """engine/scripts/xsim.py: the on-demand ngspice-vs-Xyce cross-check
 (issue #105, docs/xsim.md). Fast tests cover the translation and the
 comparison as pure functions; the `slow` ones run both real engines on the
-known-answer RC benches in tests/fixtures/xsim, the corpus mirror, and a
-planted ngspice-only default (a cap `ic=` with no `.ic`) that must show up
-as a difference."""
+known-answer RC benches in tests/fixtures/xsim, the corpus mirror and
+comparator, and two plants that must show up as a difference: an
+ngspice-only default (a cap `ic=` with no `.ic`) and a comparator bench run
+at ngspice's default (coarse) time step."""
 from __future__ import annotations
 
 import json
@@ -16,6 +17,7 @@ REPO = Path(__file__).resolve().parents[1]
 SCRIPTS = REPO / "engine" / "scripts"
 FIXTURE = REPO / "tests" / "fixtures" / "xsim"
 CORPUS_MIRROR = REPO / "corpus" / "ade" / "mirror"
+CORPUS_COMPARATOR = REPO / "corpus" / "ade" / "comparator"
 sys.path.insert(0, str(SCRIPTS))
 sys.path.insert(0, str(REPO / "engine" / "lib"))
 
@@ -256,3 +258,30 @@ def test_real_corpus_mirror_agrees(tmp_path, capsys):
     code, out, got = run_real(ws, capsys)
     assert code == 0, out
     assert 18e-6 <= got["iout_raw"]["xyce"] <= 32e-6
+
+
+@pytest.mark.slow
+def test_real_coarse_step_comparator_differs_and_its_fine_step_bench_agrees(
+        tmp_path, capsys):
+    # The gated comparator bench, its max step taken out: ngspice's default
+    # min(tstep, span/50) = 10 ps against a 50 ps clock edge reads the
+    # tail-current peak about 10% high, and xsim must flag that. The gated
+    # bench itself (max step 2 ps, edge/25) must agree.
+    ws = tmp_path / "comparator"
+    shutil.copytree(CORPUS_COMPARATOR, ws)
+    gated = (ws / "tb" / "comparator_tb.cir").read_text(encoding="utf-8")
+    assert ".tran 10p 20n 0 2p\n" in gated
+    (ws / "xsim").mkdir()
+    (ws / "xsim" / "comparator_coarse.cir").write_text(
+        gated.replace(".tran 10p 20n 0 2p\n", ".tran 10p 20n\n"),
+        encoding="utf-8")
+
+    code, out, got = run_real(ws, capsys, "comparator_coarse.cir")
+    assert code == 1, out
+    assert {v["kind"] for v in out["violations"]} == {"xsim_differs"}
+    assert not got["itail_peak"]["ok"]
+    assert got["itail_peak"]["ngspice"] > 1.05 * got["itail_peak"]["xyce"]
+
+    code, out, got = run_real(ws, capsys, "comparator_tb.cir")
+    assert code == 0, out
+    assert got["itail_peak"]["ok"] and got["tdelay"]["ok"]

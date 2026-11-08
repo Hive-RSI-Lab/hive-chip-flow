@@ -21,7 +21,10 @@ cloadp outp 0 10f
 cloadn outn 0 10f
 ediff vd 0 outp outn 1
 
-.tran 10p 20n
+* Max step 2 ps: the clock edge (50 ps) over 25 (sim_run tran_step_coarse).
+* At ngspice's default 10 ps step itail_peak read 1.299 mA against Xyce's
+* 1.189 mA; at 2 ps the two meet (docs/xsim.md).
+.tran 10p 20n 0 2p
 .measure tran vdiff_pos FIND v(vd) AT=9.5n
 .measure tran vdiff_neg FIND v(vd) AT=19.5n
 .measure tran tdelay TRIG v(clk) VAL=1.4 RISE=1 TARG v(outn) VAL=1.4 FALL=1

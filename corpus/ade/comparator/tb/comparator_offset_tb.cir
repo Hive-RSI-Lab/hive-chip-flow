@@ -34,7 +34,10 @@ cloadn outn 0 10f
 evid vid 0 inp inn 1
 vhalf vid vmid 0.5m
 
-.tran 20p 644n
+* Max step 2 ps: the clock edge (50 ps) over 25 (sim_run tran_step_coarse).
+* At the default 20 ps step vin_offset carried about 1.5% step error
+* (docs/xsim.md).
+.tran 20p 644n 0 2p
 .measure tran vin_offset FIND v(vmid) WHEN v(outn)=1.4 FALL=1
 
 .control
