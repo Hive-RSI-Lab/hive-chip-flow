@@ -4,7 +4,7 @@
  "block": "r2r_dac_analog",
  "workspace": "blocks/r2r_dac/analog",
  "created": "2026-09-25T05:47:00",
- "updated": "2026-11-07T22:15:20",
+ "updated": "2026-11-07T22:15:26",
  "phase": "P5",
  "toolchain": null,
  "gates": {
@@ -1007,15 +1007,15 @@
   "drc": {
    "phase": "P5",
    "status": "pass",
-   "attempts": 14,
+   "attempts": 15,
    "last": {
-    "ts": "2026-11-07T17:19:06",
+    "ts": "2026-11-07T22:15:26",
     "status": "pass",
     "failing_count": 0,
     "total": 0,
     "inputs": {
      "layout": "dir_text:889449a57e56e4c2cab666ce1481936e988d284cf7e8717638791f7715a62c67",
-     "spec_yaml": "json_canonical:8c9cd25a18e9f52cb3d6890c8bb10c49e0fd4727727abbe712a4ce5fc7367fb4",
+     "spec_yaml": "json_canonical:b391e767c6c4d39480d7ef7b38f0dd7cfa96ed092067417f753de42680542655",
      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
      "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
      "pdk_klayout": "dir_text:876da90e8aab65b830b36eca12bd720adfe8240a0952872419d9f2b4abda605d"
@@ -1206,19 +1206,21 @@
      },
      "strength": 0,
      "job": null
-    }
-   ],
-   "stale": [
+    },
     {
-     "ts": "2026-11-07T21:52:39",
-     "edit_class": "spec_edit",
-     "refs": [
-      "mc",
-      "dnl_max_abs",
-      "inl_max_abs",
-      "inl_sens_1pct_max"
-     ],
-     "human_hold": 2
+     "ts": "2026-11-07T22:15:26",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "layout": "dir_text:889449a57e56e4c2cab666ce1481936e988d284cf7e8717638791f7715a62c67",
+      "spec_yaml": "json_canonical:b391e767c6c4d39480d7ef7b38f0dd7cfa96ed092067417f753de42680542655",
+      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+      "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
+      "pdk_klayout": "dir_text:876da90e8aab65b830b36eca12bd720adfe8240a0952872419d9f2b4abda605d"
+     },
+     "strength": 0,
+     "job": null
     }
    ]
   },
@@ -2536,7 +2538,7 @@
    "path": "spec/spec.yaml",
    "kind": "spec_yaml",
    "sha256": "json_canonical:b391e767c6c4d39480d7ef7b38f0dd7cfa96ed092067417f753de42680542655",
-   "hashed": "2026-11-07T22:15:20"
+   "hashed": "2026-11-07T22:15:26"
   },
   "netlist": {
    "path": "netlist",
@@ -2554,7 +2556,7 @@
    "path": "layout",
    "kind": "layout",
    "sha256": "dir_text:889449a57e56e4c2cab666ce1481936e988d284cf7e8717638791f7715a62c67",
-   "hashed": "2026-11-07T18:24:05"
+   "hashed": "2026-11-07T22:15:26"
   },
   "sizing": {
    "path": "sizing/sizing.yaml",
@@ -2578,7 +2580,7 @@
    "path": "${PDK_ROOT}/SOURCES",
    "kind": "pdk_version",
    "sha256": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
-   "hashed": "2026-11-07T22:15:20"
+   "hashed": "2026-11-07T22:15:26"
   },
   "pdk_models": {
    "path": "${PDK_ROOT}/libs.tech/ngspice",
@@ -2590,13 +2592,13 @@
    "path": "${PDK_ROOT}/libs.tech/magic",
    "kind": "pdk_magic",
    "sha256": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
-   "hashed": "2026-11-07T18:24:04"
+   "hashed": "2026-11-07T22:15:26"
   },
   "pdk_klayout": {
    "path": "${PDK_ROOT}/libs.tech/klayout",
    "kind": "pdk_klayout",
    "sha256": "dir_text:876da90e8aab65b830b36eca12bd720adfe8240a0952872419d9f2b4abda605d",
-   "hashed": "2026-11-07T18:24:04"
+   "hashed": "2026-11-07T22:15:26"
   },
   "pdk_netgen": {
    "path": "${PDK_ROOT}/libs.tech/netgen",
@@ -4097,6 +4099,14 @@
    "gate": "mc",
    "status": "pass",
    "attempt": 1,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-11-07T22:15:26",
+   "event": "gate",
+   "gate": "drc",
+   "status": "pass",
+   "attempt": 15,
    "failing_count": 0
   }
  ]
