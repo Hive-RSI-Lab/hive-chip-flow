@@ -1,0 +1,534 @@
+# gf180mcuD primitive devices: written by engine/scripts/pdk_devices.py (#137). Do not edit by hand.
+devices:
+  cap_mim_2f0_m4m5_noshield:
+    kind: mim
+    pcell: draw_cap_mim.draw_cap_mim
+    sizes:
+    - - 10.0
+      - 10.0
+    - - 20.0
+      - 10.0
+    drc_ok: true
+    extract_ok: true
+    lvs_ok: true
+    sim_ok: true
+    tt_legal: false
+    corner_kind: mimcap
+    sections:
+    - mimcap_typical
+    - mimcap_ss
+    - mimcap_ff
+    reason: null
+    tt_reason: 'Metal5 (81/0) is forbidden in a TT tile; Metal5_Label (81/10) is forbidden in a TT tile
+      - by design: the TT precheck''s tech_data forbids Metal5 and its label on gf180mcuD, the tile''s
+      own power grid, and this MIM''s top plate is Metal5 (#290)'
+  cap_nmos_03v3:
+    kind: mos_cap
+    pcell: draw_cap_mos.draw_cap_mos
+    sizes:
+    - - 2.0
+      - 2.0
+    - - 4.0
+      - 2.0
+    drc_ok: true
+    extract_ok: true
+    lvs_ok: true
+    sim_ok: true
+    tt_legal: true
+    corner_kind: moscap
+    sections:
+    - moscap_typical
+    - moscap_ss
+    - moscap_ff
+    reason: null
+    tt_reason: null
+  cap_nmos_03v3_b:
+    kind: mos_cap
+    pcell: draw_cap_mos.draw_cap_mos
+    sizes:
+    - - 2.0
+      - 2.0
+    - - 4.0
+      - 2.0
+    drc_ok: true
+    extract_ok: true
+    lvs_ok: true
+    sim_ok: true
+    tt_legal: true
+    corner_kind: moscap
+    sections:
+    - moscap_typical
+    - moscap_ss
+    - moscap_ff
+    reason: null
+    tt_reason: null
+  cap_nmos_06v0:
+    kind: mos_cap
+    pcell: draw_cap_mos.draw_cap_mos
+    sizes:
+    - - 2.0
+      - 2.0
+    - - 4.0
+      - 2.0
+    drc_ok: true
+    extract_ok: true
+    lvs_ok: true
+    sim_ok: true
+    tt_legal: true
+    corner_kind: moscap
+    sections:
+    - moscap_typical
+    - moscap_ss
+    - moscap_ff
+    reason: null
+    tt_reason: null
+  cap_nmos_06v0_b:
+    kind: mos_cap
+    pcell: draw_cap_mos.draw_cap_mos
+    sizes:
+    - - 2.0
+      - 2.0
+    - - 4.0
+      - 2.0
+    drc_ok: true
+    extract_ok: true
+    lvs_ok: true
+    sim_ok: true
+    tt_legal: true
+    corner_kind: moscap
+    sections:
+    - moscap_typical
+    - moscap_ss
+    - moscap_ff
+    reason: null
+    tt_reason: null
+  cap_pmos_03v3:
+    kind: mos_cap
+    pcell: draw_cap_mos.draw_cap_mos
+    sizes:
+    - - 2.0
+      - 2.0
+    - - 4.0
+      - 2.0
+    drc_ok: true
+    extract_ok: true
+    lvs_ok: true
+    sim_ok: true
+    tt_legal: true
+    corner_kind: moscap
+    sections:
+    - moscap_typical
+    - moscap_ss
+    - moscap_ff
+    reason: null
+    tt_reason: null
+  cap_pmos_03v3_b:
+    kind: mos_cap
+    pcell: draw_cap_mos.draw_cap_mos
+    sizes:
+    - - 2.0
+      - 2.0
+    - - 4.0
+      - 2.0
+    drc_ok: true
+    extract_ok: true
+    lvs_ok: true
+    sim_ok: true
+    tt_legal: true
+    corner_kind: moscap
+    sections:
+    - moscap_typical
+    - moscap_ss
+    - moscap_ff
+    reason: null
+    tt_reason: null
+  cap_pmos_06v0:
+    kind: mos_cap
+    pcell: draw_cap_mos.draw_cap_mos
+    sizes:
+    - - 2.0
+      - 2.0
+    - - 4.0
+      - 2.0
+    drc_ok: true
+    extract_ok: true
+    lvs_ok: true
+    sim_ok: true
+    tt_legal: true
+    corner_kind: moscap
+    sections:
+    - moscap_typical
+    - moscap_ss
+    - moscap_ff
+    reason: null
+    tt_reason: null
+  cap_pmos_06v0_b:
+    kind: mos_cap
+    pcell: draw_cap_mos.draw_cap_mos
+    sizes:
+    - - 2.0
+      - 2.0
+    - - 4.0
+      - 2.0
+    drc_ok: true
+    extract_ok: true
+    lvs_ok: true
+    sim_ok: true
+    tt_legal: true
+    corner_kind: moscap
+    sections:
+    - moscap_typical
+    - moscap_ss
+    - moscap_ff
+    reason: null
+    tt_reason: null
+  diode_dw2ps:
+    kind: diode
+    pcell: draw_diode.draw_diode_dw2ps
+    sizes:
+    - - 2.0
+      - 2.0
+    - - 4.0
+      - 2.0
+    drc_ok: true
+    extract_ok: true
+    lvs_ok: true
+    sim_ok: true
+    tt_legal: true
+    corner_kind: diode
+    sections:
+    - diode_typical
+    - diode_ss
+    - diode_ff
+    reason: null
+    tt_reason: null
+  diode_nd2ps_03v3:
+    kind: diode
+    pcell: draw_diode.draw_diode_nd2ps
+    sizes:
+    - - 2.0
+      - 2.0
+    - - 4.0
+      - 2.0
+    drc_ok: true
+    extract_ok: true
+    lvs_ok: true
+    sim_ok: true
+    tt_legal: true
+    corner_kind: diode
+    sections:
+    - diode_typical
+    - diode_ss
+    - diode_ff
+    reason: null
+    tt_reason: null
+  diode_nd2ps_06v0:
+    kind: diode
+    pcell: draw_diode.draw_diode_nd2ps
+    sizes:
+    - - 2.0
+      - 2.0
+    - - 4.0
+      - 2.0
+    drc_ok: true
+    extract_ok: true
+    lvs_ok: true
+    sim_ok: true
+    tt_legal: true
+    corner_kind: diode
+    sections:
+    - diode_typical
+    - diode_ss
+    - diode_ff
+    reason: null
+    tt_reason: null
+  diode_nw2ps_03v3:
+    kind: diode
+    pcell: draw_diode.draw_diode_nw2ps
+    sizes:
+    - - 2.0
+      - 2.0
+    - - 4.0
+      - 2.0
+    drc_ok: true
+    extract_ok: true
+    lvs_ok: true
+    sim_ok: true
+    tt_legal: true
+    corner_kind: diode
+    sections:
+    - diode_typical
+    - diode_ss
+    - diode_ff
+    reason: null
+    tt_reason: null
+  diode_nw2ps_06v0:
+    kind: diode
+    pcell: draw_diode.draw_diode_nw2ps
+    sizes:
+    - - 2.0
+      - 2.0
+    - - 4.0
+      - 2.0
+    drc_ok: true
+    extract_ok: true
+    lvs_ok: true
+    sim_ok: true
+    tt_legal: true
+    corner_kind: diode
+    sections:
+    - diode_typical
+    - diode_ss
+    - diode_ff
+    reason: null
+    tt_reason: null
+  diode_pd2nw_03v3:
+    kind: diode
+    pcell: draw_diode.draw_diode_pd2nw
+    sizes:
+    - - 2.0
+      - 2.0
+    - - 4.0
+      - 2.0
+    drc_ok: true
+    extract_ok: true
+    lvs_ok: true
+    sim_ok: true
+    tt_legal: true
+    corner_kind: diode
+    sections:
+    - diode_typical
+    - diode_ss
+    - diode_ff
+    reason: null
+    tt_reason: null
+  diode_pd2nw_06v0:
+    kind: diode
+    pcell: draw_diode.draw_diode_pd2nw
+    sizes:
+    - - 2.0
+      - 2.0
+    - - 4.0
+      - 2.0
+    drc_ok: true
+    extract_ok: true
+    lvs_ok: true
+    sim_ok: true
+    tt_legal: true
+    corner_kind: diode
+    sections:
+    - diode_typical
+    - diode_ss
+    - diode_ff
+    reason: null
+    tt_reason: null
+  diode_pw2dw:
+    kind: diode
+    pcell: draw_diode.draw_diode_pw2dw
+    sizes:
+    - - 2.0
+      - 2.0
+    - - 4.0
+      - 2.0
+    drc_ok: true
+    extract_ok: true
+    lvs_ok: true
+    sim_ok: true
+    tt_legal: true
+    corner_kind: diode
+    sections:
+    - diode_typical
+    - diode_ss
+    - diode_ff
+    reason: null
+    tt_reason: null
+  npn_00p54x02p00:
+    kind: bjt
+    pcell: bjt/npn_00p54x02p00.gds
+    sizes:
+    - []
+    drc_ok: true
+    extract_ok: true
+    lvs_ok: true
+    sim_ok: true
+    tt_legal: true
+    corner_kind: bjt
+    sections:
+    - bjt_typical
+    - bjt_ss
+    - bjt_ff
+    reason: null
+    tt_reason: null
+  npn_00p54x04p00:
+    kind: bjt
+    pcell: bjt/npn_00p54x04p00.gds
+    sizes:
+    - []
+    drc_ok: true
+    extract_ok: true
+    lvs_ok: true
+    sim_ok: true
+    tt_legal: true
+    corner_kind: bjt
+    sections:
+    - bjt_typical
+    - bjt_ss
+    - bjt_ff
+    reason: null
+    tt_reason: null
+  npn_00p54x08p00:
+    kind: bjt
+    pcell: bjt/npn_00p54x08p00.gds
+    sizes:
+    - []
+    drc_ok: true
+    extract_ok: true
+    lvs_ok: true
+    sim_ok: true
+    tt_legal: true
+    corner_kind: bjt
+    sections:
+    - bjt_typical
+    - bjt_ss
+    - bjt_ff
+    reason: null
+    tt_reason: null
+  npn_00p54x16p00:
+    kind: bjt
+    pcell: bjt/npn_00p54x16p00.gds
+    sizes:
+    - []
+    drc_ok: true
+    extract_ok: true
+    lvs_ok: true
+    sim_ok: true
+    tt_legal: true
+    corner_kind: bjt
+    sections:
+    - bjt_typical
+    - bjt_ss
+    - bjt_ff
+    reason: null
+    tt_reason: null
+  npn_05p00x05p00:
+    kind: bjt
+    pcell: bjt/npn_05p00x05p00.gds
+    sizes:
+    - []
+    drc_ok: true
+    extract_ok: true
+    lvs_ok: true
+    sim_ok: true
+    tt_legal: true
+    corner_kind: bjt
+    sections:
+    - bjt_typical
+    - bjt_ss
+    - bjt_ff
+    reason: null
+    tt_reason: null
+  npn_10p00x10p00:
+    kind: bjt
+    pcell: bjt/npn_10p00x10p00.gds
+    sizes:
+    - []
+    drc_ok: true
+    extract_ok: true
+    lvs_ok: true
+    sim_ok: true
+    tt_legal: true
+    corner_kind: bjt
+    sections:
+    - bjt_typical
+    - bjt_ss
+    - bjt_ff
+    reason: null
+    tt_reason: null
+  pnp_05p00x00p42:
+    kind: bjt
+    pcell: bjt/pnp_05p00x00p42.gds
+    sizes:
+    - []
+    drc_ok: true
+    extract_ok: true
+    lvs_ok: true
+    sim_ok: true
+    tt_legal: true
+    corner_kind: bjt
+    sections:
+    - bjt_typical
+    - bjt_ss
+    - bjt_ff
+    reason: null
+    tt_reason: null
+  pnp_05p00x05p00:
+    kind: bjt
+    pcell: bjt/pnp_05p00x05p00.gds
+    sizes:
+    - []
+    drc_ok: true
+    extract_ok: true
+    lvs_ok: true
+    sim_ok: true
+    tt_legal: true
+    corner_kind: bjt
+    sections:
+    - bjt_typical
+    - bjt_ss
+    - bjt_ff
+    reason: null
+    tt_reason: null
+  pnp_10p00x00p42:
+    kind: bjt
+    pcell: bjt/pnp_10p00x00p42.gds
+    sizes:
+    - []
+    drc_ok: true
+    extract_ok: true
+    lvs_ok: true
+    sim_ok: true
+    tt_legal: true
+    corner_kind: bjt
+    sections:
+    - bjt_typical
+    - bjt_ss
+    - bjt_ff
+    reason: null
+    tt_reason: null
+  pnp_10p00x10p00:
+    kind: bjt
+    pcell: bjt/pnp_10p00x10p00.gds
+    sizes:
+    - []
+    drc_ok: true
+    extract_ok: true
+    lvs_ok: true
+    sim_ok: true
+    tt_legal: true
+    corner_kind: bjt
+    sections:
+    - bjt_typical
+    - bjt_ss
+    - bjt_ff
+    reason: null
+    tt_reason: null
+  sc_diode:
+    kind: diode
+    pcell: draw_diode.draw_sc_diode
+    sizes:
+    - - 2.0
+      - 2.0
+    - - 4.0
+      - 2.0
+    drc_ok: true
+    extract_ok: true
+    lvs_ok: true
+    sim_ok: true
+    tt_legal: true
+    corner_kind: diode
+    sections:
+    - diode_typical
+    - diode_ss
+    - diode_ff
+    reason: null
+    tt_reason: null

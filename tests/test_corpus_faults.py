@@ -53,6 +53,42 @@ HARDEN_RUNGS: dict[tuple[str, str], str] = {
 }
 HELD_BACK: dict[tuple[str, str], str] = {}
 
+# The corpus step runs as parallel CI jobs, one per shard: bin/chip-flow
+# test SHARD runs one shard's rungs (pytest --corpus-shard), each under the
+# same 1800 s cap, and .github/workflows/test.yml's `shard` matrix runs every
+# shard (a fast test below keeps the two equal). Every rung runs whole in
+# REST_SHARD except the SPLIT_RUNGS, too slow for one job: their pieces
+# (faults.rung_parts: each gate the untouched reference passes, then each
+# fault by name) are grouped into shards of their own, and a fast test
+# below holds that every piece is in exactly one group, so a fault added
+# to the manifest is never left out of CI. Measured on this box
+# (2026-11-08), the comparator rung took 295 s: its reference's Monte
+# Carlo 157 s, its other reference gates 40 s and its 13 faults 100 s; on
+# CI the whole rung took 1120 s, and 1340 s on a slow runner, against the
+# step's 1800 s cap. Its Monte Carlo now runs alone and the rest of the
+# rung beside it, each shard under half the cap on a slow runner.
+REST_SHARD = "rest"
+SPLIT_RUNGS: dict[tuple[str, str], dict[str, tuple[str, ...]]] = {
+    ("ade", "comparator"): {
+        "comparator-mc": ("reference:mc",),
+        "comparator-rest": (
+            "reference:spec_lint", "reference:netlist_lint",
+            "reference:sim_tt", "reference:sim_pvt",
+            "reference:bench_strength", "reference:drc", "reference:lvs",
+            "reference:pex_sim",
+            "spec_lint_measure_no_bounds", "netlist_lint_model_not_in_pdk",
+            "sim_tt_input_w_and_l_swapped",
+            "sim_pvt_meets_typical_loses_headroom",
+            "bench_strength_bounds_too_wide", "mc_offset_sigma_above_spec",
+            "metal_spacing", "missing_guard_ring", "tail_sized_differently",
+            "swapped_clk_vdd_labels", "long_min_width_output_line",
+            "asymmetric_output_detour", "release_netlist_changed_after_sim"),
+    },
+}
+CORPUS_SHARDS = (REST_SHARD, *(shard for groups in SPLIT_RUNGS.values()
+                               for shard in groups))
+TEST_WORKFLOW = REPO / ".github" / "workflows" / "test.yml"
+
 
 def _rungs() -> list[tuple[str, str]]:
     return [(m.parts[-4], m.parts[-3]) for skill in SKILLS
@@ -104,20 +140,79 @@ def test_reference_passes_its_own_holdout(tmp_path, design):
     assert payload["status"] == "pass", payload
 
 
-def _run(tmp_path, skill, rung):
+def _run(tmp_path, skill, rung, only=None):
     import faults
     import gate as gate_mod
 
     gates = gate_mod.load_gates(gate_mod.DEFAULT_GATES)
-    result = faults.run_rung(tmp_path, CORPUS / skill / rung, skill, gates)
+    result = faults.run_rung(tmp_path, CORPUS / skill / rung, skill, gates,
+                             None if only is None else set(only))
     assert not result["problems"], result
 
 
+def _corpus_params() -> list:
+    """The corpus step's tests: each rung whole, or a SPLIT_RUNGS rung as
+    one test per group of pieces, each marked with the shard it runs in."""
+    params = []
+    for skill, rung in _rungs():
+        if (skill, rung) in HELD_BACK or (skill, rung) in HARDEN_RUNGS:
+            continue
+        groups = SPLIT_RUNGS.get((skill, rung))
+        if groups is None:
+            params.append(pytest.param(
+                skill, rung, None, id=f"{skill}-{rung}",
+                marks=pytest.mark.corpus_shard(REST_SHARD)))
+            continue
+        for shard, pieces in groups.items():
+            params.append(pytest.param(
+                skill, rung, pieces, id=f"{skill}-{shard}",
+                marks=pytest.mark.corpus_shard(shard)))
+    return params
+
+
+def test_split_rungs_run_every_piece_exactly_once():
+    import faults
+    import gate as gate_mod
+
+    gates = gate_mod.load_gates(gate_mod.DEFAULT_GATES)
+    for (skill, rung), groups in SPLIT_RUNGS.items():
+        assert (skill, rung) in _rungs(), f"SPLIT_RUNGS: no rung {skill}/{rung}"
+        assert (skill, rung) not in HARDEN_RUNGS | HELD_BACK.keys(), (
+            f"SPLIT_RUNGS: {skill}/{rung} does not run in this lane")
+        named = [p for pieces in groups.values() for p in pieces]
+        want = faults.rung_parts(CORPUS / skill / rung, skill, gates)
+        assert sorted(named) == sorted(want), (
+            f"{skill}/{rung}: SPLIT_RUNGS groups {sorted(named)} but the "
+            f"rung's pieces are {want}: a piece in no group never runs on "
+            "CI, one in two runs twice")
+    assert len(set(CORPUS_SHARDS)) == len(CORPUS_SHARDS), CORPUS_SHARDS
+    assert "engine" not in CORPUS_SHARDS, "engine is check-engine.sh's job"
+
+
+def test_ci_matrix_runs_every_corpus_shard():
+    import yaml
+
+    jobs = yaml.safe_load(TEST_WORKFLOW.read_text())["jobs"]
+    matrix = jobs["shard"]["strategy"]["matrix"]["shard"]
+    want = sorted(["engine", *CORPUS_SHARDS])
+    assert sorted(matrix) == want, (
+        f"test.yml shard matrix {sorted(matrix)} != engine + CORPUS_SHARDS "
+        f"{want}: a shard missing there never runs on CI")
+    # .hive/project.json's forge_tests names the job `test`: it must stand
+    # for every shard, and a shard that failed, was cancelled or was
+    # skipped must not read as a pass.
+    agg = jobs["test"]
+    assert agg.get("name", "test") == "test", agg
+    assert agg["needs"] in ("shard", ["shard"]), agg
+    assert agg["if"].strip() == "always()", agg
+    run = "\n".join(step.get("run", "") for step in agg["steps"])
+    assert "needs.shard.result" in run and "success" in run, run
+
+
 @pytest.mark.slow
-@pytest.mark.parametrize("skill, rung", [
-    r for r in _rungs() if r not in HELD_BACK and r not in HARDEN_RUNGS])
-def test_rung_catches_every_planted_fault(tmp_path, skill, rung):
-    _run(tmp_path, skill, rung)
+@pytest.mark.parametrize("skill, rung, only", _corpus_params())
+def test_rung_catches_every_planted_fault(tmp_path, skill, rung, only):
+    _run(tmp_path, skill, rung, only)
 
 
 @pytest.mark.slow

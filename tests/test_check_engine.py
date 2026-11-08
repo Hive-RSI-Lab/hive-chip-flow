@@ -20,6 +20,11 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 
 STUB = r"""#!/usr/bin/env bash
+case "$2" in
+  */cpu_calibrate.py)
+    # the calibration: this box's time for the fixed work, as planted
+    echo "$STUB_CALIB"; exit "${STUB_CALIB_RC:-0}" ;;
+esac
 echo "$*" > "$REPO_ROOT/args"
 case "$STUB_MODE" in
   pass) exit 0 ;;
@@ -49,8 +54,9 @@ esac
 """
 
 
-def run_gate(tmp_path: Path, mode: str, cpu_s: int = 1, wall_s: int = 0,
-             stall_s: int = 300):
+def run_gate(tmp_path: Path, mode: str, cpu_s: int | None = 1,
+             wall_s: int = 0, stall_s: int = 300, calib: str = "0.35",
+             calib_rc: int = 0):
     root = tmp_path / "repo"
     (root / "tests").mkdir(parents=True)
     (root / "bin").mkdir()
@@ -60,8 +66,12 @@ def run_gate(tmp_path: Path, mode: str, cpu_s: int = 1, wall_s: int = 0,
     eda.write_text(STUB)
     eda.chmod(0o755)
     env = dict(os.environ, STUB_MODE=mode, REPO_ROOT=str(root),
-               CHECK_ENGINE_CPU_S=str(cpu_s), CHECK_ENGINE_WALL_S=str(wall_s),
-               CHECK_ENGINE_STALL_S=str(stall_s), CHECK_ENGINE_POLL_S="1")
+               CHECK_ENGINE_WALL_S=str(wall_s),
+               CHECK_ENGINE_STALL_S=str(stall_s), CHECK_ENGINE_POLL_S="1",
+               STUB_CALIB=calib, STUB_CALIB_RC=str(calib_rc))
+    env.pop("CHECK_ENGINE_CPU_S", None)
+    if cpu_s is not None:
+        env["CHECK_ENGINE_CPU_S"] = str(cpu_s)
     proc = subprocess.run(["bash", str(root / "tests" / "check-engine.sh")],
                           env=env, capture_output=True, text=True, timeout=900)
     return proc, root
@@ -144,3 +154,56 @@ def test_bad_stall_window_is_an_error_not_a_pass(tmp_path):
     proc, _ = run_gate(tmp_path, "pass", cpu_s=120, stall_s=0)
     assert proc.returncode == 2
     assert "positive whole seconds" in proc.stderr
+
+
+# ---- the budget scaled to the box's speed -----------------------------
+
+def test_budget_is_scaled_by_the_calibration(tmp_path):
+    # a box twice as slow as the reference gets twice the CPU seconds
+    proc, root = run_gate(tmp_path, "pass", cpu_s=None, calib="0.70")
+    assert proc.returncode == 0, proc.stderr
+    assert "is 240 s of CPU here" in proc.stderr
+    assert "CPU of its 240 s budget (120 s on the reference box" in \
+        proc.stderr
+    assert (root / "args").read_text().strip() == \
+        "python -m pytest tests/ -q -m not slow"
+
+
+def test_faster_box_gets_a_smaller_budget(tmp_path):
+    proc, _ = run_gate(tmp_path, "pass", cpu_s=None, calib="0.175")
+    assert proc.returncode == 0, proc.stderr
+    assert "CPU of its 60 s budget" in proc.stderr
+
+
+def test_slow_suite_fails_against_the_scaled_budget(tmp_path):
+    # 0.0035 s against 0.35 s: a 1 s budget, which the planted slow
+    # suite overruns; the failure names both budgets
+    proc, _ = run_gate(tmp_path, "slow-reaped", cpu_s=None, calib="0.0035")
+    assert proc.returncode == 125, proc.stderr
+    assert "over its 1 s budget (120 s on the reference box" in proc.stderr
+
+
+def test_calibration_that_fails_is_a_refusal(tmp_path):
+    proc, root = run_gate(tmp_path, "pass", cpu_s=None, calib="boom",
+                          calib_rc=3)
+    assert proc.returncode == 2, proc.stderr
+    assert "calibration" in proc.stderr and "did not run" in proc.stderr
+    assert not (root / "args").exists()  # the suite never ran
+
+
+def test_calibration_with_no_number_is_a_refusal(tmp_path):
+    for bad in ("", "0", "fast", "-1"):
+        proc, root = run_gate(tmp_path / bad.strip("-") / "x", "pass",
+                              cpu_s=None, calib=bad)
+        assert proc.returncode == 2, (bad, proc.stderr)
+        assert "not a positive number" in proc.stderr
+        assert not (root / "args").exists()
+
+
+def test_the_real_calibration_prints_its_cpu_seconds():
+    import sys
+    p = subprocess.run([sys.executable, str(REPO / "tests" / "lib" /
+                                            "cpu_calibrate.py"), "1"],
+                       capture_output=True, text=True, timeout=120)
+    assert p.returncode == 0, p.stderr
+    assert float(p.stdout) > 0

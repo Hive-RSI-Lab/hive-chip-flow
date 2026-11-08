@@ -17,7 +17,38 @@ import os
 os.environ.setdefault("CHIP_FLOW_NO_FSYNC", "1")
 
 
+def pytest_addoption(parser) -> None:
+    parser.addoption(
+        "--corpus-shard", metavar="SHARD", default=None,
+        help="run only the corpus fault tests of this shard "
+        "(tests/test_corpus_faults.py's CORPUS_SHARDS; bin/chip-flow test "
+        "SHARD); none of them is a refusal, not a pass")
+
+
+def _select_corpus_shard(config, items) -> None:
+    want = config.getoption("--corpus-shard")
+    if want is None:
+        return
+    keep, drop = [], []
+    for item in items:
+        mark = item.get_closest_marker("corpus_shard")
+        (keep if mark is not None and mark.args[0] == want else drop).append(item)
+    if not keep:
+        raise pytest.UsageError(
+            f"--corpus-shard {want!r}: no corpus fault test is in that shard. "
+            "Name one of tests/test_corpus_faults.py's CORPUS_SHARDS, and "
+            "collect that file.")
+    config.hook.pytest_deselected(items=drop)
+    items[:] = keep
+
+
 def pytest_configure(config) -> None:
+    config.addinivalue_line(
+        "markers",
+        "corpus_shard(name): the CI shard a corpus fault test runs in "
+        "(tests/test_corpus_faults.py's CORPUS_SHARDS); --corpus-shard "
+        "selects one",
+    )
     config.addinivalue_line(
         "markers",
         "slow: a real-tool test that needs the eda image - excluded from "
@@ -57,7 +88,15 @@ def unlaunchable_eda(tmp_path, monkeypatch):
     deck.write_text("# fake deck\n", encoding="utf-8")
     tech = pdk / "libs.tech" / "magic" / "gf180mcuD.tech"
     tech.parent.mkdir(parents=True)
-    tech.write_text(" calma MET1RES 110 11\n", encoding="utf-8")
+    # a tech that already has every fix magic_tech makes, so it is used
+    # as is
+    tech.write_text(" calma MET1RES 110 11\n device msubcircuit pnp_10p00x10p00 pnp"
+                    " *pdiff pwell,space/w a1>99.0 a1<101.0\n"
+                    + "".join(f" device x {n} y\n"
+                              for n in layoutlib._WELL_DIODE_NAMES)
+                    + layoutlib._NSD_FIXED + layoutlib._SC_ANODE_FIXED
+                    + layoutlib._PFET_EXPAND_FIXED
+                    + layoutlib._MVPFET_EXPAND_FIXED, encoding="utf-8")
     setup = pdk / "libs.tech" / "netgen" / "gf180mcuD_setup.tcl"
     setup.parent.mkdir(parents=True)
     setup.write_text("# fake setup\n", encoding="utf-8")
@@ -124,3 +163,4 @@ def pytest_collection_modifyitems(config, items):
         why = NOT_CARRIED.get(item.nodeid)
         if why:
             item.add_marker(pytest.mark.skip(reason=why))
+    _select_corpus_shard(config, items)

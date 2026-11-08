@@ -3,7 +3,7 @@
 M2."). New at M2 (docs/design.md 1.3: "New: ... faults.py (corpus faults
 and per-run mutants) ...").
 
-    faults.py --skill vde [--rung NAME] [--gates PATH] [--out FILE]
+    faults.py --skill vde [--rung NAME [--only PIECE]...] [--gates PATH] [--out FILE]
 
 For every rung under `corpus/<skill>/` (or just `--rung NAME`): copies the
 rung into a scratch workspace and confirms the UNTOUCHED reference passes
@@ -265,24 +265,49 @@ def _progress(step: str) -> None:
             f.write(f"{time.strftime('%H:%M:%S')} {step}\n")
 
 
-def run_rung(tmp_root: Path, rung_dir: Path, skill: str, gates: dict) -> dict:
+REFERENCE = "reference:"
+
+
+def _reference_gates(manifest: dict, skill: str, gates: dict) -> list[str]:
+    return _ordered_gate_names(
+        {f["gate"] for f in manifest["faults"]} - {"release"}, skill, gates)
+
+
+def rung_parts(rung_dir: Path, skill: str, gates: dict) -> list[str]:
+    """The pieces run_rung can run apart: each gate the untouched reference
+    passes (`reference:<gate>`, pipeline order), then each fault by its
+    manifest name, in manifest order."""
+    manifest = load_manifest(rung_dir)
+    return ([REFERENCE + g for g in _reference_gates(manifest, skill, gates)]
+            + [f["name"] for f in manifest["faults"]])
+
+
+def run_rung(tmp_root: Path, rung_dir: Path, skill: str, gates: dict,
+             only: set[str] | None = None) -> dict:
+    """Run a rung: its untouched reference through every gate, then each
+    planted fault. `only` (default: all) names the pieces to run
+    (rung_parts), so one slow rung can be split across CI jobs that between
+    them run every piece (tests/test_corpus_faults.py's SPLIT_RUNGS). The
+    reference's gates still run in pipeline order in one workspace, only
+    fewer of them, so a split must keep a gate with any gate whose output
+    it reads (a harden and what checks it); a name that is no piece of this
+    rung is an error, not a piece quietly skipped."""
     rung = rung_dir.name
     manifest = load_manifest(rung_dir)
+    if only is not None:
+        unknown = sorted(set(only) - set(rung_parts(rung_dir, skill, gates)))
+        if unknown:
+            raise CheckError(
+                f"{rung}: no such piece {unknown}; its pieces are "
+                f"{rung_parts(rung_dir, skill, gates)}")
     problems: list[str] = []
     gate_timings: dict[str, float] = {}
-
-    # the untouched reference must pass every gate this manifest exercises -
-    # except `release`, whose own "untouched" story is fabricated entirely
-    # inside its own plant script (record a full pipeline pass against the
-    # CURRENT files, then edit the RTL so it goes stale - the same trick
-    # tests/test_check_release.py's pass_every_gate uses). A bare scratch
-    # copy with nothing recorded in state.json yet can never pass `release`
-    # (every OTHER gate reads as "no recorded result" there too), so
-    # requiring that here would refuse every release fault regardless of
-    # what it actually plants.
+    gate_names = [g for g in _reference_gates(manifest, skill, gates)
+                  if only is None or REFERENCE + g in only]
+    if not gate_names:
+        return _run_faults(tmp_root, rung_dir, skill, gates, manifest, only,
+                           problems, gate_timings)
     clean_ws = make_scratch_workspace(tmp_root, rung_dir, skill, rung)
-    gate_names = _ordered_gate_names(
-        {f["gate"] for f in manifest["faults"]} - {"release"}, skill, gates)
     _progress(f"{rung}: untouched reference, macro_lib first")
     macro_lib_first(clean_ws, gate_names, gates, skill)
     for gname in gate_names:
@@ -293,9 +318,17 @@ def run_rung(tmp_root: Path, rung_dir: Path, skill: str, gates: dict) -> dict:
         if result["status"] != "pass":
             problems.append(f"{rung}: untouched reference fails gate "
                             f"{gname!r}: {result.get('failing')}")
+    return _run_faults(tmp_root, rung_dir, skill, gates, manifest, only,
+                       problems, gate_timings)
 
+
+def _run_faults(tmp_root, rung_dir, skill, gates, manifest, only, problems,
+                gate_timings) -> dict:
+    rung = rung_dir.name
     for entry in manifest["faults"]:
         name, gname = entry["name"], entry["gate"]
+        if only is not None and name not in only:
+            continue
         _progress(f"{rung}/{name}: plant {entry['plant']}, gate {gname}")
         plant = import_plant(rung_dir, entry["plant"])
         ws = make_scratch_workspace(tmp_root, rung_dir, skill, rung)
@@ -346,7 +379,12 @@ def run(argv=None):
                     "under corpus/<skill>/)")
     ap.add_argument("--gates", default=str(DEFAULT_GATES))
     ap.add_argument("--out", help="write result JSON here instead of stdout")
+    ap.add_argument("--only", action="append", metavar="PIECE",
+                    help="with --rung: run only this piece (`reference:<gate>` "
+                    "or a fault's manifest name); repeatable")
     args = ap.parse_args(argv)
+    if args.only and not args.rung:
+        raise CheckError("--only names pieces of one rung: give --rung too")
 
     gates = gate.load_gates(Path(args.gates))
     skill_dir = CORPUS / args.skill
@@ -361,7 +399,8 @@ def run(argv=None):
     with tempfile.TemporaryDirectory(prefix="chip-flow-faults-") as tmp:
         tmp_root = Path(tmp)
         for rung_dir in rungs:
-            results.append(run_rung(tmp_root, rung_dir, args.skill, gates))
+            results.append(run_rung(tmp_root, rung_dir, args.skill, gates,
+                                    set(args.only) if args.only else None))
 
     violations = []
     for r in results:

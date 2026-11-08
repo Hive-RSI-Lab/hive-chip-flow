@@ -9,7 +9,10 @@
 #                              (upstream's tests/check-engine.sh, with the
 #                              workaround probes), then every corpus rung's
 #                              planted faults that need no harden, each
-#                              caught by its gate
+#                              caught by its gate; `test SHARD` one part
+#                              of it, as one CI job runs it: `engine`, or
+#                              a corpus shard (tests/test_corpus_faults.py's
+#                              CORPUS_SHARDS)
 #   chip-flow check-all        re-run every block's gates from a scratch
 #                              copy into the step cache, and check
 #                              docs/workarounds.md against its probes (slow:
@@ -87,14 +90,35 @@ test)
 	# groups, about 545 s of CPU) took that rung from under a minute to
 	# about eleven on CI, so a normal run of the step measured 1098 s and a
 	# slower runner 1357 s, killed by the old 1200 s cap mid-rung.
+	#
+	# `test SHARD` runs one part of that: `engine` the engine suite, any
+	# other name one shard of the corpus step (tests/test_corpus_faults.py's
+	# CORPUS_SHARDS), each under the same cap. CI runs every part as its own
+	# job (.github/workflows/test.yml's `shard` matrix): the comparator rung
+	# alone came to 1340 s of that 1800 s on a slow runner, so one job for
+	# the whole step had no room left to tell a slow box from a hang.
+	shard=${2:-}
 	# shellcheck source=tests/lib/scratch.sh
 	. "$here/tests/lib/scratch.sh"
 	test_scratch
 	if [ -n "$TEST_SCRATCH" ]; then trap 'rm -rf "$TEST_SCRATCH"' EXIT; fi
 	cd "$here"
-	bash tests/check-engine.sh
-	timeout 1800 "$eda" python -m pytest -q -p no:cacheprovider \
-		tests/test_corpus_faults.py -m "slow and not harden_faults"
+	if [ -z "$shard" ] || [ "$shard" = engine ]; then
+		bash tests/check-engine.sh
+	fi
+	if [ "$shard" != engine ]; then
+		set -- -m "slow and not harden_faults"
+		if [ -n "$shard" ]; then set -- "$@" --corpus-shard "$shard"; fi
+		start=$(date +%s)
+		rc=0
+		timeout 1800 "$eda" python -m pytest -q -p no:cacheprovider \
+			tests/test_corpus_faults.py "$@" || rc=$?
+		calib=$("$eda" python tests/lib/cpu_calibrate.py 2>/dev/null) || calib=unknown
+		echo "chip-flow test: corpus ${shard:-every shard}: $(($(date +%s) - start)) s" \
+			"of its 1800 s cap, exit $rc (CPU calibration ${calib} s;" \
+			"tests/check-engine.sh's reference box 0.35 s)" >&2
+		exit "$rc"
+	fi
 	;;
 check-all)
 	shift
