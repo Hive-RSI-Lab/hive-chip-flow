@@ -19,7 +19,11 @@ report's `extractor_crosscheck` has every row, and kpex's netlist and log
   gate, a cap plate): spot-check the net with FasterCap in the image, fix
   that extraction in the engine (`layoutlib`, `kpexlib`,
   `kpex_runner.py`), and add a test with a known answer (a parallel plate
-  against eps*A/t).
+  against eps*A/t). A poly resistor is already handled both ways: magic's
+  netlist gets the body C its model lacks
+  (`layoutlib.add_poly_body_residuals`) and kpex's nets lose the model's
+  share (`model_c_subtracted` in the report); check those numbers before
+  suspecting the ladder.
 
 **Trap:** never raise `kpexlib.TOLERANCE`, drop kpex, or skip the net
 until you know which extractor is wrong. A gap past the spread of two

@@ -1577,3 +1577,20 @@ def test_a_dropped_label_is_caught_by_kpex_with_lost_couplings_off(
     bad = {r for v in out["violations"]
            if v["kind"] == "pex_extractors_disagree" for r in v["refs"]}
     assert {"inn", "inp"} <= bad
+
+
+def test_kpex_loses_each_poly_bodys_model_c_before_the_comparison():
+    # kpex reads a poly resistor body as a wire with the tech's full C;
+    # magic's netlist has only the residual, the model the rest - so the
+    # model's cj x r_w x r_l comes off kpex, half at each end
+    pk = {"n1": {"c_ff": 40.0, "c_to": {"vss": 30.0}},
+          "mb1": {"c_ff": 50.0, "c_to": {"vss": 35.0}},
+          "vss": {"c_ff": 100.0, "c_to": {"n1": 30.0, "mb1": 35.0}}}
+    bodies = [{"device": "X29", "ends": ["n1", "mb1"], "body": "vss.t0",
+               "model_c_ff": 25.59}]
+    taken = check_pex_sim.subtract_model_c(pk, bodies)
+    assert taken == {"mb1": 12.795, "n1": 12.795, "vss": 25.59}
+    assert pk["n1"]["c_ff"] == pytest.approx(27.205)
+    assert pk["n1"]["c_to"]["vss"] == pytest.approx(17.205)
+    assert pk["vss"]["c_ff"] == pytest.approx(74.41)
+    assert pk["vss"]["c_to"]["mb1"] == pytest.approx(22.205)

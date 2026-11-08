@@ -17,20 +17,17 @@
 # Corners: round 2 uses the brief's nine fixed-VDD corners (see the
 # `corners:` key). Every bound stays in LSB units, seconds or amperes.
 #
-# Monte Carlo: OFF, deliberately. The GF180 ngspice models carry NO
-# per-instance mismatch for ppolyf_u: sm141064.spice's `.subckt ppolyf_u`
-# scales its body by (1+mis_r*sw_stat_mismatch) with mis_r=0 as a subckt
-# default and no agauss() ever assigned to it (contrast `.lib fets_mm`,
-# which draws mis_vth/mis_k per FET instance). `.lib res_statistical` only
-# gives GLOBAL rsh/dw/rt variation (mc_rsh_ppolyf_u_temp = agauss(0,
-# 18.116, 3) on rsh 350, i.e. ~1.7 % 1-sigma, gated by sw_stat_global) -
-# one draw shared by every unit, which moves every rung together and
-# cannot change a ratio, so it cannot move DNL/INL. Turning check_mc.py on
-# would sample the driver FETs' mismatch only and report a yield that says
-# nothing about resistor matching. The brief's fallback applies instead:
-# the deterministic +/-1 % single-unit sensitivity (inl_sens_1pct_max).
-mc:
-  enabled: false
+# Monte Carlo: ON. The GF180 ngspice models carry no per-instance mismatch
+# for ppolyf_u (sm141064.spice's `.subckt ppolyf_u` has mis_r=0 and no
+# agauss() on it; `.lib res_statistical` only gives GLOBAL rsh/dw/rt
+# variation, one draw shared by every unit, which cannot change a ratio).
+# check_mc.py adds the term the PDK's Xyce models carry instead: a
+# per-instance Pelgrom draw, sigma(dR/R) = A_R/sqrt(W*L) with ppolyf_u's
+# A_R = 0.021 um (about 0.087 % on one 2 x 150 um unit), on every unit
+# resistor here, beside the driver cells' FET mismatch - so the MC yield
+# below is a resistor-matching yield on dnl_max_abs and inl_max_abs.
+# inl_sens_1pct_max stays the deterministic +/-1 % single-unit sensitivity.
+mc: {enabled: true, yield_min: 0.95, seed: 1}
 
 top: r2r_dac_analog
 supply:
@@ -79,18 +76,10 @@ measures:
   - name: dnl_max_abs
     bounds: {max: 0.5}
     severity: error
-    statistical: none
-    mc_waiver: GF180's ngspice poly resistors carry no per-instance mismatch
-      (mis_r=0), so Monte Carlo would sample only the driver cells' FETs;
-      resistor matching is bounded by inl_sens_1pct_max instead (see mc above)
   # 2. INL, same sweep, end-point fit, max |INL| in LSB. [brief]
   - name: inl_max_abs
     bounds: {max: 0.5}
     severity: error
-    statistical: none
-    mc_waiver: GF180's ngspice poly resistors carry no per-instance mismatch
-      (mis_r=0), so Monte Carlo would sample only the driver cells' FETs;
-      resistor matching is bounded by inl_sens_1pct_max instead (see mc above)
   # 3. Monotonicity: 1 when v(k) > v(k-1) for every k = 1..255, else 0.
   #    [brief] pass/fail per corner
   - name: monotonic
@@ -174,8 +163,8 @@ measures:
   - name: glitch_peak_skew_max
     bounds: {max: 0.2}
     severity: warning
-  # 7. Resistor-mismatch sensitivity (the brief's fallback, the PDK having
-  #    no per-instance resistor mismatch - see the mc comment above): each
+  # 7. Resistor-mismatch sensitivity (the brief's fallback, kept beside the
+  #    Monte Carlo now run on dnl/inl - see the mc comment above): each
   #    unit resistor perturbed +1 % and -1 % one at a time, all others
   #    nominal, the 256-code INL sweep re-run, worst max |INL| in LSB over
   #    every perturbation. Bound = the brief's INL target. [derived]
@@ -183,9 +172,8 @@ measures:
     bounds: {max: 0.5}
     severity: warning
     statistical: none
-    mc_waiver: GF180's ngspice poly resistors carry no per-instance mismatch
-      (mis_r=0), so Monte Carlo would sample only the driver cells' FETs;
-      resistor matching is bounded by inl_sens_1pct_max instead (see mc above)
+    mc_waiver: a deterministic +/-1 % one-unit sweep, a bound on sensitivity;
+      Monte Carlo samples resistor matching on dnl_max_abs and inl_max_abs directly
   # 8. Supply current over the full-code sweep, amperes. The brief budgets
   #    "a few to ~15 mA" average (its own R = 250 ohm estimate); the peak
   #    bound adds the 7 pF load's slew current through ~380 ohm (~9 mA) to

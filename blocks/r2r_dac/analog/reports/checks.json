@@ -1,7 +1,7 @@
 {
  "skill": "ade",
  "block": "r2r_dac_analog",
- "ts": "2026-11-07T18:24:04",
+ "ts": "2026-11-08T01:18:11",
  "pdk": {
   "name": "gf180mcuD",
   "open_pdks": "1689ac3f2dc763876eaf967227c7dfe831b031ae",
@@ -16,13 +16,13 @@
    "tool": "bench_strength",
    "version": 1,
    "status": "pass",
-   "attempts": 9,
-   "ts": "2026-11-07T17:18:12",
+   "attempts": 10,
+   "ts": "2026-11-07T21:54:30",
    "inputs": {
     "netlist": "dir_text:2c6d358ba4c3ec93f5dc910e1777df9a3f5418293791a715229fa1b8d22d1e4e",
     "tb": "dir_text:f39ddda9f2efd5463da75d99f486ff1ea8d2038b91027869426db82f0bf513e4",
     "mutant_rulings": null,
-    "spec_yaml": "json_canonical:8c9cd25a18e9f52cb3d6890c8bb10c49e0fd4727727abbe712a4ce5fc7367fb4",
+    "spec_yaml": "json_canonical:b391e767c6c4d39480d7ef7b38f0dd7cfa96ed092067417f753de42680542655",
     "sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
     "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
     "pdk_models": "dir_text:84e0f27991c27acae27ec5243fd0d1587f7bfb2655e802ed0eb92a811cf5f7f8"
@@ -37,11 +37,11 @@
    "tool": "analog_drc",
    "version": 1,
    "status": "pass",
-   "attempts": 14,
-   "ts": "2026-11-07T17:19:06",
+   "attempts": 15,
+   "ts": "2026-11-07T22:15:26",
    "inputs": {
     "layout": "dir_text:889449a57e56e4c2cab666ce1481936e988d284cf7e8717638791f7715a62c67",
-    "spec_yaml": "json_canonical:8c9cd25a18e9f52cb3d6890c8bb10c49e0fd4727727abbe712a4ce5fc7367fb4",
+    "spec_yaml": "json_canonical:b391e767c6c4d39480d7ef7b38f0dd7cfa96ed092067417f753de42680542655",
     "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
     "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
     "pdk_klayout": "dir_text:876da90e8aab65b830b36eca12bd720adfe8240a0952872419d9f2b4abda605d"
@@ -56,14 +56,14 @@
    "tool": "analog_em_ir",
    "version": 1,
    "status": "pass",
-   "attempts": 1,
-   "ts": "2026-11-07T18:24:04",
+   "attempts": 2,
+   "ts": "2026-11-08T01:18:10",
    "inputs": {
     "layout": "dir_text:889449a57e56e4c2cab666ce1481936e988d284cf7e8717638791f7715a62c67",
     "tb": "dir_text:f39ddda9f2efd5463da75d99f486ff1ea8d2038b91027869426db82f0bf513e4",
     "layout_ref": "dir_text:3877121e758def7d2fcd326931f83d5dfad6ae2f65fec2e70b868dfdf45a8f9a",
     "netlist": "dir_text:2c6d358ba4c3ec93f5dc910e1777df9a3f5418293791a715229fa1b8d22d1e4e",
-    "spec_yaml": "json_canonical:8c9cd25a18e9f52cb3d6890c8bb10c49e0fd4727727abbe712a4ce5fc7367fb4",
+    "spec_yaml": "json_canonical:b391e767c6c4d39480d7ef7b38f0dd7cfa96ed092067417f753de42680542655",
     "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
     "pdk_models": "dir_text:84e0f27991c27acae27ec5243fd0d1587f7bfb2655e802ed0eb92a811cf5f7f8",
     "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
@@ -79,12 +79,12 @@
    "tool": "analog_erc",
    "version": 1,
    "status": "pass",
-   "attempts": 5,
-   "ts": "2026-11-07T16:54:19",
+   "attempts": 6,
+   "ts": "2026-11-07T22:15:33",
    "inputs": {
     "layout": "dir_text:889449a57e56e4c2cab666ce1481936e988d284cf7e8717638791f7715a62c67",
     "netlist": "dir_text:2c6d358ba4c3ec93f5dc910e1777df9a3f5418293791a715229fa1b8d22d1e4e",
-    "spec_yaml": "json_canonical:8c9cd25a18e9f52cb3d6890c8bb10c49e0fd4727727abbe712a4ce5fc7367fb4",
+    "spec_yaml": "json_canonical:b391e767c6c4d39480d7ef7b38f0dd7cfa96ed092067417f753de42680542655",
     "erc_waivers": null,
     "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
     "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
@@ -100,12 +100,12 @@
    "tool": "layout_match",
    "version": 1,
    "status": "pass",
-   "attempts": 1,
-   "ts": "2026-11-07T16:53:47",
+   "attempts": 2,
+   "ts": "2026-11-07T22:15:35",
    "inputs": {
     "layout": "dir_text:889449a57e56e4c2cab666ce1481936e988d284cf7e8717638791f7715a62c67",
     "netlist": "dir_text:2c6d358ba4c3ec93f5dc910e1777df9a3f5418293791a715229fa1b8d22d1e4e",
-    "spec_yaml": "json_canonical:8c9cd25a18e9f52cb3d6890c8bb10c49e0fd4727727abbe712a4ce5fc7367fb4",
+    "spec_yaml": "json_canonical:b391e767c6c4d39480d7ef7b38f0dd7cfa96ed092067417f753de42680542655",
     "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
     "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
     "pdk_klayout": "dir_text:876da90e8aab65b830b36eca12bd720adfe8240a0952872419d9f2b4abda605d"
@@ -120,12 +120,12 @@
    "tool": "analog_lvs",
    "version": 1,
    "status": "pass",
-   "attempts": 11,
-   "ts": "2026-11-07T16:53:20",
+   "attempts": 12,
+   "ts": "2026-11-07T22:15:31",
    "inputs": {
     "layout": "dir_text:889449a57e56e4c2cab666ce1481936e988d284cf7e8717638791f7715a62c67",
     "netlist": "dir_text:2c6d358ba4c3ec93f5dc910e1777df9a3f5418293791a715229fa1b8d22d1e4e",
-    "spec_yaml": "json_canonical:8c9cd25a18e9f52cb3d6890c8bb10c49e0fd4727727abbe712a4ce5fc7367fb4",
+    "spec_yaml": "json_canonical:b391e767c6c4d39480d7ef7b38f0dd7cfa96ed092067417f753de42680542655",
     "sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
     "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
     "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
@@ -137,15 +137,23 @@
   {
    "gate": "mc",
    "applies": true,
-   "ran": false,
+   "ran": true,
    "ok": true,
    "tool": "mc",
    "version": 1,
-   "status": null,
+   "status": "pass",
+   "attempts": 1,
+   "ts": "2026-11-07T22:15:20",
    "inputs": {
-    "spec_yaml": "json_canonical:8c9cd25a18e9f52cb3d6890c8bb10c49e0fd4727727abbe712a4ce5fc7367fb4"
+    "netlist": "dir_text:2c6d358ba4c3ec93f5dc910e1777df9a3f5418293791a715229fa1b8d22d1e4e",
+    "tb": "dir_text:f39ddda9f2efd5463da75d99f486ff1ea8d2038b91027869426db82f0bf513e4",
+    "mutant_rulings": null,
+    "spec_yaml": "json_canonical:b391e767c6c4d39480d7ef7b38f0dd7cfa96ed092067417f753de42680542655",
+    "sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
+    "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+    "pdk_models": "dir_text:84e0f27991c27acae27ec5243fd0d1587f7bfb2655e802ed0eb92a811cf5f7f8"
    },
-   "reason": "not applicable: spec.yaml asks for no Monte Carlo (no 'mc.enabled: true'), re-read at this release"
+   "reason": null
   },
   {
    "gate": "netlist_lint",
@@ -155,11 +163,11 @@
    "tool": "netlist_lint",
    "version": 1,
    "status": "pass",
-   "attempts": 12,
-   "ts": "2026-11-07T16:52:21",
+   "attempts": 13,
+   "ts": "2026-11-07T21:52:45",
    "inputs": {
     "netlist": "dir_text:2c6d358ba4c3ec93f5dc910e1777df9a3f5418293791a715229fa1b8d22d1e4e",
-    "spec_yaml": "json_canonical:8c9cd25a18e9f52cb3d6890c8bb10c49e0fd4727727abbe712a4ce5fc7367fb4"
+    "spec_yaml": "json_canonical:b391e767c6c4d39480d7ef7b38f0dd7cfa96ed092067417f753de42680542655"
    },
    "reason": null
   },
@@ -171,14 +179,14 @@
    "tool": "pex_sim",
    "version": 1,
    "status": "pass",
-   "attempts": 6,
-   "ts": "2026-11-07T18:23:53",
+   "attempts": 7,
+   "ts": "2026-11-08T01:17:53",
    "inputs": {
     "layout": "dir_text:889449a57e56e4c2cab666ce1481936e988d284cf7e8717638791f7715a62c67",
     "tb": "dir_text:f39ddda9f2efd5463da75d99f486ff1ea8d2038b91027869426db82f0bf513e4",
     "layout_ref": "dir_text:3877121e758def7d2fcd326931f83d5dfad6ae2f65fec2e70b868dfdf45a8f9a",
     "netlist": "dir_text:2c6d358ba4c3ec93f5dc910e1777df9a3f5418293791a715229fa1b8d22d1e4e",
-    "spec_yaml": "json_canonical:8c9cd25a18e9f52cb3d6890c8bb10c49e0fd4727727abbe712a4ce5fc7367fb4",
+    "spec_yaml": "json_canonical:b391e767c6c4d39480d7ef7b38f0dd7cfa96ed092067417f753de42680542655",
     "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
     "pdk_models": "dir_text:84e0f27991c27acae27ec5243fd0d1587f7bfb2655e802ed0eb92a811cf5f7f8",
     "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
@@ -194,12 +202,12 @@
    "tool": "sim_pvt",
    "version": 1,
    "status": "pass",
-   "attempts": 11,
-   "ts": "2026-11-07T16:56:25",
+   "attempts": 12,
+   "ts": "2026-11-07T21:54:14",
    "inputs": {
     "netlist": "dir_text:2c6d358ba4c3ec93f5dc910e1777df9a3f5418293791a715229fa1b8d22d1e4e",
     "tb": "dir_text:f39ddda9f2efd5463da75d99f486ff1ea8d2038b91027869426db82f0bf513e4",
-    "spec_yaml": "json_canonical:8c9cd25a18e9f52cb3d6890c8bb10c49e0fd4727727abbe712a4ce5fc7367fb4",
+    "spec_yaml": "json_canonical:b391e767c6c4d39480d7ef7b38f0dd7cfa96ed092067417f753de42680542655",
     "sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
     "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
     "pdk_models": "dir_text:84e0f27991c27acae27ec5243fd0d1587f7bfb2655e802ed0eb92a811cf5f7f8"
@@ -214,12 +222,12 @@
    "tool": "sim_tt",
    "version": 1,
    "status": "pass",
-   "attempts": 12,
-   "ts": "2026-11-07T16:54:57",
+   "attempts": 13,
+   "ts": "2026-11-07T21:53:11",
    "inputs": {
     "netlist": "dir_text:2c6d358ba4c3ec93f5dc910e1777df9a3f5418293791a715229fa1b8d22d1e4e",
     "tb": "dir_text:f39ddda9f2efd5463da75d99f486ff1ea8d2038b91027869426db82f0bf513e4",
-    "spec_yaml": "json_canonical:8c9cd25a18e9f52cb3d6890c8bb10c49e0fd4727727abbe712a4ce5fc7367fb4",
+    "spec_yaml": "json_canonical:b391e767c6c4d39480d7ef7b38f0dd7cfa96ed092067417f753de42680542655",
     "sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
     "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
     "pdk_models": "dir_text:84e0f27991c27acae27ec5243fd0d1587f7bfb2655e802ed0eb92a811cf5f7f8"
@@ -234,13 +242,13 @@
    "tool": "spec_lint_ade",
    "version": 1,
    "status": "pass",
-   "attempts": 14,
-   "ts": "2026-11-07T16:51:45",
+   "attempts": 16,
+   "ts": "2026-11-07T21:52:49",
    "inputs": {
-    "spec_yaml": "json_canonical:8c9cd25a18e9f52cb3d6890c8bb10c49e0fd4727727abbe712a4ce5fc7367fb4"
+    "spec_yaml": "json_canonical:b391e767c6c4d39480d7ef7b38f0dd7cfa96ed092067417f753de42680542655"
    },
    "reason": null
   }
  ],
- "attestation_sha256": "5ef4590a402a41b19a62abbe2002a36443747dc9599d85993eb1ef53158eda89"
+ "attestation_sha256": "bfe7dc34eb152e268b882d968903b4de5c12c3b9d99f9d64e55cf8881081cd06"
 }

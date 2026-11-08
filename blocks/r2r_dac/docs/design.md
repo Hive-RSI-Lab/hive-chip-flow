@@ -69,7 +69,7 @@ ngspice, pre-layout, at a fixed 3.3 V: the brief's nine corners (tt, ff, ss × �
 
 The quiescent supply current is 73 to 110 µA.
 
-**Mismatch.** The GF180 poly resistor models have no per-instance mismatch (`ppolyf_u` has `mis_r = 0`, and `res_statistical` is global only), so Monte Carlo can't move DNL or INL. The last column stands in for it: the worst INL when any one unit is off by ±1 %. It exceeds 0.5 LSB at every corner (warning, accepted).
+**Mismatch.** The GF180 ngspice resistor models have no per-instance mismatch (`ppolyf_u` has `mis_r = 0`, and `res_statistical` is global only). The Monte Carlo gate adds the PDK Xyce deck's Pelgrom term instead, σ(ΔR/R) = A_R/√(W·L) with A_R = 0.021 µm, which is about 0.087 % on one 2 × 150 µm unit. It runs on all 29 ppolyf_u instances, together with the driver cells' FET mismatch. 570 runs per group at tt and at the worst corner all pass, for a 95 % yield target. Worst DNL is 0.42 LSB (tt −40 °C, 4.5σ from the bound) and worst INL is 0.37 LSB. INL's floor of about 0.27 LSB is systematic, set by the drivers' Ron, not by matching. A numpy model of the ladder gives the same picture: the units could be about 4× smaller in area before the 0.5 LSB yield fell below 99 %. The last column is the deterministic check kept beside the MC: the worst INL when any one unit is off by ±1 %, about 11σ of a unit's real mismatch. It exceeds 0.5 LSB at every corner (warning, accepted).
 
 ### Step: full-scale settling (bound 1.5 µs) and edges (bound 0.53 µs)
 
