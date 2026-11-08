@@ -4,7 +4,7 @@
  "block": "r2r_dac",
  "workspace": "blocks/r2r_dac",
  "created": "2026-09-25T05:42:01",
- "updated": "2026-11-08T01:22:53",
+ "updated": "2026-11-08T01:23:00",
  "phase": "P4",
  "toolchain": null,
  "gates": {
@@ -757,9 +757,9 @@
   "cosim": {
    "phase": "P3",
    "status": "pass",
-   "attempts": 19,
+   "attempts": 20,
    "last": {
-    "ts": "2026-11-07T17:20:12",
+    "ts": "2026-11-08T01:23:00",
     "status": "pass",
     "failing_count": 0,
     "total": 0,
@@ -768,7 +768,7 @@
      "tb": "dir_text:0a0a2a21592b4a86b45bec96bda5d1abf2ad2bee5d452fa9c9bf48102b3be60a",
      "digital_rtl": "dir_text:5b5e3748612f45afdfaedc1d7e6daa228ca0e64c09072bc4ac8b8b6275a6d995",
      "digital_spec": "json_canonical:316aabe3e699eb67a766fb42296b9a90d765394b6deefb2d5178cc8865c08bbf",
-     "analog_spec": "json_canonical:8c9cd25a18e9f52cb3d6890c8bb10c49e0fd4727727abbe712a4ce5fc7367fb4",
+     "analog_spec": "json_canonical:b391e767c6c4d39480d7ef7b38f0dd7cfa96ed092067417f753de42680542655",
      "analog_netlist": "dir_text:2c6d358ba4c3ec93f5dc910e1777df9a3f5418293791a715229fa1b8d22d1e4e",
      "analog_sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
@@ -1102,6 +1102,25 @@
       "digital_rtl": "dir_text:5b5e3748612f45afdfaedc1d7e6daa228ca0e64c09072bc4ac8b8b6275a6d995",
       "digital_spec": "json_canonical:316aabe3e699eb67a766fb42296b9a90d765394b6deefb2d5178cc8865c08bbf",
       "analog_spec": "json_canonical:8c9cd25a18e9f52cb3d6890c8bb10c49e0fd4727727abbe712a4ce5fc7367fb4",
+      "analog_netlist": "dir_text:2c6d358ba4c3ec93f5dc910e1777df9a3f5418293791a715229fa1b8d22d1e4e",
+      "analog_sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
+      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+      "pdk_models": "dir_text:84e0f27991c27acae27ec5243fd0d1587f7bfb2655e802ed0eb92a811cf5f7f8"
+     },
+     "strength": 0,
+     "job": null
+    },
+    {
+     "ts": "2026-11-08T01:23:00",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "interface": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
+      "tb": "dir_text:0a0a2a21592b4a86b45bec96bda5d1abf2ad2bee5d452fa9c9bf48102b3be60a",
+      "digital_rtl": "dir_text:5b5e3748612f45afdfaedc1d7e6daa228ca0e64c09072bc4ac8b8b6275a6d995",
+      "digital_spec": "json_canonical:316aabe3e699eb67a766fb42296b9a90d765394b6deefb2d5178cc8865c08bbf",
+      "analog_spec": "json_canonical:b391e767c6c4d39480d7ef7b38f0dd7cfa96ed092067417f753de42680542655",
       "analog_netlist": "dir_text:2c6d358ba4c3ec93f5dc910e1777df9a3f5418293791a715229fa1b8d22d1e4e",
       "analog_sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
       "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
@@ -5008,13 +5027,13 @@
    "path": "interface.yaml",
    "kind": "interface",
    "sha256": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
-   "hashed": "2026-11-08T01:22:53"
+   "hashed": "2026-11-08T01:23:00"
   },
   "digital_rtl": {
    "path": "digital/rtl",
    "kind": "digital_rtl",
    "sha256": "dir_text:5b5e3748612f45afdfaedc1d7e6daa228ca0e64c09072bc4ac8b8b6275a6d995",
-   "hashed": "2026-11-08T01:22:53"
+   "hashed": "2026-11-08T01:23:00"
   },
   "analog_layout": {
    "path": "analog/layout",
@@ -5026,19 +5045,19 @@
    "path": "tb",
    "kind": "tb",
    "sha256": "dir_text:0a0a2a21592b4a86b45bec96bda5d1abf2ad2bee5d452fa9c9bf48102b3be60a",
-   "hashed": "2026-11-07T17:20:12"
+   "hashed": "2026-11-08T01:23:00"
   },
   "analog_netlist": {
    "path": "analog/netlist",
    "kind": "analog_netlist",
    "sha256": "dir_text:2c6d358ba4c3ec93f5dc910e1777df9a3f5418293791a715229fa1b8d22d1e4e",
-   "hashed": "2026-11-08T01:22:53"
+   "hashed": "2026-11-08T01:23:00"
   },
   "analog_sizing": {
    "path": "analog/sizing/sizing.yaml",
    "kind": "analog_sizing",
    "sha256": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
-   "hashed": "2026-11-08T01:22:53"
+   "hashed": "2026-11-08T01:23:00"
   },
   "top_gds": {
    "path": "top/harden/runs/run/final/gds",
@@ -5050,19 +5069,19 @@
    "path": "analog/spec/spec.yaml",
    "kind": "analog_spec",
    "sha256": "json_canonical:b391e767c6c4d39480d7ef7b38f0dd7cfa96ed092067417f753de42680542655",
-   "hashed": "2026-11-08T01:22:53"
+   "hashed": "2026-11-08T01:23:00"
   },
   "pdk_version": {
    "path": "${PDK_ROOT}/SOURCES",
    "kind": "pdk_version",
    "sha256": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
-   "hashed": "2026-11-08T01:22:53"
+   "hashed": "2026-11-08T01:23:00"
   },
   "pdk_models": {
    "path": "${PDK_ROOT}/libs.tech/ngspice",
    "kind": "pdk_models",
    "sha256": "dir_text:84e0f27991c27acae27ec5243fd0d1587f7bfb2655e802ed0eb92a811cf5f7f8",
-   "hashed": "2026-11-08T01:21:48"
+   "hashed": "2026-11-08T01:23:00"
   },
   "pdk_liberty": {
    "path": "${PDK_ROOT}/libs.ref/gf180mcu_fd_sc_mcu7t5v0/lib",
@@ -5074,7 +5093,7 @@
    "path": "digital/spec/spec.yaml",
    "kind": "digital_spec",
    "sha256": "json_canonical:316aabe3e699eb67a766fb42296b9a90d765394b6deefb2d5178cc8865c08bbf",
-   "hashed": "2026-11-08T01:22:53"
+   "hashed": "2026-11-08T01:23:00"
   },
   "macro_lib": {
    "path": "macro_lib",
@@ -6549,6 +6568,14 @@
    "gate": "top_harden",
    "status": "pass",
    "attempt": 22,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-11-08T01:23:00",
+   "event": "gate",
+   "gate": "cosim",
+   "status": "pass",
+   "attempt": 20,
    "failing_count": 0
   }
  ]
