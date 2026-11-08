@@ -131,8 +131,18 @@ def test_device_violations_plain_block(tmp_path):
                           ("device_not_lvs_ok", "warning", "xq1")]
 
 
+def test_an_empty_layout_scaffold_is_not_a_layout(tmp_path):
+    # state.py and faults.py make layout/ before any generator exists
+    # (the corpus bandgap's pnp tripped this on CI)
+    (tmp_path / "layout").mkdir()
+    vs = check_netlist_lint.device_violations(tmp_path, {}, "n.cir",
+                                              NETLIST, TABLE)
+    assert {v["severity"] for v in vs} == {"warning"}
+
+
 def test_device_violations_with_layout_and_tt(tmp_path):
     (tmp_path / "layout").mkdir()
+    (tmp_path / "layout" / "gen_blk.py").write_text("", encoding="utf-8")
     vs = check_netlist_lint.device_violations(
         tmp_path, {"tt_tile": True}, "n.cir", NETLIST, TABLE)
     assert _kinds(vs) == [("device_not_lvs_ok", "error", "d1"),

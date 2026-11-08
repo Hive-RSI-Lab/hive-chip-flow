@@ -34,8 +34,9 @@ differ from the table's.
 - **netlist_lint** checks each device the netlist uses (an `x` subckt line,
   or a `d` diode line) against its row. It does not judge a model with no
   row: the FETs and resistors have gates of their own.
-  - `device_not_lvs_ok`: an error when the workspace has a `layout/`, and a
-    warning before then. Gates fail only on errors (`gates.yaml`'s
+  - `device_not_lvs_ok`: an error when the workspace has a layout
+    generator (`layout/gen_*.py`), and a warning before then: an empty
+    `layout/` scaffold does not count. Gates fail only on errors (`gates.yaml`'s
     `fail_severities`), so an analog block can still pick a device before
     it has a layout.
   - `device_not_tt_legal`: an error in a TT tile. A block is a TT tile when

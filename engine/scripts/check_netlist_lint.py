@@ -32,8 +32,8 @@ cannot see that ngspice's own DC solve never actually converged cleanly.
 DEVICES (#137): every MOS cap, diode, BJT and MIM the netlist uses is held
 to its row in engine/reference/devices.yaml (engine/scripts/pdk_devices.py):
 - not lvs_ok: `device_not_lvs_ok`, with the round trip's reason - an error
-  when the workspace has a layout/ (analog_lvs would fail on it), a warning
-  when it has none yet;
+  when the workspace has a layout generator (layout/gen_*.py: analog_lvs
+  would fail on it), a warning when it has none yet;
 - not tt_legal, in a TT tile: `device_not_tt_legal` (an error). A workspace
   is in a TT tile when spec.yaml says `tt_tile: true`, or, with no
   `tt_tile`, when it is an msde side (its parent has an interface.yaml).
@@ -129,7 +129,10 @@ def device_violations(ws: Path, spec: dict, rel: str, text: str,
         if m and "=" not in m.group(4):
             uses.append((m.group(1), m.group(4).lower(), lineno))
     tt = in_tt_tile(ws, spec)
-    has_layout = (ws / "layout").is_dir()
+    # a generator, not the bare layout/ dir: state.py and faults.py
+    # scaffold an empty layout/ before any block has one, and analog_lvs
+    # runs only layout/gen_<block>.py (layout_gen.load_generator)
+    has_layout = any((ws / "layout").glob("gen_*.py"))
     out = []
     for ref, model, line in uses:
         why = devicelib.lvs_problem(model, table)
