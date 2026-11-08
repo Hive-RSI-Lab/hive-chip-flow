@@ -2,8 +2,7 @@
 # gate this rung demonstrates, the same set and contract as
 # corpus/ade/mirror/faults/manifest.yaml. faults.py copies the rung into a
 # scratch workspace, runs plant(ws), runs `gate` and checks the result
-# against `expect`. `mc` has no entry: this rung's spec.yaml asks for no
-# Monte Carlo.
+# against `expect`.
 version: 1
 faults:
   - name: spec_lint_measure_no_bounds
@@ -26,6 +25,10 @@ faults:
     gate: bench_strength
     plant: plant_bench_strength.py
     expect: {status: fail, kind: survivor_size_doubled}
+  - name: mc_offset_sigma_above_spec
+    gate: mc
+    plant: plant_mc.py
+    expect: {status: fail, kind: sigma_above_spec}
   - name: metal_spacing
     gate: drc
     plant: plant_drc_metal_spacing.py

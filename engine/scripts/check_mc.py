@@ -48,12 +48,23 @@ When `mc.enabled: true`:
    `mc.runs` defaults to RUNS_MARGIN x the zero-failure run count that
    proves yield_min at that confidence (default_runs).
 
+   A measure spec.yaml marks `statistical: none` (it needs an mc_waiver
+   reason) is left out of every sample's judgement and listed in
+   `nominal_only`: sim_tt and sim_pvt score it at zero mismatch, and a
+   bench left with no bound MC judges is listed in `not_scored`.
+
 4. What it reports. Per group and measure: n, mean, sigma, rel_sigma,
    min, max, and against the bounds scored there k_sigma, cpk and a
    normal-model yield - labelled as assuming normality, and never used for
    the verdict.
 
-5. Ruling sigmas. Every non-zero relative 1-sigma a below_spread ruling
+5. Spec sigmas. A measure with a `sigma_max` (a comparator's input-offset
+   sigma) has each group's sample 1-sigma held to it: above it is
+   `sigma_above_spec`; at or under it with a chi-square upper bound (at the
+   yields' per-group confidence, normal assumed) above it is
+   `sigma_unproven`; no judged bench measuring it is `sigma_unmeasured`.
+
+6. Ruling sigmas. Every non-zero relative 1-sigma a below_spread ruling
    claims (bench_strength widens a mutant's allowance by 3x it) is checked
    against the tt MC rel_sigma of that measure (the largest across
    benches): a claim above the run's upper confidence bound on it
@@ -741,6 +752,11 @@ def run(argv=None):
                    for bench, _ in bench_list}
     netlist_text = netlist_path.read_text(encoding="utf-8")
     mc_net, par_added = mc_netlist(netlist_path, out_dir, bench_texts.values())
+    # A measure the spec marks `statistical: none` (with its mc_waiver) is a
+    # nominal check - sim_tt/sim_pvt score it at zero mismatch - and Monte
+    # Carlo does not judge it: a comparator's 1 mV decision would flip on
+    # the mismatch its offset measure already bounds.
+    nominal_only = sorted(speclib.nominal_only_measures(spec))
     benches = []
     for bench_path, bounds_path in bench_list:
         template_text, bench_par = add_par_for_multiplier(
@@ -749,7 +765,9 @@ def run(argv=None):
                              if b != bench_path)])
         par_added += [dict(d, bench=bench_path.name) for d in bench_par]
         benches.append({"name": bench_path.name, "stem": bench_path.stem,
-                        "bounds": simlib.load_bounds(bounds_path),
+                        "bounds": [x for x in simlib.load_bounds(bounds_path)
+                                   if x["measure"].lower()
+                                   not in nominal_only],
                         "text": template_text})
 
     # The worst PVT corner: sim_pvt's own sweep (spec_sweep, the same
@@ -799,7 +817,9 @@ def run(argv=None):
                 for x in b["bounds"]) for c in sweep)]
     n_groups = len(tt_groups) + len(other)
     runs = cfg["runs"] or default_runs(cfg["yield_min"], cfg["confidence"],
-                                       n_groups, len(benches))
+                                       n_groups, len({b["name"] for b in
+                                                      [*(x for x, _ in tt_groups),
+                                                       *other]}))
     seeds = [cfg["seed"] + i for i in range(runs)]
     outcomes = bench_strength.run_pool(plan(tt_groups, runs), one, jobs)
 
@@ -907,6 +927,50 @@ def run(argv=None):
                    "at this failure rate no run count proves it: widen "
                    "the design's margin"), "sim_run", runs_needed=needed))
 
+    # Spec sigmas: a measure's `sigma_max` (a comparator's offset sigma)
+    # against each group's sample sigma and its chi-square upper bound at
+    # the same per-group confidence as the yields (normal assumed).
+    sigma_checks = []
+    for m in spec.get("measures") or []:
+        if not (isinstance(m, dict) and isinstance(m.get("name"), str)
+                and "sigma_max" in m):
+            continue
+        key, smax = m["name"].lower(), float(m["sigma_max"])
+        seen = [g for g in groups if key in g["stats"]]
+        if not seen:
+            sigma_checks.append({"measure": key, "sigma_max": smax,
+                                 "verdict": "unmeasured"})
+            violations.append(checklib.violation(
+                "mc", "error", None, None, "sigma_unmeasured", [key],
+                f"spec measure {key!r} has sigma_max {smax:g}, but no bench "
+                "the mc gate judges measures it - add it to a tb/ bench "
+                "scored at tt", "speclib"))
+            continue
+        for g in seen:
+            st = g["stats"][key]
+            upper = sigma_upper(st["sigma"], st["n"], g_conf)
+            where = f"{g['bench']}@{g['corner']}"
+            verdict = ("above_spec" if st["sigma"] > smax else
+                       "unproven" if upper > smax else "met")
+            sigma_checks.append({"measure": key, "group": where,
+                                 "sigma_max": smax, "sigma": st["sigma"],
+                                 "sigma_upper": upper, "n": st["n"],
+                                 "verdict": verdict})
+            if verdict == "met":
+                continue
+            violations.append(checklib.violation(
+                "mc", "error", None, None,
+                "sigma_above_spec" if verdict == "above_spec"
+                else "sigma_unproven", [key, where],
+                f"{key!r} at {where}: Monte Carlo 1-sigma {st['sigma']:.4g} "
+                + (f"is above the spec's sigma_max {smax:g} - the design "
+                   "misses; more runs will not fix it"
+                   if verdict == "above_spec" else
+                   f"has a {g_conf:.2%}-confidence upper bound of "
+                   f"{upper:.4g} (chi-square, n={st['n']}, normal assumed), "
+                   f"above the spec's sigma_max {smax:g} - raise mc.runs, "
+                   "or widen the design's margin"), "sim_run"))
+
     # Ruling sigmas: each below_spread claim of a relative 1-sigma must sit
     # at or under this tt run's own (its upper confidence bound, the
     # largest across benches), or bench_strength excused a mutant on a
@@ -959,8 +1023,9 @@ def run(argv=None):
         yields=yields, groups=groups,
         worst_corners=worst, sweep=nominal["corners"],
         sweep_violations=len(nominal["violations"]),
-        ruling_sigmas=ruling_checks, assumptions=NORMAL_ASSUMPTION,
-        seeds=seeds, par_added=par_added,
+        spec_sigmas=sigma_checks, ruling_sigmas=ruling_checks,
+        assumptions=NORMAL_ASSUMPTION,
+        seeds=seeds, par_added=par_added, nominal_only=nominal_only,
         not_scored=[b["name"] for b in benches
                     if b not in [x for x, _ in tt_groups]],
         results=results, sample_violations=all_sample_violations[:20])
