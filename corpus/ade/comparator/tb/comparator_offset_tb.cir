@@ -1,0 +1,42 @@
+* comparator_offset_tb.cir - the strongarm_comparator's input offset (spec.md,
+* Requirement, "Input offset"). Same placeholders as comparator_tb.cir.
+*
+* A slow differential ramp: inp - inn climbs from -80 mV to +80 mV, 1 mV per
+* clock cycle, around mid-supply, while the comparator decides every 4 ns.
+* Below its trip point each decision pulls outp low; above it, outn. The
+* trip point - the input offset - lies between the last decision of the one
+* kind and the first of the other, a ramp step apart, so vin_offset is the
+* input at the first decision that pulls outn down, less half a step (vmid):
+* resolution 1 mV, the ramp moves 0.1 mV in a decision's 0.4 ns. With no
+* mismatch the circuit is symmetric and vin_offset sits within half a step of
+* 0; under the mc gate's mismatch it spreads, and that spread is the
+* comparator's offset. A trip point above +80 mV leaves vin_offset
+* unmeasured and one below -80 mV puts it at the ramp's start, so either
+* fails the sample. (A PARAM measure averaging two FIND results would be
+* exact, but ngspice prints its expression as an "error" line, which
+* sim_run rightly reads as an engine error.)
+.include '{{PDK}}/libs.tech/ngspice/design.spice'
+.lib '{{PDK}}/libs.tech/ngspice/sm141064.spice' {{CORNER}}
+.temp {{TEMP_C}}
+.include '{{NETLIST}}'
+{{SIZING}}
+
+vdd_src vdd 0 {{VDD}}
+vclk clk 0 PULSE(0 {{VDD}} 2n 50p 50p 1.95n 4n)
+* the ramp starts 2 ns before the first decision (at 2 ns) and reaches
+* +80 mV 2 ns after the 161st (at 642 ns): 1 mV per 4 ns cycle
+vinp inp 0 PWL(0 1.57 644n 1.73)
+vinn inn 0 PWL(0 1.73 644n 1.57)
+xcmp inp inn clk outp outn vdd 0 strongarm_comparator
+cloadp outp 0 10f
+cloadn outn 0 10f
+evid vid 0 inp inn 1
+vhalf vid vmid 0.5m
+
+.tran 20p 644n
+.measure tran vin_offset FIND v(vmid) WHEN v(outn)=1.4 FALL=1
+
+.control
+run
+.endc
+.end

@@ -6,14 +6,29 @@ corners: default
 measures:
   - name: vdiff_pos
     bounds: {min: 2.5}
+    statistical: none
+    mc_waiver: &nominal a nominal 1 mV decision, scored at zero mismatch by sim_tt and sim_pvt; mismatch moves the trip point by about 10 mV, which vin_offset bounds under Monte Carlo
   - name: vdiff_neg
     bounds: {max: -2.5}
+    statistical: none
+    mc_waiver: *nominal
   - name: tdelay
     bounds: {min: 1e-10, max: 6e-10}
+    statistical: none
+    mc_waiver: *nominal
   - name: vreset
     bounds: {min: 2.6}
+    statistical: none
+    mc_waiver: *nominal
   - name: itail_peak
     bounds: {min: 7.0e-4, max: 2.0e-3}
+    statistical: none
+    mc_waiver: *nominal
+  - name: vin_offset
+    bounds: {min: -0.06, max: 0.06}
+    statistical: mismatch
+    sigma_max: 0.02
+mc: {enabled: true, yield_min: 0.95, seed: 1}
 # the latch's outputs and the input pair, held to matching parasitics at
 # pex_sim: total C, pin-to-gate R, and C to the clock that kicks them
 symmetric_nets:

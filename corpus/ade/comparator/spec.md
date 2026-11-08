@@ -51,6 +51,38 @@ section 5's default PVT set:
   1.30, 1.07, 1.61, 1.06, 1.57 mA; the tail at twice its width draws
   2.34 mA at typical.
 
+These five are nominal checks: sim_tt and sim_pvt score them with no
+mismatch, and spec.yaml marks them `statistical: none`. Under device
+mismatch a StrongARM's trip point moves by about 10 mV, so a 1 mV decision
+says nothing about any single die. The offset bench below bounds that
+spread.
+
+### Input offset
+
+The bench (`tb/comparator_offset_tb.cir`) uses the same clock, a 4 ns
+period here, and the same loads. `inp - inn` ramps around mid-supply from
+-80 mV to +80 mV, 1 mV per clock cycle. Below its trip point each decision
+pulls `outp` low; above it, `outn`.
+
+- `vin_offset`: the input at the first decision that pulls `outn` below
+  1.4 V, less half a ramp step (1 mV resolution). It lies between -60 mV
+  and +60 mV at every corner and in every Monte Carlo sample. A trip point
+  outside the ramp leaves it unmeasured or pinned at the ramp's start,
+  which fails the sample.
+- Its Monte Carlo 1-sigma (`sigma_max`) is at most 20 mV at the typical
+  corner and at the worst PVT corner. That holds for the sample sigma and
+  for its chi-square upper bound at the gate's confidence. The ±60 mV
+  bound is 3 x this sigma.
+
+Monte Carlo is on (`mc: {enabled: true, yield_min: 0.95}`): the PDK's own
+mismatch models, with yield proven at 95% confidence (docs/design.md
+section 5). With no mismatch, `vin_offset` is -0.36 mV at typical. Real
+Monte Carlo on this sizing (144 runs, seed 1): sigma 12.5 mV at typical
+(upper bound 14.2 mV) and 12.0 mV at the worst corner, ff (upper bound
+13.6 mV); every sample is inside ±60 mV. This is offset without
+cancellation. A tighter offset needs a different topology (a preamp or
+offset storage), which this block does not have.
+
 After layout, at the typical corner, the extracted netlist with its wire
 capacitance and resistance runs the same bench with a 10 mV input step in
 place of 1 mV: both decisions still at least 2.5 V apart with the right

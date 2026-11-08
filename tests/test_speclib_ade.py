@@ -318,3 +318,39 @@ def test_malformed_erc_nets_is_a_violation():
         assert speclib.erc_nets(spec) is None, bad
         kinds = {v["kind"] for v in speclib.lint_spec_ade(spec)}
         assert "bad_erc_nets" in kinds, bad
+
+
+def _sigma_spec(sigma_max, mc=True, **extra):
+    m = {"name": "iout_ratio", "bounds": {"min": 1.8, "max": 2.2},
+         "sigma_max": sigma_max, **extra}
+    spec = {**GOOD_SPEC, "measures": [m]}
+    if mc:
+        spec["mc"] = {"enabled": True, "yield_min": 0.95}
+    return spec
+
+
+def test_sigma_max_with_mc_on_is_clean():
+    assert speclib.lint_spec_ade(_sigma_spec(0.02)) == []
+
+
+def test_sigma_max_must_be_a_positive_number():
+    for bad in (0, -0.01, "0.02", True, float("inf")):
+        kinds = {v["kind"] for v in speclib.lint_spec_ade(_sigma_spec(bad))}
+        assert "bad_sigma_max" in kinds, bad
+
+
+def test_sigma_max_without_mc_or_on_a_nominal_measure_is_flagged():
+    kinds = {v["kind"] for v in speclib.lint_spec_ade(
+        _sigma_spec(0.02, mc=False))}
+    assert "sigma_max_no_mc" in kinds
+    kinds = {v["kind"] for v in speclib.lint_spec_ade(_sigma_spec(
+        0.02, statistical="none", mc_waiver="a nominal decision"))}
+    assert "sigma_max_no_mc" in kinds
+
+
+def test_nominal_only_measures_are_the_statistical_none_ones():
+    spec = {**GOOD_SPEC, "measures": [
+        {"name": "Vdiff", "bounds": {"min": 2.5}, "statistical": "none",
+         "mc_waiver": "nominal"},
+        {"name": "vin_offset", "bounds": {"min": -1, "max": 1}}]}
+    assert speclib.nominal_only_measures(spec) == {"vdiff"}

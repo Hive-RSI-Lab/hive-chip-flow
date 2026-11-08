@@ -844,3 +844,67 @@ def test_real_m4_mismatch_matches_the_w4_device(tmp_path):
     assert planted > 1.5, planted
     # DC point: with mismatch off the rewrite changes nothing
     assert vgs(True, False)[0] == vgs(False, False)[0]
+
+
+def spec_with(ws: Path, measure_extra: str, extra_measures: str = "") -> None:
+    """Rewrite the workspace's spec.yaml: iout_ratio gets `measure_extra`
+    (indented YAML keys), plus any further measures."""
+    p = ws / "spec" / "spec.yaml"
+    text = p.read_text(encoding="utf-8").replace(
+        "  - {name: iout_ratio, bounds: {min: 1.8, max: 2.2}}\n",
+        "  - name: iout_ratio\n    bounds: {min: 1.8, max: 2.2}\n"
+        + measure_extra + extra_measures)
+    p.write_text(text, encoding="utf-8")
+
+
+# passing()'s ten ratios have a sample 1-sigma of about 0.00303; with 60
+# runs its 97.5%-confidence chi-square upper bound is about 0.0036.
+@pytest.mark.parametrize("smax, code_want, verdict, kind", [
+    (0.01, 0, "met", None),
+    (0.001, 1, "above_spec", "sigma_above_spec"),
+    (0.0032, 1, "unproven", "sigma_unproven"),
+])
+def test_spec_sigma_max_is_held_to_the_sample_sigma(
+        tmp_path, monkeypatch, capsys, smax, code_want, verdict, kind):
+    ws = make_ws(tmp_path, "mc: {enabled: true, runs: 60, yield_min: 0.9}\n")
+    spec_with(ws, "    statistical: mismatch\n"
+                  f"    sigma_max: {smax}\n")
+    monkeypatch.setattr(sim_run, "EDA_BIN", make_fake_eda(tmp_path, passing()))
+    code, out = run_mc(ws, capsys)
+    assert code == code_want, out
+    checks = out["spec_sigmas"]
+    assert checks and {c["verdict"] for c in checks} == {verdict}, checks
+    assert all(c["sigma_upper"] >= c["sigma"] for c in checks)
+    if kind:
+        assert kind in kinds_of(out)
+
+
+def test_spec_sigma_max_no_bench_measures_it_is_a_finding(
+        tmp_path, monkeypatch, capsys):
+    ws = make_ws(tmp_path, "mc: {enabled: true, runs: 60, yield_min: 0.9}\n")
+    spec_with(ws, "", "  - name: vin_offset\n"
+                      "    bounds: {min: -0.06, max: 0.06}\n"
+                      "    sigma_max: 0.02\n")
+    monkeypatch.setattr(sim_run, "EDA_BIN", make_fake_eda(tmp_path, passing()))
+    code, out = run_mc(ws, capsys)
+    assert code == 1, out
+    assert "sigma_unmeasured" in kinds_of(out)
+
+
+def test_nominal_only_measure_is_left_out_of_mc(tmp_path, monkeypatch, capsys):
+    # A second bench whose only bound is a `statistical: none` measure: the
+    # fake eda never prints it, so judging it would fail every sample. The
+    # gate must leave it out and name the bench as not scored.
+    ws = make_ws(tmp_path, "mc: {enabled: true, runs: 60, yield_min: 0.9}\n")
+    spec_with(ws, "", "  - name: decision\n"
+                      "    bounds: {min: 2.5}\n"
+                      "    statistical: none\n"
+                      "    mc_waiver: a nominal 1 mV decision\n")
+    shutil.copy(ws / "tb" / "mirror_tb.cir", ws / "tb" / "decide_tb.cir")
+    (ws / "tb" / "decide_tb.bounds.json").write_text(json.dumps(
+        [{"measure": "decision", "min": 2.5}]), encoding="utf-8")
+    monkeypatch.setattr(sim_run, "EDA_BIN", make_fake_eda(tmp_path, passing()))
+    code, out = run_mc(ws, capsys)
+    assert out["nominal_only"] == ["decision"], out
+    assert "decide_tb.cir" in out["not_scored"]
+    assert {r["bench"] for r in out["results"]} == {"mirror_tb.cir"}
