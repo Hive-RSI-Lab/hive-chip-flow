@@ -1,0 +1,21 @@
+* ota_emir_tb.cir - the operating point the em_ir gate
+* (engine/scripts/check_analog_em_ir.py) reads EM and IR drop from, run on
+* the extracted netlist at every corner of the spec's sweep. The gate fills
+* in the pdk path, the extracted netlist and the corner's process,
+* temperature and supply; no .control block, the gate adds `op` and
+* `print all`.
+*
+* The OTA's one DC state: the benches' bias (10uA into ibias), unity-gain
+* follower at vdd/2 with the 2 pF load (DC-open). vss and vdd carry iq,
+* about 250uA, most of it the second stage's xm6/xm7 through out.
+.include '{pdk}/libs.tech/ngspice/design.spice'
+.lib '{pdk}/libs.tech/ngspice/sm141064.spice' {corner}
+.lib '{pdk}/libs.tech/ngspice/sm141064.spice' {mim_corner}
+.include '{extracted}'
+.temp {temp_c}
+
+vdd vdd 0 dc {vdd}
+vin inp 0 dc {{{vdd}/2}}
+ibias_src 0 ibias dc 10u
+xdut inp out out vdd 0 ibias two_stage_miller_ota
+.end

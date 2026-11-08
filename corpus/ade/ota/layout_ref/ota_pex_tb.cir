@@ -1,0 +1,92 @@
+* ota_pex_tb.cir - the post-layout bench for the two_stage_miller_ota, run
+* at every corner of the sweep (spec.yaml's pex_corners: all) on the
+* magic-extracted, parasitic-annotated netlist of this run's own GDS;
+* check_pex_sim.py fills in its tokens, never a path typed by hand.
+*
+* One file runs the three schematic benches of tb/ at once, each its own
+* copy of the extracted cell with its own supply, so no source of one
+* reaches another (the circuits share only ground):
+*   xs  ota_stb_tb: Tian's loop gain in unity-gain feedback, never broken
+*       (vprobe 1 V in series, then iprobe 1 A in shunt), 2 pF load:
+*       pm_deg, gm_db, ugf_hz, a0_db, and from the op iq and vos
+*   xp  ota_psrr_tb: 1 V AC on its own vdd, a quiet input, unity gain:
+*       psrr_dc_db at 10 Hz and psrr_at_f_db at 100 kHz
+*   xn  ota_noise_tb: output noise integrated 10 Hz - 1 MHz: onoise_rms_v
+* Each takes 10uA into ibias, the input at vdd/2. The Miller cap and the
+* wiring's R and C on d2 and out set the phase margin, the UGF and the PSRR
+* at 100 kHz; the extracted wire R on vss and vdd sets iq and vos.
+.include '{pdk}/libs.tech/ngspice/design.spice'
+.lib '{pdk}/libs.tech/ngspice/sm141064.spice' {corner}
+.lib '{pdk}/libs.tech/ngspice/sm141064.spice' {mim_corner}
+.include '{extracted}'
+.temp {temp_c}
+
+.param vddp={vdd} vcm='vddp/2' ib=10u cl=2p
+vss_src vss 0 0
+
+* xs: loop stability
+vdd_s vdd_s 0 {{vddp}}
+vin_s inp_s 0 dc {{vcm}}
+ib_s 0 ibias_s dc {{ib}}
+xs inp_s fb_s out_s vdd_s vss ibias_s two_stage_miller_ota
+cload_s out_s 0 {{cl}}
+vprobe fb_s out_s dc 0 ac 1
+iprobe 0 out_s dc 0 ac 0
+
+* xp: supply rejection
+vdd_p vdd_p 0 dc {{vddp}} ac 1
+vin_p inp_p 0 dc {{vcm}}
+ib_p 0 ibias_p dc {{ib}}
+xp inp_p out_p out_p vdd_p vss ibias_p two_stage_miller_ota
+cload_p out_p 0 {{cl}}
+
+* xn: output noise
+vdd_n vdd_n 0 dc {{vddp}}
+vin_n inp_n 0 dc {{vcm}} ac 1
+ib_n 0 ibias_n dc {{ib}}
+xn inp_n out_n out_n vdd_n vss ibias_n two_stage_miller_ota
+cload_n out_n 0 {{cl}}
+
+.control
+set noaskquit
+op
+let iq_v = -i(vdd_s)
+let vos_v = v(out_s) - v(inp_s)
+ac dec 40 1 100g
+let tv = -v(out_s)/v(fb_s)
+let psrr = -db(v(out_p)/v(vdd_p))
+meas ac psrr_dc_v find psrr at=10
+meas ac psrr_f_v find psrr at=100k
+alter @vprobe[acmag] = 0
+alter @iprobe[acmag] = 1
+ac dec 40 1 100g
+let ti = (1 + i(vprobe))/i(vprobe)
+let tl = (ac1.tv*ti - 1)/(ac1.tv + ti + 2)
+let tdb = db(tl)
+let tph = cph(tl)*180/pi
+meas ac ugf_v when tdb=0 fall=1
+meas ac ph_ugf find tph at=ugf_v
+meas ac a0_v find tdb at=10
+meas ac f180 when tph=-180 fall=1
+meas ac g180 find tdb at=f180
+let pm_v = 180 + ph_ugf
+let gm_v = -g180
+let iq_r = op1.iq_v
+let vos_r = op1.vos_v
+let psrr_dc_r = ac1.psrr_dc_v
+let psrr_f_r = ac1.psrr_f_v
+noise v(out_n) vin_n dec 20 10 1meg 1
+* the integrated-noise plot is the current one here; its name depends on
+* the analyses before it (noise3 after this op and two ac runs, not noise2)
+let onoise_r = onoise_total
+echo "pm_deg = $&ac2.pm_v"
+echo "gm_db = $&ac2.gm_v"
+echo "ugf_hz = $&ac2.ugf_v"
+echo "a0_db = $&ac2.a0_v"
+echo "iq = $&ac2.iq_r"
+echo "vos = $&ac2.vos_r"
+echo "psrr_dc_db = $&ac2.psrr_dc_r"
+echo "psrr_at_f_db = $&ac2.psrr_f_r"
+echo "onoise_rms_v = $&onoise_r"
+.endc
+.end

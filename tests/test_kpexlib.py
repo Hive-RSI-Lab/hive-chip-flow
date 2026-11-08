@@ -160,6 +160,49 @@ def test_prepare_gds_refuses_a_missing_cell(tmp_path):
         kpexlib.prepare_gds(src, tmp_path / "k.gds", "other")
 
 
+def _tech(m5_name="MetalTop"):
+    """The parts of kpex 0.4's GF180 tech json kpex_runner patches."""
+    def comp(name, gds, orig):
+        return {"layer_info": {"name": name,
+                               "drw_gds_pair": {"layer": gds, "datatype": 0}},
+                "original_layer_name": orig}
+    return {
+        "layers": [],
+        "lvs_computed_layers": [comp("poly_con", 30, "Poly2"),
+                                comp("metal5_con", 81, m5_name)],
+        "process_stack": {"layers": [{"name": "Poly2", "metal_layer": {}},
+                                     {"name": "Metal5", "metal_layer": {}}]},
+        "process_parasitics": {"capacitance": {
+            "substrates": [], "sidewalls": [],
+            "overlaps": [{"top_layer_name": "Metal1",
+                          "bottom_layer_name": "Poly2", "capacitance": 1.0}],
+            "sideoverlaps": [{"in_layer_name": "Metal1",
+                              "out_layer_name": "Poly2",
+                              "capacitance": 1.0}]}},
+    }
+
+
+def test_kpex_runner_files_metal5_under_the_name_its_cap_tables_use():
+    # and as metal5 off the MIM top plate: over it, metal5 on the metal4
+    # bottom plate is the MIM's own C, which the device already carries
+    import kpex_runner
+    t = kpex_runner.patched_tech(_tech())
+    names = [x["layer_info"]["name"] for x in t["lvs_computed_layers"]]
+    assert "metal5_con" not in names
+    m5 = [x for x in t["lvs_computed_layers"]
+          if x["layer_info"]["name"] == "metal5_ncap"]
+    assert [x["original_layer_name"] for x in m5] == ["Metal5"]
+
+
+def test_kpex_runner_refuses_a_tech_without_metal5_con():
+    import kpex_runner
+    t = _tech()
+    t["lvs_computed_layers"].pop()
+    with pytest.raises(SystemExit) as e:
+        kpex_runner.patched_tech(t)
+    assert e.value.code == 3
+
+
 # ---- the known answer --------------------------------------------------------
 EPS_OVER_T = 0.05903  # fF/um^2: GF180 metal2 over metal1, eps*A/t
 
@@ -191,3 +234,4 @@ def test_metal2_over_metal1_plate_matches_eps_a_over_t_in_both(tmp_path):
         got[name] = p["top"]["c_to"]["bot"]
     for name, c in got.items():
         assert kpexlib._off(c, want) <= kpexlib.TOLERANCE, (name, c, want)
+
