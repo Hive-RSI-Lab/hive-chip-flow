@@ -3,7 +3,7 @@
  "gate": "spec_lint",
  "phase": "P1",
  "tool": "spec_lint_ade",
- "input_digest": "json_canonical:8c9cd25a18e9f52cb3d6890c8bb10c49e0fd4727727abbe712a4ce5fc7367fb4",
+ "input_digest": "json_canonical:b391e767c6c4d39480d7ef7b38f0dd7cfa96ed092067417f753de42680542655",
  "status": "pass",
  "criteria": {
   "fail_severities": [
@@ -22,27 +22,19 @@
  "facts": {
   "mc_waived": [
    {
-    "measure": "dnl_max_abs",
-    "why": "GF180's ngspice poly resistors carry no per-instance mismatch (mis_r=0), so Monte Carlo would sample only the driver cells' FETs; resistor matching is bounded by inl_sens_1pct_max instead (see mc above)"
-   },
-   {
-    "measure": "inl_max_abs",
-    "why": "GF180's ngspice poly resistors carry no per-instance mismatch (mis_r=0), so Monte Carlo would sample only the driver cells' FETs; resistor matching is bounded by inl_sens_1pct_max instead (see mc above)"
-   },
-   {
     "measure": "v_zero_offset",
     "why": "the code-0 output above ground, set by the pull-down drivers' Ron into the ladder at every corner - not a matched-pair offset"
    },
    {
     "measure": "inl_sens_1pct_max",
-    "why": "GF180's ngspice poly resistors carry no per-instance mismatch (mis_r=0), so Monte Carlo would sample only the driver cells' FETs; resistor matching is bounded by inl_sens_1pct_max instead (see mc above)"
+    "why": "a deterministic +/-1 % one-unit sweep, a bound on sensitivity; Monte Carlo samples resistor matching on dnl_max_abs and inl_max_abs directly"
    }
   ]
  },
  "inputs_at_start": {
-  "spec_yaml": "json_canonical:8c9cd25a18e9f52cb3d6890c8bb10c49e0fd4727727abbe712a4ce5fc7367fb4"
+  "spec_yaml": "json_canonical:b391e767c6c4d39480d7ef7b38f0dd7cfa96ed092067417f753de42680542655"
  },
  "strength_at_start": 0,
- "recorded_ts": "2026-11-07T16:51:45",
- "attempts": 14
+ "recorded_ts": "2026-11-07T21:52:39",
+ "attempts": 15
 }

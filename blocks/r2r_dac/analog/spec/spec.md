@@ -60,8 +60,8 @@ and full scale is 255/256 x 3.3 V = 3.287 V.
   PDK's minimum length; if 250 ohm needs a length below it, 2 units in
   parallel per R and 4 per 2R with 2 in series). P2 states the drawn W, L
   and the expected sigma(R)/R. What the PDK offers for that sigma: no
-  per-instance mismatch data at all for ppolyf_u (next section); the only
-  statistical numbers are global - rsh agauss(0, 18.116, 3) on 350 ohm/sq
+  per-instance mismatch in the ngspice models, the Xyce deck's A_R in
+  their place (next section); the ngspice statistical numbers are global - rsh agauss(0, 18.116, 3) on 350 ohm/sq
   (~1.7 % 1-sigma, all units together) and dW agauss(0, 0.0167 um, 3).
 
 ### Resistor mismatch: what the PDK models support
@@ -88,9 +88,14 @@ ngspice/sm141064.spice` and `design.spice`:
   run, with the FETs skewed and the resistor at whichever section the
   bench pairs them with).
 
-So Monte-Carlo resistor mismatch is NOT supported by these models and
-`mc.enabled` is false. The brief's fallback replaces it: a deterministic
-sensitivity, each unit resistor perturbed +1 % and -1 % one at a time with
+So the ngspice models alone carry no Monte-Carlo resistor mismatch. The
+PDK's Xyce deck (`libs.tech/xyce/sm141064.xyce`) does: a per-instance
+Pelgrom term on ppolyf_u, sigma(dR/R) = A_R/sqrt(W*L) with A_R = 0.021 um.
+check_mc.py carries that term into the ngspice Monte Carlo on every
+ppolyf_u instance (about 0.087 % 1-sigma on one 2 x 150 um unit), so
+`mc.enabled` is true and the MC yield is judged on `dnl_max_abs` and
+`inl_max_abs` directly. The brief's deterministic sensitivity stays
+beside it: each unit resistor perturbed +1 % and -1 % one at a time with
 all others nominal, the 256-code INL sweep re-run each time, worst
 max |INL| reported (`inl_sens_1pct_max`).
 
