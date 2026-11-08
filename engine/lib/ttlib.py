@@ -258,6 +258,53 @@ def gf180_tech():
     return _TECH_MODULE.tech_map[PDK_NAME]
 
 
+def _precheck_module(name: str):
+    """A module of the vendored TT precheck (tech_data, klayout_tools),
+    imported by file path under a private name, like gf180_tech()."""
+    path = PRECHECK_DIR / f"{name}.py"
+    if not path.is_file():
+        raise TTError(f"no vendored precheck module at {path}")
+    spec = importlib.util.spec_from_file_location(
+        f"chip_flow_vendored_tt_{name}", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def gds_layer_problems(gds_path, pdk_root) -> list[str]:
+    """The TT precheck's two layer checks on one GDS, as reasons (empty:
+    the GDS may go in a TT tile). Mirrors precheck.py: a (layer, datatype)
+    with a shape or text that tech_data's valid_layers does not list is
+    an invalid layer, and a layer tech_data forbids (Metal5 and its label
+    on gf180mcuD, the tile's own power grid) is refused if present at all.
+    Reads the GDS with klayout.db, since gdstk is not in the image."""
+    import klayout.db as kdb
+
+    tech = _precheck_module("tech_data")
+    tools = _precheck_module("klayout_tools")
+    lyp = (Path(pdk_root) / "libs.tech" / "klayout" / "tech" /
+           tech.lyp_filename[PDK_NAME])
+    every = tools.parse_lyp_layers(str(lyp), only_valid=False)
+    shown = tools.parse_lyp_layers(str(lyp), only_valid=True)
+    valid = {(every[n].layer, every[n].data_type) if isinstance(n, str)
+             else tuple(n) for n in tech.valid_layers[PDK_NAME]}
+    layout = kdb.Layout()
+    layout.read(str(gds_path))
+    used = set()
+    for li in layout.layer_indexes():
+        if any(not c.shapes(li).is_empty() for c in layout.each_cell()):
+            info = layout.get_info(li)
+            used.add((info.layer, info.datatype))
+    problems = [f"layer {l}/{d} is not a valid TT layer"
+                for l, d in sorted(used - valid)]
+    for name in tech.forbidden_layers[PDK_NAME]:
+        info = shown[name]
+        if (info.layer, info.data_type) in used:
+            problems.append(f"{name} ({info.layer}/{info.data_type}) is "
+                            "forbidden in a TT tile")
+    return problems
+
+
 def parse_pin_expr(expr: str) -> dict:
     """{'invert': bool, 'base': 'ui_in'|'clk'|..., 'hi': int|None,
     'lo': int|None}. Raises TTError on anything not matching the grammar
