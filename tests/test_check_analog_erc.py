@@ -378,3 +378,17 @@ def test_bandgap_schematic_passes_the_real_erc(tmp_path):
     assert payload["status"] == "pass", payload
     assert payload["netlist"] == "netlist/bandgap.cir"
     assert "pnp_10p00x10p00" in payload["models"]
+
+
+def test_ext_devices_drops_the_pnp_none_substrate():
+    # layoutlib's fixed pnp rule (#285) has no substrate, so magic writes
+    # "None" first; the PNP must still locate by its three nets
+    ext = ('scale 1000 1 0.5\n'
+           'device msubckt pnp_10p00x10p00 10 20 11 21 "None" "B" 0 0 '
+           '"E" 0 4000000,8000 "C" 0 0\n')
+    [e] = erc.ext_devices(ext)
+    assert e["model"] == "pnp_10p00x10p00"
+    assert e["names"] == ["B", "C", "E"]
+    dev = {"class": "bjt", "model": "pnp_10p00x10p00",
+           "nets": {"c": "C", "b": "B", "e": "E"}}
+    assert erc.locate(dev, [e]) == [[0.05, 0.1]]

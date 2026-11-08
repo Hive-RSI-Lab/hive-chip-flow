@@ -50,7 +50,7 @@ as input, so a check there would not rerun when the netlist changed.
 netlist_lint reads the netlist and spec.yaml, and its record goes stale
 with either.
 
-## Results (2026-11-08): 17 of 28 pass
+## Results (2026-11-08): 20 of 28 pass
 
 These pass and layoutlib draws them:
 - `cap_nmos_03v3`, `cap_nmos_03v3_b`, `cap_nmos_06v0`, `cap_nmos_06v0_b`;
@@ -58,7 +58,7 @@ These pass and layoutlib draws them:
 - `diode_nd2ps_03v3`, `diode_nd2ps_06v0`, `diode_pd2nw_03v3`,
   `diode_pd2nw_06v0`;
 - the six `npn_*`;
-- `pnp_10p00x00p42`.
+- the four `pnp_*` (since #285, below).
 
 These fail:
 
@@ -69,16 +69,20 @@ These fail:
 | `diode_pw2dw` | everything but sim | the pcell draws no metal1 pad for the anode, so nothing is drawn |
 | `diode_dw2ps` | DRC, extract, LVS | DN.3 (a DNWELL needs a PCOMP guard ring), DF.18 |
 | `sc_diode` | DRC, extract, LVS | DN.3 |
-| `pnp_10p00x10p00`, `pnp_05p00x05p00`, `pnp_05p00x00p42` | extract, LVS | every pnp extracts as `pnp_10p00x00p42`, see below |
 | `cap_mim_2f0_m4m5_noshield` | tt_legal | Metal5 (81/0) and its label are forbidden in a TT tile: the tile's own power grid is on Metal5 |
 
-The pnp rows are a PDK tech finding. The magic tech picks the pnp name with
-a `device msubcircuit pnp_* ... a2>..` area selector, but magic reports the
-terminal area as 0, so the selector never applies and the first rule always
-wins. Swap the rules and the other name wins every time; select on `a1`
-instead and the last rule wins every time. The npn rules select on `a1`
-over `*ndiff`, and they work. `corpus/ade/bandgap` uses `pnp_10p00x10p00`.
-It has no layout yet, so netlist_lint warns.
+The pnp rows were a PDK tech finding (#285). The magic tech picks the pnp
+name with `device msubcircuit pnp_* pnp pwell,space/w *pdiff error a2>..`:
+that makes the emitter (`*pdiff`) the substrate terminal, so the device has
+one terminal and `a2` (its area) is always 0. No selector applied, and the
+first rule (`pnp_10p00x00p42`) always won. `layoutlib.magic_tech` rewrites
+each rule to `device msubcircuit pnp_* pnp *pdiff pwell,space/w a1>.. a1<..`:
+the emitter is terminal 1, selected on its own area (the npn rules work
+the same way), the collector (`pwell,space/w`) is terminal 2, and there is
+no substrate terminal (the collector is the substrate). ext2spice then
+writes `C B E`, the model's pin order, and each size extracts as itself.
+The areas are the PDK's. `magic_tech` refuses a tech with no pnp rule or a
+pnp rule in neither form. `corpus/ade/bandgap` uses `pnp_10p00x10p00`.
 
 ## Tests
 
@@ -92,8 +96,8 @@ Fast, on a planted table:
 - the extracted-netlist reader.
 
 Slow:
-- `--check` on one passing model of each kind plus a failing pnp gives the
-  table back.
+- `--check` on passing models of three kinds, a pnp among them, plus a
+  `cap_pmos_*_b` that fails at extraction, gives the table back.
 - A netgen setup with `cap_nmos_03v3`'s class misspelt gives
   `lvs_ok: false`. netgen compares the device as an empty black box
   (`layoutlib.LvsBlackBox`), and the round trip records that as an LVS

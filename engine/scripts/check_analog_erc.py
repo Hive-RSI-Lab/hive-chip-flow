@@ -42,10 +42,9 @@ The emitter-base junction also gets a 1 kohm resistor, its real DC path,
 so a self-biased core that reaches its supply through a PNP (a bandgap)
 is not reported as floating gates. And a BJT whose substrate terminal is
 not on a 0 V supply pin is substrate_not_ground: GF180's p-substrate is
-one net, the chip's ground. magic names an extracted PNP by the first
-pnp rule in the PDK's tech file, whatever its emitter size; every PNP has
-the same rating, so the check holds, but a finding's model can name the
-wrong PNP size.
+one net, the chip's ground. The PNP has no substrate terminal (its
+collector is the substrate); magic extracts each size as itself through
+layoutlib's corrected tech (#285).
 
 `--schematic` runs the same check on netlist/<block>.cir (its `.subckt`
 defaults and `.param`s substituted) for a block with no layout yet, e.g. a
@@ -141,8 +140,8 @@ CAPS = ("cap_mim_1f5fF", "cap_mim_1f0fF", "cap_mim_2f0fF",
 # pwell, emitter = N+, substrate = p-substrate). The PDK lists both in its
 # 3.3 V LV device set (the VPNP as "(3.3V LV)", BVCEO -10 V; each junction's
 # breakdown is above 7 V), so every junction and C-E are rated at the LV
-# class limit. magic names the 10x10 PNP pnp_10p00x00p42 (its device
-# parameters match no other extraction model), so that name is here too.
+# class limit. Before layoutlib fixed the tech's pnp rules (#285) magic
+# named every PNP pnp_10p00x00p42; each size now extracts as itself.
 BJT = {"pnp_05p00x00p42": "pnp", "pnp_05p00x05p00": "pnp",
        "pnp_10p00x00p42": "pnp", "pnp_10p00x10p00": "pnp",
        "npn_00p54x02p00": "npn", "npn_00p54x04p00": "npn",
@@ -541,6 +540,10 @@ def ext_devices(ext_text: str) -> list[dict]:
             continue
         params = _params([tok for tok in t[7:] if "=" in tok and '"' not in tok])
         names = re.findall(r'"([^"]*)"', line)
+        if cls == "msubckt" and names and names[0] == "None":
+            # a device with no substrate (the pnp, layoutlib's fixed
+            # rule): magic writes "None" where the substrate net goes
+            names = names[1:]
         w = float(params["w"]) * unit if "w" in params else None
         length = float(params["l"]) * unit if "l" in params else None
         if cls == "msubckt" and len(names) >= 4:
