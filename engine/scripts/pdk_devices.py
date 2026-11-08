@@ -15,7 +15,8 @@ its kind's model sections. One row per model goes to --yaml
             tt_legal, corner_kind, sections, reason, tt_reason}
 
 A row is ok only when every size passed. `reason` names the first step that
-failed and why; `tt_reason` the layers a TT tile may not have.
+failed and why; `tt_reason` the layers a TT tile may not have, and the
+catalogue's `tt_note` when the failure is the TT rule itself, by design.
 
 --check writes nothing: it reruns the round trip and compares each row's
 flags with --yaml's, one violation per row that differs (the table is
@@ -213,6 +214,8 @@ def table(models: list[str], out: Path, setup: str | None,
                               if r["reason"]), None)
         row["tt_reason"] = next((r["tt_reason"] for r in runs
                                  if r["tt_reason"]), None)
+        if row["tt_reason"] and e.get("tt_note"):
+            row["tt_reason"] += f" - {e['tt_note']}"
         rows[m] = row
     return rows, errors
 

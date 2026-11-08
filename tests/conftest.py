@@ -57,8 +57,15 @@ def unlaunchable_eda(tmp_path, monkeypatch):
     deck.write_text("# fake deck\n", encoding="utf-8")
     tech = pdk / "libs.tech" / "magic" / "gf180mcuD.tech"
     tech.parent.mkdir(parents=True)
+    # a tech that already has every fix magic_tech makes, so it is used
+    # as is
     tech.write_text(" calma MET1RES 110 11\n device msubcircuit pnp_10p00x10p00 pnp"
-                    " *pdiff pwell,space/w a1>99.0 a1<101.0\n", encoding="utf-8")
+                    " *pdiff pwell,space/w a1>99.0 a1<101.0\n"
+                    + "".join(f" device x {n} y\n"
+                              for n in layoutlib._WELL_DIODE_NAMES)
+                    + layoutlib._NSD_FIXED + layoutlib._SC_ANODE_FIXED
+                    + layoutlib._PFET_EXPAND_FIXED
+                    + layoutlib._MVPFET_EXPAND_FIXED, encoding="utf-8")
     setup = pdk / "libs.tech" / "netgen" / "gf180mcuD_setup.tcl"
     setup.parent.mkdir(parents=True)
     setup.write_text("# fake setup\n", encoding="utf-8")

@@ -215,6 +215,47 @@ def nwell_tap(size: float = 1.0):
     return c
 
 
+def psub_ring(top, box, gap: float = 2.5, width: float = 0.5):
+    """A P+ substrate guard ring around `box` (x0, y0, x1, y1 in um, a
+    DNWELL's extent), `gap` um outside it: COMP + PPLUS (0.2 um over the
+    COMP, as psub_tap) + a row of 0.22 um contacts at 0.5 um pitch along
+    every side + a metal1 ring over the COMP. DN.3 wants every DNWELL
+    directly inside a PCOMP ring; DF.18 wants PCOMP outside the wells
+    2.5 um from it. The PDK pcells' own ring (`pcmpgr`) comes out of this
+    gdsfactory as a filled square with no metal1, so it is drawn here.
+    Returns the (x, y) of a point on the ring's metal1 (its left side's
+    middle), for a label."""
+    x0, y0, x1, y1 = (box[0] - gap - width, box[1] - gap - width,
+                      box[2] + gap + width, box[3] + gap + width)
+    sides = ((x0, y0, x1, y0 + width), (x0, y1 - width, x1, y1),
+             (x0, y0 + width, x0 + width, y1 - width),
+             (x1 - width, y0 + width, x1, y1 - width))
+    m = 0.2
+    for s in sides:
+        rect(top, *s, GF180_LAYER["comp"])
+        rect(top, *s, GF180_LAYER["metal1"])
+    rect(top, x0 - m, y0 - m, x1 + m, y0 + width + m, GF180_LAYER["pplus"])
+    rect(top, x0 - m, y1 - width - m, x1 + m, y1 + m, GF180_LAYER["pplus"])
+    rect(top, x0 - m, y0 - m, x0 + width + m, y1 + m, GF180_LAYER["pplus"])
+    rect(top, x1 - width - m, y0 - m, x1 + m, y1 + m, GF180_LAYER["pplus"])
+    cw, pitch = 0.22, 0.5
+    for sx0, sy0, sx1, sy1 in sides:
+        horiz = (sx1 - sx0) >= (sy1 - sy0)
+        # the side rows stop 0.2 um short of the corner rows (CO.2)
+        lo, hi = (sx0, sx1) if horiz else (sy0 + 0.2, sy1 - 0.2)
+        n = int((hi - lo - 0.3) // pitch) + 1
+        start = lo + ((hi - lo) - (n - 1) * pitch - cw) / 2
+        for i in range(n):
+            a = round((start + i * pitch) / 0.005) * 0.005
+            if horiz:
+                b = sy0 + (width - cw) / 2
+                rect(top, a, b, a + cw, b + cw, GF180_LAYER["contact"])
+            else:
+                b = sx0 + (width - cw) / 2
+                rect(top, b, a, b + cw, a + cw, GF180_LAYER["contact"])
+    return x0 + width / 2, (y0 + y1) / 2
+
+
 def _device_cell(model: str, kind: str, size, name: str | None):
     import devicelib  # lazy: devicelib imports layoutlib
 
@@ -694,11 +735,179 @@ def _fix_pnp_rules(text: str, src) -> str:
     return _PNP_RULE.sub(fix, text)
 
 
+# The PDK's tech has no extract rule for its well diodes (#286 #287 #291):
+# diode_pw2dw (lvpwell anode in deep nwell), diode_dw2ps (deep nwell over
+# the substrate) and diode_nw2ps_03v3/_06v0 (nwell over the substrate),
+# though its header lists them. Each pcell marks its well with WELL_DIODE
+# (GDS 153/51), which cifinput does not read, so the well comes in as plain
+# nwell / pwell / dnwell and magic has no device to name. The fix follows
+# the tech's own nbase/pbase pattern: read 153/51, give each marked well a
+# type of its own (nwdiode, mvnwdiode under DUALGATE, pwdiode, dnwdiode)
+# that draws, connects and writes out exactly as the plain well, and add
+# one `device` rule per diode. Proved on the PDK's cells: each extracts as
+# itself, `D0 A K diode_<name> pj=8u area=4p` on a 2 x 2 um well.
+_WELL_DIODE_RULES = (
+    " device pdiode diode_pw2dw      *pwdiode dnwell,dnwdiode a=area p=pj\n"
+    " device ndiode diode_dw2ps      dnwdiode space/w,pwell a=area p=pj\n"
+    " device ndiode diode_nw2ps_03v3 nwdiode space/w,pwell a=area p=pj\n"
+    " device ndiode diode_nw2ps_06v0 mvnwdiode space/w,pwell a=area p=pj\n")
+_WELL_DIODE_NAMES = ("diode_pw2dw", "diode_dw2ps", "diode_nw2ps_03v3",
+                     "diode_nw2ps_06v0")
+_NWELL_CONNECT = "nwell,*nsd,*mvnsd,nbase,dnwell"
+_PWELL_CONNECT = "pwell,*psd,*mvpsd,pbase,isosub"
+_WELL_DIODE_EDITS = (
+    ("  well nbase,pnp\n",
+     "  well nbase,pnp\n  well nwdiode,nwd\n  well mvnwdiode,mvnwd\n"
+     "  well pwdiode,pwd\n"),
+    ("  dwell isosubstrate,isosub\n",
+     "  dwell isosubstrate,isosub\n  dwell dnwdiode,dnwd\n"),
+    ("  nbase\t    nwell ntransistor_stripes\n",
+     "  nbase\t    nwell ntransistor_stripes\n  nwdiode   nwell\n"
+     "  mvnwdiode nwell\n  pwdiode   pwell\n  dnwdiode  cwell\n"),
+    ("  allnwell\t   nwell,rnwell,nbase",
+     "  allnwell\t   nwell,rnwell,nbase,nwdiode,mvnwdiode"),
+    ("  allpwell\t   pwell\n", "  allpwell\t   pwell,pwdiode\n"),
+    (f"  {_NWELL_CONNECT} {_NWELL_CONNECT}\n",
+     f"  {_NWELL_CONNECT},nwdiode,mvnwdiode,dnwdiode"
+     f" {_NWELL_CONNECT},nwdiode,mvnwdiode,dnwdiode\n"),
+    (f"  {_PWELL_CONNECT}  {_PWELL_CONNECT}\n",
+     f"  {_PWELL_CONNECT},pwdiode  {_PWELL_CONNECT},pwdiode\n"),
+    (" layer DNWELL\tdnwell\n", " layer DNWELL\tdnwell,dnwdiode\n"),
+    (" layer pwell PWELL,PWELLTXT\n and-not BJTDEF,BJTDRC\n",
+     " layer pwell PWELL,PWELLTXT\n and-not BJTDEF,BJTDRC\n"
+     " and-not WELLDIODE\n"),
+    (" layer nwell NWELL,NWELLTXT\n and-not BJTDEF,BJTDRC\n",
+     " layer nwell NWELL,NWELLTXT\n and-not BJTDEF,BJTDRC\n"
+     " and-not WELLDIODE\n"),
+    (" layer dnwell DNWELL\n labels DNWELL\n",
+     " templayer dnwdmk WELLDIODE\n and-not PWELL\n\n"
+     " layer dnwell DNWELL\n and-not dnwdmk\n labels DNWELL\n\n"
+     " layer dnwdiode DNWELL\n and dnwdmk\n\n"
+     " layer nwdiode NWELL\n and WELLDIODE\n and-not BJTDEF,BJTDRC\n"
+     " and-not DUALGATE\n\n"
+     " layer mvnwdiode NWELL\n and WELLDIODE\n and-not BJTDEF,BJTDRC\n"
+     " and DUALGATE\n\n"
+     " layer pwdiode PWELL\n and WELLDIODE\n and-not BJTDEF,BJTDRC\n"),
+    (" calma DNWELL 12 0\n", " calma DNWELL 12 0\n calma WELLDIODE 153 51\n"),
+    (" device pdiode sc_diode", _WELL_DIODE_RULES + " device pdiode sc_diode"),
+)
+_DEVICE_NAME_RE = r"^\s*device\s+\S+\s+{}\s"
+
+
+def _add_well_diodes(text: str, src) -> str:
+    have = [n for n in _WELL_DIODE_NAMES
+            if re.search(_DEVICE_NAME_RE.format(re.escape(n)), text, re.M)]
+    if len(have) == len(_WELL_DIODE_NAMES):
+        return text
+    if have:
+        raise LayoutError(
+            f"{src} extracts some well diodes ({', '.join(have)}) but not "
+            "all - check how this PDK extracts them before trusting an "
+            "extraction")
+    for old, new in _WELL_DIODE_EDITS:
+        if text.count(old) != 1:
+            raise LayoutError(
+                f"{src} has no extract rule for its well diodes and does not "
+                f"have the one line `{old.strip()}` the fix edits - check "
+                "how this PDK reads WELL_DIODE (153/51) before trusting an "
+                "extraction")
+        text = text.replace(old, new)
+    return text
+
+
+# The Schottky diode (#289). Two faults in how cifinput reads it:
+# - It makes nsd of any unmarked diffusion within 0.5 um of N+
+#   (nsdexpand), and the PDK cell's anode sits 0.28 um from its cathode
+#   tap, so the anode's edge nearest the cathode came in as nsd. That cut
+#   the anode apart and magic wrote three sc_diodes, two with floating
+#   anodes. The anode is SCHOTTKY, never an nsd tap: the nsd rule gains
+#   `and-not SCHOTTKY`.
+# - It closes the 0.28 um anode-cathode gap ("Grow Schottky anode so that
+#   drawn device abuts the cathode") with anode, so a drawn 2 x 2 um anode
+#   between two cathodes extracts as area=5.12p pj=9.12u. The junction is
+#   the anode diffusion only (sm141064's sc_diode has cjp=0, an area
+#   device; the PDK pcell and the reference netlist give w x l). The gap is
+#   still closed so the anode abuts its cathode, but as cathode (nsd), and
+#   the anode stays as drawn.
+# With both, the PDK cell extracts as `D0 A K sc_diode pj=8u area=4p`.
+_NSD_RULE = (" layer nsd DIFF\n and-not PPLUS\n and-not NPLUS\n"
+             " and-not POLY\n and nwelldef\n and-not DUALGATE\n"
+             " and nsdexpand\n")
+_NSD_FIXED = _NSD_RULE + " and-not SCHOTTKY\n"
+_SC_ANODE = (" layer schottky SCHOTTKY\n and DIFF\n and-not NPLUS\n"
+             " and-not PPLUS\n or sccathode\n grow 140\n shrink 140\n"
+             " and-not sccathode\n")
+_SC_ANODE_FIXED = (_SC_ANODE + " and DIFF\n\n"
+                   " # the closed anode-cathode gap is cathode\n"
+                   " layer nsd SCHOTTKY\n and DIFF\n and-not NPLUS\n"
+                   " and-not PPLUS\n or sccathode\n grow 140\n shrink 140\n"
+                   " and-not DIFF\n")
+
+
+def _fix_schottky(text: str, src) -> str:
+    for old, new, what in ((_NSD_RULE, _NSD_FIXED, "nsd"),
+                           (_SC_ANODE, _SC_ANODE_FIXED, "the Schottky anode")):
+        if new in text:
+            continue
+        if text.count(old) != 1:
+            raise LayoutError(
+                f"{src} reads {what} neither through the one known rule "
+                "that mis-extracts sc_diode nor its fix - check how this "
+                "PDK extracts sc_diode before trusting an extraction")
+        text = text.replace(old, new)
+    return text
+
+# The P-varactors cap_pmos_03v3_b and cap_pmos_06v0_b (P+ poly gate on
+# P+ diffusion in the substrate, no well) extract no device. The tech reads
+# their gate as pvaractor (POLY and DIFF and PPLUS and-not nwelldef) and
+# names the device on its *ppdiff terminals, but it also counts the gate as
+# a pfet area: it grows pfetexpand (mvpfetexpand) over it, so the source and
+# drain beside it read as pfet diffusion (pdiff/pdc), not substrate
+# diffusion (psd/psc), and it forces an nwell under it, which the gate then
+# sits in. The fix keeps the varactor gate out of both, so its terminals
+# read as ppdiff and the device extracts as
+# `X0 G SD cap_pmos_03v3_b c_width=2u c_length=2u`. Only a MOSCAP-marked
+# P+ gate outside any nwell counts as a varactor area, so a pfet, a pcap
+# in its nwell, or a pfet drawn without one reads as before.
+_PFET_EXPAND = (" templayer pfetexpand pfetarea\n grow 530\n\n"
+                " # Always force nwell under pfet\n layer nwell pfetarea\n"
+                " grow 310\n")
+_PFET_EXPAND_FIXED = (" templayer pvararea pfetarea\n and MOSCAP\n"
+                      " and PPLUS\n and-not nwelldef\n\n"
+                      " templayer pfetexpand pfetarea\n and-not pvararea\n"
+                      " grow 530\n\n"
+                      " # Always force nwell under pfet\n layer nwell pfetarea\n"
+                      " and-not pvararea\n grow 310\n")
+_MVPFET_EXPAND = " templayer mvpfetexpand mvpfetarea\n grow 520\n"
+_MVPFET_EXPAND_FIXED = (" templayer mvpvararea mvpfetarea\n"
+                        " and MOSCAP\n and PPLUS\n and-not nwelldef\n\n"
+                        " templayer mvpfetexpand mvpfetarea\n"
+                        " and-not mvpvararea\n grow 520\n")
+
+
+def _fix_pvaractors(text: str, src) -> str:
+    for old, new, what in (
+            (_PFET_EXPAND, _PFET_EXPAND_FIXED, "the 3.3 V pfet area"),
+            (_MVPFET_EXPAND, _MVPFET_EXPAND_FIXED, "the 6 V pfet area")):
+        if new in text:
+            continue
+        if text.count(old) != 1:
+            raise LayoutError(
+                f"{src} grows {what} neither through the one known rule "
+                "that hides the P-varactor terminals nor its fix - check "
+                "how this PDK extracts cap_pmos_*_b before trusting an "
+                "extraction")
+        text = text.replace(old, new)
+    return text
+
+
 def magic_tech(work_dir) -> Path | None:
     """A copy of the PDK's magic tech with its known extraction faults fixed
-    (the rm1 input typo, the pnp size rules), written into work_dir, or None
-    when the PDK already has both right. Refuses a tech file that has
-    neither the fault nor its fix, rather than guess."""
+    (the rm1 input typo, the pnp size rules, the unextracted well diodes,
+    the split Schottky diode, the hidden P-varactor terminals), written
+    into work_dir, or None when the PDK already has them all right.
+    Refuses a tech file that has neither the fault nor its fix, rather
+    than guess."""
     src = magic_tech_source()
     if not src.is_file():
         raise LayoutError(f"no magic tech file at {src}")
@@ -712,6 +921,9 @@ def magic_tech(work_dir) -> Path | None:
                 "before trusting an extraction")
         text = text.replace(_RM1_TYPO, _RM1_FIX)
     text = _fix_pnp_rules(text, src)
+    text = _add_well_diodes(text, src)
+    text = _fix_schottky(text, src)
+    text = _fix_pvaractors(text, src)
     if text == orig:
         return None
     out = Path(work_dir) / src.name

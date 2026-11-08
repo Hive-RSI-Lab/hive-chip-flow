@@ -99,15 +99,30 @@ PNP_TYPO = (" device msubcircuit pnp_10p00x00p42 pnp pwell,space/w *pdiff error"
             " pwell,space/w *pdiff error a2>99.0 a2<101.0\n")
 
 
+# the well diode and Schottky fixes as a PDK that already has them
+DIODES_FIXED = (" device ndiode diode_dw2ps dnwdiode space/w,pwell\n"
+                " device pdiode diode_pw2dw *pwdiode dnwell\n"
+                " device ndiode diode_nw2ps_03v3 nwdiode space/w,pwell\n"
+                " device ndiode diode_nw2ps_06v0 mvnwdiode space/w,pwell\n"
+                + layoutlib._NSD_FIXED + layoutlib._SC_ANODE_FIXED)
+# the stock tech's lines the diode fixes edit
+DIODES_STOCK = ("".join(old for old, _ in layoutlib._WELL_DIODE_EDITS)
+                + layoutlib._NSD_RULE + layoutlib._SC_ANODE)
+# the P-varactor fix as a PDK that has it, and the stock lines it edits
+PVAR_FIXED = layoutlib._PFET_EXPAND_FIXED + layoutlib._MVPFET_EXPAND_FIXED
+PVAR_STOCK = layoutlib._PFET_EXPAND + layoutlib._MVPFET_EXPAND
+
+
 def fake_pdk(tmp_path, monkeypatch, tech=" calma MET1RES 110 11\n",
-             pnp=PNP_FIXED):
+             pnp=PNP_FIXED, diodes=DIODES_FIXED, pvar=PVAR_FIXED):
     pdk = tmp_path / "pdk" / "gf180mcuD"
     deck = pdk / layoutlib.DRC_DECK_REL
     deck.parent.mkdir(parents=True)
     deck.write_text("# fake deck\n", encoding="utf-8")
     magic = pdk / "libs.tech" / "magic" / "gf180mcuD.tech"
     magic.parent.mkdir(parents=True)
-    magic.write_text(tech + pnp + POLY_TECH, encoding="utf-8")
+    magic.write_text(tech + pnp + diodes + pvar + POLY_TECH,
+                     encoding="utf-8")
     models = pdk / "libs.tech" / "ngspice" / "sm141064.spice"
     models.parent.mkdir(parents=True)
     models.write_text(POLY_MODEL, encoding="utf-8")
@@ -446,6 +461,80 @@ def test_magic_tech_refuses_an_unknown_pnp_rule(tmp_path, monkeypatch):
 def test_magic_tech_refuses_a_tech_with_no_pnp_rule(tmp_path, monkeypatch):
     fake_pdk(tmp_path, monkeypatch, pnp="")
     with pytest.raises(layoutlib.LayoutError, match="no `device msubcircuit pnp_"):
+        layoutlib.magic_tech(tmp_path)
+
+
+def test_magic_tech_extracts_each_well_diode(tmp_path, monkeypatch):
+    # the PDK has no rule for its well diodes and does not read their
+    # WELL_DIODE marker (#286 #287 #291); the fix reads 153/51 into a
+    # well type per diode and adds a rule for each
+    fake_pdk(tmp_path, monkeypatch, diodes=DIODES_STOCK)
+    text = layoutlib.magic_tech(tmp_path).read_text(encoding="utf-8")
+    assert " calma WELLDIODE 153 51\n" in text
+    for rule in ("diode_pw2dw      *pwdiode dnwell,dnwdiode",
+                 "diode_dw2ps      dnwdiode space/w,pwell",
+                 "diode_nw2ps_03v3 nwdiode space/w,pwell",
+                 "diode_nw2ps_06v0 mvnwdiode space/w,pwell"):
+        assert text.count(rule) == 1
+    # the plain wells give up the marked area, which the diode types take
+    assert (" layer nwell NWELL,NWELLTXT\n and-not BJTDEF,BJTDRC\n"
+            " and-not WELLDIODE\n") in text
+    assert " layer dnwdiode DNWELL\n and dnwdmk\n" in text
+    # and connect, draw and write out as the plain wells do
+    assert "nbase,dnwell,nwdiode,mvnwdiode,dnwdiode " in text
+    assert " layer DNWELL\tdnwell,dnwdiode\n" in text
+
+
+def test_magic_tech_extracts_the_schottky_anode_as_drawn(tmp_path, monkeypatch):
+    # nsd took the anode's edge (three sc_diodes) and the anode-cathode
+    # gap counted as anode (area 5.12p for 4p drawn) (#289)
+    fake_pdk(tmp_path, monkeypatch, diodes=DIODES_STOCK)
+    text = layoutlib.magic_tech(tmp_path).read_text(encoding="utf-8")
+    assert " and nsdexpand\n and-not SCHOTTKY\n" in text
+    assert " and-not sccathode\n and DIFF\n" in text
+    assert " layer nsd SCHOTTKY\n" in text
+
+
+def test_magic_tech_refuses_a_partly_extracted_well_diode_set(tmp_path,
+                                                              monkeypatch):
+    fake_pdk(tmp_path, monkeypatch, diodes=DIODES_STOCK
+             + " device ndiode diode_dw2ps dnwell space/w,pwell\n")
+    with pytest.raises(layoutlib.LayoutError, match="some well diodes"):
+        layoutlib.magic_tech(tmp_path)
+
+
+def test_magic_tech_refuses_well_diodes_it_cannot_fix(tmp_path, monkeypatch):
+    stock = DIODES_STOCK.replace(" calma DNWELL 12 0\n", "")
+    fake_pdk(tmp_path, monkeypatch, diodes=stock)
+    with pytest.raises(layoutlib.LayoutError, match="WELL_DIODE"):
+        layoutlib.magic_tech(tmp_path)
+
+
+def test_magic_tech_refuses_an_unknown_schottky_rule(tmp_path, monkeypatch):
+    fake_pdk(tmp_path, monkeypatch,
+             diodes=DIODES_FIXED.replace(layoutlib._SC_ANODE_FIXED, ""))
+    with pytest.raises(layoutlib.LayoutError, match="Schottky anode"):
+        layoutlib.magic_tech(tmp_path)
+
+
+def test_magic_tech_reads_the_p_varactor_terminals(tmp_path, monkeypatch):
+    # cap_pmos_*_b extracted no device: its gate grew pfetexpand (and a
+    # forced nwell) over its own source and drain, so they read as pfet
+    # diffusion, not the *ppdiff its device rule names (#288)
+    fake_pdk(tmp_path, monkeypatch, pvar=PVAR_STOCK)
+    text = layoutlib.magic_tech(tmp_path).read_text(encoding="utf-8")
+    assert (" templayer pvararea pfetarea\n and MOSCAP\n and PPLUS\n"
+            " and-not nwelldef\n") in text
+    assert " templayer pfetexpand pfetarea\n and-not pvararea\n" in text
+    assert " layer nwell pfetarea\n and-not pvararea\n grow 310\n" in text
+    assert (" templayer mvpfetexpand mvpfetarea\n and-not mvpvararea\n"
+            in text)
+    assert layoutlib._PFET_EXPAND not in text
+
+
+def test_magic_tech_refuses_an_unknown_pfet_area_rule(tmp_path, monkeypatch):
+    fake_pdk(tmp_path, monkeypatch, pvar=layoutlib._PFET_EXPAND_FIXED)
+    with pytest.raises(layoutlib.LayoutError, match="6 V pfet area"):
         layoutlib.magic_tech(tmp_path)
 
 
