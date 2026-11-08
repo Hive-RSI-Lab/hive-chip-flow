@@ -45,7 +45,7 @@
   "top": "r2r_dac_digital",
   "run_tag": "run",
   "resumed": false,
-  "wall_s": 62.53,
+  "wall_s": 63.51,
   "signoff_metrics": {
    "antenna__violating__nets": {
     "value": 0,
@@ -299,8 +299,8 @@
     }
    },
    "config_sha256": "2be392dbc5cc53bf01fc4a4ec39e6e173cd42c2e4195bc88ab1cc061a4098b06",
-   "resolved_sha256": "f73ae6297c42a07c934d5648087596c079f2408cdebd67a2e50703971904ed2c",
-   "wall_s": 62.53
+   "resolved_sha256": "af9f23f765225a260e47757e27ce0b735c6d31b8f322b58817ec7290a07a17ba",
+   "wall_s": 63.51
   },
   "drv_metrics": {
    "design__max_slew_violation__count": {
@@ -475,7 +475,7 @@
   "analog_layout": "dir_text:889449a57e56e4c2cab666ce1481936e988d284cf7e8717638791f7715a62c67",
   "analog_netlist": "dir_text:2c6d358ba4c3ec93f5dc910e1777df9a3f5418293791a715229fa1b8d22d1e4e",
   "analog_sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
-  "analog_spec": "json_canonical:8c9cd25a18e9f52cb3d6890c8bb10c49e0fd4727727abbe712a4ce5fc7367fb4",
+  "analog_spec": "json_canonical:b391e767c6c4d39480d7ef7b38f0dd7cfa96ed092067417f753de42680542655",
   "macro_lib": "dir_text:21eb61d0043a7186ce338491ad1696bd6a048bde0664830879fde90126ed7a20",
   "top_sdc": null,
   "digital_sdc": null,
@@ -489,6 +489,6 @@
   "pdk_netgen": "dir_text:8164f65bb7d1bef6e27af4c13b1c6ede50973cec7aec482556abb23881aceb04"
  },
  "strength_at_start": 2,
- "recorded_ts": "2026-11-07T17:23:29",
- "attempts": 21
+ "recorded_ts": "2026-11-08T01:22:53",
+ "attempts": 22
 }
