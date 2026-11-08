@@ -4,7 +4,7 @@
  "block": "r2r_dac_analog",
  "workspace": "blocks/r2r_dac/analog",
  "created": "2026-09-25T05:47:00",
- "updated": "2026-11-07T21:52:39",
+ "updated": "2026-11-07T21:52:45",
  "phase": "P5",
  "toolchain": null,
  "gates": {
@@ -185,15 +185,15 @@
   "netlist_lint": {
    "phase": "P4",
    "status": "pass",
-   "attempts": 12,
+   "attempts": 13,
    "last": {
-    "ts": "2026-11-07T16:52:21",
+    "ts": "2026-11-07T21:52:45",
     "status": "pass",
     "failing_count": 0,
     "total": 0,
     "inputs": {
      "netlist": "dir_text:2c6d358ba4c3ec93f5dc910e1777df9a3f5418293791a715229fa1b8d22d1e4e",
-     "spec_yaml": "json_canonical:8c9cd25a18e9f52cb3d6890c8bb10c49e0fd4727727abbe712a4ce5fc7367fb4"
+     "spec_yaml": "json_canonical:b391e767c6c4d39480d7ef7b38f0dd7cfa96ed092067417f753de42680542655"
     },
     "strength": 0,
     "job": null
@@ -330,19 +330,18 @@
      },
      "strength": 0,
      "job": null
-    }
-   ],
-   "stale": [
+    },
     {
-     "ts": "2026-11-07T21:52:39",
-     "edit_class": "spec_edit",
-     "refs": [
-      "mc",
-      "dnl_max_abs",
-      "inl_max_abs",
-      "inl_sens_1pct_max"
-     ],
-     "human_hold": 2
+     "ts": "2026-11-07T21:52:45",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "netlist": "dir_text:2c6d358ba4c3ec93f5dc910e1777df9a3f5418293791a715229fa1b8d22d1e4e",
+      "spec_yaml": "json_canonical:b391e767c6c4d39480d7ef7b38f0dd7cfa96ed092067417f753de42680542655"
+     },
+     "strength": 0,
+     "job": null
     }
    ]
   },
@@ -2426,13 +2425,13 @@
    "path": "spec/spec.yaml",
    "kind": "spec_yaml",
    "sha256": "json_canonical:b391e767c6c4d39480d7ef7b38f0dd7cfa96ed092067417f753de42680542655",
-   "hashed": "2026-11-07T21:52:39"
+   "hashed": "2026-11-07T21:52:45"
   },
   "netlist": {
    "path": "netlist",
    "kind": "netlist",
    "sha256": "dir_text:2c6d358ba4c3ec93f5dc910e1777df9a3f5418293791a715229fa1b8d22d1e4e",
-   "hashed": "2026-11-07T18:24:05"
+   "hashed": "2026-11-07T21:52:45"
   },
   "tb": {
    "path": "tb",
@@ -3939,6 +3938,14 @@
    "gate": "spec_lint",
    "status": "pass",
    "attempt": 15,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-11-07T21:52:45",
+   "event": "gate",
+   "gate": "netlist_lint",
+   "status": "pass",
+   "attempt": 13,
    "failing_count": 0
   }
  ]
