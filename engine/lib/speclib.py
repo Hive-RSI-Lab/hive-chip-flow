@@ -134,6 +134,12 @@ CHECK_KINDS = {"sim", "formal", "both", "measure"}
 #                        one more magic extraction and ngspice run per variant
 #                        in engine/reference/pex_rc_variants.yaml, each with the
 #                        process the table pairs it with. Absent: none
+#     pex_fill: "all" | [floating, grounded]   optional; pex_sim also
+#                        fills a copy of the tile as the shuttle will
+#                        (the PDK's fill_all.rb), runs DRC on it, and
+#                        runs the bench at every scored corner with the
+#                        fill left floating and/or tied to ground
+#                        (engine/lib/filllib.py). Absent: no fill view
 #     erc_nets: {<pin>: {power: V} | {min: V, max: V}}   optional; the
 #                        voltage the ERC gate (check_analog_erc.py) gives a
 #                        pin other than supply.vdd's `vdd` and the 0 V
@@ -363,6 +369,17 @@ def lint_spec_ade(spec: dict, rel_path: str = "spec/spec.yaml") -> list[dict]:
                 isinstance(n, str) for n in field)):
             bad("bad_pex_corners", "spec.yaml 'pex_corners' must be \"all\" "
                                    "or a non-empty list of corner names")
+
+    if "pex_fill" in spec:
+        import filllib
+        try:
+            if spec["pex_fill"] is None:
+                raise ValueError(
+                    "spec.yaml 'pex_fill' is empty: leave the field out for "
+                    "no fill view, or give \"all\" or a list of fill modes")
+            filllib.modes_of(spec["pex_fill"])
+        except ValueError as exc:
+            bad("bad_pex_fill", str(exc))
 
     if "pex_rc_knobs" in spec:
         field = spec["pex_rc_knobs"]

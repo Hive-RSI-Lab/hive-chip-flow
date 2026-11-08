@@ -38,7 +38,7 @@ If it doesn't, spawn the bench-writer in PEX MODE first.
 | lvs | netgen, layout vs netlist at its sizing | layout-fixer, unless the netlist is what is wrong |
 | erc | CVC on the extraction: overvoltage per device rating, well and bulk ties, floating gates, forward-biased diodes; pin voltages from `supply.vdd` and `erc_nets` | layout-fixer (`analog_erc.md`); a pin range that is wrong is a spec fix |
 | layout_match | the rows spec.yaml's `matching:` declares, read off the extraction: centroids, unit size, orientation, end dummies (netgen merges parallel units, so lvs passes a wrong pattern) | layout-fixer (`match_*.md`) |
-| pex_sim | magic extraction with R and C, pex bench at each `pex_corners` corner, `pex_rc_knobs` knob and `pex_rc_corners` variant | layout-fixer for `measure_out_of_bounds`, bench-writer for `measure_missing` |
+| pex_sim | magic extraction with R and C, pex bench at each `pex_corners` corner, `pex_rc_knobs` knob and `pex_rc_corners` variant, and with `pex_fill` the shuttle's fill (DRC on the filled tile, bench with fill floating/grounded) | layout-fixer for `measure_out_of_bounds` and `fill_drc`, bench-writer for `measure_missing` |
 
 Declare `layout_code_edit` after every generator change, including each
 fix, and re-run the gate that failed. A pex bench change also needs a
@@ -62,7 +62,11 @@ PDK's real RC corners instead: one more extraction per magic variant, each at
 its paired process (engine/reference/pex_rc_variants.yaml: hrhc with ss, lrlc
 with ff, hrlc with sf, lrhc with fs). A path through many vias needs these,
 since a variant moves a via by up to x3.33 and an `r_high` knob by x1.156.
-That is four runs at most, not the sixteen of the full cross. Absent a `pex_corners`, the corners are typical, slow/hot and
+That is four runs at most, not the sixteen of the full cross. `pex_fill: all`
+adds the tile as the shuttle fills it: fill_all.rb on a copy, DRC with the
+fill decks (`fill_drc`), and the bench at every scored corner with the fill
+floating and grounded. The C a fill island adds lands on the nets next to it,
+so a block with a sensitive high-impedance node turns it on. Absent a `pex_corners`, the corners are typical, slow/hot and
 sim_pvt's worst per measure; a run that must see every corner says
 `pex_corners: all`. An
 `rm1` poly resistor extracts through a per-run patched copy of the PDK's

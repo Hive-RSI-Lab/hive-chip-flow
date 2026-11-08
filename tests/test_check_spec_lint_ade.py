@@ -410,3 +410,18 @@ def test_matching_field(tmp_path, capsys, field, ok):
         assert code == 0, out
     else:
         assert code == 1 and "bad_matching" in out, out
+
+
+@pytest.mark.parametrize("field, ok", [
+    ("all", True), ("[floating]", True), ("[grounded, floating]", True),
+    ("floating", False), ("[]", False), ("[floating, floating]", False),
+    ("[nope]", False), ("null", False),
+])
+def test_pex_fill_field(tmp_path, capsys, field, ok):
+    ws = make_ws(tmp_path, GOOD_YAML + f"pex_fill: {field}\n")
+    code = check_spec_lint_ade.main(["--workspace", str(ws)])
+    out = capsys.readouterr().out
+    if ok:
+        assert code == 0, out
+    else:
+        assert code == 1 and "bad_pex_fill" in out, out
