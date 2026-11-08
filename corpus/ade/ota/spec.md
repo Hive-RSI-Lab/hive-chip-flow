@@ -2,8 +2,8 @@
 
 A rung of `/ade`'s corpus (docs/design.md section 3, "### M9."; issue
 #100): the first block with a feedback loop, so the first whose spec owes a
-stability bench. Like `bandgap`, its row may stay red at layout - see
-"Layout" below.
+stability bench, and the first laid out with every post-layout gate at
+once - see "Layout" below.
 
 ## What it does
 
@@ -73,9 +73,23 @@ corner spread of PM is about +-2.5%).
 
 ## Layout
 
-No `layout/` generator, and no `drc`/`lvs`/`pex_sim`/`release` entries in
-`faults/manifest.yaml`. Issue #100 is about the stability, PSRR and noise
-benches and the gates that check them; a laid-out OTA (matched pair,
-common-centroid mirror, the MIM cap on metal 4/5) is a rung of its own.
-This spec covers what `spec.yaml` checks pre-layout: `spec_lint`,
-`netlist_lint`, `sim_tt`, `sim_pvt`, `bench_strength`.
+`layout/gen_ota.py` draws it through layoutlib (its docstring has the
+floorplan): every transistor as equal one-finger units in four rows, the
+input pair (xm1/xm2) and the mirror load (xm3/xm4) each a `matched_row`
+drawn ABBA, the bias mirror (xmb/xmt/xm7) one common-centroid
+`matched_row`, dummies at both ends of each (`xmdum1`-`xmdum6` in
+`netlist/ota.cir`, every terminal on the row's rail). spec.yaml's
+`matching:` names the three groups, and xcc is a 32 um MIM-B on
+metal4/metal5.
+
+The post-layout set it passes: `drc`, `lvs`, `erc` (with `erc_nets` for
+ibias, which the bench drives with a current), `layout_match`, `em_ir`
+(bench `layout_ref/ota_emir_tb.cir`, `ir_drop_mv: 2`) and `pex_sim`
+(bench `layout_ref/ota_pex_tb.cir`: the stability, PSRR and noise
+benches on the extracted netlist at every corner, `pex_corners: all`,
+with the kpex cross-check). One via1 cut carries 0.18 mA, so every stub's
+via onto a track is a column of cuts across the track's width.
+
+`faults/manifest.yaml` still has no layout-gate entries: this rung's
+plants are the compensation faults above.
+

@@ -30,3 +30,21 @@ measures:
   # ota_noise_tb: output noise integrated 10 Hz - 1 MHz
   - name: onoise_rms_v
     bounds: {max: 6.0e-5}
+# the em_ir gate's bound on a rail's static drop (check_analog_em_ir): the
+# bias row's sources share vss, and 2 mV between xmb's source and xm7's
+# moves the second stage's current by gm x 2 mV, about 2 %.
+ir_drop_mv: 2
+# The rows layout_match reads (check_layout_match), each a common centroid
+# of one size and one orientation, dummies at both ends: the input pair and
+# the mirror load drawn ABBA, the bias mirror xmb/xmt/xm7 in one row.
+matching:
+  - {devices: [xm1, xm2], style: common_centroid, tol_um: 0.05}
+  - {devices: [xm3, xm4], style: common_centroid, tol_um: 0.05}
+  - {devices: [xmb, xmt, xm7], style: common_centroid, tol_um: 0.05}
+# post-layout stb, PSRR and noise at every corner of the sweep, not only
+# typical, slow/hot and each measure's worst (check_pex_sim)
+pex_corners: all
+# ERC pin voltages (check_analog_erc). ibias takes the bench's current, so
+# xmb's diode sets its voltage: CVC models that node as at most one Vth.
+erc_nets:
+  ibias: {min: 0, max: 0.6}

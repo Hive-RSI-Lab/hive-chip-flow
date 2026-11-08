@@ -1,0 +1,13 @@
+{
+  "measures": {
+    "pm_deg": {"min": 60},
+    "gm_db": {"min": 10},
+    "ugf_hz": {"min": 5.0e6},
+    "a0_db": {"min": 80},
+    "iq": {"min": 1.5e-4, "max": 3.5e-4},
+    "vos": {"min": -1.0e-3, "max": 1.0e-3},
+    "psrr_dc_db": {"min": 80},
+    "psrr_at_f_db": {"min": 30},
+    "onoise_rms_v": {"max": 6.0e-5}
+  }
+}

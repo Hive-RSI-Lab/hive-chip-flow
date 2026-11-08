@@ -336,7 +336,8 @@ def test_both_failing_is_a_mismatch_from_each_and_both_passing_is_clean():
 
 KL_DECK_CLASSES = {"nfet_03v3": ("M", "nfet_03v3"),
                    "ppolyf_u": ("R", "ppolyf_u"),
-                   "np_3p3": ("D", "np_3p3")}
+                   "np_3p3": ("D", "np_3p3"),
+                   "cap_mim_2f0ff": ("C", "cap_mim_2f0fF")}
 
 
 def test_klayout_reference_turns_device_calls_into_its_classes(monkeypatch):
@@ -348,6 +349,7 @@ def test_klayout_reference_turns_device_calls_into_its_classes(monkeypatch):
 X1 a b vss vss nfet_03v3 W={w*2} L=l
 X2 a b vss ppolyf_u r_width=1u r_length=10u
 X3 a vss np_3p3 area=1p pj=4u
+X4 a b cap_mim_2f0_m4m5_noshield c_width=3u c_length=4u
 X5 a b sub
 .ends
 """
@@ -360,6 +362,9 @@ X5 a b sub
                            "W=4e-06", "L=5e-07"]
     assert lines["R2"][-2:] == ["W=1e-06", "L=1e-05"]
     assert lines["D3"][-2:] == ["A=1e-12", "P=4e-06"]
+    # the MIM's ngspice name as the deck's class of its density
+    assert lines["C4"] == ["C4", "a", "b", "cap_mim_2f0fF", "W=3e-06",
+                           "L=4e-06"]
     assert lines["X5"] == ["X5", "a", "b", "sub"]
 
 

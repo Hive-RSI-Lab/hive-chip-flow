@@ -9,10 +9,11 @@
 # small for the spec's phase margin, which still meets it at typical, must
 # fail it at a fast corner (sim_pvt).
 #
-# `drc`, `lvs`, `pex_sim` and `release` have no entries, for bandgap's
-# reason: this rung has no `layout/` generator (spec.md, "Layout"), and
-# release needs every layout gate's recorded pass. `mc` has none either:
-# spec.yaml asks for no Monte Carlo.
+# The layout gates (`drc`, `lvs`, `erc`, `layout_match`, `em_ir`,
+# `pex_sim`) and `release` have no entries: the rung is laid out
+# (layout/gen_ota.py, spec.md "Layout") and passes them, but its plants are
+# the compensation faults. `mc` has none either: spec.yaml asks for no
+# Monte Carlo.
 version: 1
 faults:
   - name: spec_lint_measure_no_bounds

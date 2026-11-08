@@ -609,11 +609,16 @@ _RM1_TYPO = " calma MET2RES 110 11\n"
 _RM1_FIX = " calma MET1RES 110 11\n"
 
 
+def magic_tech_source() -> Path:
+    """The PDK's own magic tech file (magic_tech patches a copy of it)."""
+    return pdk_root() / "libs.tech" / "magic" / f"{pdk_root().name}.tech"
+
+
 def magic_tech(work_dir) -> Path | None:
     """A copy of the PDK's magic tech with the rm1 input typo fixed, written
     into work_dir, or None when the PDK already maps 110/11 to MET1RES.
     Refuses a tech file that has neither line, rather than guess."""
-    src = pdk_root() / "libs.tech" / "magic" / f"{pdk_root().name}.tech"
+    src = magic_tech_source()
     if not src.is_file():
         raise LayoutError(f"no magic tech file at {src}")
     text = src.read_text(encoding="utf-8", errors="replace")
@@ -822,6 +827,189 @@ def uncount_rnode_caps(ext_text: str, res_ext_text: str,
     return "".join(lines), changed
 
 
+# a style's own variants line in a magic tech: "variants (),(hrhc)" or "*"
+_TECH_VARIANTS_RE = re.compile(r"^\s*variants\s+(\S+)\s*$")
+_TECH_STYLE_RE = re.compile(r"^\s*style\s+(\S+)")
+_EXT_STYLE_RE = re.compile(r"^style\s+([^\s(]+)\(([^)]*)\)\s*$", re.M)
+
+
+def _tech_section(lines: list[str], name: str) -> list[str]:
+    for i, line in enumerate(lines):
+        if line.strip() == name:
+            for j in range(i + 1, len(lines)):
+                if lines[j].strip() == "end":
+                    return lines[i + 1:j]
+    raise LayoutError(f"the magic tech has no {name} section")
+
+
+def _tech_types(token: str, aliases: dict[str, str], seen=()) -> set[str]:
+    out = set()
+    for t in token.split(","):
+        t = t.split("/")[0].lstrip("*")
+        if t in aliases and t not in seen:
+            out |= _tech_types(aliases[t], aliases, (*seen, t))
+        elif t:
+            out.add(t)
+    return out
+
+
+def _has_mim(tech_text: str, pex_text: str) -> bool:
+    """Whether the netlist has an instance of a cap the tech extracts as
+    `device csubcircuit` (GF180's MIM)."""
+    models = set(re.findall(r"^\s*device\s+csubcircuit\s+(\S+)",
+                            tech_text, re.M))
+    return any(tok in models for line in pex_text.splitlines()
+               if line[:1] in "xX" for tok in line.split()[1:])
+
+
+def mim_plate_areacaps(tech_text: str, style: str,
+                       variant: str) -> dict[str, float]:
+    """{model: aF/um^2} - for each capacitor magic extracts with its top
+    plate as a type painted over the bottom plate's metal (`device
+    csubcircuit MODEL TOP BOTTOM`, GF180's mimcap over m4), the C to the
+    substrate per unit area the tech gives that top-plate type at this
+    extract style and variant (its `defaultareacap`). magic files that C,
+    the bottom plate's metal seen from below, on the top plate's net;
+    move_mim_plate_caps puts it back on the bottom plate's. A model whose
+    top type has no area cap at this style is left out."""
+    lines = tech_text.splitlines()
+    aliases = {}
+    for line in _tech_section(lines, "aliases"):
+        parts = line.split("#")[0].split()
+        if len(parts) == 2:
+            aliases[parts[0]] = parts[1]
+    in_style, active, devices, caps = False, True, {}, {}
+    for line in _tech_section(lines, "extract"):
+        parts = line.split("#")[0].split()
+        if not parts:
+            continue
+        m = _TECH_STYLE_RE.match(line)
+        if m:
+            in_style, active = m.group(1) == style, True
+            continue
+        if not in_style:
+            continue
+        m = _TECH_VARIANTS_RE.match(line)
+        if m:
+            got = m.group(1)
+            active = got == "*" or f"({variant})" in got.split(",")
+            continue
+        if not active:
+            continue
+        if parts[:2] == ["device", "csubcircuit"] and len(parts) >= 5:
+            devices[parts[2]] = _tech_types(parts[3], aliases)
+        elif parts[0] == "defaultareacap" and len(parts) == 4:
+            for t in _tech_types(parts[1], aliases):
+                caps[t] = float(parts[3])
+    out = {}
+    for model, tops in devices.items():
+        vals = {caps[t] for t in tops if t in caps}
+        if len(vals) > 1:
+            raise LayoutError(
+                f"the magic tech gives {model}'s top-plate types "
+                f"{sorted(tops)} {len(vals)} different area caps at style "
+                f"{style}({variant}) - which one magic used cannot be told")
+        if vals:
+            out[model] = vals.pop()
+    return out
+
+
+def move_mim_plate_caps(ext_text: str, pex_text: str,
+                        areacap: dict[str, float]) -> tuple[str, dict]:
+    """pex_text with each MIM's bottom-plate C to the substrate moved from
+    its top plate's net onto its bottom plate's, and {device: {top, bottom,
+    ff}}.
+
+    magic paints a MIM's top plate (mimcap) on the bottom plate's own
+    plane (metal4), replacing the metal4 under it, so the plate's area C to
+    the substrate - the bottom plate's metal4 seen from below, which shields
+    the top plate - goes to the top plate's net: on the ota's 32x32 um MIM
+    7.8 fF that kpex 2.5D (and the silicon) give the bottom plate. The
+    device line names both plates and its size (`X.. top bottom MODEL
+    c_width= c_length=`), so the area times the style's area cap
+    (mim_plate_areacaps) comes off the top net's C lines to the substrate,
+    scaled together, and goes onto the bottom plate's node as one C line.
+    A top net that has less C to the substrate than that has something
+    under the plate taking it (an overlap, not substrate C), which this
+    cannot split, so it is a refusal. Couplings to a shape under the plate
+    stay on the top net here; the kpex cross-check compares each pair."""
+    import netlistlib
+
+    if not areacap:
+        return pex_text, {}
+    subs = [_ext_net(m.group(1)) for m in map(
+        _EXT_SUBSTRATE_RE.match, ext_text.splitlines()) if m]
+    moves = []
+    for line in netlistlib.join_continuations(pex_text):
+        parts = netlistlib.strip_comment(line).split()
+        if len(parts) < 4 or parts[0][:1].lower() != "x":
+            continue
+        model = next((p for p in parts[1:] if "=" not in p and
+                      p in areacap), None)
+        if model is None:
+            continue
+        nodes = parts[1:parts.index(model)]
+        params = dict(p.split("=", 1) for p in parts if "=" in p)
+        w = netlistlib.spice_number(params.get("c_width", ""))
+        ln = netlistlib.spice_number(params.get("c_length", ""))
+        if len(nodes) != 2 or w is None or ln is None:
+            raise LayoutError(
+                f"MIM {parts[0]} ({model}) is not 'top bottom MODEL "
+                "c_width= c_length=' in magic's netlist, so its plate's C to "
+                "the substrate cannot be moved to the bottom plate")
+        moves.append((parts[0], nodes[0], nodes[1],
+                      w * ln * 1e12 * areacap[model] * 1e-3))
+    if not moves:
+        return pex_text, {}
+    if len(subs) != 1:
+        raise LayoutError(
+            f"the .ext names {len(subs)} substrate nets, not one - a MIM "
+            "bottom plate's C to the substrate has nowhere to go")
+    sub = subs[0]
+    lines = pex_text.splitlines(keepends=True)
+    moved, extra = {}, []
+    for dev, top, bottom, ff in moves:
+        net = _pex_net(top)
+        if net == _pex_net(bottom) or ff <= 0:
+            continue
+        found = []
+        for i, line in enumerate(lines):
+            parts = line.split()
+            if len(parts) < 4 or parts[0][:1].lower() != "c":
+                continue
+            a, b = (_pex_net(node) for node in parts[1:3])
+            value = netlistlib.spice_number(parts[3])
+            if value is not None and {a, b} == {net, sub} and net != sub:
+                found.append((i, value))
+        have = sum(v for _i, v in found) * 1e15
+        if net != sub:
+            if have < ff * (1.0 - 1e-6):
+                raise LayoutError(
+                    f"MIM {dev}'s top-plate net {net} has {have:.4g} fF to "
+                    f"the substrate, less than the {ff:.4g} fF its plate "
+                    "area gives it in magic - a shape under the MIM takes "
+                    "that C, and magic files it on the top plate's net, "
+                    "not the bottom plate's. Keep the area under a MIM "
+                    "clear of every other layer in the layout generator")
+            scale = (have - ff) / have
+            for i, value in found:
+                parts = lines[i].split()
+                parts[3] = f"{value * scale * 1e15:.6g}f"
+                lines[i] = " ".join(parts) + "\n"
+        if _pex_net(bottom) != sub:
+            extra.append(f"Cmimplate{len(extra)} {bottom} {sub} {ff:.6g}f\n")
+        moved[dev] = {"top": net, "bottom": _pex_net(bottom),
+                      "ff": round(ff, 5)}
+    if extra:
+        end = next((i for i in range(len(lines) - 1, -1, -1)
+                    if lines[i].strip().lower().startswith(".ends")), None)
+        if end is None:
+            raise LayoutError("magic's netlist has no .ends to add a MIM "
+                              "bottom plate's C to the substrate before")
+        lines[end:end] = extra
+    return "".join(lines), moved
+
+
 def run_magic_extract(work_dir, gds_path, topcell: str, *, parasitics: bool,
                       timeout: float = 180.0,
                       variant: str | None = None,
@@ -840,6 +1028,8 @@ def run_magic_extract(work_dir, gds_path, topcell: str, *, parasitics: bool,
     optimistic netlist. extresist also writes each split net's coupling C
     a second time, as C to the substrate (uncount_rnode_caps takes that
     back off), so the netlist written is magic's with those lines scaled.
+    magic also files a MIM's bottom-plate C to the substrate on its top
+    plate's net (move_mim_plate_caps puts it back on the bottom plate's).
 
     Order matters: `ext2spice lvs` resets cthresh and rthresh to infinity,
     so it must come before the thresholds, never after them.
@@ -923,6 +1113,24 @@ def run_magic_extract(work_dir, gds_path, topcell: str, *, parasitics: bool,
                     f"before -> after): " + ", ".join(
                         f"{net} {a:g} -> {b:g}"
                         for net, (a, b) in uncounted.items()) + "\n")
+        tech_text = (tech or magic_tech_source()).read_text(
+            encoding="utf-8", errors="replace")
+        moved = {}
+        if _has_mim(tech_text, pex_text):
+            m = _EXT_STYLE_RE.search(ext_text)
+            if m is None:
+                raise LayoutError(
+                    f"{ext_path.name} has no style line, so the area cap "
+                    "magic gave its MIM plates is unknown")
+            pex_text, moved = move_mim_plate_caps(
+                ext_text, pex_text,
+                mim_plate_areacaps(tech_text, m.group(1), m.group(2)))
+        if moved:
+            out_path.write_text(pex_text, encoding="utf-8")
+            out += ("\nMIM bottom-plate C to the substrate moved off the top "
+                    "plate's net (fF): " + ", ".join(
+                        f"{d} {v['top']} -> {v['bottom']} {v['ff']:g}"
+                        for d, v in moved.items()) + "\n")
         lost = lost_couplings(ext_text, pex_text)
         if lost:
             shown = ", ".join(f"{a}-{b} ({d['pex_ff']:g} of "
@@ -1135,6 +1343,10 @@ _KL_PARAM_RENAME = {"R": {"r_width": "W", "r_length": "L"},
                     "C": {"c_width": "W", "c_length": "L"},
                     "D": {"area": "A", "pj": "P"},
                     "Q": {"m": "NE"}}
+# the ngspice/magic name of a MIM cap (cap_mim_2f0_m4m5_noshield: 2.0 fF/um2,
+# metal4 to metal5) against the deck's one class per density (cap_mim_2f0fF):
+# the deck takes the metal pair from its MIM_OPTION, the class says only fF
+_KL_MIM_RE = re.compile(r"cap_mim_(\d)f(\d)_m\dm\d_noshield")
 _SPICE_SCALE = {"t": 1e12, "g": 1e9, "meg": 1e6, "k": 1e3, "m": 1e-3,
                 "u": 1e-6, "n": 1e-9, "p": 1e-12, "f": 1e-15}
 _SPICE_NUM_RE = re.compile(
@@ -1215,7 +1427,9 @@ def klayout_reference(text: str, deck: Path) -> str:
     substring. Here: every .param and subckt default is resolved to a
     number, the header defaults and .param lines go, and each X call of a
     device the deck extracts becomes that device's letter (M/R/C/D/Q), its
-    model spelt as the deck spells it, its parameters renamed as the PDK's
+    model spelt as the deck spells it (a MIM cap's ngspice name,
+    cap_mim_2f0_m4m5_noshield, as the deck's class of its density,
+    cap_mim_2f0fF), its parameters renamed as the PDK's
     converter renames them. Std-cell calls stay X: the deck flattens
     them."""
     classes = klayout_device_classes(deck)
@@ -1252,6 +1466,9 @@ def klayout_reference(text: str, deck: Path) -> str:
             pos = [i for i, w in enumerate(tok) if "=" not in w]
             letter = None
             model = tok[pos[-1]].lower()
+            mim = _KL_MIM_RE.fullmatch(model)
+            if mim:
+                model = f"cap_mim_{mim.group(1)}f{mim.group(2)}ff"
             if head[0] == "x" and model in classes:
                 letter, canon = classes[model]
                 tok[pos[-1]] = canon

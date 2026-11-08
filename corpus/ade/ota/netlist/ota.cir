@@ -30,4 +30,14 @@ xm4  d2    d1    vdd  vdd pfet_03v3 w=w_ld l=l_ld
 xm6  out   d2    vdd  vdd pfet_03v3 w=w_2  l=l_2
 xm7  out   ibias vss  vss nfet_03v3 w=w_s  l=l_b
 xcc  d2    out   cap_mim_2f0_m4m5_noshield c_width=cc_w c_length=cc_w
+* The layout (layout/gen_ota.py) draws each transistor as unit devices in
+* three matched rows, a dummy at each row's ends: the bias row's 4um units,
+* the pair's 5um units, the load's 2um units. The dummies are drawn, so they
+* are in the schematic too, every terminal on their row's rail.
+xmdum1 vss vss vss vss nfet_03v3 w=4e-6 l=1e-6
+xmdum2 vss vss vss vss nfet_03v3 w=4e-6 l=1e-6
+xmdum3 vss vss vss vss nfet_03v3 w=5e-6 l=1e-6
+xmdum4 vss vss vss vss nfet_03v3 w=5e-6 l=1e-6
+xmdum5 vdd vdd vdd vdd pfet_03v3 w=2e-6 l=1e-6
+xmdum6 vdd vdd vdd vdd pfet_03v3 w=2e-6 l=1e-6
 .ends two_stage_miller_ota
