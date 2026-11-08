@@ -4,7 +4,7 @@
  "block": "r2r_dac_analog",
  "workspace": "blocks/r2r_dac/analog",
  "created": "2026-09-25T05:47:00",
- "updated": "2026-11-08T10:17:50",
+ "updated": "2026-11-08T10:28:11",
  "phase": "P5",
  "toolchain": null,
  "gates": {
@@ -719,15 +719,15 @@
   "sim_pvt": {
    "phase": "P4",
    "status": "pass",
-   "attempts": 13,
+   "attempts": 14,
    "last": {
-    "ts": "2026-11-08T07:49:19",
+    "ts": "2026-11-08T10:28:11",
     "status": "pass",
     "failing_count": 0,
     "total": 11,
     "inputs": {
      "netlist": "dir_text:2c6d358ba4c3ec93f5dc910e1777df9a3f5418293791a715229fa1b8d22d1e4e",
-     "tb": "dir_text:f39ddda9f2efd5463da75d99f486ff1ea8d2038b91027869426db82f0bf513e4",
+     "tb": "dir_text:0e206cf624d2e523cadff994c220aa92224bba0a5603f3067e72445e8e6ade41",
      "spec_yaml": "json_canonical:efe11a72dd5874ab5fa002e7531a93eab8036650518249c44e266fcab592fed9",
      "sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
@@ -1098,6 +1098,37 @@
      "inputs": {
       "netlist": "dir_text:2c6d358ba4c3ec93f5dc910e1777df9a3f5418293791a715229fa1b8d22d1e4e",
       "tb": "dir_text:f39ddda9f2efd5463da75d99f486ff1ea8d2038b91027869426db82f0bf513e4",
+      "spec_yaml": "json_canonical:efe11a72dd5874ab5fa002e7531a93eab8036650518249c44e266fcab592fed9",
+      "sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
+      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+      "pdk_models": "dir_text:84e0f27991c27acae27ec5243fd0d1587f7bfb2655e802ed0eb92a811cf5f7f8"
+     },
+     "strength": 0,
+     "job": null,
+     "facts": {
+      "corners": [
+       "tt_m40c",
+       "tt_25c",
+       "tt_125c",
+       "ff_m40c",
+       "ff_25c",
+       "ff_125c",
+       "ss_m40c",
+       "ss_25c",
+       "ss_125c",
+       "tt_pss",
+       "tt_pff"
+      ]
+     }
+    },
+    {
+     "ts": "2026-11-08T10:28:11",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 11,
+     "inputs": {
+      "netlist": "dir_text:2c6d358ba4c3ec93f5dc910e1777df9a3f5418293791a715229fa1b8d22d1e4e",
+      "tb": "dir_text:0e206cf624d2e523cadff994c220aa92224bba0a5603f3067e72445e8e6ade41",
       "spec_yaml": "json_canonical:efe11a72dd5874ab5fa002e7531a93eab8036650518249c44e266fcab592fed9",
       "sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
       "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
@@ -2922,19 +2953,19 @@
    "path": "spec/spec.yaml",
    "kind": "spec_yaml",
    "sha256": "json_canonical:efe11a72dd5874ab5fa002e7531a93eab8036650518249c44e266fcab592fed9",
-   "hashed": "2026-11-08T10:17:50"
+   "hashed": "2026-11-08T10:28:11"
   },
   "netlist": {
    "path": "netlist",
    "kind": "netlist",
    "sha256": "dir_text:2c6d358ba4c3ec93f5dc910e1777df9a3f5418293791a715229fa1b8d22d1e4e",
-   "hashed": "2026-11-08T10:17:50"
+   "hashed": "2026-11-08T10:28:11"
   },
   "tb": {
    "path": "tb",
    "kind": "tb",
    "sha256": "dir_text:0e206cf624d2e523cadff994c220aa92224bba0a5603f3067e72445e8e6ade41",
-   "hashed": "2026-11-08T10:17:50"
+   "hashed": "2026-11-08T10:28:11"
   },
   "layout": {
    "path": "layout",
@@ -2946,7 +2977,7 @@
    "path": "sizing/sizing.yaml",
    "kind": "sizing",
    "sha256": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
-   "hashed": "2026-11-08T10:17:50"
+   "hashed": "2026-11-08T10:28:11"
   },
   "mutant_rulings": {
    "path": "spec/mutant_rulings.yaml",
@@ -2964,13 +2995,13 @@
    "path": "${PDK_ROOT}/SOURCES",
    "kind": "pdk_version",
    "sha256": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
-   "hashed": "2026-11-08T10:17:50"
+   "hashed": "2026-11-08T10:28:11"
   },
   "pdk_models": {
    "path": "${PDK_ROOT}/libs.tech/ngspice",
    "kind": "pdk_models",
    "sha256": "dir_text:84e0f27991c27acae27ec5243fd0d1587f7bfb2655e802ed0eb92a811cf5f7f8",
-   "hashed": "2026-11-08T10:17:50"
+   "hashed": "2026-11-08T10:28:11"
   },
   "pdk_magic": {
    "path": "${PDK_ROOT}/libs.tech/magic",
@@ -4667,6 +4698,14 @@
    "gate": "sim_tt",
    "status": "pass",
    "attempt": 15,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-11-08T10:28:11",
+   "event": "gate",
+   "gate": "sim_pvt",
+   "status": "pass",
+   "attempt": 14,
    "failing_count": 0
   }
  ]
