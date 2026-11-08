@@ -54,6 +54,13 @@ topology.md's slowest-corner tau, whichever is longer), never a fixed
 clamp it to the window: "99 ns" out of a 100 ns window reads as a real
 number.
 
+A block with `feedback: true` gets its loop measures from the templates,
+names unchanged: `templates/stb_tb.cir` (Tian loop gain, the loop never
+broken: `pm_deg`, `gm_db`, `ugf_hz`), `templates/psrr_tb.cir` (AC on vdd:
+`psrr_dc_db`, `psrr_at_f_db`) and `templates/noise_tb.cir` (`.noise`
+integrated over the stated band: `onoise_rms_v`, per-device lines
+unscored). A comp cap must be seen: bench_strength halves and removes it.
+
 A bench that sweeps many points (a 256-code DAC) carries a
 `* sim_timeout_s: <seconds>` comment line, up to 3600, sized for a loaded
 host; without it each corner's run is cut off at 60 s, and that is a
@@ -126,7 +133,7 @@ OPEN: <"none", or a parasitic effect you could not bound without a layout>
 ## Work-order mode (fix loop: bench_strength survivors, pex_sim measure_missing)
 
 `skills/ade/SKILL.md`'s fix loop routes every `bench_strength` survivor
-(`survivor_size_doubled`/`connection_removed`/`type_flipped`/`bias_halved`/`output_stuck`/`gain_halved`)
+(`survivor_size_doubled`/`connection_removed`/`type_flipped`/`bias_halved`/`output_stuck`/`gain_halved`/`cap_halved`/`cap_removed`)
 and every `pex_sim` `measure_missing` finding to YOU, never the
 analog-designer - the bench's fault, not the design's (docs/design.md
 section 2's mutate rule, analog form).

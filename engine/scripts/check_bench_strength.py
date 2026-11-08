@@ -42,7 +42,9 @@ since a ruling that no longer matches refuses and has to be rewritten from them.
 
 A declared behavioural `b...` source in netlist/*.cir gets its own two
 mutants (netlistlib.device_mutants): output_stuck (its expression replaced
-by 0) and gain_halved (its expression times 0.5). Coverage is reported
+by 0) and gain_halved (its expression times 0.5). A declared capacitor
+(a PDK cap_* instance or a plain `c...` element) gets cap_halved and
+cap_removed in place of size_doubled and connection_removed. Coverage is reported
 over every device, not only the mutated ones: `devices_total` counts each
 element of the netlist (netlistlib.parse_elements - every element letter,
 so B/E/G/F/H sources, primitives and non-PDK `x` instances too) plus each

@@ -1,0 +1,42 @@
+* ota_noise_tb.cir - output noise of the two_stage_miller_ota as a
+* unity-gain buffer (spec.md, Requirement), from skills/ade/templates/
+* noise_tb.cir. .noise at v(out) with vin as the input reference, integrated
+* over [f_lo, f_hi]: onoise_rms_v is the total rms output noise in that band
+* (ngspice's onoise_total, V rms). The per-device split is printed below the
+* measures (print all: onoise_total.<device>), for reading which device dominates; it is not
+* scored.
+.include '{{PDK}}/libs.tech/ngspice/design.spice'
+.lib '{{PDK}}/libs.tech/ngspice/sm141064.spice' {{CORNER}}
+.lib '{{PDK}}/libs.tech/ngspice/sm141064.spice' {{MIM_CORNER}}
+.temp {{TEMP_C}}
+.include '{{NETLIST}}'
+{{SIZING}}
+
+.param vddp={{VDD}} vcm='vddp/2' ib=10u cl=2p
+.param f_lo=10 f_hi=1meg
+.csparam f_lo={f_lo}
+.csparam f_hi={f_hi}
+vdd_src vdd 0 dc {vddp}
+vss_src vss 0 0
+vin inp 0 dc {vcm} ac 1
+ibias_src 0 ibias dc {ib}
+* --- DUT BEGIN
+xdut inp out out vdd vss ibias two_stage_miller_ota
+cload out 0 {cl}
+* --- DUT END
+
+.control
+set noaskquit
+noise v(out) vin dec 20 $&f_lo $&f_hi 1
+setplot noise2
+let onoise_rms_v = onoise_total
+echo
+echo "  Measurements for Noise Analysis (ota_noise_tb, computed in .control)"
+echo "onoise_rms_v = $&onoise_rms_v"
+echo
+* this non-blank line closes the measures block (simlib.parse_measures), so
+* the per-device lines below are read by a person, never scored
+echo "Per-device integrated output noise (V rms), not scored:"
+print all
+.endc
+.end

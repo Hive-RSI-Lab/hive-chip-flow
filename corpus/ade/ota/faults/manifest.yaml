@@ -1,0 +1,41 @@
+# faults manifest (docs/design.md section 3, "### M9."; issue #100): one
+# entry per pre-layout ade gate this rung demonstrates - same contract as
+# corpus/ade/bandgap's own manifest (faults.py copies the rung into a
+# scratch workspace, imports the plant's `plant(ws)` and runs it, then runs
+# `gate` and checks the result against `expect`).
+#
+# The two compensation plants are the point of this rung: the Miller cap
+# removed must fail the stability bench at typical (sim_tt), and a cap too
+# small for the spec's phase margin, which still meets it at typical, must
+# fail it at a fast corner (sim_pvt).
+#
+# `drc`, `lvs`, `pex_sim` and `release` have no entries, for bandgap's
+# reason: this rung has no `layout/` generator (spec.md, "Layout"), and
+# release needs every layout gate's recorded pass. `mc` has none either:
+# spec.yaml asks for no Monte Carlo.
+version: 1
+faults:
+  - name: spec_lint_measure_no_bounds
+    gate: spec_lint
+    plant: plant_spec_lint.py
+    expect: {status: fail, kind: measure_no_bounds}
+  - name: spec_lint_feedback_without_stability
+    gate: spec_lint
+    plant: plant_spec_lint_no_stability.py
+    expect: {status: fail, kind: feedback_no_stability}
+  - name: netlist_lint_model_not_in_pdk
+    gate: netlist_lint
+    plant: plant_netlist_lint.py
+    expect: {status: fail, kind: model_not_in_pdk}
+  - name: sim_tt_comp_cap_removed
+    gate: sim_tt
+    plant: plant_sim_tt.py
+    expect: {status: fail, kind: sim_bound_fail}
+  - name: sim_pvt_comp_cap_too_small
+    gate: sim_pvt
+    plant: plant_sim_pvt.py
+    expect: {status: fail, kind: sim_bound_fail}
+  - name: bench_strength_stability_bounds_too_wide
+    gate: bench_strength
+    plant: plant_bench_strength.py
+    expect: {status: fail, kind: survivor_cap_halved}

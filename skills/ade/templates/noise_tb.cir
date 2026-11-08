@@ -1,0 +1,44 @@
+* noise_tb.cir - integrated output noise. Copy it into tb/<block>_noise_tb.cir,
+* replace the block between the DUT markers with the block in its spec's
+* closed-loop configuration, and set f_lo and f_hi to the band spec.md
+* states. Fixed measure name: onoise_rms_v, the total rms output noise over
+* [f_lo, f_hi] (ngspice's onoise_total, V rms). corpus/ade/ota/tb/
+* ota_noise_tb.cir is a working copy.
+*
+* `.noise v(out) vin ... 1` asks for the per-device summary too: after the
+* measures block a line that is not a measure closes it (simlib.
+* parse_measures stops at the first non-matching line), then `print all`
+* lists onoise_total.<device> for each noise source - read it to see which
+* device dominates; it is never scored. Keep that closing echo line: without
+* it the per-device lines would be read as measures.
+.include '{{PDK}}/libs.tech/ngspice/design.spice'
+.lib '{{PDK}}/libs.tech/ngspice/sm141064.spice' {{CORNER}}
+.temp {{TEMP_C}}
+.include '{{NETLIST}}'
+{{SIZING}}
+
+.param vddp={{VDD}} vcm='vddp/2' cl=2p
+.param f_lo=10 f_hi=1meg
+.csparam f_lo={f_lo}
+.csparam f_hi={f_hi}
+vdd_src vdd 0 dc {vddp}
+vss_src vss 0 0
+vin inp 0 dc {vcm} ac 1
+* --- DUT BEGIN (edit: the block, closed loop as the spec uses it)
+xdut inp out out vdd vss <block>
+cload out 0 {cl}
+* --- DUT END
+
+.control
+set noaskquit
+noise v(out) vin dec 20 $&f_lo $&f_hi 1
+setplot noise2
+let onoise_rms_v = onoise_total
+echo
+echo "  Measurements for Noise Analysis (noise_tb, computed in .control)"
+echo "onoise_rms_v = $&onoise_rms_v"
+echo
+echo "Per-device integrated output noise (V rms), not scored:"
+print all
+.endc
+.end

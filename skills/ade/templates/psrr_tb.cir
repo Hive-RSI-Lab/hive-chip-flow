@@ -1,0 +1,42 @@
+* psrr_tb.cir - power-supply rejection. Copy it into tb/<block>_psrr_tb.cir,
+* replace the block between the DUT markers with the block in its spec's
+* closed-loop configuration, and set f_dc and f_psrr to the two frequencies
+* spec.md states. Fixed measure names: psrr_dc_db (at f_dc, the low-
+* frequency plateau) and psrr_at_f_db (at f_psrr). corpus/ade/ota/tb/
+* ota_psrr_tb.cir is a working copy.
+*
+* 1 V AC rides on vdd only; every other source is quiet DC, so v(out) is the
+* supply's transfer to the output and PSRR = -20 log10 |v(out)/v(vdd)| (a
+* positive dB number; a larger one rejects more). For a negative-rail PSRR
+* move the `ac 1` to vss_src and keep the names with a _vss suffix.
+.include '{{PDK}}/libs.tech/ngspice/design.spice'
+.lib '{{PDK}}/libs.tech/ngspice/sm141064.spice' {{CORNER}}
+.temp {{TEMP_C}}
+.include '{{NETLIST}}'
+{{SIZING}}
+
+.param vddp={{VDD}} vcm='vddp/2' cl=2p
+.param f_dc=10 f_psrr=100k
+.csparam f_dc={f_dc}
+.csparam f_psrr={f_psrr}
+vdd_src vdd 0 dc {vddp} ac 1
+vss_src vss 0 0
+vin inp 0 dc {vcm}
+* --- DUT BEGIN (edit: the block, closed loop as the spec uses it)
+xdut inp out out vdd vss <block>
+cload out 0 {cl}
+* --- DUT END
+
+.control
+set noaskquit
+ac dec 20 1 1g
+let psrr = -db(v(out)/v(vdd))
+meas ac psrr_dc_v find psrr at=$&f_dc
+meas ac psrr_f_v find psrr at=$&f_psrr
+echo
+echo "  Measurements for AC Analysis (psrr_tb, computed in .control)"
+echo "psrr_dc_db = $&psrr_dc_v"
+echo "psrr_at_f_db = $&psrr_f_v"
+echo
+.endc
+.end

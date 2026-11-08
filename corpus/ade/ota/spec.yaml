@@ -1,0 +1,32 @@
+top: two_stage_miller_ota
+supply:
+  vdd: 3.3
+devices: [xmb, xmt, xm1, xm2, xm3, xm4, xm6, xm7, xcc]
+corners: default
+# the OTA runs in unity-gain feedback (out tied to inn): the loop must be
+# stable at every corner, so pm_deg is bound everywhere (spec_lint's
+# feedback rule, issue #100)
+feedback: true
+measures:
+  # ota_stb_tb: Tian loop gain probed in the feedback wire (never broken), 2 pF load
+  - name: pm_deg
+    bounds: {min: 60}
+  - name: gm_db
+    bounds: {min: 10}
+  - name: ugf_hz
+    bounds: {min: 5.0e6}
+  - name: a0_db
+    bounds: {min: 80}
+  - name: iq
+    bounds: {min: 1.5e-4, max: 3.5e-4}
+  # systematic offset in unity gain (no mismatch: no mc measure)
+  - name: vos
+    bounds: {min: -1.0e-3, max: 1.0e-3}
+  # ota_psrr_tb: 1 V AC on vdd, unity-gain follower
+  - name: psrr_dc_db
+    bounds: {min: 80}
+  - name: psrr_at_f_db
+    bounds: {min: 30}
+  # ota_noise_tb: output noise integrated 10 Hz - 1 MHz
+  - name: onoise_rms_v
+    bounds: {max: 6.0e-5}
