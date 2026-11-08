@@ -401,7 +401,10 @@ gates:
       # with the slow or fast corner (an approximation, not foundry RC corners),
       # and at each `pex_rc_corners` variant: a separate extraction at magic's
       # hrhc, lrlc, hrlc or lrhc, paired with its process in pex_rc_variants.yaml
-      # and hashed in the gate's record as its own view.
+      # and hashed in the gate's record as its own view. A spec's `pex_fill`
+      # adds the post-fill view (#136): the PDK's fill_all.rb on a copy of
+      # the tile, DRC on it with the fill decks (fill_drc), and the bench
+      # at every scored corner with the fill floating and/or grounded.
       # klayout_pex 2.5D extracts the same GDS as a second opinion on C:
       # each labelled net's total C and each probed pair's coupling C within
       # 20% of the smaller, else pex_extractors_disagree (kpex is never
