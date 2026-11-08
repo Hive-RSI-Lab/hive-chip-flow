@@ -269,7 +269,8 @@ gate_inputs:
     sim_pvt:        [netlist, tb, spec_yaml, sizing, pdk_version, pdk_models]
     bench_strength: [netlist, tb, mutant_rulings, spec_yaml, sizing,
                      pdk_version, pdk_models]
-    mc:             [netlist, tb, spec_yaml, sizing, pdk_version, pdk_models]
+    mc:             [netlist, tb, mutant_rulings, spec_yaml, sizing,
+                     pdk_version, pdk_models]
     drc:            [layout, spec_yaml, pdk_version, pdk_magic, pdk_klayout]
     lvs:            [layout, netlist, spec_yaml, sizing, pdk_version,
                      pdk_magic, pdk_netgen, pdk_klayout]

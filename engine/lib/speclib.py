@@ -567,9 +567,10 @@ def lint_matching_measures(spec: dict, rel_path: str = "spec/spec.yaml",
       a matching name (matching_by_name) without a waiver, in a spec with
       no `mc.enabled: true`;
     - `mismatch_measure_not_at_tt`: the same measure scoped by its own
-      `corners` list to corners without tt - the mc gate runs at tt only
-      (`mc_corner_names`: every name of that corner, corners.names_of),
-      so it would never score it;
+      `corners` list to corners without tt - tt is the one corner the mc
+      gate always runs (`mc_corner_names`: every name of that corner,
+      corners.names_of); its second run is at each bench's worst sweep
+      corner, picked by margin, which need not be the measure's own;
     - `bad_statistical`: `statistical` not in STATISTICAL_KINDS, or
       `statistical: none` without a non-empty `mc_waiver` reason (the
       name heuristic is overridden only with a written reason).
@@ -622,8 +623,9 @@ def lint_matching_measures(spec: dict, rel_path: str = "spec/spec.yaml",
                 "spec_lint", "error", rel_path, None,
                 "mismatch_measure_not_at_tt", refs,
                 f"measure {name!r} is matching-sensitive but its corners "
-                f"{want} leave out tt, the one corner the mc gate runs - "
-                "Monte Carlo would never score it", "speclib"))
+                f"{want} leave out tt, the one corner the mc gate always runs "
+                "- its worst-corner run need not land on one of these, so "
+                "Monte Carlo might never score it; add tt", "speclib"))
     return out, waived
 
 

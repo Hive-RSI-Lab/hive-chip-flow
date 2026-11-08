@@ -13,12 +13,14 @@ supply:
 # point in the trace; only physically REMOVING a device (not a mutant this
 # gate ever plants) does. Real silicon still needs xms1-3 for the process/
 # mismatch corners where m=8 alone might not be enough - that is `mc`'s
-# job, not bench_strength's, and the `mc` block below asks for it: 20
-# mismatch samples per bench at tt, with xq2's m=8 given par=8 in the MC
-# deck (check_mc.py) so it draws the PDK's sigma for eight units, not one.
+# job, not bench_strength's, and the `mc` block below asks for it: mismatch
+# samples per bench at tt and at sim_pvt's worst corner, as many as a
+# 95%-confidence bound on 95% yield needs, with xq2's m=8 and xm1/xm2's m=4
+# given par=N in the MC deck (check_mc.py) so each draws the PDK's sigma
+# for N units, not one.
 devices: [xm1, xm2, xm3, xm4, xm5, xr1, xr2, xq1, xq2, xq3]
 corners: default
-mc: {enabled: true, runs: 20, yield_min: 0.95, seed: 1}
+mc: {enabled: true, yield_min: 0.95, seed: 1}
 measures:
   - name: vref
     bounds: {min: 1.16, max: 1.21}

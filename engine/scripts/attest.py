@@ -218,12 +218,14 @@ def _mc_not_applicable(ws: Path) -> str | None:
     on netlist/tb and would stay fresh after the spec turned MC on. So the
     spec is asked again here, with check_mc's own predicate. If the spec
     is missing or unreadable, MC is owed, never skipped: spec_lint refuses
-    that workspace anyway, and doubt never counts as "not applicable"."""
+    that workspace anyway, and doubt never counts as "not applicable". A
+    mutant ruling that claims an MC sigma with MC off makes it owed too
+    (check_mc refuses that spec), since nothing else checks the claim."""
     import check_mc
     import speclib
     try:
         spec = speclib.load_spec(ws / "spec" / "spec.yaml")
-        if check_mc.mc_applicable(spec):
+        if check_mc.mc_applicable(spec, ws):
             return None
     except checklib.CheckError:
         return None

@@ -1,10 +1,10 @@
-"""Fault: a window that typical meets but mismatch doesn't (gates.yaml's mc
-row) - narrows vref to [1.182, 1.194] V (about +-6 mV around typical) in both
-spec.yaml and tb/bandgap_tb.bounds.json. Typical (1.18814 V) still passes
-sim_tt, but this design's own mismatch spread at seeds 1-20 (1.1688 to
-1.2072 V, sigma 9.7 mV, measured with the real PDK) puts 9 of the 20 vref
-samples outside it, and the 20 tc samples still pass: yield 77.5%, below
-spec.yaml's 95%. Only Monte Carlo sees it."""
+"""Fault: a window that typical meets but mismatch doesn't - narrows vref
+to [1.182, 1.194] V (about +-6 mV around typical) in both spec.yaml and
+tb/bandgap_tb.bounds.json. Typical (1.18949 V) still passes sim_tt, but
+this design's own mismatch spread at tt (sigma about 6 mV, measured with
+the real PDK) puts 110 of the 348 default vref samples outside it while the
+tc samples all pass: yield 68%, below spec.yaml's 95% at tt itself - the
+plain case. plant_mc_worst.py is the one only the worst-corner run sees."""
 import json
 from pathlib import Path
 

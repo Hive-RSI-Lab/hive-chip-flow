@@ -3,8 +3,8 @@ it (docs/design.md 1.5, "### M8."). Fast: fakes `eda`; a real MC run relies
 on the gf180 PDK's own live agauss() mismatch and its own `.option seed=`
 handling - test_real_mirror_mc_yields_a_spread (slow) proves that against
 the real toolchain, since a fake eda that ignores seed/mismatch entirely
-could otherwise "pass" a gate that is secretly running one sample 20
-times."""
+could otherwise "pass" a gate that is secretly running one sample over
+and over."""
 from __future__ import annotations
 
 import json
@@ -64,26 +64,44 @@ def make_ws(tmp_path: Path, mc_yaml: str = "") -> Path:
     return ws
 
 
-def make_fake_eda(tmp_path: Path, ratios: list[str]) -> Path:
-    """Cycles through `ratios` on successive invocations (a call counter
-    file), so a run sequence can be scripted precisely."""
+def make_fake_eda(tmp_path: Path, ratios: list[str],
+                  nominal: str = "2.0", by_process: dict | None = None,
+                  seed_base: int = 1) -> Path:
+    """A fake eda that reads the deck it is handed. A Monte Carlo deck
+    (`sw_stat_mismatch=1`, `.option seed=N`) reports
+    ratios[(N - seed_base) % len(ratios)]; a nominal deck (the gate's own
+    PVT sweep) reports `nominal`. `by_process` maps a `.lib ... <process>`
+    word (typical, ss, ff, sf, fs) to its own (ratios, nominal) pair, so a
+    test can script a corner that misses. Keyed by seed, never by call
+    order: the gate runs its samples in a pool."""
     fake_root = tmp_path / "fake_toolchain"
-    (fake_root / "foss" / "pdks" / "gf180mcuD").mkdir(parents=True)
-    counter = tmp_path / "counter"
-    counter.write_text("0", encoding="utf-8")
-    ratios_file = tmp_path / "ratios"
-    ratios_file.write_text("\n".join(ratios), encoding="utf-8")
+    (fake_root / "foss" / "pdks" / "gf180mcuD").mkdir(parents=True,
+                                                    exist_ok=True)
+    table = {"*": [list(ratios), nominal]}
+    for proc, (r, nom) in (by_process or {}).items():
+        table[proc] = [list(r), nom]
+    cfg = tmp_path / "fake_eda.json"
+    cfg.write_text(json.dumps({"table": table, "seed_base": seed_base}),
+                   encoding="utf-8")
     script = tmp_path / "fake_eda"
     script.write_text(
-        "#!/usr/bin/env bash\n"
-        "if [ \"$1\" = --print-toolchain-root ]; then\n"
-        f"  echo '{fake_root}'\n  exit 0\nfi\n"
-        f"n=$(cat '{counter}')\n"
-        f"ratio=$(sed -n \"$((n+1))p\" '{ratios_file}')\n"
-        f"echo $((n+1)) > '{counter}'\n"
-        "echo\n"
-        "echo '  Measurements for Transient Analysis'\n"
-        "echo \"iout_ratio            =  $ratio\"\n",
+        f"#!{sys.executable}\n"
+        "import json, re, sys\n"
+        "if sys.argv[1:2] == ['--print-toolchain-root']:\n"
+        f"    print({str(fake_root)!r}); sys.exit(0)\n"
+        f"cfg = json.load(open({str(cfg)!r}))\n"
+        "deck = open(sys.argv[-1]).read()\n"
+        "m = re.search(r'sm141064\\.spice\\S*\\s+(\\w+)', deck)\n"
+        "proc = m.group(1) if m else '*'\n"
+        "ratios, nominal = cfg['table'].get(proc, cfg['table']['*'])\n"
+        "s = re.search(r'\\.option seed=(\\d+)', deck)\n"
+        "if 'sw_stat_mismatch=1' in deck and s:\n"
+        "    v = ratios[(int(s.group(1)) - cfg['seed_base']) % len(ratios)]\n"
+        "else:\n"
+        "    v = nominal\n"
+        "print()\n"
+        "print('  Measurements for Transient Analysis')\n"
+        "print(f'iout_ratio            =  {v}')\n",
         encoding="utf-8")
     script.chmod(script.stat().st_mode | stat.S_IEXEC)
     return script
@@ -110,138 +128,237 @@ def test_not_applicable_when_disabled(tmp_path, monkeypatch, capsys):
     assert out["applicable"] is False
 
 
-def test_yield_at_or_above_spec_passes(tmp_path, monkeypatch, capsys):
-    ws = make_ws(tmp_path, "mc: {enabled: true, runs: 4, yield_min: 0.75}\n")
-    eda = make_fake_eda(tmp_path, ["2.0", "2.0", "2.0", "9.0"])  # 3/4 = 0.75
-    monkeypatch.setattr(sim_run, "EDA_BIN", eda)
+def passing(n: int = 10) -> list[str]:
+    """n distinct ratios, all inside the 1.8..2.2 bound."""
+    return [f"{2.0 + 0.001 * i:.3f}" for i in range(n)]
+
+
+def run_mc(ws, capsys):
     code = check_mc.main(["--workspace", str(ws)])
-    out = json.loads(capsys.readouterr().out)
+    return code, json.loads(capsys.readouterr().out)
+
+
+def kinds_of(out) -> set:
+    return {v["kind"] for v in out["violations"]}
+
+
+def test_yield_proven_passes_and_reports_stats(tmp_path, monkeypatch, capsys):
+    ws = make_ws(tmp_path, "mc: {enabled: true, runs: 60, yield_min: 0.9}\n")
+    monkeypatch.setattr(sim_run, "EDA_BIN", make_fake_eda(tmp_path, passing()))
+    code, out = run_mc(ws, capsys)
     assert code == 0, out
     assert out["applicable"] is True
-    assert out["yield_frac"] == 0.75
+    assert out["runs"] == 60 and out["confidence"] == 0.95
+    tt = next(g for g in out["groups"] if g["role"] == "tt")
+    st = tt["stats"]["iout_ratio"]
+    assert st["n"] == 60
+    assert st["mean"] == pytest.approx(2.0045, abs=1e-6)
+    assert st["sigma"] > 0 and st["cpk"] > 1
+    assert out["yields"]["tt"]["yield_lower"] >= 0.9
+    assert "normal" in out["assumptions"].lower()
 
 
 def test_yield_below_spec_fails(tmp_path, monkeypatch, capsys):
-    ws = make_ws(tmp_path, "mc: {enabled: true, runs: 4, yield_min: 0.9}\n")
-    eda = make_fake_eda(tmp_path, ["2.0", "2.0", "2.0", "9.0"])  # 0.75 < 0.9
-    monkeypatch.setattr(sim_run, "EDA_BIN", eda)
-    code = check_mc.main(["--workspace", str(ws)])
-    out = json.loads(capsys.readouterr().out)
+    ws = make_ws(tmp_path, "mc: {enabled: true, runs: 20, yield_min: 0.9}\n")
+    monkeypatch.setattr(sim_run, "EDA_BIN", make_fake_eda(
+        tmp_path, ["2.0", "2.01", "2.02", "9.0"]))  # 75% < 90%
+    code, out = run_mc(ws, capsys)
     assert code == 1, out
-    kinds = {v["kind"] for v in out["violations"]}
-    assert "yield_below_spec" in kinds
+    assert "yield_below_spec" in kinds_of(out)
+
+
+def test_all_passing_but_too_few_runs_is_unproven(tmp_path, monkeypatch, capsys):
+    # 20 of 20 is no proof of 99%: the Clopper-Pearson lower bound at 20/20
+    # is 0.05**(1/20) = 86% before Bonferroni. The gate names the run count.
+    ws = make_ws(tmp_path, "mc: {enabled: true, runs: 20, yield_min: 0.99}\n")
+    monkeypatch.setattr(sim_run, "EDA_BIN", make_fake_eda(tmp_path, passing()))
+    code, out = run_mc(ws, capsys)
+    assert code == 1, out
+    v = next(v for v in out["violations"] if v["kind"] == "yield_unproven")
+    assert v["runs_needed"] > 20
+    assert out["hits"] == out["samples"]
+
+
+def test_default_runs_are_sized_from_yield_min(tmp_path, monkeypatch, capsys):
+    ws = make_ws(tmp_path, "mc: {enabled: true, yield_min: 0.95}\n")
+    monkeypatch.setattr(sim_run, "EDA_BIN", make_fake_eda(tmp_path, passing()))
+    code, out = run_mc(ws, capsys)
+    assert code == 0, out
+    assert out["runs"] == check_mc.default_runs(0.95, 0.95, 2, 1)
+    assert out["yields"]["tt"]["yield_lower"] >= 0.95
+    assert out["yields"]["worst"]["yield_lower"] >= 0.95
+
+
+def test_worst_corner_miss_is_caught_when_typical_passes(
+        tmp_path, monkeypatch, capsys):
+    # tt is clean; ff sits near the max nominally (2.15) and a third of its
+    # mismatch samples go over. Every nominal corner passes, so sim_pvt
+    # would pass it, and a gate that ran MC at tt only would too.
+    ws = make_ws(tmp_path, "mc: {enabled: true, runs: 90, yield_min: 0.9}\n")
+    monkeypatch.setattr(sim_run, "EDA_BIN", make_fake_eda(
+        tmp_path, passing(), by_process={
+            "ff": (["2.14", "2.16", "2.25"], "2.15")}))
+    code, out = run_mc(ws, capsys)
+    assert code == 1, out
+    assert out["sweep_violations"] == 0
+    assert out["worst_corners"]["mirror_tb.cir"]["corner"].startswith("ff")
+    assert out["yields"]["tt"]["yield_lower"] >= 0.9
+    v = next(v for v in out["violations"] if v["kind"] == "yield_below_spec")
+    assert "worst" in v["msg"]
+
+
+def test_clopper_pearson_known_answers():
+    # one-sided lower bounds, checked against the beta quantile
+    assert check_mc.cp_lower(20, 20, 0.95) == pytest.approx(0.05 ** (1 / 20),
+                                                             abs=1e-9)
+    assert check_mc.cp_lower(19, 20, 0.95) == pytest.approx(0.7839, abs=1e-4)
+    assert check_mc.cp_lower(45, 50, 0.95) == pytest.approx(0.8012, abs=1e-4)
+    assert check_mc.cp_lower(0, 20, 0.95) == 0.0
+    # zero failures: the classic "rule of three" run count for 95%/95%
+    assert check_mc.runs_for(0.95, 0.95, 0.0) == 59
+    assert check_mc.runs_needed(0.95, 0.95, [0.10]) is None
+
+
+def write_ruling(ws: Path, sigma: float) -> None:
+    (ws / "spec" / "mutant_rulings.yaml").write_text(
+        "below_spread:\n"
+        "  - id: xmout_size_doubled_w\n"
+        "    netlist_line: \"xmout out iref vss vss nfet_03v3 w=2u l=1u\"\n"
+        "    measure: iout_ratio\n"
+        "    delta: 0.001\n"
+        f"    sigma: {sigma}\n"
+        "    ruling: \"test, 2026-11-07\"\n", encoding="utf-8")
+
+
+def test_ruling_sigma_above_measured_is_unmet(tmp_path, monkeypatch, capsys):
+    # the samples' relative sigma is about 0.15%; a ruling claiming 5%
+    # would let bench_strength excuse a mutant on a spread that is not there
+    ws = make_ws(tmp_path, "mc: {enabled: true, runs: 60, yield_min: 0.9}\n")
+    write_ruling(ws, 0.05)
+    monkeypatch.setattr(sim_run, "EDA_BIN", make_fake_eda(tmp_path, passing()))
+    code, out = run_mc(ws, capsys)
+    assert code == 1, out
+    assert kinds_of(out) == {"ruling_sigma_unmet"}
+    assert out["ruling_sigmas"][0]["verdict"] == "unmet"
+
+
+def test_ruling_sigma_within_measured_is_met(tmp_path, monkeypatch, capsys):
+    ws = make_ws(tmp_path, "mc: {enabled: true, runs: 60, yield_min: 0.9}\n")
+    write_ruling(ws, 0.001)
+    monkeypatch.setattr(sim_run, "EDA_BIN", make_fake_eda(tmp_path, passing()))
+    code, out = run_mc(ws, capsys)
+    assert code == 0, out
+    assert out["ruling_sigmas"][0]["verdict"] == "met"
+
+
+def test_ruling_sigma_with_mc_off_is_refused(tmp_path, monkeypatch, capsys):
+    ws = make_ws(tmp_path)
+    write_ruling(ws, 0.05)
+    monkeypatch.setattr(sim_run, "EDA_BIN", make_fake_eda(tmp_path, passing()))
+    code, out = run_mc(ws, capsys)
+    assert code == 2, out
+    assert "mutant_rulings" in out["error"]
+
+
+@pytest.mark.parametrize("cfg", ["yield_min: 0.0", "yield_min: 1.0", "",
+                                 "yield_min: 0.9, confidence: 1.0"])
+def test_unprovable_config_is_refused(tmp_path, monkeypatch, capsys, cfg):
+    ws = make_ws(tmp_path, "mc: {enabled: true" + (", " + cfg if cfg else "")
+                 + "}\n")
+    monkeypatch.setattr(sim_run, "EDA_BIN", make_fake_eda(tmp_path, passing()))
+    code, out = run_mc(ws, capsys)
+    assert code == 2, out
 
 
 def test_runs_zero_is_refused_not_defaulted(tmp_path, monkeypatch, capsys):
     # `0 or DEFAULT_RUNS` used to silently widen an explicit "run zero
-    # samples" back up to 20 - Python's `or` treats 0 as falsy. This must
-    # refuse outright instead.
+    # samples" back up to the default - Python's `or` treats 0 as falsy.
+    # This must refuse outright instead.
     ws = make_ws(tmp_path, "mc: {enabled: true, runs: 0, yield_min: 0.5}\n")
-    eda = make_fake_eda(tmp_path, ["2.0"] * 20)
-    monkeypatch.setattr(sim_run, "EDA_BIN", eda)
-    code = check_mc.main(["--workspace", str(ws)])
-    out = json.loads(capsys.readouterr().out)
+    monkeypatch.setattr(sim_run, "EDA_BIN", make_fake_eda(tmp_path, passing()))
+    code, out = run_mc(ws, capsys)
     assert code == 2, out
     assert "runs" in out.get("error", "")
 
 
-def make_seed_dependent_fake_eda(tmp_path: Path) -> Path:
-    """The ratio it reports is a function of the deck's own `.option
-    seed=N` value - proving check_mc.py actually threads a distinct seed
-    into each of `mc.runs` decks (never the same deck run twice), with no
-    real ngspice/agauss() call."""
-    fake_root = tmp_path / "fake_toolchain"
-    (fake_root / "foss" / "pdks" / "gf180mcuD").mkdir(parents=True)
-    script = tmp_path / "fake_eda"
-    script.write_text(
-        "#!/usr/bin/env bash\n"
-        "if [ \"$1\" = --print-toolchain-root ]; then\n"
-        f"  echo '{fake_root}'\n  exit 0\nfi\n"
-        "deck=\"$3\"\n"
-        "seed=$(grep -oE '\\.option seed=[0-9]+' \"$deck\" | head -1 | "
-        "cut -d= -f2)\n"
-        "seed=${seed:-0}\n"
-        "ratio=$(awk -v s=\"$seed\" "
-        "'BEGIN{printf \"%.6f\", 2.0 + (s % 10) * 0.001}')\n"
-        "echo\n"
-        "echo '  Measurements for Transient Analysis'\n"
-        "echo \"iout_ratio            =  $ratio\"\n",
-        encoding="utf-8")
-    script.chmod(script.stat().st_mode | stat.S_IEXEC)
-    return script
-
-
 def test_seeds_are_injected_recorded_and_vary_the_result(tmp_path, monkeypatch, capsys):
-    ws = make_ws(tmp_path, "mc: {enabled: true, runs: 5, yield_min: 0.0, "
+    ws = make_ws(tmp_path, "mc: {enabled: true, runs: 5, yield_min: 0.3, "
                           "seed: 100}\n")
-    eda = make_seed_dependent_fake_eda(tmp_path)
-    monkeypatch.setattr(sim_run, "EDA_BIN", eda)
-    code = check_mc.main(["--workspace", str(ws)])
-    out = json.loads(capsys.readouterr().out)
+    monkeypatch.setattr(sim_run, "EDA_BIN",
+                        make_fake_eda(tmp_path, passing(5), seed_base=100))
+    code, out = run_mc(ws, capsys)
     assert code == 0, out
     assert out["seeds"] == [100, 101, 102, 103, 104]
-    seen_measures = {r["measures"]["iout_ratio"] for r in out["results"]}
-    assert len(seen_measures) == 5, out  # every seed produced a distinct sample
+    tt = [r for r in out["results"] if r["corner"] == "tt"]
+    assert {r["seed"] for r in tt} == set(out["seeds"])
+    assert len({r["measures"]["iout_ratio"] for r in tt}) == 5, out
 
 
 def test_bit_identical_samples_across_runs_is_refused(tmp_path, monkeypatch, capsys):
     # A fake eda that ignores seed entirely (the bug this whole gate exists
     # to catch: sw_stat_mismatch/seed injection silently doing nothing, so
-    # 20 "runs" are one sample wearing a yield percentage) must be refused,
+    # the "runs" are one sample wearing a yield percentage) must be refused,
     # never reported as a clean 100% yield.
     ws = make_ws(tmp_path, "mc: {enabled: true, runs: 5, yield_min: 0.5}\n")
-    eda = make_fake_eda(tmp_path, ["2.0"] * 5)
-    monkeypatch.setattr(sim_run, "EDA_BIN", eda)
-    code = check_mc.main(["--workspace", str(ws)])
-    out = json.loads(capsys.readouterr().out)
+    monkeypatch.setattr(sim_run, "EDA_BIN", make_fake_eda(tmp_path, ["2.0"]))
+    code, out = run_mc(ws, capsys)
     assert code == 2, out
     assert "identical" in out.get("error", "").lower()
 
 
 def test_bench_with_no_bound_at_tt_is_skipped_and_named(tmp_path, monkeypatch, capsys):
     # A bench scoped to another corner prints no measure at tt. It has nothing
-    # for MC to judge, and must not read as one sample repeated.
-    ws = make_ws(tmp_path, "mc: {enabled: true, runs: 3, yield_min: 0.0}\n")
+    # for MC at tt to judge, and must not read as one sample repeated.
+    ws = make_ws(tmp_path, "mc: {enabled: true, runs: 3, yield_min: 0.1}\n")
     src = next((ws / "tb").glob("*.cir"))
     shutil.copy(src, ws / "tb" / "other_tb.cir")
     (ws / "tb" / "other_tb.bounds.json").write_text(json.dumps([
         {"measure": "iout_ratio", "min": 0, "max": 9, "corners": ["ff_m40c_vp10"]}]))
-    eda = make_seed_dependent_fake_eda(tmp_path)
-    monkeypatch.setattr(sim_run, "EDA_BIN", eda)
-    code = check_mc.main(["--workspace", str(ws)])
-    out = json.loads(capsys.readouterr().out)
-    assert code == 0, out
-    assert out["not_scored"] == ["other_tb.cir"]
+    monkeypatch.setattr(sim_run, "EDA_BIN", make_fake_eda(tmp_path, passing()))
+    code, out = run_mc(ws, capsys)
+    assert out["not_scored"] == ["other_tb.cir"], out
     assert out["runs"] == 3
-    assert {r["bench"] for r in out["results"]} == {src.name}
+    assert {r["bench"] for r in out["results"] if r["corner"] == "tt"} \
+        == {src.name}
 
 
-def test_only_benches_unscored_at_tt_is_not_a_pass(tmp_path, monkeypatch, capsys):
-    ws = make_ws(tmp_path, "mc: {enabled: true, runs: 3, yield_min: 0.0}\n")
+def test_bench_scored_only_off_tt_is_judged_at_its_worst_corner(
+        tmp_path, monkeypatch, capsys):
+    # nothing to judge at tt, but the sweep scores it at ff: MC runs there
+    ws = make_ws(tmp_path, "mc: {enabled: true, runs: 60, yield_min: 0.9}\n")
     for f in (ws / "tb").glob("*.bounds.json"):
         f.write_text(json.dumps([
             {"measure": "iout_ratio", "min": 0, "max": 9, "corners": ["ff_m40c_vp10"]}]))
-    monkeypatch.setattr(sim_run, "EDA_BIN", make_seed_dependent_fake_eda(tmp_path))
-    code = check_mc.main(["--workspace", str(ws)])
-    out = json.loads(capsys.readouterr().out)
-    assert code == 1, out
-    assert {v["kind"] for v in out["violations"]} == {"yield_all_failed"}
+    monkeypatch.setattr(sim_run, "EDA_BIN", make_fake_eda(tmp_path, passing()))
+    code, out = run_mc(ws, capsys)
+    assert code == 0, out
+    assert "tt" not in out["yields"]
+    assert [g["role"] for g in out["groups"]] == ["worst"]
+    assert out["groups"][0]["corner"].startswith("ff")
+
+
+def test_no_bench_scored_anywhere_is_not_a_pass(tmp_path, monkeypatch, capsys):
+    ws = make_ws(tmp_path, "mc: {enabled: true, runs: 3, yield_min: 0.1}\n")
+    for f in (ws / "tb").glob("*.bounds.json"):
+        f.write_text(json.dumps([
+            {"measure": "iout_ratio", "min": 0, "max": 9, "corners": ["nosuch"]}]))
+    monkeypatch.setattr(sim_run, "EDA_BIN", make_fake_eda(tmp_path, passing()))
+    code, out = run_mc(ws, capsys)
+    assert code == 2, out
 
 
 def test_every_sample_failed_is_always_a_violation(tmp_path, monkeypatch, capsys):
-    # yield_min set low enough that the old `yield_frac < yield_min` check
-    # alone would pass a run where EVERY sample failed - that must still be
-    # refused. Ratios vary slightly per run so this is not also caught by
-    # the bit-identical check above.
-    ws = make_ws(tmp_path, "mc: {enabled: true, runs: 4, yield_min: 0.0}\n")
-    eda = make_fake_eda(tmp_path, ["9.00", "9.01", "9.02", "9.03"])
-    monkeypatch.setattr(sim_run, "EDA_BIN", eda)
-    code = check_mc.main(["--workspace", str(ws)])
-    out = json.loads(capsys.readouterr().out)
+    # yield_min set low enough that a `yield_frac < yield_min` check alone
+    # would nearly pass a run where EVERY sample failed - that must still be
+    # refused. Ratios vary per run so this is not also caught by the
+    # bit-identical check above.
+    ws = make_ws(tmp_path, "mc: {enabled: true, runs: 4, yield_min: 0.01}\n")
+    monkeypatch.setattr(sim_run, "EDA_BIN", make_fake_eda(
+        tmp_path, ["9.00", "9.01", "9.02", "9.03"]))
+    code, out = run_mc(ws, capsys)
     assert code == 1, out
     assert out["hits"] == 0
-    kinds = {v["kind"] for v in out["violations"]}
-    assert "yield_all_failed" in kinds
+    assert "yield_all_failed" in kinds_of(out)
 
 
 @pytest.mark.slow
@@ -253,7 +370,8 @@ def test_real_mirror_mc_yields_a_spread(tmp_path):
     ws = tmp_path / "ws"
     for sub in ("spec", "netlist", "tb"):
         (ws / sub).mkdir(parents=True)
-    # the rung's own spec.yaml asks for Monte Carlo (20 runs)
+    # the rung's own spec.yaml asks for Monte Carlo (runs sized from
+    # its yield_min)
     shutil.copy2(CORPUS_MIRROR / "spec.yaml", ws / "spec" / "spec.yaml")
     shutil.copy2(CORPUS_MIRROR / "netlist" / "mirror.cir",
                 ws / "netlist" / "mirror.cir")
@@ -262,7 +380,7 @@ def test_real_mirror_mc_yields_a_spread(tmp_path):
 
     payload, _ = check_mc.run(["--workspace", str(ws)])
     assert payload["applicable"] is True
-    assert payload["runs"] == 20
+    assert payload["runs"] >= 59
     values = [r["measures"]["iout_raw"] for r in payload["results"]]
     assert len(set(values)) > 1, values  # never one sample repeated
     mean = sum(values) / len(values)
@@ -283,7 +401,7 @@ def test_real_mirror_rung_passes_mc_and_its_planted_fault_fails_it(tmp_path):
                                           "ade", "mirror")
     report, result = faults.run_gate(clean, "mc", gates, "ade")
     assert result["status"] == "pass", report
-    assert report["hits"] == report["runs"] == 20, report
+    assert report["hits"] == report["samples"], report
 
     entry = next(f for f in faults.load_manifest(CORPUS_MIRROR)["faults"]
                  if f["gate"] == "mc")
@@ -293,7 +411,7 @@ def test_real_mirror_rung_passes_mc_and_its_planted_fault_fails_it(tmp_path):
     report, result = faults.run_gate(ws, "mc", gates, "ade")
     assert not faults.check_expect(entry["name"], result, entry["expect"]), \
         report
-    assert 0 < report["hits"] < 19, report
+    assert 0 < report["hits"] < report["samples"], report
     _, tt = faults.run_gate(ws, "sim_tt", gates, "ade")
     assert tt["status"] == "pass", tt
 
@@ -360,7 +478,7 @@ def test_mc_timeout_comes_from_spec_then_flag(
                         make_fake_eda(tmp_path, ["2.0", "2.0", "2.0", "9.0"]))
     code = check_mc.main(["--workspace", str(ws), *flag])
     out = json.loads(capsys.readouterr().out)
-    assert code == 0, out
+    assert code in (0, 1) and out["applicable"], out
     assert ngspice_timeouts and set(ngspice_timeouts) == {want}
 
 
@@ -405,7 +523,7 @@ def test_mc_decks_include_the_par_copy_never_the_block_netlist(
     monkeypatch.setattr(sim_run, "EDA_BIN", eda)
     code = check_mc.main(["--workspace", str(ws)])
     out = json.loads(capsys.readouterr().out)
-    assert code == 0, out
+    assert code in (0, 1) and out["applicable"], out
     assert [d["instance"] for d in out["par_added"]] \
         == ["XMREF", "XMOUT", "XSUB"]
     assert "unhandled" in out["par_added"][2]
@@ -416,7 +534,7 @@ def test_mc_decks_include_the_par_copy_never_the_block_netlist(
     # the relative include now resolves from the copy's directory
     assert f"'{(ws / 'netlist').resolve()}/models/extra.inc'" in text
     decks = sorted((ws / "log" / "mc").glob("mirror_tb__mc*__*.cir"))
-    assert len(decks) == 2
+    assert len(decks) == 2 * len(out["groups"]) >= 2
     for deck in decks:
         assert str(copy.resolve()) in deck.read_text()
 
@@ -514,12 +632,14 @@ def test_multiplied_bipolar_gets_par_flat_and_in_a_carrier():
     assert not any("unhandled" in d for d in done)
 
 
-def test_bandgap_rung_asks_for_mc_and_its_m8_pnp_is_rewritten():
+def test_bandgap_rung_asks_for_mc_and_its_multiplied_devices_are_rewritten():
     spec = yaml.safe_load((CORPUS_BANDGAP / "spec.yaml").read_text(encoding="utf-8"))
     assert spec["mc"]["enabled"] is True
     _, done = check_mc.add_par_for_multiplier(
         (CORPUS_BANDGAP / "netlist" / "bandgap.cir").read_text(encoding="utf-8"))
-    assert done == [{"instance": "xq2", "model": "pnp_10p00x10p00", "m": "8"}]
+    assert done == [{"instance": "xm1", "model": "nfet_03v3", "m": "4"},
+                    {"instance": "xm2", "model": "nfet_03v3", "m": "4"},
+                    {"instance": "xq2", "model": "pnp_10p00x10p00", "m": "8"}]
 
 
 def test_unknown_model_inside_a_carrier_is_reported():

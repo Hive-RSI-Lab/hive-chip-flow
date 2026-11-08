@@ -39,6 +39,10 @@ faults:
     gate: mc
     plant: plant_mc.py
     expect: {status: fail, kind: yield_below_spec}
+  - name: mc_typical_passes_worst_corner_misses
+    gate: mc
+    plant: plant_mc_worst.py
+    expect: {status: fail, kind: yield_unproven}
   - name: bench_strength_bounds_too_wide
     gate: bench_strength
     plant: plant_bench_strength.py

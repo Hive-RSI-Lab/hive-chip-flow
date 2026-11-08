@@ -316,9 +316,12 @@ gates:
       fail_severities: [error]
       max_count: 0
       # Not applicable when spec.yaml asks for no MC (check_mc.py); the
-      # corpus mirror and bandgap rungs ask, and plant this fault.
+      # corpus mirror and bandgap rungs ask, and plant this fault and a
+      # block whose tt MC passes but whose worst-corner MC misses. It runs
+      # MC at tt and at each bench's worst sim_pvt corner, and reports each
+      # measure's mean, sigma and Cpk and a Clopper-Pearson lower bound.
       fault: "a window typical meets but mismatch misses"
-      description: "Yield at or above the spec."
+      description: "Yield's lower confidence bound, at tt and the worst PVT corner, at or above the spec; ruling sigmas met."
     drc:
       # M9 (docs/design.md, "### M9."): klayout's real GF180 signoff deck
       # only, with the PDK's own signoff deck selection (every FEOL, metal,
