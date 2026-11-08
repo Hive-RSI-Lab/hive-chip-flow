@@ -77,31 +77,39 @@ def make_fake_eda(tmp_path: Path, ratios: list[str],
     fake_root = tmp_path / "fake_toolchain"
     (fake_root / "foss" / "pdks" / "gf180mcuD").mkdir(parents=True,
                                                     exist_ok=True)
-    table = {"*": [list(ratios), nominal]}
+    # one table line per process word: `<proc> <nominal> <ratio>...`, `*`
+    # the default. A shell + awk fake, not a Python one: the gate runs
+    # ~150 decks per test and a Python start per deck was most of this
+    # file's CPU (tests/check-engine.sh's budget).
+    rows = [["*", nominal, *ratios]]
     for proc, (r, nom) in (by_process or {}).items():
-        table[proc] = [list(r), nom]
-    cfg = tmp_path / "fake_eda.json"
-    cfg.write_text(json.dumps({"table": table, "seed_base": seed_base}),
-                   encoding="utf-8")
+        rows.append([proc, nom, *r])
+    table = tmp_path / "fake_eda.table"
+    table.write_text("".join(" ".join(map(str, r)) + "\n" for r in rows),
+                     encoding="utf-8")
     script = tmp_path / "fake_eda"
     script.write_text(
-        f"#!{sys.executable}\n"
-        "import json, re, sys\n"
-        "if sys.argv[1:2] == ['--print-toolchain-root']:\n"
-        f"    print({str(fake_root)!r}); sys.exit(0)\n"
-        f"cfg = json.load(open({str(cfg)!r}))\n"
-        "deck = open(sys.argv[-1]).read()\n"
-        "m = re.search(r'sm141064\\.spice\\S*\\s+(\\w+)', deck)\n"
-        "proc = m.group(1) if m else '*'\n"
-        "ratios, nominal = cfg['table'].get(proc, cfg['table']['*'])\n"
-        "s = re.search(r'\\.option seed=(\\d+)', deck)\n"
-        "if 'sw_stat_mismatch=1' in deck and s:\n"
-        "    v = ratios[(int(s.group(1)) - cfg['seed_base']) % len(ratios)]\n"
-        "else:\n"
-        "    v = nominal\n"
-        "print()\n"
-        "print('  Measurements for Transient Analysis')\n"
-        "print(f'iout_ratio            =  {v}')\n",
+        "#!/bin/sh\n"
+        'if [ "$1" = --print-toolchain-root ]; then\n'
+        f"  echo '{fake_root}'; exit 0\n"
+        "fi\n"
+        'for deck; do :; done\n'
+        f"exec awk -v base={int(seed_base)} '\n"
+        "FNR == NR { t[$1] = $0; next }\n"
+        "/sm141064[.]spice/ && !proc { for (i = 1; i < NF; i++)\n"
+        "    if ($i ~ /sm141064[.]spice/) { proc = $(i + 1); break } }\n"
+        "/sw_stat_mismatch=1/ { mm = 1 }\n"
+        "match($0, /[.]option seed=[0-9]+/) && seed == \"\" {\n"
+        "    seed = substr($0, RSTART + 13, RLENGTH - 13) + 0 }\n"
+        "END {\n"
+        "    row = (proc in t) ? t[proc] : t[\"*\"]\n"
+        "    n = split(row, f, \" \")\n"
+        "    if (mm && seed != \"\") {\n"
+        "        k = (seed - base) % (n - 2); if (k < 0) k += n - 2\n"
+        "        v = f[3 + k] } else v = f[2]\n"
+        "    print \"\"; print \"  Measurements for Transient Analysis\"\n"
+        "    print \"iout_ratio            =  \" v\n"
+        f"}}' '{table}' \"$deck\"\n",
         encoding="utf-8")
     script.chmod(script.stat().st_mode | stat.S_IEXEC)
     return script
