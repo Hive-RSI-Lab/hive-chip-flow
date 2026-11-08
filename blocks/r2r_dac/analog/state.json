@@ -4,16 +4,16 @@
  "block": "r2r_dac_analog",
  "workspace": "blocks/r2r_dac/analog",
  "created": "2026-09-25T05:47:00",
- "updated": "2026-11-07T21:52:45",
+ "updated": "2026-11-07T21:52:49",
  "phase": "P5",
  "toolchain": null,
  "gates": {
   "spec_lint": {
    "phase": "P1",
    "status": "pass",
-   "attempts": 15,
+   "attempts": 16,
    "last": {
-    "ts": "2026-11-07T21:52:39",
+    "ts": "2026-11-07T21:52:49",
     "status": "pass",
     "failing_count": 0,
     "total": 0,
@@ -171,6 +171,17 @@
     },
     {
      "ts": "2026-11-07T21:52:39",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "spec_yaml": "json_canonical:b391e767c6c4d39480d7ef7b38f0dd7cfa96ed092067417f753de42680542655"
+     },
+     "strength": 0,
+     "job": null
+    },
+    {
+     "ts": "2026-11-07T21:52:49",
      "status": "pass",
      "failing_count": 0,
      "total": 0,
@@ -2425,7 +2436,7 @@
    "path": "spec/spec.yaml",
    "kind": "spec_yaml",
    "sha256": "json_canonical:b391e767c6c4d39480d7ef7b38f0dd7cfa96ed092067417f753de42680542655",
-   "hashed": "2026-11-07T21:52:45"
+   "hashed": "2026-11-07T21:52:49"
   },
   "netlist": {
    "path": "netlist",
@@ -3946,6 +3957,14 @@
    "gate": "netlist_lint",
    "status": "pass",
    "attempt": 13,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-11-07T21:52:49",
+   "event": "gate",
+   "gate": "spec_lint",
+   "status": "pass",
+   "attempt": 16,
    "failing_count": 0
   }
  ]
