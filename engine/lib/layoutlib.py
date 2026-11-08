@@ -629,6 +629,270 @@ def magic_tech(work_dir) -> Path | None:
     return out
 
 
+# ------------------------------------------- poly resistor body capacitance
+#
+# The tech's extract section removes every resistor type from parasitic C
+# ("Resistor types should be removed from all parasitic capacitance
+# calculations, or else they just create floating caps"), trusting the
+# device model for it. The PDK's poly resistor models carry only part of
+# it: `c1 1 3 fox_sub l='r_l/2' w=r_w` and `c2 2 3 ...`, cj 88.5 aF/um^2
+# on the model's narrowed body (r_w = W - 2 r_dw, r_l = L - 2 r_dl), against
+# the tech's own PDS_035_03 poly-to-substrate figures of 110.67 aF/um^2 of
+# area and 50.72 aF/um of edge (nominal; the RC variants have their own).
+# So magic's netlist of a poly resistor is short the difference on the
+# body: (tech area x W L - cj x r_w r_l) + tech fringe x 2 L, the two long
+# edges (the ends join the resistor's heads, which magic extracts as plain
+# poly). poly_body_residuals() adds that, half to each terminal, to the
+# device's third terminal - where the model puts its own cj.
+#
+# The diffusion resistors (pplus_u, nplus_u, ...) need nothing: their
+# models put a junction diode on each half with area='r_w*r_l/2' and
+# pj='r_w+2*r_l/2', so the two halves together carry the body's full area
+# and perimeter at the junction's cj and cjsw, and the tech already relies
+# on the models for diffusion C ("Rely on device models to capture *ndiff
+# area cap"). nwell (rnw) gets the tech's own areacap, not a model C.
+
+_TECH_POLY_DEVICE_RE = re.compile(
+    r"^\s*device\s+rsubcircuit\s+(\S+)\s+\S+\s+\*poly\s")
+_TECH_POLY_CAP_RE = re.compile(
+    r"^\s*default(areacap|perimeter)\s+\*poly\s+active\s+([0-9.eE+-]+)\s*$")
+_MODEL_NOMINAL_RE = re.compile(
+    r"^'?([0-9.]+(?:[eE][-+]?\d+)?)(?:\*\(1\+[A-Za-z0-9_*/+()-]*\))?'?$")
+# the model's body C, exactly as every poly resistor subckt writes it; any
+# other form is a model this residual was not worked out for
+_MODEL_BODY_C = ("c1 1 3 fox_sub dtemp=dtemp l='r_l/2' w=r_w",
+                 "c2 2 3 fox_sub dtemp=dtemp l='r_l/2' w=r_w")
+_MODEL_GEOMETRY = {"r_l": "'s*(r_length-2*r_dl)'",
+                   "r_w": "'r_width-2*r_dw'"}
+_PDS_NOTE_RE = re.compile(r"PDS_035_03")
+
+
+def tech_poly_caps(tech_text: str, tech_name: str,
+                   variant: str | None) -> dict:
+    """The tech's poly-to-substrate C at `variant` (None: the nominal `()`
+    one): {area_af_um2, perim_af_um, models: [poly resistor models],
+    cites: {...}}. Refuses a tech that does not give exactly one of each
+    for the variant, or names no PDS source for them."""
+    want = f"({variant or ''})"
+    in_extract = False
+    active = None   # the variants the current block applies to
+    found: dict[str, tuple[float, int]] = {}
+    models: list[str] = []
+    pds_line = None
+    for n, line in enumerate(tech_text.splitlines(), 1):
+        s = line.strip()
+        if s == "extract":
+            in_extract = True
+            continue
+        if not in_extract:
+            continue
+        if s == "end":
+            break
+        if pds_line is None and _PDS_NOTE_RE.search(s):
+            pds_line = n
+        if s.startswith("variants "):
+            spec = s.split(None, 1)[1].replace(" ", "")
+            active = None if spec == "*" else set(spec.split(","))
+            continue
+        m = _TECH_POLY_DEVICE_RE.match(line)
+        if m:
+            models.append(m.group(1))
+            continue
+        m = _TECH_POLY_CAP_RE.match(line)
+        if m and (active is None or want in active):
+            if m.group(1) in found:
+                raise LayoutError(
+                    f"{tech_name} gives default{m.group(1)} *poly active "
+                    f"twice for variant {want} (lines {found[m.group(1)][1]}"
+                    f" and {n}) - check which one magic uses")
+            found[m.group(1)] = (float(m.group(2)), n)
+    missing = {"areacap", "perimeter"} - set(found)
+    if missing or not models or pds_line is None:
+        raise LayoutError(
+            f"{tech_name} does not give the poly-to-substrate C this "
+            f"extraction adds to poly resistor bodies for variant {want} "
+            f"(missing: {sorted(missing) or ''}"
+            f"{' poly resistor devices' if not models else ''}"
+            f"{' a PDS source note' if pds_line is None else ''})")
+    return {"area_af_um2": found["areacap"][0],
+            "perim_af_um": found["perimeter"][0],
+            "models": models,
+            "cites": {"area": f"{tech_name}:{found['areacap'][1]}",
+                      "perim": f"{tech_name}:{found['perimeter'][1]}",
+                      "source": f"{tech_name}:{pds_line} (PDS_035_03)"}}
+
+
+def _model_nominal(expr: str, what: str, where: str) -> float:
+    m = _MODEL_NOMINAL_RE.match(expr)
+    if not m:
+        raise LayoutError(
+            f"{where} sets {what}={expr}, not a number (with at most an "
+            "MC skew factor) - this residual was not worked out for it")
+    return float(m.group(1))
+
+
+def model_poly_body_c(model_text: str, model_name: str,
+                      models: list[str]) -> dict:
+    """{model: {cj_af_um2, dw_um, dl_um, cites}} for each poly resistor
+    subckt in `models`, read from the PDK's ngspice model file. Refuses a
+    subckt that is missing, defined twice, or carries its body C in any
+    other form than the fox_sub c1/c2 pair this residual subtracts."""
+    lines = model_text.splitlines()
+    out = {}
+    for model in models:
+        heads = [i for i, line in enumerate(lines)
+                 if line.split()[:2] == [".subckt", model]]
+        if len(heads) != 1:
+            raise LayoutError(
+                f"{model_name} defines subckt {model} {len(heads)} times - "
+                "the poly body residual needs exactly one model to read")
+        start = heads[0]
+        params: dict[str, tuple[str, int]] = {}
+        for tok in lines[start].split()[5:]:
+            k, _, v = tok.partition("=")
+            params[k] = (v, start + 1)
+        body: list[str] = []
+        cj = None
+        end = None
+        for i in range(start + 1, len(lines)):
+            s = lines[i].strip()
+            if s.startswith(".ends"):
+                end = i
+                break
+            if s.startswith(".param "):
+                k, _, v = s[len(".param "):].partition("=")
+                params[k.strip()] = (v.strip(), i + 1)
+            elif s.startswith(".model fox_sub c "):
+                m = re.fullmatch(r"\.model fox_sub c cj=(\S+)", s)
+                if not m or cj is not None:
+                    raise LayoutError(
+                        f"{model_name}:{i + 1}: fox_sub in {model} is not "
+                        "a single plain cj - not the model C this residual "
+                        "subtracts")
+                cj = (float(m.group(1)), i + 1)
+            elif s[:1].lower() == "c":
+                body.append(s)
+        where = f"{model_name}:{start + 1} ({model})"
+        if (end is None or cj is None or sorted(body) != list(_MODEL_BODY_C)
+                or any(params.get(k, ("",))[0] != v
+                       for k, v in _MODEL_GEOMETRY.items())):
+            raise LayoutError(
+                f"{where} does not carry its body C as the fox_sub c1/c2 "
+                f"pair on r_w x r_l/2 (found {body}) - the poly body "
+                "residual would subtract the wrong model C")
+        for k in ("r_dw", "r_dl"):
+            if k not in params:
+                raise LayoutError(f"{where} sets no {k}")
+        out[model] = {
+            # cj is in F/m^2 = 1e6 aF/um^2
+            "cj_af_um2": cj[0] * 1e6,
+            "dw_um": _model_nominal(params["r_dw"][0], "r_dw", where) * 1e6,
+            "dl_um": _model_nominal(params["r_dl"][0], "r_dl", where) * 1e6,
+            "cites": {"cj": f"{model_name}:{cj[1]}",
+                      "dw": f"{model_name}:{params['r_dw'][1]}",
+                      "dl": f"{model_name}:{params['r_dl'][1]}"}}
+    return out
+
+
+def poly_body_residual_ff(w_um: float, l_um: float, tech: dict,
+                          model: dict) -> float:
+    """The poly-to-substrate C (fF) one W x L poly resistor body has in the
+    tech but not in its model: tech area x W L + tech fringe x 2 L (the two
+    long edges) - model cj x (W - 2 dw)(L - 2 dl)."""
+    tech_af = tech["area_af_um2"] * w_um * l_um + tech["perim_af_um"] * 2 * l_um
+    model_af = (model["cj_af_um2"] * (w_um - 2 * model["dw_um"])
+                * (l_um - 2 * model["dl_um"]))
+    return (tech_af - model_af) / 1000.0
+
+
+def poly_body_caps(variant: str | None = None) -> tuple[dict, dict]:
+    """(tech poly C at `variant`, {model: model body C}) from the PDK's
+    magic tech and ngspice model file."""
+    import netlistlib
+    root = pdk_root()
+    tech_path = root / "libs.tech" / "magic" / f"{root.name}.tech"
+    model_path = root / "libs.tech" / "ngspice" / netlistlib.PDK_NGSPICE_FILES[0]
+    for p in (tech_path, model_path):
+        if not p.is_file():
+            raise LayoutError(f"no {p.name} in the PDK to read poly "
+                              "resistor C from")
+    tech = tech_poly_caps(
+        tech_path.read_text(encoding="utf-8", errors="replace"),
+        tech_path.name, variant)
+    models = model_poly_body_c(
+        model_path.read_text(encoding="utf-8", errors="replace"),
+        model_path.name, tech["models"])
+    return tech, models
+
+
+def add_poly_body_residuals(pex_text: str, tech: dict,
+                            models: dict) -> tuple[str, list[dict]]:
+    """`pex_text` with each poly resistor body's residual C (see
+    poly_body_residual_ff) added as two capacitors, half from each end to
+    the device's third terminal, before its subckt's .ends; and one record
+    per body {device, model, w_um, l_um, m, ends, body, residual_ff,
+    model_c_ff}. A body whose residual is negative, or whose size or
+    multiplier is not a plain number, is a refusal."""
+    import netlistlib
+    out: list[str] = []
+    pending: list[str] = []
+    bodies: list[dict] = []
+    raw = pex_text.splitlines(keepends=True)
+    i = 0
+    while i < len(raw):
+        line = raw[i]
+        j = i + 1
+        while j < len(raw) and raw[j].lstrip().startswith("+"):
+            j += 1
+        logical = " ".join([line.strip()] + [r.strip()[1:] for r in raw[i + 1:j]])
+        parts = netlistlib.strip_comment(logical).split()
+        low = parts[0].lower() if parts else ""
+        if low.startswith(".ends"):
+            out += pending
+            pending = []
+        elif low.startswith("x") and len(parts) >= 5:
+            model_at = next((k for k, t in enumerate(parts[1:], 1)
+                             if "=" in t), len(parts)) - 1
+            model = parts[model_at]
+            if model in models and model_at == 4:
+                kv = dict(t.split("=", 1) for t in parts[5:] if "=" in t)
+                w = netlistlib.spice_number(kv.get("r_width", ""))
+                length = netlistlib.spice_number(kv.get("r_length", ""))
+                mult = netlistlib.spice_number(kv.get("m", "1"))
+                s = netlistlib.spice_number(kv.get("s", "1"))
+                if None in (w, length, mult) or s != 1:
+                    raise LayoutError(
+                        f"poly resistor {parts[0]} ({model}) has no plain "
+                        f"r_width/r_length/m, or s != 1: {logical.strip()}")
+                w_um, l_um = w * 1e6, length * 1e6
+                res = poly_body_residual_ff(w_um, l_um, tech,
+                                            models[model]) * mult
+                if res < 0:
+                    raise LayoutError(
+                        f"poly resistor {parts[0]} ({model}) has more C in "
+                        f"its model than the tech gives it ({res:g} fF) - "
+                        "check the tech and model values before adding "
+                        "anything")
+                mdl = models[model]
+                mc = (mdl["cj_af_um2"] * (w_um - 2 * mdl["dw_um"])
+                      * (l_um - 2 * mdl["dl_um"]) / 1000.0) * mult
+                n1, n2, n3 = parts[1:4]
+                tag = re.sub(r"[^A-Za-z0-9_]", "_", parts[0])
+                for k, end in ((1, n1), (2, n2)):
+                    pending.append(f"Crb{k}_{tag} {end} {n3} {res / 2:.6g}f\n")
+                bodies.append({"device": parts[0], "model": model,
+                               "w_um": w_um, "l_um": l_um, "m": mult,
+                               "ends": [n1, n2], "body": n3,
+                               "residual_ff": round(res, 5),
+                               "model_c_ff": round(mc, 5)})
+        out += raw[i:j]
+        i = j
+    if pending:
+        raise LayoutError("poly resistor outside any .subckt ... .ends: "
+                          "nowhere to put its body C")
+    return "".join(out), bodies
+
+
 # a node line of a magic .ext: node "name" R C x y type ... - C in aF,
 # (x, y) the lower-left corner of one of the net's tiles, in internal units
 _EXT_NODE_RE = re.compile(
@@ -840,6 +1104,12 @@ def run_magic_extract(work_dir, gds_path, topcell: str, *, parasitics: bool,
     optimistic netlist. extresist also writes each split net's coupling C
     a second time, as C to the substrate (uncount_rnode_caps takes that
     back off), so the netlist written is magic's with those lines scaled.
+    The tech also leaves resistor types out of parasitic C, trusting the
+    device models, and the poly resistor models carry less than the tech's
+    own poly-to-substrate C: the difference on each poly body is added
+    (add_poly_body_residuals), half to each end, read from the tech's lines
+    at `variant` and the model file's - so a poly resistor is not left
+    lighter than the same poly wire would be.
 
     Order matters: `ext2spice lvs` resets cthresh and rthresh to infinity,
     so it must come before the thresholds, never after them.
@@ -936,6 +1206,24 @@ def run_magic_extract(work_dir, gds_path, topcell: str, *, parasitics: bool,
                 "optimistic layout. Put a text label on a drawing layer "
                 "(not a pin layer) on each of these nets in the layout "
                 "generator")
+        bodies = []
+        if re.search(r"^\s*[xX]", pex_text, re.M):  # any device at all
+            tech_c, model_c = poly_body_caps(variant)
+            pex_text, bodies = add_poly_body_residuals(
+                pex_text, tech_c, model_c)
+        if bodies:
+            out_path.write_text(pex_text, encoding="utf-8")
+            used = sorted({b["model"] for b in bodies})
+            out += (f"\nPoly resistor body C the model lacks added to "
+                    f"{len(bodies)} bod(ies) ({', '.join(used)}): "
+                    f"{sum(b['residual_ff'] for b in bodies):g} fF in all, "
+                    f"tech {tech_c['area_af_um2']:g} aF/um^2 + "
+                    f"{tech_c['perim_af_um']:g} aF/um "
+                    f"({tech_c['cites']['area']}, {tech_c['cites']['perim']}, "
+                    f"{tech_c['cites']['source']}) less model cj " + ", ".join(
+                        f"{m} {model_c[m]['cj_af_um2']:g} aF/um^2 "
+                        f"({model_c[m]['cites']['cj']}, dw "
+                        f"{model_c[m]['cites']['dw']})" for m in used) + "\n")
     return out_path, out
 
 

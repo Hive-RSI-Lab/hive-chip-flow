@@ -99,7 +99,10 @@ def fake_pdk(tmp_path, monkeypatch, tech=" calma MET1RES 110 11\n"):
     deck.write_text("# fake deck\n", encoding="utf-8")
     magic = pdk / "libs.tech" / "magic" / "gf180mcuD.tech"
     magic.parent.mkdir(parents=True)
-    magic.write_text(tech, encoding="utf-8")
+    magic.write_text(tech + POLY_TECH, encoding="utf-8")
+    models = pdk / "libs.tech" / "ngspice" / "sm141064.spice"
+    models.parent.mkdir(parents=True)
+    models.write_text(POLY_MODEL, encoding="utf-8")
     setup = pdk / "libs.tech" / "netgen" / "gf180mcuD_setup.tcl"
     setup.parent.mkdir(parents=True)
     setup.write_text("# fake setup\n", encoding="utf-8")
@@ -788,3 +791,94 @@ def test_matched_row_places_one_cell_per_slot_and_maps_its_pads():
     assert len(got) == 12
     with pytest.raises(layoutlib.LayoutError, match="non-zero pitch"):
         layoutlib.matched_row(top, cell, {"a": 1, "b": 1}, pitch=0)
+
+
+# ------------------------------------------- poly resistor body residual
+
+POLY_TECH = """\
+extract
+ style ngspice variants (),(hrhc)
+# parasitic capacitance values are taken directly from the source document
+# PDS_035_03, in units of aF/um^2
+variants ()
+ defaultareacap     *poly active  110.67
+ defaultperimeter   *poly active  50.72
+variants (hrhc)
+ defaultareacap     *poly active  130.21
+ defaultperimeter   *poly active  53.551
+variants *
+ device rsubcircuit ppolyf_u  rpp    *poly allnwell,allpsub error l=r_length w=r_width
+ device rsubcircuit pplus_u  rpd  *pdiff allnwell error l=r_length w=r_width
+end
+"""
+
+POLY_MODEL = """\
+.subckt ppolyf_u 1 2 3 r_length=l r_width=w dtemp=0 par=1 s=1 r_dw='2.55e-8*(1+mc_dw_ppolyf_u*res_mc_skew*sw_stat_global)' r_dl=2e-11 r_l='s*(r_length-2*r_dl)' r_w='r_width-2*r_dw'
+.model fox_sub c cj=8.85e-05
+rt1 1 11 ppolyf_u_t dtemp=dtemp l='s*1u' w=r_w
+c1 1 3 fox_sub dtemp=dtemp l='r_l/2' w=r_w
+rb 11 21 ppolyf_u_body r=1 w=r_w l=r_l dtemp=dtemp
+rt2 21 2 ppolyf_u_t dtemp=dtemp l='s*1u' w=r_w
+c2 2 3 fox_sub dtemp=dtemp l='r_l/2' w=r_w
+.ends ppolyf_u
+"""
+
+
+def poly_caps(variant=None, model=POLY_MODEL):
+    tech = layoutlib.tech_poly_caps(POLY_TECH, "t.tech", variant)
+    return tech, layoutlib.model_poly_body_c(model, "m.spice", tech["models"])
+
+
+def test_ppolyf_u_body_residual_known_answer():
+    # one r2r_dac unit, 2 x 148.36 um: tech 110.67 x 296.72 + 50.72 x
+    # 296.72 = 47.89 fF, model 88.5 x 1.949 x 148.36 = 25.59 fF -> the
+    # ruling's ~22 fF (7 area + 15.3 fringe), 11.15 fF at each end
+    tech, models = poly_caps()
+    assert models["ppolyf_u"]["cj_af_um2"] == pytest.approx(88.5)
+    assert tech["cites"] == {"area": "t.tech:6", "perim": "t.tech:7",
+                             "source": "t.tech:4 (PDS_035_03)"}
+    assert models["ppolyf_u"]["cites"]["cj"] == "m.spice:2"
+    res = layoutlib.poly_body_residual_ff(2.0, 148.36, tech,
+                                          models["ppolyf_u"])
+    assert res == pytest.approx(22.30, abs=0.01)
+    pex = (".subckt top a b vss\n"
+           "X29 a b vss.t0 ppolyf_u r_width=2u r_length=0.14836m\n"
+           "X3 a vss vss pplus_u r_width=2u r_length=10u\n"
+           "C0 a vss 1f\n.ends\n")
+    text, bodies = layoutlib.add_poly_body_residuals(pex, tech, models)
+    assert [b["device"] for b in bodies] == ["X29"]  # diffusion: none
+    assert bodies[0]["model_c_ff"] == pytest.approx(25.59, abs=0.01)
+    lines = text.splitlines()
+    assert lines.index(".ends") == len(lines) - 1
+    caps = [ln.split() for ln in lines if ln.startswith("Crb")]
+    assert [c[1:3] for c in caps] == [["a", "vss.t0"], ["b", "vss.t0"]]
+    assert all(float(c[3][:-1]) == pytest.approx(11.15, abs=0.01)
+               for c in caps)
+
+
+def test_poly_body_residual_reads_the_variant_and_the_multiplier():
+    tech, models = poly_caps("hrhc")
+    assert tech["area_af_um2"] == 130.21
+    pex = (".subckt top a b vss\n"
+           "X1 a b vss ppolyf_u r_width=2u r_length=100u m=2\n.ends\n")
+    _, bodies = layoutlib.add_poly_body_residuals(pex, tech, models)
+    want = 2 * layoutlib.poly_body_residual_ff(2, 100, tech,
+                                               models["ppolyf_u"])
+    assert bodies[0]["residual_ff"] == pytest.approx(want, abs=1e-4)
+
+
+def test_poly_body_residual_refuses_a_model_of_another_form():
+    other = POLY_MODEL.replace("l='r_l/2' w=r_w\nrb", "l='r_l' w=r_w\nrb")
+    with pytest.raises(layoutlib.LayoutError, match="fox_sub c1/c2"):
+        poly_caps(model=other)
+    with pytest.raises(layoutlib.LayoutError, match="variant \\(lrlc\\)"):
+        layoutlib.tech_poly_caps(POLY_TECH, "t.tech", "lrlc")
+
+
+def test_poly_body_residual_refuses_a_negative_residual():
+    tech, models = poly_caps()
+    tech = dict(tech, area_af_um2=10.0, perim_af_um=0.0)
+    with pytest.raises(layoutlib.LayoutError, match="more C in its model"):
+        layoutlib.add_poly_body_residuals(
+            ".subckt t a b c\nX1 a b c ppolyf_u r_width=2u r_length=10u\n"
+            ".ends\n", tech, models)

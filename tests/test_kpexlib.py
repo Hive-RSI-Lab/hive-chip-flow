@@ -144,7 +144,26 @@ def test_prepare_gds_cuts_a_metal_resistor_and_copies_labels(tmp_path):
     assert layer(110, 11) == [] and layer(110, 5) == []
 
 
+def test_prepare_gds_cuts_a_poly_resistor(tmp_path):
+    pytest.importorskip("klayout.db")
+    # a ppolyf_u-style body: res_mk 110/5 over poly2 alone, poly heads out
+    # past both ends
+    src = _gds(tmp_path / "a.gds",
+               [((30, 0), (0, 0, 10000, 2000)), ((110, 5), (1000, 0, 9000, 2000))],
+               [((30, 0), "a", 100, 100), ((30, 0), "b", 9900, 100)])
+    dst = tmp_path / "k.gds"
+    assert kpexlib.prepare_gds(src, dst, "blk") == {"res_cuts": 1}
+    layer = _read(dst)
+    poly = [s for s in layer(30, 0) if not s.is_text()]
+    assert len(poly) == 2  # the body split in two at its middle
+    assert sorted(s.text.string for s in layer(30, 10) if s.is_text()) == \
+        ["a", "b"]
+    assert layer(110, 5) == []
+
+
 @pytest.mark.parametrize("shape", [((62, 0), (0, 0, 1000, 1000)),
+                                   # res_mk over no poly: a diffusion
+                                   # resistor, say
                                    ((110, 5), (0, 0, 1000, 1000))])
 def test_prepare_gds_refuses_a_resistor_kpex_reads_otherwise(tmp_path, shape):
     pytest.importorskip("klayout.db")

@@ -23,7 +23,14 @@ a dropped label on the comparator's tail net puts its inputs 28% apart).
 A net past it, or a net only one extractor names, is a
 `pex_extractors_disagree` finding with both values; the bench still runs.
 kpex's netlist is never benched (#60): the wire R and the bench stay
-magic's. A net over an N-well, and the substrate of a block with a well,
+magic's. A poly resistor's body is C kpex extracts in full, as a wire, but
+magic only in part: the device model carries cj x r_w x r_l of it (fox_sub
+c1/c2, half at each end) and run_magic_extract adds the rest
+(layoutlib.add_poly_body_residuals). So each body's model C is taken off
+kpex's C of the nets at its ends and of its third terminal before the
+comparison (subtract_model_c, listed per net in `extractor_crosscheck`'s
+`model_c_subtracted`) - that subtraction is what lets the two agree on a
+resistor ladder within the same 20%, with no net excluded for it. A net over an N-well, and the substrate of a block with a well,
 are not compared (kpex models no well); the report lists them, and every
 row, in `extractor_crosscheck`. kpex failing to run is a refusal.
 
@@ -361,6 +368,32 @@ def _auto_name(net: str) -> bool:
     return net.startswith(("a_", "$", "\\$"))
 
 
+def subtract_model_c(pk: dict, bodies: list[dict]) -> dict:
+    """Take each poly resistor body's model C (cj x r_w x r_l, half from
+    each end to its third terminal; layoutlib.add_poly_body_residuals'
+    `model_c_ff`) off kpex's per-net C `pk`, in place, and return
+    {net: fF taken off}. kpex extracts a poly body as a wire with the
+    tech's full C to the substrate; magic's netlist has only the part of it
+    the device model lacks, the model the rest, so without this kpex reads
+    every poly resistor net heavier by the model's share."""
+    taken: dict[str, float] = {}
+    for b in bodies:
+        half = b["model_c_ff"] / 2
+        body = _net_of(b["body"])
+        for end in (_net_of(n) for n in b["ends"]):
+            if end == body:
+                continue
+            for x, y in ((end, body), (body, end)):
+                if x in pk:
+                    pk[x]["c_ff"] -= half
+                    pk[x]["c_to"][y] = pk[x]["c_to"].get(y, 0.0) - half
+                    taken[x] = taken.get(x, 0.0) + half
+    for x in pk:
+        if x in taken:
+            pk[x]["c_ff"] = round(pk[x]["c_ff"], 5)
+    return {x: round(v, 5) for x, v in sorted(taken.items())}
+
+
 def extractor_crosscheck(ws: Path, gds_path: Path, topcell: str,
                          rel_gds: str, ref_text: str, ref_pins, bench_text: str,
                          magic_text: str, ext_path: Path
@@ -402,7 +435,11 @@ def extractor_crosscheck(ws: Path, gds_path: Path, topcell: str,
     want = labelled | probed
     pm = net_parasitics(magic_text, want & magic_names)
     pk = net_parasitics(kpex_text, want & kpex_names)
+    tech_c, model_c = layoutlib.poly_body_caps(None)
+    _, bodies = layoutlib.add_poly_body_residuals(magic_text, tech_c, model_c)
+    subtracted = subtract_model_c(pk, bodies)
     result = kpexlib.compare(pm, pk, labelled, probed, skip)
+    result["model_c_subtracted"] = subtracted
     tol = result["tolerance"]
     findings = []
     for row in result.pop("disagree"):

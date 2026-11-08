@@ -14,10 +14,16 @@ What kpex is handed, and why:
     it reads a metal resistor (110/11-15 over the metal) as a plain wire,
     which shorts its two ends into one net. A 1 um cut in the middle of the
     body, across its width, splits it the way magic does; the body keeps its
-    area and fringe C less the gap's. Any other resistor marking (res_mk
-    110/5 off a metal resistor, the poly and diffusion resistor layers
-    62/0 and 110/16) is a resistor kpex reads otherwise than magic, so it is
-    a refusal (KpexError), not a comparison of two different circuits.
+    area and fringe C less the gap's. A poly resistor (res_mk 110/5 over
+    poly2 alone: ppolyf_u, npolyf_u) is the same case on poly2 - kpex reads
+    its body as a poly wire - and gets the same cut. Its body keeps the
+    tech's full C, of which the device model holds cj x r_w x r_l in
+    magic's netlist: check_pex_sim.subtract_model_c takes that share off
+    kpex's nets before comparing. Any other resistor
+    marking (res_mk 110/5 over anything but a metal resistor or poly2 -
+    a diffusion resistor - and the resistor layers 62/0 and 110/16) is a
+    resistor kpex reads otherwise than magic, so it is a refusal
+    (KpexError), not a comparison of two different circuits.
   - kpex_runner.py: kpex with gate poly as a conductor (its docstring).
 Net names: kpex calls the substrate VSUBS; it is renamed to the name
 magic's .ext gives the substrate net.
@@ -47,6 +53,8 @@ KPEX_TIMEOUT = 300.0
 # GF180: metal resistor markers 110/11..15 and the metal each one marks
 METAL_RES = {11: (34, 0), 12: (36, 0), 13: (42, 0), 14: (46, 0), 15: (81, 0)}
 RES_MK = (110, 5)
+# poly2: a res_mk over poly2 alone is a poly resistor body (ppolyf_u ...)
+POLY_RES_LAYER = (30, 0)
 OTHER_RES = {(62, 0): "the resistor layer 62/0",
              (110, 16): "the diffusion/poly resistor marker 110/16"}
 # drawing layers whose texts name a net: comp, poly2 and the five metals
@@ -84,12 +92,17 @@ def prepare_gds(src, dst, topcell: str, gap_um: float = RES_GAP_UM) -> dict:
     for dt in METAL_RES:
         markers += region((110, dt))
     stray = region(RES_MK) - markers
-    if not stray.is_empty():
-        b = stray.bbox()
+    poly = region(POLY_RES_LAYER)
+    poly_res = kdb.Region()
+    for piece in stray.each():
+        if (kdb.Region(piece) - poly).is_empty():
+            poly_res.insert(piece)  # a poly resistor body: cut below
+            continue
+        b = piece.bbox()
         raise KpexError(
-            "res_mk 110/5 marks a resistor that is not a metal resistor at "
-            f"({b.left * ly.dbu:g}, {b.bottom * ly.dbu:g}): kpex does not "
-            "extract that resistor as magic does")
+            "res_mk 110/5 marks a resistor that is neither a metal nor a "
+            f"poly resistor at ({b.left * ly.dbu:g}, {b.bottom * ly.dbu:g}): "
+            "kpex does not extract that resistor as magic does")
 
     for layer in TEXT_LAYERS:
         li = ly.find_layer(layer, 0)
@@ -107,45 +120,54 @@ def prepare_gds(src, dst, topcell: str, gap_um: float = RES_GAP_UM) -> dict:
         if mk is None:
             continue
         marker = kdb.Region(top.shapes(mk)).merged()
-        if marker.is_empty():
-            continue
-        mi = ly.find_layer(*metal_layer)
-        metal = (kdb.Region(top.shapes(mi)).merged() if mi is not None
-                 else kdb.Region())
-        cuts = kdb.Region()
-        for poly in marker.each():
-            b = poly.bbox()
-            # the body runs along the axis whose two ends the metal leaves by
-            left = metal.overlapping(kdb.Region(
-                kdb.Box(b.left - 2, b.bottom + 1, b.left, b.top - 1)))
-            right = metal.overlapping(kdb.Region(
-                kdb.Box(b.right, b.bottom + 1, b.right + 2, b.top - 1)))
-            if not left.is_empty() and not right.is_empty():
-                if b.width() <= gap:
-                    raise KpexError(f"a metal resistor 110/{dt} is shorter "
-                                    f"than the {gap_um:g} um cut")
-                cx = b.center().x
-                cuts.insert(kdb.Box(cx - gap // 2, b.bottom, cx + gap - gap // 2,
-                                    b.top))
-            else:
-                if b.height() <= gap:
-                    raise KpexError(f"a metal resistor 110/{dt} is shorter "
-                                    f"than the {gap_um:g} um cut")
-                cy = b.center().y
-                cuts.insert(kdb.Box(b.left, cy - gap // 2, b.right,
-                                    cy + gap - gap // 2))
-            cuts_made += 1
-        texts = [s.text for s in top.shapes(mi).each() if s.is_text()]
-        top.shapes(mi).clear()
-        top.shapes(mi).insert(metal - cuts)
-        for t in texts:
-            top.shapes(mi).insert(t)
+        if not marker.is_empty():
+            cuts_made += _cut_bodies(ly, top, marker, metal_layer, gap,
+                                     f"a metal resistor 110/{dt}", gap_um)
         top.shapes(mk).clear()
+    if not poly_res.is_empty():
+        cuts_made += _cut_bodies(ly, top, poly_res.merged(), POLY_RES_LAYER,
+                                 gap, "a poly resistor", gap_um)
     rm = ly.find_layer(*RES_MK)
     if rm is not None:
         top.shapes(rm).clear()
     ly.write(str(dst))
     return {"res_cuts": cuts_made}
+
+
+def _cut_bodies(ly, top, marker, layer, gap: int, what: str,
+                gap_um: float) -> int:
+    """Cut `layer` across the middle of each body `marker` marks, along the
+    axis whose two ends the conductor leaves by. Returns the cuts made."""
+    import klayout.db as kdb
+
+    li = ly.find_layer(*layer)
+    cond = (kdb.Region(top.shapes(li)).merged() if li is not None
+            else kdb.Region())
+    cuts = kdb.Region()
+    for poly in marker.each():
+        b = poly.bbox()
+        left = cond.overlapping(kdb.Region(
+            kdb.Box(b.left - 2, b.bottom + 1, b.left, b.top - 1)))
+        right = cond.overlapping(kdb.Region(
+            kdb.Box(b.right, b.bottom + 1, b.right + 2, b.top - 1)))
+        along_x = not left.is_empty() and not right.is_empty()
+        if (b.width() if along_x else b.height()) <= gap:
+            raise KpexError(f"{what} is shorter than the {gap_um:g} um cut")
+        if along_x:
+            cx = b.center().x
+            cuts.insert(kdb.Box(cx - gap // 2, b.bottom, cx + gap - gap // 2,
+                                b.top))
+        else:
+            cy = b.center().y
+            cuts.insert(kdb.Box(b.left, cy - gap // 2, b.right,
+                                cy + gap - gap // 2))
+    if li is not None:
+        texts = [s.text for s in top.shapes(li).each() if s.is_text()]
+        top.shapes(li).clear()
+        top.shapes(li).insert(cond - cuts)
+        for t in texts:
+            top.shapes(li).insert(t)
+    return marker.count()
 
 
 def run_kpex(work_dir, gds_path, topcell: str,
