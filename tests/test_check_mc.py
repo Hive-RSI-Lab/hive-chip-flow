@@ -550,8 +550,8 @@ def test_mc_decks_include_the_par_copy_never_the_block_netlist(
 def test_netlist_without_multiplied_mos_is_included_as_is(tmp_path):
     net = tmp_path / "n.cir"
     net.write_text("XM1 d g s b nfet_03v3 w=1u l=1u\n", encoding="utf-8")
-    path, done = check_mc.mc_netlist(net, tmp_path / "out")
-    assert path == net and done == []
+    path, done, res = check_mc.mc_netlist(net, tmp_path / "out")
+    assert path == net and done == [] and res == []
     assert not (tmp_path / "out").exists()
 
 
@@ -606,7 +606,7 @@ def test_bench_multiplying_a_netlist_subckt_reaches_both_copies(tmp_path):
     net.write_text(".subckt unit d\nXM d d 0 0 nfet_03v3 w=2u l=1u\n.ends\n",
                    encoding="utf-8")
     bench = "XU a unit m={{M}}\n"
-    path, done = check_mc.mc_netlist(net, tmp_path / "out", [bench])
+    path, done, _ = check_mc.mc_netlist(net, tmp_path / "out", [bench])
     assert path != net and "par={mc_mult}" in path.read_text()
     assert [d["instance"] for d in done] == ["XM"]
     new, done = check_mc.add_par_for_multiplier(bench, [net.read_text()])
@@ -617,7 +617,7 @@ def test_bench_multiplying_a_netlist_subckt_reaches_both_copies(tmp_path):
 
 def test_multiplied_model_not_rewritten_is_reported_unless_it_has_no_mismatch():
     text = ("XE a elsewhere m=4\n"
-            "XR a b 0 nplus_u w=1u l=1u m=2\nXC a b cap_mim_1f0_m2m3_noshield m=2\n"
+            "XR a b 0 rm1 w=1u l=1u m=2\nXC a b cap_mim_1f0_m2m3_noshield m=2\n"
             "XF a elsewhere m=1\n")
     new, done = check_mc.add_par_for_multiplier(text)
     assert new == text
@@ -770,7 +770,8 @@ def test_real_pnp_m8_mismatch_follows_the_pdk_scaling(tmp_path):
 
     def vbe(fixed: bool, mismatch: bool):
         out = tmp_path / f"{'par' if fixed else 'asis'}_{int(mismatch)}"
-        nl, done = (check_mc.mc_netlist(net, out) if fixed else (net, []))
+        nl, done, _ = (check_mc.mc_netlist(net, out) if fixed
+                       else (net, [], []))
         assert len(done) == (n if fixed else 0)
         text = check_mc.inject_mc_params(bench, 7, False) if mismatch \
             else bench
@@ -830,7 +831,8 @@ def test_real_m4_mismatch_matches_the_w4_device(tmp_path):
 
     def vgs(fixed: bool, mismatch: bool):
         out = tmp_path / f"{'par' if fixed else 'asis'}_{int(mismatch)}"
-        nl, done = (check_mc.mc_netlist(net, out) if fixed else (net, []))
+        nl, done, _ = (check_mc.mc_netlist(net, out) if fixed
+                       else (net, [], []))
         assert len(done) == (n if fixed else 0)
         text = check_mc.inject_mc_params(bench, 7, False) if mismatch \
             else bench
@@ -916,3 +918,143 @@ def test_nominal_only_measure_is_left_out_of_mc(tmp_path, monkeypatch, capsys):
     assert out["nominal_only"] == ["decision"], out
     assert "decide_tb.cir" in out["not_scored"]
     assert {r["bench"] for r in out["results"]} == {"mirror_tb.cir"}
+
+
+# --- resistor mismatch (the PDK's Xyce A_R carried into the ngspice copy) ---
+
+RES_NETLIST = """\
+.subckt leg a
+XRL a 0 0 ppolyf_u r_width=2e-6 r_length=10e-6
+.ends
+XRP a b 0 ppolyf_u r_width={wid} r_length=10e-6 m=2
+XRN a b 0 nplus_u r_width=1e-6 r_length=4e-6 s=2
+XRM a b 0 rm1 r_width=1e-6 r_length=1e-6
+XRH a b 0 ppolyf_u_1k r_width=1e-6 r_length=1e-6
+XRO a b 0 npolyf_u r_width=1e-6 r_length=1e-6 mis_r=0.01
+XRW a b 0 pplus_u w=1e-6 l=1e-6
+XL a leg m=4
+"""
+
+
+def test_resistor_mismatch_term_is_written_from_each_instance_size():
+    new, par, res = check_mc.mc_rewrite(RES_NETLIST)
+    by = {d["instance"]: d for d in res}
+    assert set(by) == {"XRL", "XRP", "XRN", "XRM", "XRH", "XRO", "XRW"}
+    assert "no_term" in by["XRM"] and "no_term" in by["XRH"]
+    assert "unhandled" in by["XRO"] and "unhandled" in by["XRW"]
+    assert not any(k in by[n] for n in ("XRL", "XRP", "XRN")
+                   for k in ("no_term", "unhandled"))
+    assert by["XRP"]["a_r_pct_um"] == 2.1
+    # m=2 gets par=2 first, and the term reads it: sigma/sqrt(2)
+    assert ("XRP a b 0 ppolyf_u r_width={wid} r_length=10e-6 m=2 par=2 "
+            "mis_r='agauss(0,0.7071*0.021*1e-06/sqrt((2)*1*((10e-6)-2*(2e-11))"
+            "*((wid)-2*(2.55e-08))),1)'\n") in new
+    assert "*(2)*((4e-6)-2*(2e-11))*((1e-6)-2*(-5e-08))" in new
+    # an m=4 subckt carries its multiplier down to the resistor's par
+    assert ("XRL a 0 0 ppolyf_u r_width=2e-6 r_length=10e-6 par={mc_mult} "
+            "mis_r='agauss(0,0.7071*0.021*1e-06/sqrt((mc_mult)*") in new
+    assert [d["instance"] for d in par] == ["XRL", "XRP", "XL"]
+    for keep in ("rm1 r_width=1e-6 r_length=1e-6\n", "mis_r=0.01\n",
+                 "pplus_u w=1e-6 l=1e-6\n", "ppolyf_u_1k r_width=1e-6 "
+                 "r_length=1e-6\n"):
+        assert keep in new
+    # idempotent: a second pass leaves the written terms alone
+    again, _, res2 = check_mc.mc_rewrite(new)
+    assert all("unhandled" in d for d in res2 if d["instance"] in
+               ("XRL", "XRP", "XRN"))
+    assert again.count("agauss") == new.count("agauss") == 3
+
+
+def test_resistor_sigma_expr_is_the_xyce_pelgrom_term():
+    import math
+    for model, (a_r, dl, dw) in check_mc.RES_MISMATCH.items():
+        expr = check_mc.resistor_sigma_expr(
+            model, {"r_width": "2e-6", "r_length": "10e-6", "par": "4"})
+        head, tail = "'agauss(0,", ",1)'"
+        assert expr.startswith(head) and expr.endswith(tail)
+        sigma = eval(expr[len(head):-len(tail)], {"sqrt": math.sqrt})
+        want = 0.7071 * a_r * 1e-6 / math.sqrt(
+            4 * (10e-6 - 2 * dl) * (2e-6 - 2 * dw))
+        assert sigma == pytest.approx(want, rel=1e-12)
+    # ppolyf_u: A_R 2.1 %*um over 4 x 2x10 um -> 0.7071*2.1/sqrt(80) %
+    sigma = eval(check_mc.resistor_sigma_expr(
+        "ppolyf_u", {"r_width": "2e-6", "r_length": "10e-6", "par": "4"}
+    )[len("'agauss(0,"):-len(",1)'")], {"sqrt": math.sqrt})
+    assert sigma == pytest.approx(0.007071 * 2.1 / math.sqrt(80), rel=0.02)
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("model", sorted(check_mc.RES_MISMATCH))
+def test_real_resistor_mismatch_matches_the_xyce_a_r(tmp_path, model):
+    # Known answer: one seeded op over 200 pairs of one 2x100 um resistor,
+    # each driven by its own current source. Each resistor's sample sigma
+    # (dR/R) must sit within the chi-square 99.9% band of the Xyce deck's
+    # 0.7071*A_R/sqrt(W_eff*L_eff), and a pair's difference within that of
+    # A_R/sqrt(W*L) (the draws are per instance). The end terminals (rt1,
+    # rt2: one square each, no mismatch term) dilute it by under 3% at 50
+    # squares. An m=4 instance next to them, rewritten to par=4, has half the
+    # sigma. The planted fault - the netlist as written - has no spread at
+    # all, and with mismatch off the rewrite leaves every R where it was.
+    import math
+    import re
+    import statistics
+
+    import corners as corners_mod
+    import simlib
+
+    a_r, dl, dw = check_mc.RES_MISMATCH[model]
+    n, w, ln = 200, 2e-6, 100e-6
+    lines = [f"* {model} known answer"]
+    for i in range(n):
+        for tag, mult, cur in (("a", "", "1e-5"), ("b", "", "1e-5"),
+                               ("c", " m=4", "4e-5")):
+            lines += [f"XR{tag}{i} {tag}{i} 0 0 {model} r_width={w:g} "
+                      f"r_length={ln:g}{mult}",
+                      f"I{tag}{i} 0 {tag}{i} {cur}"]
+    net = tmp_path / "ka.cir"
+    net.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    header = (CORPUS_BANDGAP / "tb" / "bandgap_tb.cir").read_text(
+        encoding="utf-8").split(".temp {{TEMP_C}}")[0]
+    header = header[header.index(".include '{{PDK}}"):]
+    bench = (header + ".temp {{TEMP_C}}\n.include '{{NETLIST}}'\n"
+             ".control\nset numdgt=10\nop\nprint all\n.endc\n.end\n")
+    eda = sim_run.EDA_BIN
+    root = sim_run.toolchain_root(eda)
+    tt = corners_mod.corners_by_name(corners_mod.load(), ["tt"])[0]
+
+    def volts(fixed: bool, mismatch: bool):
+        out = tmp_path / f"{'mc' if fixed else 'asis'}_{int(mismatch)}"
+        nl, _, res = (check_mc.mc_netlist(net, out) if fixed
+                      else (net, [], []))
+        assert len(res) == (3 * n if fixed else 0)
+        assert not any("unhandled" in d or "no_term" in d for d in res)
+        text = check_mc.inject_mc_params(bench, 11, False) if mismatch \
+            else bench
+        deck = out / "ka_tb.cir"
+        out.mkdir(parents=True, exist_ok=True)
+        deck.write_text(simlib.materialize(
+            text, sim_run.build_subs(root, nl, tt, 3.3, {})), encoding="utf-8")
+        stdout, _, _ = simlib.run_ngspice(eda, deck, out, 120)
+        v = {k.lower(): float(x) for k, x in re.findall(
+            r"^\s*(\S+)\s*=\s*([-+0-9.eE]+)\s*$", stdout, re.MULTILINE)}
+        return {t: [v[f"{t}{i}"] for i in range(n)] for t in "abc"}
+
+    got = volts(True, True)
+    nom = volts(True, False)
+    rel = {t: [x / y - 1 for x, y in zip(got[t], nom[t])] for t in "abc"}
+    one = 0.7071 * a_r * 1e-6 / math.sqrt((ln - 2 * dl) * (w - 2 * dw))
+    lo = math.sqrt(check_mc.chi2_quantile(0.0005, n - 1) / (n - 1))
+    hi = math.sqrt(check_mc.chi2_quantile(0.9995, n - 1) / (n - 1))
+    sd_a = statistics.stdev(rel["a"])
+    sd_pair = statistics.stdev([x - y for x, y in zip(rel["a"], rel["b"])])
+    sd_m4 = statistics.stdev(rel["c"])
+    print(f"{model}: sd {sd_a:.3e} want {one:.3e}; pair {sd_pair:.3e} want "
+          f"{one * math.sqrt(2):.3e}; m=4 {sd_m4:.3e} want {one / 2:.3e}")
+    assert one * lo * 0.97 < sd_a < one * hi, (sd_a, one)
+    assert one * math.sqrt(2) * lo * 0.97 < sd_pair < one * math.sqrt(2) * hi
+    assert one / 2 * lo * 0.97 < sd_m4 < one / 2 * hi, (sd_m4, one / 2)
+    # planted fault: the netlist as written, mis_r=0 - no spread at all
+    asis = volts(False, True)
+    assert len(set(asis["a"])) == 1
+    # with mismatch off the rewrite changes no resistance
+    assert nom == volts(False, False)

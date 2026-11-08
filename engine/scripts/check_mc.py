@@ -28,6 +28,11 @@ When `mc.enabled: true`:
    netlist where every multiplied device also carries `par=N`, carried down
    through `m=N` subckts (add_par_for_multiplier; listed in `par_added`; a
    subckt defined outside the netlist and bench is listed `unhandled`).
+   The ngspice deck sets every resistor's `mis_r=0`; the copy writes the
+   PDK's Xyce Pelgrom term on each nplus_u/pplus_u/npolyf_u/ppolyf_u
+   instance (add_resistor_mismatch, RES_MISMATCH; listed in
+   `res_mismatch`), and lists each resistor with no documented term
+   (rm1-rm4, tm*, nwell, *_s, ppolyf_u_1k/2k/3k) as `no_term`.
 
 2. Where it runs. Every bench is run nominal (mismatch off) over sim_pvt's
    own sweep (sim_run.spec_sweep), then MC at tt and MC at each bench's
@@ -147,19 +152,21 @@ def inject_mc_params(template_text: str, seed: int, do_global: bool) -> str:
 # The PDK subckts whose Pelgrom term reads `par` but not `m`: each
 # computes p_sqrtarea = sqrt((l-par_l)*par*(w-par_w)) and passes `m` only to
 # its inner MOSFET, so an `m=N` instance gets ONE unit's mismatch sigma,
-# sqrt(N) too large. (The poly/diffusion resistors set mis_r=0 - no
-# per-instance mismatch at all - and the MIM caps carry none either.) The
-# pnp_* subckts divide theirs (mis_is_*, mis_bf_*) by sqrt(par) the same way;
-# the npn_* take `par` and carry no mismatch term, so par=N changes nothing.
+# sqrt(N) too large. The pnp_* subckts divide theirs (mis_is_*, mis_bf_*) by
+# sqrt(par) the same way; the npn_* take `par` and carry no mismatch term, so
+# par=N changes nothing. The four resistors in RES_MISMATCH join them: the
+# term add_resistor_mismatch gives them reads `par` the same way (the MIM
+# caps carry none).
 _PAR_MODEL_RE = re.compile(r"^(?:[np]fet_0[356]v[03](?:_dss|_nvt)?"
-                           r"|(?:pnp|npn)_.+)$",
+                           r"|(?:pnp|npn)_.+|[np](?:plus|polyf)_u)$",
                            re.IGNORECASE)
 _PARAM_RE = re.compile(
     r"(?<![\w.])(m|par)\s*=\s*('[^']*'|\{\{[^}]*\}\}|\{[^}]*\}|[^\s]+)",
     re.IGNORECASE)
 _FIRST_PARAM_RE = re.compile(r"\s[\w.]+\s*=")
 # PDK devices whose `m` needs no `par`: their mismatch term is zero or absent
-# (resistors set mis_r=0, MIM caps carry none).
+# (the resistors outside RES_MISMATCH set mis_r=0 or have none, MIM caps
+# carry none).
 _NO_PAR_MODEL_RE = re.compile(
     r"^(?:cap_|nplus_|pplus_|npolyf_|ppolyf_|nwell|rm\d|tm\d|efuse|diode_)",
     re.IGNORECASE)
@@ -370,22 +377,122 @@ def add_par_for_multiplier(text: str, others: Iterable[str] = ()
     return "\n".join(lines), done
 
 
+# Resistor mismatch. GF180's ngspice deck (sm141064.spice, `.lib res`)
+# sets `mis_r=0` on every resistor subckt, so a resistor never moves under
+# Monte Carlo there. Its Xyce deck (libs.tech/xyce/sm141064.xyce, gf180mcuD)
+# documents a Pelgrom term for four of them, on the subckt lines of nplus_u
+# (38280), pplus_u (38295), npolyf_u (38355) and ppolyf_u (38370):
+#   par_sqrtarea='sqrt(par*(r_l)*(r_w))'
+#   var_r='0.7071*par_r*1e-06/par_sqrtarea'   mis_r='agauss(0,var_r,1)'
+# with r_l='s*(r_length-2*r_dl)', r_w='r_width-2*r_dw', and the rb body
+# scaled by (1+mis_r*sw_stat_mismatch) in both decks. par_r is A_R in um
+# (0.021 um = 2.1 %*um for ppolyf_u): one resistor's sigma(dR/R) is
+# 0.7071*A_R/sqrt(W*L), a pair's difference A_R/sqrt(W*L). The MC copy
+# carries that term into ngspice by writing it on each instance: an
+# instance parameter is evaluated in the caller's scope, where r_l and r_w
+# don't exist, so the expression is built from the instance's own r_length,
+# r_width, s and par and the model's nominal r_dl/r_dw (the same in both
+# decks; with mc.global the PDK moves r_dw by a few nm, which this sigma
+# ignores). Every other resistor (rm1-rm4, tm*, nwell, the *_s and the high-R
+# ppolyf_u_1k/2k/3k variants) has no mismatch term in either deck and is
+# listed `no_term`: the PDK documents none to carry.
+# model: (par_r = A_R in um, r_dl, nominal r_dw), from those subckt lines.
+RES_MISMATCH = {
+    "nplus_u": (0.012608, 2e-11, -5e-8),
+    "pplus_u": (0.0126, 5.0e-11, 2.75e-8),
+    "npolyf_u": (0.05808, 8.48e-11, 0.0265e-6),
+    "ppolyf_u": (0.021, 2e-11, 2.55e-8),
+}
+_NO_TERM_RES_RE = re.compile(
+    r"^(?:rm\d|tm\d+k|nwell|[np](?:plus|polyf)_s|ppolyf_u_\dk(?:_6p0)?)$",
+    re.IGNORECASE)
+_ANY_PARAM_RE = re.compile(
+    r"(?<![\w.])([\w.]+)\s*=\s*('[^']*'|\{\{[^}]*\}\}|\{[^}]*\}|[^\s]+)")
+
+
+def _all_params(group: list[int], lines: list[str]) -> dict:
+    body = " ".join(_strip_comment(lines[i]).lstrip().lstrip("+")
+                    for i in group)
+    return {k.lower(): v for k, v in _ANY_PARAM_RE.findall(body)}
+
+
+def resistor_sigma_expr(model: str, params: dict) -> str:
+    """The Xyce mis_r for one instance of a RES_MISMATCH model, written in
+    the instance's own terms (see RES_MISMATCH)."""
+    a_r, dl, dw = RES_MISMATCH[model.lower()]
+
+    def term(key, default="1"):
+        return f"({_bare(params[key])})" if key in params else default
+
+    area = (f"{term('par')}*{term('s')}*({term('r_length')}-2*({dl:g}))"
+            f"*({term('r_width')}-2*({dw:g}))")
+    return f"'agauss(0,0.7071*{a_r:g}*1e-06/sqrt({area}),1)'"
+
+
+def add_resistor_mismatch(text: str) -> tuple[str, list[dict]]:
+    """Give each `X... <nplus_u|pplus_u|npolyf_u|ppolyf_u>` instance the
+    PDK's Xyce mismatch term as `mis_r=` (see RES_MISMATCH). Run after
+    add_par_for_multiplier, so an `m=N` resistor's `par=N` divides its sigma
+    by sqrt(N) as N parallel units would. Returns (new text, [{instance,
+    model, a_r_pct_um}]), plus one {instance, model, no_term} for each PDK
+    resistor that has no documented term and keeps none, and `unhandled`
+    for an instance that already writes mis_r or lacks r_length/r_width (the
+    PDK's l/w defaults don't resolve, so ngspice would refuse it anyway).
+    Used on the MC deck's copies only."""
+    lines = text.split("\n")
+    done: list[dict] = []
+    for group in _logical_lines(text):
+        found = _instance(group, lines)
+        if found is None:
+            continue
+        name, model, _ = found
+        if _NO_TERM_RES_RE.match(model):
+            done.append({"instance": name, "model": model,
+                         "no_term": "the PDK documents no mismatch term "
+                                    "for this resistor; MC cannot move it"})
+            continue
+        if model.lower() not in RES_MISMATCH:
+            continue
+        params = _all_params(group, lines)
+        entry = {"instance": name, "model": model,
+                 "a_r_pct_um": round(RES_MISMATCH[model.lower()][0] * 100, 4)}
+        if "mis_r" in params:
+            entry["unhandled"] = "writes its own mis_r, kept as written"
+        elif not {"r_length", "r_width"} <= params.keys():
+            entry["unhandled"] = ("no r_length/r_width on the instance, so "
+                                  "no mismatch term was added")
+        else:
+            _append_param(lines, group,
+                          f"mis_r={resistor_sigma_expr(model, params)}")
+        done.append(entry)
+    return "\n".join(lines), done
+
+
+def mc_rewrite(text: str, others: Iterable[str] = ()
+               ) -> tuple[str, list[dict], list[dict]]:
+    """One text's MC copy: add_par_for_multiplier, then
+    add_resistor_mismatch. Returns (new text, par_added, res_mismatch)."""
+    text, par_done = add_par_for_multiplier(text, others)
+    text, res_done = add_resistor_mismatch(text)
+    return text, par_done, res_done
+
+
 _REL_INCLUDE_RE = re.compile(
     r"^(\s*\.(?:include|inc|lib)\s+)(['\"]?)([^'\"\s]+)(['\"]?)",
     re.IGNORECASE | re.MULTILINE)
 
 
 def mc_netlist(netlist_path: Path, out_dir: Path, others: Iterable[str] = ()
-               ) -> tuple[Path, list[dict]]:
+               ) -> tuple[Path, list[dict], list[dict]]:
     """The netlist the MC decks include: the block's own when no instance
-    needs `par` (add_par_for_multiplier; `others` are the bench texts), else
-    a rewritten copy under out_dir (relative .include/.lib paths made
-    absolute, so they still resolve from there). The block's netlist file is
-    never written."""
+    needs `par` or a resistor mismatch term (mc_rewrite; `others` are the
+    bench texts), else a rewritten copy under out_dir (relative .include/.lib
+    paths made absolute, so they still resolve from there). The block's
+    netlist file is never written. Returns (path, par_added, res_mismatch)."""
     text = netlist_path.read_text(encoding="utf-8")
-    new_text, done = add_par_for_multiplier(text, others)
+    new_text, done, res = mc_rewrite(text, others)
     if new_text == text:
-        return netlist_path, done
+        return netlist_path, done, res
     base = netlist_path.resolve().parent
 
     def absolutize(m):
@@ -398,7 +505,7 @@ def mc_netlist(netlist_path: Path, out_dir: Path, others: Iterable[str] = ()
     out_dir.mkdir(parents=True, exist_ok=True)
     copy = out_dir / f"{netlist_path.stem}__mc_par{netlist_path.suffix}"
     copy.write_text(new_text, encoding="utf-8")
-    return copy, done
+    return copy, done, res
 
 
 # --- statistics ------------------------------------------------------------
@@ -751,7 +858,8 @@ def run(argv=None):
     bench_texts = {bench: bench.read_text(encoding="utf-8")
                    for bench, _ in bench_list}
     netlist_text = netlist_path.read_text(encoding="utf-8")
-    mc_net, par_added = mc_netlist(netlist_path, out_dir, bench_texts.values())
+    mc_net, par_added, res_mismatch = mc_netlist(
+        netlist_path, out_dir, bench_texts.values())
     # A measure the spec marks `statistical: none` (with its mc_waiver) is a
     # nominal check - sim_tt/sim_pvt score it at zero mismatch - and Monte
     # Carlo does not judge it: a comparator's 1 mV decision would flip on
@@ -759,11 +867,12 @@ def run(argv=None):
     nominal_only = sorted(speclib.nominal_only_measures(spec))
     benches = []
     for bench_path, bounds_path in bench_list:
-        template_text, bench_par = add_par_for_multiplier(
+        template_text, bench_par, bench_res = mc_rewrite(
             bench_texts[bench_path],
             [netlist_text, *(t for b, t in bench_texts.items()
                              if b != bench_path)])
         par_added += [dict(d, bench=bench_path.name) for d in bench_par]
+        res_mismatch += [dict(d, bench=bench_path.name) for d in bench_res]
         benches.append({"name": bench_path.name, "stem": bench_path.stem,
                         "bounds": [x for x in simlib.load_bounds(bounds_path)
                                    if x["measure"].lower()
@@ -842,6 +951,10 @@ def run(argv=None):
             worst_groups.append((b, sweep_by_name[w["corner"]]))
     outcomes += bench_strength.run_pool(plan(worst_groups, runs), one, jobs)
 
+    no_term = sorted({f"{d['instance']} ({d['model']})"
+                      for d in res_mismatch if "no_term" in d})
+    no_term_note = (f"This deck's resistors with no mismatch term: "
+                    f"{', '.join(no_term)}. " if no_term else "")
     groups = []
     for role, glist in (("tt", tt_groups), ("worst", worst_groups)):
         for b, corner in glist:
@@ -855,9 +968,12 @@ def run(argv=None):
                     f"{ms[0]!r} across seeds {seeds[0]}..{seeds[-1]} - "
                     "sw_stat_mismatch/seed injection did not vary the "
                     "result; Monte Carlo must never be one sample repeated. "
-                    "If the measure depends only on resistors (GF180's "
-                    "ngspice resistor models carry no mismatch), MC cannot "
-                    "move it: turn mc off and mark the measure "
+                    f"{no_term_note}"
+                    "If the measure depends only on resistors the PDK gives "
+                    "no mismatch term (GF180 documents one only for "
+                    "nplus_u, pplus_u, npolyf_u and ppolyf_u), MC cannot "
+                    "move it: move the matched resistors onto one of those, "
+                    "or turn mc off and mark the measure "
                     "'statistical: none' with an 'mc_waiver' saying so")
             hits = sum(1 for o in mine if o["passed"])
             groups.append({
@@ -1025,7 +1141,8 @@ def run(argv=None):
         sweep_violations=len(nominal["violations"]),
         spec_sigmas=sigma_checks, ruling_sigmas=ruling_checks,
         assumptions=NORMAL_ASSUMPTION,
-        seeds=seeds, par_added=par_added, nominal_only=nominal_only,
+        seeds=seeds, par_added=par_added, res_mismatch=res_mismatch,
+        nominal_only=nominal_only,
         not_scored=[b["name"] for b in benches
                     if b not in [x for x, _ in tt_groups]],
         results=results, sample_violations=all_sample_violations[:20])

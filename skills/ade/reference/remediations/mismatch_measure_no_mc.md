@@ -12,10 +12,13 @@ tt (the corner MC always runs; its second run is each bench's worst
 sim_pvt corner).
 
 **Trap:** a waiver is only for a measure mismatch truly cannot move (a
-digital divide ratio; resistors, which GF180's ngspice models give no
-per-instance mismatch). Write `statistical: none` and an `mc_waiver` that
-says why; the report lists it under `mc_waived`. "MC is slow" is not a
-reason.
+digital divide ratio; a resistor the PDK documents no mismatch for - rm1-rm4,
+tm*, nwell, the `*_s` and ppolyf_u_1k/2k/3k, listed `no_term` under
+`res_mismatch`). Write `statistical: none` and an `mc_waiver` that says why;
+the report lists it under `mc_waived`. "MC is slow" is not a reason. A
+matched resistor on nplus_u, pplus_u, npolyf_u or ppolyf_u does get real MC:
+the gate carries the PDK's Xyce Pelgrom term (A_R/sqrt(W*L)) into the
+ngspice deck, so moving a matched ladder onto one of those beats a waiver.
 
 **Also:** a multiplied device (`m=N`) gets the right sigma in the mc gate
 (check_mc adds `par=N`, and carries an `m=N` on a user subckt down to the
