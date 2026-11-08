@@ -17,7 +17,38 @@ import os
 os.environ.setdefault("CHIP_FLOW_NO_FSYNC", "1")
 
 
+def pytest_addoption(parser) -> None:
+    parser.addoption(
+        "--corpus-shard", metavar="SHARD", default=None,
+        help="run only the corpus fault tests of this shard "
+        "(tests/test_corpus_faults.py's CORPUS_SHARDS; bin/chip-flow test "
+        "SHARD); none of them is a refusal, not a pass")
+
+
+def _select_corpus_shard(config, items) -> None:
+    want = config.getoption("--corpus-shard")
+    if want is None:
+        return
+    keep, drop = [], []
+    for item in items:
+        mark = item.get_closest_marker("corpus_shard")
+        (keep if mark is not None and mark.args[0] == want else drop).append(item)
+    if not keep:
+        raise pytest.UsageError(
+            f"--corpus-shard {want!r}: no corpus fault test is in that shard. "
+            "Name one of tests/test_corpus_faults.py's CORPUS_SHARDS, and "
+            "collect that file.")
+    config.hook.pytest_deselected(items=drop)
+    items[:] = keep
+
+
 def pytest_configure(config) -> None:
+    config.addinivalue_line(
+        "markers",
+        "corpus_shard(name): the CI shard a corpus fault test runs in "
+        "(tests/test_corpus_faults.py's CORPUS_SHARDS); --corpus-shard "
+        "selects one",
+    )
     config.addinivalue_line(
         "markers",
         "slow: a real-tool test that needs the eda image - excluded from "
@@ -132,3 +163,4 @@ def pytest_collection_modifyitems(config, items):
         why = NOT_CARRIED.get(item.nodeid)
         if why:
             item.add_marker(pytest.mark.skip(reason=why))
+    _select_corpus_shard(config, items)

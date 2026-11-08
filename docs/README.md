@@ -104,9 +104,21 @@ fails while a row and its probe disagree.
   `.github/workflows/harden-faults.yml` (on dispatch and on changes to
   `engine/`, `corpus/` or the fault tests); when one times out or fails the
   script names the fault it was on.
-  It runs on GitHub Actions, not on the Hive's machine: the `test` job in
-  `.github/workflows/test.yml`, on every pull request and every push to
-  main, on an ubuntu-24.04 runner that unpacks the same pinned
+  It runs on GitHub Actions, not on the Hive's machine: `.github/workflows/test.yml`,
+  on every pull request and every push to main, splits it into four
+  parallel `shard` jobs, `bin/chip-flow test SHARD`: `engine` (the engine
+  suite and probes), `comparator-mc` (ade/comparator's Monte Carlo gate on
+  its reference), `comparator-rest` (that rung's other reference gates and
+  all its plants) and `rest` (every other rung). Each shard's corpus run
+  keeps the same `timeout 1800` cap and writes its wall time, and the
+  runner's CPU calibration, to the job summary; the split exists so the
+  slowest shard stays under half that cap on a slow runner. A rung split
+  across shards is listed in `tests/test_corpus_faults.py`'s `SPLIT_RUNGS`,
+  and a fast test checks the shards run each of its reference gates and
+  plants exactly once and that the workflow's matrix matches. The `test`
+  job waits on all four and is red unless every shard passed. A repository
+  ruleset on main requires `test` green, so a red PR can't merge. Each job
+  runs on an ubuntu-24.04 runner that unpacks the same pinned
   IIC-OSIC-TOOLS 2026.09 image (`hpretl/iic-osic-tools`, by digest) into a
   plain directory with upstream's `.github/actions/toolchain` and points
   `EDA_TOOLCHAIN` at it. `.hive/project.json` names that job in

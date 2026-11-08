@@ -21,24 +21,48 @@ permissions:
   contents: read
 
 jobs:
-  test:
-    name: test
+  # bin/chip-flow test, one part per job (bin/chip-flow test SHARD): the
+  # engine suite, and each shard of the corpus step
+  # (tests/test_corpus_faults.py's CORPUS_SHARDS, which a fast test keeps
+  # equal to this matrix), each under its own unchanged cap. One job for
+  # all of it left a slow runner no room under the corpus cap.
+  shard:
+    name: test (${{ matrix.shard }})
     runs-on: ubuntu-24.04
     timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [engine, rest, comparator-mc, comparator-rest]
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/toolchain
-      - name: bin/chip-flow test
+      - name: bin/chip-flow test ${{ matrix.shard }}
         env:
           # -vv prints a failed assertion's whole violation.
           PYTEST_ADDOPTS: -vv
         run: |
           set +e
           start=$SECONDS
-          bin/chip-flow test
+          bin/chip-flow test ${{ matrix.shard }} 2> >(tee "$RUNNER_TEMP/stderr.log" >&2)
           rc=$?
-          echo "bin/chip-flow test: $((SECONDS - start))s, exit $rc" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "bin/chip-flow test ${{ matrix.shard }}: $((SECONDS - start))s, exit $rc" | tee -a "$GITHUB_STEP_SUMMARY"
+          grep -E '^(chip-flow test|check-engine.sh): ' "$RUNNER_TEMP/stderr.log" >> "$GITHUB_STEP_SUMMARY"
           exit $rc
+
+  # The job .hive/project.json's forge_tests names: green only when every
+  # shard passed. A shard that failed, was cancelled or never ran leaves it
+  # red, and the main branch's ruleset requires it before a merge.
+  test:
+    name: test
+    needs: shard
+    if: always()
+    runs-on: ubuntu-24.04
+    steps:
+      - name: every shard passed
+        run: |
+          echo "shards: ${{ needs.shard.result }}"
+          test "${{ needs.shard.result }}" = success
 
   # Main's score, read by the Hive from this job's log instead of a run on
   # its own machine, where worker turns hold every other turn behind
