@@ -6,10 +6,11 @@
 #
 # Source: the GF180MCU design rule manual, section 14.2 (electromigration),
 # tables 14.3 (wire, per um of drawn width) and 14.4 (contact and via, per
-# cut), the unidirectional (DC) column at 125 C junction. The gate runs an
-# operating point, so every current it sees is DC; 125 C is the hottest the
-# PDK states, and one table for every corner keeps the limit a single number
-# per layer. metal5 is the 11K top metal of gf180mcuD: the table's 9K top
+# cut), the unidirectional (DC) column at 125 C junction. The gate's
+# operating point sees DC current, held to it as is; a transient bench's
+# pulsed current is held to the limits `pulsed:` (at the end) builds from
+# it. 125 C is the hottest the PDK states, and one table for every corner
+# keeps the limit a single number per layer. metal5 is the 11K top metal of gf180mcuD: the table's 9K top
 # metal row (1.21 mA/um) is used for it, the lower and so safer of the two.
 #
 # thick is the thickness magic's FastHenry writer (`extresist fasthenry`)
@@ -58,3 +59,83 @@ cuts:
   via2: {gds: [38, 0], pads: [[36, 0], [42, 0]], between: [metal2, metal3], limit_ma: 0.18, cut_ohm: 4.5}
   via3: {gds: [40, 0], pads: [[42, 0], [46, 0]], between: [metal3, metal4], limit_ma: 0.18, cut_ohm: 4.5}
   via4: {gds: [41, 0], pads: [[46, 0], [81, 0]], between: [metal4, metal5], limit_ma: 0.18, cut_ohm: 4.5}
+
+# PDK resistors: the current through a resistor's body, per um of its drawn
+# width (r_width; wr for the *_m1/_m2 diffusion resistors), and through the
+# contact row at each of its heads, per cut. The gate reads each body's
+# current from its operating point (`@b.<instance>.brb[i]`, the PDK
+# subckt's body element) and finds the heads on the GDS: the contact
+# arrays inside the merged `head` layer shape the device lies on. A head
+# row is held to the per-cut limit of the cut named `head_cut` above.
+#   body_ma_per_um  the DRM's limit for the body: PRES.8 (ppolyf_u),
+#                   LRES.8 (npolyf_u), HRES.11 (the high-resistance poly,
+#                   ppolyf_u_1k/2k/3k and the _6p0 ones), PL.10 (any other
+#                   poly: the silicided ppolyf_s/npolyf_s), each 1 mA/um.
+#                   null: the DRM states none (diffusion and nwell
+#                   resistors); the gate reports their current per um as a
+#                   fact, unrated, and still checks their heads.
+#   body_layer      a metal resistor is a piece of its wire: held to that
+#                   layer's wire limit, with no head of its own.
+resistors:
+  ppolyf_u:        {body_ma_per_um: 1.0, rule: PRES.8,  head: [30, 0], head_cut: contact_poly}
+  npolyf_u:        {body_ma_per_um: 1.0, rule: LRES.8,  head: [30, 0], head_cut: contact_poly}
+  ppolyf_u_1k:     {body_ma_per_um: 1.0, rule: HRES.11, head: [30, 0], head_cut: contact_poly}
+  ppolyf_u_2k:     {body_ma_per_um: 1.0, rule: HRES.11, head: [30, 0], head_cut: contact_poly}
+  ppolyf_u_3k:     {body_ma_per_um: 1.0, rule: HRES.11, head: [30, 0], head_cut: contact_poly}
+  ppolyf_u_1k_6p0: {body_ma_per_um: 1.0, rule: HRES.11, head: [30, 0], head_cut: contact_poly}
+  ppolyf_u_2k_6p0: {body_ma_per_um: 1.0, rule: HRES.11, head: [30, 0], head_cut: contact_poly}
+  ppolyf_s:        {body_ma_per_um: 1.0, rule: PL.10,   head: [30, 0], head_cut: contact_poly}
+  npolyf_s:        {body_ma_per_um: 1.0, rule: PL.10,   head: [30, 0], head_cut: contact_poly}
+  nplus_u:         {body_ma_per_um: null, head: [22, 0], head_cut: contact_comp}
+  pplus_u:         {body_ma_per_um: null, head: [22, 0], head_cut: contact_comp}
+  nplus_s:         {body_ma_per_um: null, head: [22, 0], head_cut: contact_comp}
+  pplus_s:         {body_ma_per_um: null, head: [22, 0], head_cut: contact_comp}
+  nplus_u_m1:      {body_ma_per_um: null, head: [22, 0], head_cut: contact_comp}
+  pplus_u_m1:      {body_ma_per_um: null, head: [22, 0], head_cut: contact_comp}
+  nplus_u_m2:      {body_ma_per_um: null, head: [22, 0], head_cut: contact_comp}
+  pplus_u_m2:      {body_ma_per_um: null, head: [22, 0], head_cut: contact_comp}
+  nwell:           {body_ma_per_um: null, head: [21, 0], head_cut: contact_well}
+  rm1:   {body_layer: metal1}
+  rm2:   {body_layer: metal2}
+  rm3:   {body_layer: metal3}
+  rm4:   {body_layer: metal4}
+  tm6k:  {body_layer: metal5}
+  tm9k:  {body_layer: metal5}
+  tm11k: {body_layer: metal5}
+  tm30k: {body_layer: metal5}
+
+# pulsed: a block whose current is not DC also has a transient bench
+# (<block>_emir_tran_tb.cir); every wire, cut, resistor body and head row is
+# then held, over the bench's .tran window, to three limits built from the
+# DC one above (L). The DRM gives only the DC column, so these are the
+# gate's stated assumptions, not DRM numbers:
+#   average  mean |I| <= L. EM wear follows the average current density
+#            (Black's law), so the DC limit applies to the average as is.
+#   rms      I_rms <= rms_factor x L. Joule heating follows I_rms; with no
+#            DRM rms column the DC limit itself is used (rms_factor 1),
+#            the safe side: a real rms limit is at or above the DC one.
+#   peak     I_peak <= L / max(duty, duty_floor), duty = mean |I| / peak:
+#            the peak may rise as the duty falls, but never past
+#            L / duty_floor (10x), so a short spike cannot hide behind a
+#            low average. Equivalent to max(mean, duty_floor x peak) <= L.
+# The average over the window is only as good as the window: the bench
+# runs the block through whole periods of its heaviest steady activity.
+pulsed:
+  rms_factor: 1.0
+  duty_floor: 0.1
+
+# substrate_tap: what a drawn substrate tap is, for the joins magic's
+# FastHenry writer makes between the substrate and the net it is labelled
+# with at a spot of its own choosing, where the GDS draws no tap (it leaves
+# some drawn taps, a PDK cell's own, out of the geometry). A tap is a
+# contact array on `diff` inside `implant`, outside every `outside` layer:
+# gf180's COMP (22/0) in Pplus (31/0) outside Nwell (21/0) and Deep Nwell
+# (12/0), whose P+ in an LVPWELL is an isolated well, not the substrate.
+# Current past leakage at such a join is charged, whole, to every drawn
+# substrate tap in the cell (the substrate is one body; any of them can
+# take it all); a cell with none is a refusal: draw the tap.
+substrate_tap:
+  cut: contact_well
+  diff: [22, 0]
+  implant: [31, 0]
+  outside: [[21, 0], [12, 0]]

@@ -2228,7 +2228,7 @@ def klayout_lvs_findings(lvsdb, gds_path, topcell: str,
 # ---------------------------------------------------------------- ngspice
 
 _MEASURE_RE = re.compile(
-    r"^\s*([A-Za-z_][\w.\[\]()]*)\s*=\s*([-+0-9.eE]+)\s*$")
+    r"^\s*([A-Za-z_@][\w.\[\]()@]*)\s*=\s*([-+0-9.eE]+)\s*$")
 
 
 # A .control `meas` whose trigger or target never happened. This box's

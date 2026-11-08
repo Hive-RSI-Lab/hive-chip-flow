@@ -1,0 +1,44 @@
+* r2r_dac_analog_emir_tran_tb.cir - the transient the em_ir gate
+* (engine/scripts/check_analog_em_ir.py) reads pulsed EM from (issue #268):
+* I_avg, I_rms and I_peak per strap, via and resistor body over the window
+* the .tran line sets, at every corner of the spec's sweep. It fills in the
+* pdk path, the extracted netlist and the corner's process, resistor
+* section, temperature and supply; no other brace may appear (.format()).
+* No .control block: the gate adds the save, the run and the raw write.
+*
+* The heaviest pulsed state: full-scale 0 <-> 255 steps into the pad load
+* (100 ohm + 7 pF, ASSUMED as in the spec benches), the edge that charges
+* the pad through the ladder and the bit drivers. Period 2 us (1 us per
+* code, 5 tau of the 189 ns output pole); the .tran tstart of 2 us skips the
+* first period, so the window is exactly one whole period, steady state.
+* The peak is read during the 10 ns edges, so the max step is 400 ps, the
+* edge over 25.
+* Instance in netlist/ pin order: dac_code[7..0] vout vdd vss.
+
+.include '{pdk}/libs.tech/ngspice/design.ngspice'
+.lib '{pdk}/libs.tech/ngspice/sm141064.spice' {corner}
+.lib '{pdk}/libs.tech/ngspice/sm141064.spice' {res_corner}
+.include '{pdk}/libs.ref/gf180mcu_fd_sc_mcu7t5v0/spice/gf180mcu_fd_sc_mcu7t5v0.spice'
+.include '{extracted}'
+
+.temp {temp_c}
+
+vdd vdd 0 {vdd}
+vss vss 0 0
+
+vb7 b7 0 pulse(0 {vdd} 100n 10n 10n 990n 2u)
+vb6 b6 0 pulse(0 {vdd} 100n 10n 10n 990n 2u)
+vb5 b5 0 pulse(0 {vdd} 100n 10n 10n 990n 2u)
+vb4 b4 0 pulse(0 {vdd} 100n 10n 10n 990n 2u)
+vb3 b3 0 pulse(0 {vdd} 100n 10n 10n 990n 2u)
+vb2 b2 0 pulse(0 {vdd} 100n 10n 10n 990n 2u)
+vb1 b1 0 pulse(0 {vdd} 100n 10n 10n 990n 2u)
+vb0 b0 0 pulse(0 {vdd} 100n 10n 10n 990n 2u)
+
+xdut b7 b6 b5 b4 b3 b2 b1 b0 vout vdd vss r2r_dac_analog
+rpad vout vpad 100
+cload vpad 0 7p
+
+.tran 100p 4u 2u 400p
+
+.end

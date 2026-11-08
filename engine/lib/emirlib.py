@@ -13,6 +13,10 @@
     cut_clusters(gds, top, limits)         -> {cut layer: [Cluster]} counted on the GDS
     assign_cuts(net, segs, placed, cl, ..) -> each array charged with what can cross it
     wire_over / cuts_over / ir_drops       -> what the gate reports (worst_* the margin)
+    resistor_instances(pex, cell, limits)  -> [ResInst] the PDK resistors (#268)
+    resistor_heads(gds, top, insts, ..)    -> each head shape and its contact count
+    trapezoid_weights / wave_stats         -> a transient's mean |I|, I_rms, I_peak
+    pulsed_stat / pulsed_hits              -> those against em_limits.yaml `pulsed:`
 
 Where the current comes from. The gate runs an operating point on the
 parasitic netlist (`<top>.pex.spice`, every wire split into resistors between
@@ -56,12 +60,35 @@ crossing placed away from every cut is charged to the smallest array within
 FOLD_REACH_UM (_charge_orphan); the substrate joined to metal with no drawn
 tap may carry leakage only.
 
+Resistors (#268). A PDK resistor is a subckt in the extraction; its body
+current is ngspice's own (`@b.<inst>.brb[i]`), held per um of r_width to
+its body limit, and its two heads are the contact arrays inside the
+`head` layer shape it lies on (on the GDS): the shape is charged with the
+sum over the devices on it of each one's largest |I| (head_current), over
+its fewest-cut head row. Its bulk terminal (the third, its well or
+substrate) carries the body's displacement current in a transient, and
+magic puts that node at one point however far the resistor is: place()
+hands such a node's current on along the extracted resistors rather than
+refusing it for distance.
+
+Pulsed (#268). A transient is a series per resistor; every current the
+gate derives (a node's injection, a segment's, a cut array's) is linear
+in it, so tier one bounds a net by pulsed_stat (max(mean, rms / rms_factor,
+duty_floor x peak)) of its i_total(t), and tier two solves the net once
+per timepoint on the same factorised system. Means and RMS use trapezoid
+weights over the bench's window, which must be whole periods. A
+transient's well and body capacitance puts real current on the substrate,
+which magic joins to its net at a spot with no drawn tap (leaving out the
+taps a PDK cell draws itself): past leakage, that current is charged, whole,
+to every drawn substrate tap (Cluster.tap, em_limits.yaml substrate_tap).
+
 IR. A supply net's drop is the worst |V(node) - V(pin)| over its extracted
 nodes, straight from the operating point.
 
 Refuses rather than guesses: a thickness with no layer, a device current
-with no FastHenry node near it, a current with no geometry, or a layer
-change with no cut within reach is an EmirError, never a skipped wire.
+with no FastHenry node near it, a current with no geometry, a layer
+change with no cut within reach, or substrate current in a cell with no
+substrate tap is an EmirError, never a skipped wire.
 """
 from __future__ import annotations
 
@@ -85,7 +112,8 @@ CUT_GAP_UM = 0.5
 # a vertical segment's array must lie within this of its end points
 CUT_REACH_UM = 1.0
 # a substrate join magic makes with no drawn tap may carry at most this
-# share of one contact's limit (junction leakage); more is a refusal
+# share of one contact's limit (junction leakage) uncharged; more is charged
+# to the cell's drawn substrate taps, and is a refusal when it has none
 SUBSTRATE_MAX_FRAC = 0.1
 # z values are written with two decimals
 
@@ -97,7 +125,10 @@ class EmirError(RuntimeError):
 def load_limits(path=REFERENCE) -> dict:
     """{layers: {name: {thick, sheet, limit (A/m) or None, metal}},
     cuts: {gds layer: {names, limit (A per cut), ohm, under, pads}},
-    temperature_c}. A cut layer drawn for several layer pairs (gf180's one
+    cut_names: {name: {gds, limit}}, resistors: {model: {body (A/m) or None,
+    rule, head (gds) or None, head_cut, head_gds, head_limit (A per cut)}},
+    pulsed: {rms_factor, duty_floor}, substrate_tap: {gds, diff, implant,
+    outside} or None, temperature_c}. A cut layer drawn for several layer pairs (gf180's one
     contact layer serves diffusion, wells and poly) takes the lowest of
     their limits."""
     import yaml
@@ -114,7 +145,7 @@ def load_limits(path=REFERENCE) -> dict:
             layers[name] = {"thick": float(row["thick"]),
                             "sheet": float(row["sheet_ohm"]),
                             "limit": None, "metal": False}
-        cuts = {}
+        cuts, cut_names = {}, {}
         for name, row in data["cuts"].items():
             lo, hi = row["between"]
             if lo not in layers or hi not in layers:
@@ -128,9 +159,49 @@ def load_limits(path=REFERENCE) -> dict:
             c["limit"] = min(c["limit"], float(row["limit_ma"]) * 1e-3)
             c["ohm"] = max(c["ohm"], float(row["cut_ohm"]))
             c["under"] |= not (layers[lo]["metal"] and layers[hi]["metal"])
+            cut_names[name] = {"gds": gds,
+                               "limit": float(row["limit_ma"]) * 1e-3}
+        resistors = {}
+        for model, row in (data.get("resistors") or {}).items():
+            if "body_layer" in row:
+                lay = row["body_layer"]
+                if lay not in layers or not layers[lay]["metal"]:
+                    raise EmirError(f"resistor {model}'s body_layer {lay} "
+                                    "is not a wire layer")
+                resistors[model] = {"body": layers[lay]["limit"],
+                                    "rule": f"{lay} wire", "head": None,
+                                    "head_cut": None, "head_limit": None}
+                continue
+            cut = row["head_cut"]
+            if cut not in cut_names:
+                raise EmirError(f"resistor {model}'s head_cut {cut} is not "
+                                "a cut")
+            body = row["body_ma_per_um"]
+            resistors[model] = {
+                "body": None if body is None else float(body) * 1e-3 / 1e-6,
+                "rule": row.get("rule"), "head": tuple(row["head"]),
+                "head_cut": cut, "head_gds": cut_names[cut]["gds"],
+                "head_limit": cut_names[cut]["limit"]}
+        pulsed = data.get("pulsed") or {}
+        tap = data.get("substrate_tap")
+        if tap is not None:
+            if tap["cut"] not in cut_names:
+                raise EmirError(f"substrate_tap's cut {tap['cut']} is not "
+                                "a cut")
+            tap = {"gds": cut_names[tap["cut"]]["gds"],
+                   "diff": tuple(tap["diff"]),
+                   "implant": tuple(tap["implant"]),
+                   "outside": [tuple(o) for o in tap.get("outside") or []]}
+        pulsed = {"rms_factor": float(pulsed.get("rms_factor", 1.0)),
+                  "duty_floor": float(pulsed.get("duty_floor", 1.0))}
+        if not (0 < pulsed["duty_floor"] <= 1 and pulsed["rms_factor"] > 0):
+            raise EmirError(f"{path}: pulsed needs 0 < duty_floor <= 1 and "
+                            "rms_factor > 0")
     except (KeyError, TypeError, ValueError) as e:
         raise EmirError(f"{path} is malformed: {e}") from e
-    return {"layers": layers, "cuts": cuts,
+    return {"layers": layers, "cuts": cuts, "cut_names": cut_names,
+            "resistors": resistors, "pulsed": pulsed,
+            "substrate_tap": tap,
             "temperature_c": data.get("temperature_c")}
 
 
@@ -318,7 +389,7 @@ def injections(resistors: list, volts: dict) -> dict:
 # --- the bound ---------------------------------------------------------------
 
 def net_bound(name: str, inj: dict, net: FhNet | None,
-              limits: dict) -> dict:
+              limits: dict, i_total: float | None = None) -> dict:
     """Tier one: an upper bound on a net's EM from the operating point and
     the wire widths alone, using no position from magic's FastHenry file.
 
@@ -329,9 +400,14 @@ def net_bound(name: str, inj: dict, net: FhNet | None,
     cut array has at least one cut. So `wire_ratio` (i_total over the
     narrowest width, against the tightest wire limit) and `cut_ratio`
     (i_total against the tightest per-cut limit) at or under 1 pass the net
-    with nothing guessed; over 1 the gate looks closer (tier two)."""
+    with nothing guessed; over 1 the gate looks closer (tier two).
+
+    `i_total`, given, stands for the sum (a transient's pulsed_stat of it:
+    one current that each pulsed rule holds to the DC limit)."""
     name = name.lower()
-    i_total = sum(a for n, a in inj.items() if base_net(n) == name and a > 0)
+    if i_total is None:
+        i_total = sum(a for n, a in inj.items()
+                      if base_net(n) == name and a > 0)
     wire_ratio, w_min = 0.0, None
     if net is not None:
         for _a, _b, w, h in net.segs:
@@ -374,69 +450,98 @@ def _seg_ohm(seg_layers, a, b, w, limits) -> float:
     return max(sheet * run / max(w, 1e-3), 1e-6)
 
 
+class NetSystem:
+    """One net's nodal system (solve_net's), built once so that many
+    placements of its device currents, one per timepoint of a transient,
+    are solved against the same conductances in one call."""
+
+    def __init__(self, net: FhNet, limits: dict):
+        import numpy as np
+
+        self.net = net
+        reps = sorted({net.rep(n) for n in net.nodes})
+        self.idx = idx = {n: i for i, n in enumerate(reps)}
+        n = self.n = len(reps)
+        self.edges = []
+        for a, b, w, h in net.segs:
+            lay = layers_of(w, h, limits)
+            ra, rb = idx[net.rep(a)], idx[net.rep(b)]
+            g = None if ra == rb else 1.0 / _seg_ohm(lay, net.nodes[a],
+                                                     net.nodes[b], w, limits)
+            self.edges.append((a, b, w, lay, ra, rb, g))
+        G = np.zeros((n, n))
+        for *_x, ra, rb, g in self.edges:
+            if g is None:
+                continue
+            G[ra, ra] += g
+            G[rb, rb] += g
+            G[ra, rb] -= g
+            G[rb, ra] -= g
+        # ground the port, and one node of each piece the port does not reach
+        parent = list(range(n))
+
+        def find(i):
+            while parent[i] != i:
+                parent[i] = parent[parent[i]]
+                i = parent[i]
+            return i
+        for *_x, ra, rb, _g in self.edges:
+            parent[find(ra)] = find(rb)
+        port = idx[net.rep(net.port)]
+        grounds = {find(port): port}
+        for i in range(n):
+            grounds.setdefault(find(i), i)
+        self.comp = np.array([find(i) for i in range(n)])
+        self.floating = [r for r, g in grounds.items() if g != port]
+        gset = set(grounds.values())
+        self.keep = [i for i in range(n) if i not in gset]
+        self.sub = G[np.ix_(self.keep, self.keep)] if self.keep else None
+        self.ra = np.array([e[4] for e in self.edges], dtype=int)
+        self.rb = np.array([e[5] for e in self.edges], dtype=int)
+        self.g = np.array([0.0 if e[6] is None else e[6] for e in self.edges])
+
+    def solve_many(self, placements: list) -> tuple:
+        """(amps [edge, k] from a to b, leftover [k]) for each placement
+        [(fh node, A)] in `placements`: G v = inj with the grounds at 0 V;
+        leftover is what lands on pieces the port does not reach."""
+        import numpy as np
+
+        k = len(placements)
+        inj = np.zeros((self.n, k))
+        for j, placed in enumerate(placements):
+            for node, amps in placed:
+                inj[self.idx[self.net.rep(node)], j] += amps
+        leftover = np.zeros(k)
+        for root in self.floating:
+            leftover += np.abs(inj[self.comp == root].sum(axis=0))
+        v = np.zeros((self.n, k))
+        if self.keep:
+            # inj is current INTO the wire at a node; G v = inj
+            v[self.keep] = np.linalg.solve(self.sub, inj[self.keep])
+        amps = (v[self.ra] - v[self.rb]) * self.g[:, None]
+        return amps, leftover
+
+    def segs(self, amps) -> list:
+        net = self.net
+        return [SegCurrent(net.name, a, b, net.nodes[a], net.nodes[b], w,
+                           lay, float(i))
+                for (a, b, w, lay, *_x), i in zip(self.edges, amps)]
+
+
 def solve_net(net: FhNet, placed: list, limits: dict) -> tuple:
     """Each segment's current from the device currents `placed` ([(node, A)]
     on this net's FastHenry nodes), with the port at 0 V. Returns
     ([SegCurrent], leftover): leftover is the current of any piece of the
     net the port does not reach (it must be ~0, or a device current landed
     on the wrong piece)."""
-    import numpy as np
-
-    reps = sorted({net.rep(n) for n in net.nodes})
-    idx = {n: i for i, n in enumerate(reps)}
-    n = len(reps)
-    edges = []
-    for a, b, w, h in net.segs:
-        lay = layers_of(w, h, limits)
-        ra, rb = idx[net.rep(a)], idx[net.rep(b)]
-        g = None if ra == rb else 1.0 / _seg_ohm(lay, net.nodes[a],
-                                                 net.nodes[b], w, limits)
-        edges.append((a, b, w, lay, ra, rb, g))
-    G = np.zeros((n, n))
-    for *_x, ra, rb, g in edges:
-        if g is None:
-            continue
-        G[ra, ra] += g
-        G[rb, rb] += g
-        G[ra, rb] -= g
-        G[rb, ra] -= g
-    inj = np.zeros(n)
-    for node, amps in placed:
-        inj[idx[net.rep(node)]] += amps
-    # ground the port, and one node of each piece the port does not reach
-    parent = list(range(n))
-
-    def find(i):
-        while parent[i] != i:
-            parent[i] = parent[parent[i]]
-            i = parent[i]
-        return i
-    for *_x, ra, rb, _g in edges:
-        parent[find(ra)] = find(rb)
-    port = idx[net.rep(net.port)]
-    grounds = {find(port): port}
-    for i in range(n):
-        grounds.setdefault(find(i), i)
-    leftover = 0.0
-    for root, g in grounds.items():
-        if g != port:
-            leftover += abs(sum(inj[i] for i in range(n) if find(i) == root))
-    keep = [i for i in range(n) if i not in set(grounds.values())]
-    v = np.zeros(n)
-    if keep:
-        sub = G[np.ix_(keep, keep)]
-        # inj is current INTO the wire at a node; G v = inj
-        v[keep] = np.linalg.solve(sub, inj[keep])
-    out = []
-    for a, b, w, lay, ra, rb, g in edges:
-        amps = 0.0 if g is None else (v[ra] - v[rb]) * g
-        out.append(SegCurrent(net.name, a, b, net.nodes[a], net.nodes[b], w,
-                              lay, float(amps)))
-    return out, leftover
+    system = NetSystem(net, limits)
+    amps, leftover = system.solve_many([placed])
+    return system.segs(amps[:, 0]), float(leftover[0])
 
 
 def place(net: FhNet, inj: dict, rnodes: dict, resistors: list,
-          volts: dict) -> tuple:
+          volts: dict, cache: dict | None = None,
+          bulk: frozenset = frozenset()) -> tuple:
     """([(fh node, A)], folded): each of the net's extracted node currents
     put on the FastHenry node nearest its rnode position (the lowest one
     there: a device terminal sits on diffusion or poly, under the metal over
@@ -451,12 +556,24 @@ def place(net: FhNet, inj: dict, rnodes: dict, resistors: list,
     geometry has. Those pieces are under metal1, where the gate checks no
     wire, and `folded` counts them. A node more than FOLD_REACH_UM from every
     FastHenry node is refused: that is not a stub but a wire the geometry
-    lost."""
+    lost, except for a node in `bulk` (handed_on_nodes): a PDK resistor's
+    well or substrate terminal, which magic puts at one point of a body
+    that is no wire at all, or a dummy resistor's head; what flows there
+    (in a transient, the body capacitance's current) is handed on, still
+    exactly, through the extracted resistors to the taps however far they
+    are. `cache` (a dict kept between calls on one net) keeps the
+    nearest-node search of a node from one timepoint to the next."""
     name = net.name.lower()
     port = net.port.lower()
     pts = list(net.nodes.items())
+    cache = {} if cache is None else cache
 
     def nearest(node):
+        if node not in cache:
+            cache[node] = _nearest(node)
+        return cache[node]
+
+    def _nearest(node):
         x, y = rnodes[node]
         best = min(pts, key=lambda p: (round(math.hypot(p[1][0] - x,
                                                         p[1][1] - y), 2),
@@ -473,7 +590,8 @@ def place(net: FhNet, inj: dict, rnodes: dict, resistors: list,
     near = {n: nearest(n) for n in cur if n in rnodes and n != port}
     far = [n for n, (_fh, d) in near.items() if d > PLACE_TOL_UM]
     for n in far:
-        if near[n][1] > FOLD_REACH_UM and abs(cur[n]) >= I_FLOOR_A:
+        if (near[n][1] > FOLD_REACH_UM and n not in bulk
+                and abs(cur[n]) >= I_FLOOR_A):
             raise EmirError(
                 f"extracted node {n} carries {cur[n]:.3g} A, and the nearest "
                 f"FastHenry node of net {net.name} is {near[n][1]:.2f} um "
@@ -505,6 +623,12 @@ def place(net: FhNet, inj: dict, rnodes: dict, resistors: list,
     for node, amps in cur.items():
         if node == port or node in far_set or abs(amps) < I_FLOOR_A:
             continue
+        if node not in near:          # handed on to it from a far node
+            if node not in rnodes or nearest(node)[1] > PLACE_TOL_UM:
+                raise EmirError(f"extracted node {node}'s current was handed "
+                                "to it from a node off the geometry, and it "
+                                "is off the geometry too")
+            near[node] = nearest(node)
         out.append((near[node][0], amps))
     return out, folded
 
@@ -520,6 +644,7 @@ class Cluster:
     nets: set = field(default_factory=set)
     pad: object = None   # klayout Region: the drawn metal the array lands on
     dbu: float = 0.001
+    tap: bool = False    # a substrate tap (em_limits.yaml substrate_tap)
 
 
 def cut_clusters(gds_path, topcell: str, limits: dict) -> dict:
@@ -528,7 +653,8 @@ def cut_clusters(gds_path, topcell: str, limits: dict) -> dict:
     merged shapes of its pad layers that touch it (Cluster.pad). Each pad
     layer is picked on its own: merged together, a metal1 shape and a
     metal2 one that overlap anywhere would join, and the pad would chain
-    across the layers over the whole cell."""
+    across the layers over the whole cell. An array with a cut on a
+    substrate tap (em_limits.yaml substrate_tap) is marked Cluster.tap."""
     import klayout.db as kdb
 
     layout = kdb.Layout()
@@ -538,6 +664,17 @@ def cut_clusters(gds_path, topcell: str, limits: dict) -> dict:
         raise EmirError(f"{gds_path} has no cell {topcell!r}")
     dbu = layout.dbu
     grow = int(round(CUT_GAP_UM / 2 / dbu))
+
+    def region(lay):
+        i = layout.find_layer(*lay)
+        return (kdb.Region() if i is None else
+                kdb.Region(cell.begin_shapes_rec(i)).merged())
+    tap = limits.get("substrate_tap")
+    tap_area = None
+    if tap is not None:
+        tap_area = region(tap["diff"]) & region(tap["implant"])
+        for o in tap["outside"]:
+            tap_area -= region(o)
     out = {}
     for gds in limits["cuts"]:
         li = layout.find_layer(*gds)
@@ -558,11 +695,13 @@ def cut_clusters(gds_path, topcell: str, limits: dict) -> dict:
                 pad = kdb.Region()
                 for m in metals:
                     pad += m.interacting(core)
+                on_tap = (tap_area is not None and gds == tap["gds"]
+                          and core.inside(tap_area).count() > 0)
                 clusters.append(Cluster(gds, (b.left * dbu + CUT_GAP_UM / 2,
                                               b.bottom * dbu + CUT_GAP_UM / 2,
                                               b.right * dbu - CUT_GAP_UM / 2,
                                               b.top * dbu - CUT_GAP_UM / 2), n,
-                                        pad=pad, dbu=dbu))
+                                        pad=pad, dbu=dbu, tap=on_tap))
         out[gds] = clusters
     return out
 
@@ -714,6 +853,17 @@ def _charge_orphan(net, node_reps, xy, amps, layers, clusters, what,
 
 def assign_cuts(net: FhNet, segs: list, placed: list, clusters: dict,
                 limits: dict, cap: float = math.inf) -> list:
+    """cut_charges, each array's charge capped at `cap` and added to it.
+    Returns the orphan records (_charge_orphan)."""
+    charge, orphans = cut_charges(net, segs, placed, clusters, limits)
+    for c, amps in charge.values():
+        c.amps += min(amps, cap)
+        c.nets.add(net.name)
+    return orphans
+
+
+def cut_charges(net: FhNet, segs: list, placed: list, clusters: dict,
+                limits: dict, ctx: dict | None = None) -> tuple:
     """Charge every cut array with the current that can cross it. Returns
     the crossings magic placed away from any drawn cut, each charged to the
     smallest array near it (_charge_orphan), as facts for the report.
@@ -729,14 +879,20 @@ def assign_cuts(net: FhNet, segs: list, placed: list, clusters: dict,
     meets metal or a cut segment, with what those under-metal pieces carry
     in or out net; via arrays by nodes with a metal or cut segment, with the
     node's whole throughput. A node can only ever over-charge an array, never hide current
-    from it. What one net puts on an array is then capped at `cap`, the
-    net's i_total (net_bound): no piece of the net carries more."""
+    from it. What one net puts on an array is then capped (assign_cuts) at
+    the net's i_total (net_bound): no piece of the net carries more.
+
+    Returns ({id(cluster): (cluster, A)}, orphans), nothing added to the
+    clusters. `ctx`, a dict kept between calls on one net (a transient's
+    timepoints), keeps the geometry searches, which do not change."""
     orphans = []
     charge = {}                           # id(cluster) -> (cluster, A)
     contact = [g for g, r in limits["cuts"].items() if r["under"]]
     every = list(limits["cuts"])
     flows = node_flows(net, segs, placed, limits)
-    footprints = {}
+    ctx = {} if ctx is None else ctx
+    footprints = ctx.setdefault("footprints", {})
+    near_of = ctx.setdefault("near", {})
 
     def on_net(c):
         if c.dbu not in footprints:
@@ -755,27 +911,41 @@ def assign_cuts(net: FhNet, segs: list, placed: list, clusters: dict,
             if not row["under"] and not (e["metal"] or e["cut"]):
                 continue
             amps = e["below"] if row["under"] else e["through"]
-            near = [c for c in clusters.get(gds, [])
-                    if min(_box_dist(c.box, x, y)
-                           for x, y in e["xy"]) <= CUT_REACH_UM]
-            near = [c for c in near if on_net(c)] or near
-            for c in near:
+            if (node, gds) not in near_of:
+                near = [c for c in clusters.get(gds, [])
+                        if min(_box_dist(c.box, x, y)
+                               for x, y in e["xy"]) <= CUT_REACH_UM]
+                near_of[node, gds] = [c for c in near if on_net(c)] or near
+            for c in near_of[node, gds]:
                 charge[id(c)] = (c, charge.get(id(c), (c, 0.0))[1] + amps)
                 hit_contact |= row["under"]
         if changes and not hit_contact and e["only_well"]:
             # magic joins the substrate to the net it is labelled with
             # without a drawn tap; the taps it does draw are charged above.
-            # Leakage through it is noise; a real current there is not
+            # Leakage through it is noise. A real current there (a
+            # transient's well and body capacitance) crosses the drawn
+            # substrate taps magic left out: each is charged with all of it
+            # (the bound); with no tap drawn anywhere, it is a refusal
             x, y = sorted(e["xy"])[0]
+            rec = {"net": net.name, "at": [round(x, 2), round(y, 2)],
+                   "amps": e["below"], "charged": None,
+                   "what": "substrate joins metal with no drawn tap"}
             if e["below"] > SUBSTRATE_MAX_FRAC * min(
                     limits["cuts"][g]["limit"] for g in contact):
-                raise EmirError(
-                    f"net {net.name}: {e['below']:.3g} A goes between the "
-                    f"substrate and metal at ({x:.2f}, {y:.2f}) where the "
-                    "GDS draws no tap: draw the substrate tap it needs")
-            orphans.append({"net": net.name, "at": [round(x, 2), round(y, 2)],
-                            "amps": e["below"], "charged": None,
-                            "what": "substrate joins metal with no drawn tap"})
+                taps = [c for cl in clusters.values() for c in cl if c.tap]
+                if not taps:
+                    raise EmirError(
+                        f"net {net.name}: {e['below']:.3g} A goes between "
+                        f"the substrate and metal at ({x:.2f}, {y:.2f}) and "
+                        "the GDS draws no substrate tap: draw the substrate "
+                        "tap it needs")
+                for c in taps:
+                    charge[id(c)] = (c, charge.get(id(c), (c, 0.0))[1]
+                                     + e["below"])
+                rec["charged"] = "substrate taps"
+                rec["taps"] = len(taps)
+                rec["cuts"] = min(c.cuts for c in taps)
+            orphans.append(rec)
         elif changes and not hit_contact:
             orphans.append(_charge_orphan(
                 net, {node}, e["xy"], e["below"], contact, clusters,
@@ -785,16 +955,15 @@ def assign_cuts(net: FhNet, segs: list, placed: list, clusters: dict,
             continue
         x = (s.xyz_a[0] + s.xyz_b[0]) / 2
         y = (s.xyz_a[1] + s.xyz_b[1]) / 2
-        near = any(_box_dist(c.box, x, y) <= CUT_REACH_UM
-                   for cl in clusters.values() for c in cl)
-        if not near:
+        key = ("seg", x, y)
+        if key not in near_of:
+            near_of[key] = any(_box_dist(c.box, x, y) <= CUT_REACH_UM
+                               for cl in clusters.values() for c in cl)
+        if not near_of[key]:
             orphans.append(_charge_orphan(
                 net, {net.rep(s.a), net.rep(s.b)}, {(x, y)}, abs(s.amps),
                 every, clusters, "a cut segment", charge, on_net))
-    for c, amps in charge.values():
-        c.amps += min(amps, cap)
-        c.nets.add(net.name)
-    return orphans
+    return charge, orphans
 
 
 def _wire_density(s, limits):
@@ -856,6 +1025,310 @@ def worst_cut(clusters: dict, limits: dict):
             if c.amps and (best is None or per / lim > best[1] / best[2]):
                 best = (c, per, lim)
     return best
+
+
+# --- PDK resistors (issue #268) ---------------------------------------------
+
+@dataclass
+class ResInst:
+    name: str          # the X instance in the extracted cell, lowercased
+    model: str
+    a: str             # its two terminal nodes
+    b: str
+    width_um: float    # drawn width: the body limit is per um of it
+    length_um: float
+    rule: dict         # limits["resistors"][model]
+    bulk: str = ""     # its well/substrate terminal, if it has one
+
+    @property
+    def key(self) -> tuple:
+        """What the .ext writes of it too: the model, the two nets, the
+        drawn length and width (to 0.01 um)."""
+        return (self.model, frozenset((base_net(self.a), base_net(self.b))),
+                round(self.length_um, 2), round(self.width_um, 2))
+
+    def probe(self, inst: str) -> str:
+        """The ngspice vector of its body current: every PDK resistor
+        subckt writes the body as `rb`, a B source once its value has an
+        expression, so `@b.<inst>.<name>.brb[i]`."""
+        return f"@b.{inst}.{self.name}.brb[i]".lower()
+
+
+def resistor_instances(pex_text: str, cell: str, limits: dict) -> list:
+    """[ResInst] of every PDK resistor (a model em_limits.yaml's resistors
+    table names) instantiated in `.subckt cell`. One with `m` or `par`
+    other than 1 is refused: what its body probe returns per copy is not
+    the gate's to guess."""
+    from netlistlib import spice_number
+
+    out, inside = [], False
+    models = limits["resistors"]
+    for line in _logical_lines(pex_text):
+        tok = line.split()
+        if not tok:
+            continue
+        head = tok[0].lower()
+        if head == ".subckt":
+            inside = len(tok) > 1 and tok[1].lower() == cell.lower()
+            continue
+        if head == ".ends":
+            inside = False
+        if not inside or not head.startswith("x"):
+            continue
+        pos = [t for t in tok[1:] if "=" not in t]
+        if not pos or pos[-1].lower() not in models:
+            continue
+        model = pos[-1].lower()
+        params = {}
+        for t in tok[1:]:
+            if "=" in t:
+                k, v = t.split("=", 1)
+                params[k.lower()] = v
+        for k in ("m", "par"):
+            if k in params and spice_number(params[k]) != 1:
+                raise EmirError(f"resistor {tok[0]} ({model}) has {k}="
+                                f"{params[k]}: the gate reads one body's "
+                                "current and cannot split it per copy")
+        w = next((spice_number(params[k]) for k in ("r_width", "wr", "w")
+                  if k in params), None)
+        ln = next((spice_number(params[k]) for k in ("r_length", "lr", "l")
+                   if k in params), None)
+        if not w or ln is None or len(pos) < 3:
+            raise EmirError(f"resistor {tok[0]} ({model}): no numeric width "
+                            "and length, or not two terminals")
+        out.append(ResInst(head, model, pos[0].lower(), pos[1].lower(),
+                           w * 1e6, ln * 1e6, models[model],
+                           pos[2].lower() if len(pos) >= 4 else ""))
+    return out
+
+
+_EXT_RES = re.compile(r"^device\s+rsubckt\s+(\S+)\s+(-?\d+)\s+(-?\d+)\s+"
+                      r"-?\d+\s+-?\d+\s+(.*)$", re.M)
+
+
+def ext_resistors(ext_text: str) -> list:
+    """[{key, xy}] of every resistor device of a magic .ext: its key as
+    ResInst.key and a point of its body in um (the device line's location
+    box, in the file's `scale` units). The terminals are the last two
+    quoted names; the first is the substrate, the next the body itself."""
+    sc = re.search(r"^scale\s+\S+\s+\S+\s+(\S+)", ext_text, re.M)
+    unit = float(sc.group(1)) * 0.01 if sc else 0.01
+    out = []
+    for m in _EXT_RES.finditer(ext_text):
+        rest = m.group(4)
+        lm = re.search(r"\bl=(\d+)", rest)
+        wm = re.search(r"\bw=(\d+)", rest)
+        names = re.findall(r'"([^"]*)"', rest)
+        if not (lm and wm) or len(names) < 3:
+            raise EmirError(f"an .ext resistor line has no l=, w= or two "
+                            f"terminals: {m.group(0)[:120]!r}")
+        a, b = names[-2].lower(), names[-1].lower()
+        out.append({"key": (m.group(1).lower(), frozenset((a, b)),
+                            round(int(lm.group(1)) * unit, 2),
+                            round(int(wm.group(1)) * unit, 2)),
+                    "xy": (int(m.group(2)) * unit, int(m.group(3)) * unit)})
+    return out
+
+
+def resistor_heads(gds_path, topcell: str, insts: list, ext_devs: list,
+                   limits: dict) -> list:
+    """[{model, layer, box, cuts: [cuts per array], keys: [ResInst.key],
+    limit, cut}] per merged shape of a head layer that resistors lie on.
+
+    The netlist gives a resistor no position; the .ext's device line does,
+    and an instance is matched to it by ResInst.key. Instances with one key
+    (twins: same model, nets and size) cannot be told apart, so each device
+    of the key is charged the largest current among them (head_current);
+    a different count on the two sides is a refusal. The resistor's head
+    layer shape (poly, COMP or Nwell, from em_limits.yaml) at that point
+    holds the body and its heads; the contact arrays inside it (cuts within
+    CUT_GAP_UM of each other) are its head rows. Every device on the shape
+    can send its current through any of them, so each array is charged
+    with the sum (the bound the gate checks). Metal resistors have no head
+    and are left out."""
+    import klayout.db as kdb
+
+    by_key = {}
+    for r in insts:
+        if r.rule["head"] is not None:
+            by_key.setdefault(r.key, []).append(r)
+    ext_by_key = {}
+    for d in ext_devs:
+        if d["key"] in by_key:
+            ext_by_key.setdefault(d["key"], []).append(d)
+    for k, rs in by_key.items():
+        n = len(ext_by_key.get(k, []))
+        if n != len(rs):
+            model, nets, ln, w = k
+            raise EmirError(
+                f"{len(rs)} {model} resistor(s) {sorted(r.name for r in rs)} "
+                f"on {sorted(nets)} ({w} x {ln} um) in the netlist, {n} in "
+                "the .ext: the gate cannot find their heads on the GDS")
+    if not by_key:
+        return []
+    layout = kdb.Layout()
+    layout.read(str(gds_path))
+    cell = layout.cell(topcell)
+    if cell is None:
+        raise EmirError(f"{gds_path} has no cell {topcell!r}")
+    dbu = layout.dbu
+    shapes, cutl, heads = {}, {}, {}
+    for k, devs in ext_by_key.items():
+        rule = by_key[k][0].rule
+        lay, cut = rule["head"], rule["head_gds"]
+        if lay not in shapes:
+            li = layout.find_layer(*lay)
+            shapes[lay] = (kdb.Region() if li is None else
+                           kdb.Region(cell.begin_shapes_rec(li)).merged())
+        if cut not in cutl:
+            ci = layout.find_layer(*cut)
+            reg = (kdb.Region() if ci is None else
+                   kdb.Region(cell.begin_shapes_rec(ci)))
+            reg.merged_semantics = False
+            cutl[cut] = reg
+        for d in devs:
+            x, y = (int(round(v / dbu)) for v in d["xy"])
+            spot = kdb.Region(kdb.Box(x, y, x + 1, y + 1))
+            body = shapes[lay].interacting(spot)
+            if body.count() != 1:
+                raise EmirError(
+                    f"resistor {k[0]} at ({d['xy'][0]:.2f}, {d['xy'][1]:.2f}) "
+                    f"um lies on {body.count()} shapes of GDS layer "
+                    f"{lay[0]}/{lay[1]}, not one: its heads cannot be found")
+            poly = next(body.each())
+            hk = (lay, poly.bbox().left, poly.bbox().bottom,
+                  poly.bbox().right, poly.bbox().top, str(poly))
+            if hk not in heads:
+                inner = cutl[cut].inside(body)
+                grow = int(round(CUT_GAP_UM / 2 / dbu))
+                arrays = [inner.interacting(kdb.Region(p)).count()
+                          for p in inner.sized(grow).merged().each()]
+                b = poly.bbox()
+                heads[hk] = {"model": k[0], "layer": list(lay),
+                             "box": [round(v * dbu, 3) for v in
+                                     (b.left, b.bottom, b.right, b.top)],
+                             "cuts": arrays, "keys": [],
+                             "cut": rule["head_cut"],
+                             "limit": rule["head_limit"]}
+            heads[hk]["keys"].append(k)
+    return list(heads.values())
+
+
+def handed_on_nodes(insts: list) -> frozenset:
+    """The extracted nodes place() hands on along the wire R instead of
+    refusing for distance: each resistor's bulk terminal, and both heads of
+    a dummy (a resistor with both heads on one net). Both carry only the
+    current a body's capacitance or a strap's own drop pushes through it,
+    and magic writes their rnode at the device, off the net's metal."""
+    out = {r.bulk for r in insts if r.bulk}
+    for r in insts:
+        if base_net(r.a) == base_net(r.b):
+            out |= {r.a, r.b}
+    return frozenset(out)
+
+
+def head_current(head: dict, cur_by_key: dict):
+    """The current a head shape's arrays are charged with: the sum over its
+    devices of the largest |I| among the instances of each one's key
+    (`cur_by_key`, a number or a series per key)."""
+    return sum(cur_by_key[k] for k in head["keys"])
+
+
+def body_density(r: ResInst, amps) -> float:
+    """|I| over the drawn width, A/m (= mA/um x 1e3)."""
+    return abs(amps) / (r.width_um * 1e-6)
+
+
+# --- transient benches (pulsed nets, issue #268) ------------------------------
+
+def parse_ascii_raw(text: str) -> tuple:
+    """(names, values [point, variable]) of an ngspice ascii raw file (`set
+    filetype=ascii`, `write`), names lowercased as ngspice writes them
+    (`time`, `v(<node>)`, `i(<vector>)`). One plot only."""
+    import numpy as np
+
+    nv = re.search(r"^No\. Variables:\s*(\d+)", text, re.M)
+    npt = re.search(r"^No\. Points:\s*(\d+)", text, re.M)
+    vs = re.search(r"^Variables:\s*$", text, re.M)
+    val = re.search(r"^Values:\s*$", text, re.M)
+    if not (nv and npt and vs and val):
+        raise EmirError("the transient raw file is not an ngspice ascii raw "
+                        "(no Variables/Points/Values header)")
+    n, p = int(nv.group(1)), int(npt.group(1))
+    names = []
+    for line in text[vs.end():val.start()].strip().splitlines()[:n]:
+        parts = line.split()
+        if len(parts) < 2:
+            raise EmirError(f"raw file variable line {line!r}")
+        names.append(parts[1].lower())
+    tok = text[val.end():].split()
+    if len(tok) < p * (n + 1):
+        raise EmirError(f"the raw file holds {len(tok)} values, not the "
+                        f"{p} x {n + 1} its header states")
+    arr = np.array(tok[:p * (n + 1)], dtype=float).reshape(p, n + 1)
+    return names, arr[:, 1:]
+
+
+def trapezoid_weights(t):
+    """Each timepoint's share of the window: the trapezoid rule's weights,
+    divided by the window. ngspice's timepoints are not evenly spaced, so
+    a plain mean of the samples would weigh the fast edges too much."""
+    import numpy as np
+
+    t = np.asarray(t, dtype=float)
+    span = t[-1] - t[0] if len(t) > 1 else 0.0
+    if span <= 0:
+        raise EmirError("the transient window is empty: the raw file has "
+                        "fewer than two timepoints")
+    w = np.zeros(len(t))
+    dt = np.diff(t)
+    w[:-1] += dt / 2
+    w[1:] += dt / 2
+    return w / span
+
+
+def wave_stats(x, weights) -> tuple:
+    """(mean |x|, rms, peak |x|) along the last axis."""
+    import numpy as np
+
+    ax = np.abs(np.asarray(x, dtype=float))
+    return (ax @ weights, np.sqrt((ax * ax) @ weights), ax.max(axis=-1))
+
+
+def pulsed_ratios(mean, rms, peak, limit, limits) -> dict:
+    """{avg, rms, peak, duty}: each pulsed rule's use of the DC `limit`
+    (em_limits.yaml's `pulsed:`): mean |I| over L, I_rms over rms_factor
+    x L, and I_peak over L / max(duty, duty_floor), which is
+    max(mean, duty_floor x peak) / L. Over 1 is over."""
+    p = limits["pulsed"]
+    duty = mean / peak if peak > 0 else 1.0
+    return {"avg": mean / limit, "rms": rms / (p["rms_factor"] * limit),
+            "peak": peak * max(duty, p["duty_floor"]) / limit,
+            "duty": duty}
+
+
+def pulsed_stat(mean, rms, peak, limits):
+    """The one current that stands for all three rules against a single
+    limit L: each rule is `stat <= L` for this stat (and every rule rises
+    with mean, rms and peak, so a bound on them bounds it)."""
+    p = limits["pulsed"]
+    return max(mean, rms / p["rms_factor"], p["duty_floor"] * peak)
+
+
+def pulsed_hits(mean, rms, peak, limit, limits) -> tuple:
+    """([(kind suffix, ratio)], ratios) of the pulsed rules a current
+    breaks: '' the average, '_rms', '_peak'. The peak rule is reported only
+    where the duty is under duty_floor: above it the rule is the average
+    one again (L / duty against the peak is L against the mean)."""
+    r = pulsed_ratios(mean, rms, peak, limit, limits)
+    hits = []
+    if r["avg"] > 1.0:
+        hits.append(("", r["avg"]))
+    if r["rms"] > 1.0:
+        hits.append(("_rms", r["rms"]))
+    if r["peak"] > 1.0 and r["duty"] < limits["pulsed"]["duty_floor"]:
+        hits.append(("_peak", r["peak"]))
+    return hits, r
 
 
 def ir_drops(volts: dict, rails: list) -> dict:

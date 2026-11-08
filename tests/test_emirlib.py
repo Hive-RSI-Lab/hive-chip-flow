@@ -272,6 +272,63 @@ def test_an_arrays_pad_does_not_chain_across_its_layers(tmp_path):
     assert (clusters[0].pad & far).is_empty()
 
 
+def test_cut_clusters_marks_the_substrate_taps(tmp_path):
+    kdb = pytest.importorskip("klayout.db")
+    # a contact on P+ COMP in the substrate is a tap; one on P+ COMP in an
+    # Nwell (a PMOS source) and one on bare COMP are not
+    ly = kdb.Layout()
+    ly.dbu = 0.001
+    top = ly.create_cell("t")
+    def box(layer, *b):
+        top.shapes(ly.layer(*layer)).insert(
+            kdb.Box(*(int(round(v / ly.dbu)) for v in b)))
+    for x0, implant, well in ((0, True, False), (10, True, True),
+                              (20, False, False)):
+        box((22, 0), x0, 0, x0 + 1, 1)
+        box((33, 0), x0 + 0.39, 0.39, x0 + 0.61, 0.61)
+        if implant:
+            box((31, 0), x0 - 0.5, -0.5, x0 + 1.5, 1.5)
+        if well:
+            box((21, 0), x0 - 2, -2, x0 + 3, 3)
+    gds = tmp_path / "t.gds"
+    ly.write(str(gds))
+    taps = [round(c.box[0]) for c in emirlib.cut_clusters(gds, "t", LIM)[(33, 0)]
+            if c.tap]
+    assert taps == [0]
+
+
+def _substrate_join(clusters):
+    """vss: a metal1 strap from its port (0,0) to (4,0), where magic joins
+    a substrate plane to it with no drawn contact; 0.1 mA (a transient's
+    body capacitance) enters the plane at (50,0)."""
+    net = emirlib.FhNet("vss", "vss", nodes={"vss": (0, 0, 0), "j": (4, 0, 0),
+                                             "w": (50, 0, 0)},
+                        segs=[("vss", "j", 0.5, 0.55), ("j", "w", 10, 0.01)])
+    placed = [("w", 1e-4)]
+    segs, left = emirlib.solve_net(net, placed, LIM)
+    assert left == pytest.approx(0.0)
+    return emirlib.assign_cuts(net, segs, placed, {(33, 0): clusters}, LIM)
+
+
+def test_a_tapless_substrate_join_charges_every_drawn_tap():
+    tap3 = emirlib.Cluster((33, 0), (100, 100, 101, 101), 3, tap=True)
+    tap1 = emirlib.Cluster((33, 0), (200, 100, 200.2, 100.2), 1, tap=True)
+    poly = emirlib.Cluster((33, 0), (300, 100, 300.2, 100.2), 1)
+    orphans = _substrate_join([tap3, tap1, poly])
+    assert tap3.amps == pytest.approx(1e-4) and tap1.amps == pytest.approx(1e-4)
+    assert poly.amps == 0.0
+    assert orphans[0]["charged"] == "substrate taps"
+    assert orphans[0]["taps"] == 2 and orphans[0]["cuts"] == 1
+    # 0.1 mA on one cut is under contact's 0.14 mA; 0.2 mA would not be
+    assert emirlib.cuts_over({(33, 0): [tap1]}, LIM) == []
+
+
+def test_a_tapless_substrate_join_with_no_tap_anywhere_is_refused():
+    poly = emirlib.Cluster((33, 0), (300, 100, 300.2, 100.2), 1)
+    with pytest.raises(emirlib.EmirError, match="draws no substrate tap"):
+        _substrate_join([poly])
+
+
 # --- the gate's own helpers --------------------------------------------------
 
 import check_analog_em_ir as gate  # noqa: E402
@@ -352,3 +409,281 @@ def test_good_ir_fields_pass(tmp_path, capsys, line):
     (ws / "spec" / "spec.yaml").write_text(GOOD_YAML + line + "\n")
     assert check_spec_lint_ade.main(["--workspace", str(ws)]) == 0, \
         capsys.readouterr().out
+
+
+# --- PDK resistors (issue #268) ----------------------------------------------
+
+PEX_RES = """\
+.subckt ladder a b vss
+X1 a mid vss ppolyf_u r_width=0.8u r_length=10u
+X2 mid b vss ppolyf_u r_width=0.8u r_length=10u
+X3 b vss vss nplus_u_m1 lr=5u wr=1u
+X4 a b rm1 r_length=4u r_width=0.23u
+R1 a a.n1 0.5
+.ends
+"""
+
+
+def test_resistor_instances_read_size_rule_and_probe():
+    rs = emirlib.resistor_instances(PEX_RES, "ladder", LIM)
+    assert [r.name for r in rs] == ["x1", "x2", "x3", "x4"]
+    x1 = rs[0]
+    assert (x1.model, x1.a, x1.b) == ("ppolyf_u", "a", "mid")
+    assert x1.width_um == pytest.approx(0.8) and x1.length_um == pytest.approx(10)
+    assert x1.rule["body"] == pytest.approx(1000.0)        # 1 mA/um
+    assert x1.rule["head_limit"] == pytest.approx(0.14e-3)
+    assert x1.probe("xdut") == "@b.xdut.x1.brb[i]"
+    assert rs[2].rule["body"] is None and rs[2].width_um == pytest.approx(1)
+    # a metal resistor is a wire: its layer's limit, no head
+    assert rs[3].rule["body"] == pytest.approx(670.0)
+    assert rs[3].rule["head"] is None
+    # the well/substrate terminal, where a two-terminal one has none
+    assert (rs[0].bulk, rs[2].bulk, rs[3].bulk) == ("vss", "vss", "")
+
+
+def test_handed_on_nodes_are_bulk_terminals_and_dummy_heads():
+    pex = PEX_RES.replace("R1 a a.n1 0.5",
+                          "X5 vss.t3 vss.t4 vss.t0 ppolyf_u r_width=2u r_length=5u")
+    rs = emirlib.resistor_instances(pex, "ladder", LIM)
+    # X1-X3's bulk, and both heads of X5 (a dummy shorted to vss), not
+    # X1's heads, which sit on two nets and carry the ladder's current
+    assert emirlib.handed_on_nodes(rs) == frozenset(
+        {"vss", "vss.t0", "vss.t3", "vss.t4"})
+
+
+def test_resistor_instances_refuse_parallel_copies():
+    bad = PEX_RES.replace("r_length=10u\nX2", "r_length=10u par=2\nX2")
+    with pytest.raises(emirlib.EmirError, match="par=2"):
+        emirlib.resistor_instances(bad, "ladder", LIM)
+
+
+def test_ext_resistors_read_key_and_place_in_um():
+    ext = ('scale 1000 1 0.5\n'
+           'device rsubckt ppolyf_u 0 8872 1 8873 l=29672 w=400 "vss" '
+           '"a_0_8872" 0 0 "n1" 400 52800,1064 "mb1" 400 52800,1064\n')
+    (d,) = emirlib.ext_resistors(ext)
+    assert d["key"] == ("ppolyf_u", frozenset({"n1", "mb1"}), 148.36, 2.0)
+    assert d["xy"] == pytest.approx((0.0, 44.36))
+
+
+def _resistor_gds(path, head_cuts):
+    """A 2 x 20 um poly body with a row of `head_cuts` contacts at each end."""
+    import klayout.db as kdb
+    ly = kdb.Layout()
+    ly.dbu = 0.001
+    top = ly.create_cell("ladder")
+    poly, cont = ly.layer(30, 0), ly.layer(33, 0)
+    top.shapes(poly).insert(kdb.Box(0, 0, 20000, 2000))
+    for x0 in (200, 19420):
+        for j in range(head_cuts):
+            y = 200 + j * 500
+            top.shapes(cont).insert(kdb.Box(x0, y, x0 + 220, y + 220))
+    ly.write(str(path))
+
+
+def _inst(name="x1", width=2.0, length=20.0):
+    return emirlib.ResInst(name, "ppolyf_u", "a", "b", width, length,
+                           LIM["resistors"]["ppolyf_u"])
+
+
+def test_resistor_heads_count_each_rows_contacts(tmp_path):
+    gds = tmp_path / "r.gds"
+    _resistor_gds(gds, head_cuts=3)
+    r = _inst()
+    ext = [{"key": r.key, "xy": (0.0, 0.0)}]
+    (h,) = emirlib.resistor_heads(gds, "ladder", [r], ext, LIM)
+    assert h["cuts"] == [3, 3] and h["keys"] == [r.key]
+    assert h["limit"] == pytest.approx(0.14e-3)
+
+
+def test_resistor_heads_refuse_a_count_mismatch(tmp_path):
+    gds = tmp_path / "r.gds"
+    _resistor_gds(gds, head_cuts=3)
+    with pytest.raises(emirlib.EmirError, match="in the .ext"):
+        emirlib.resistor_heads(gds, "ladder", [_inst(), _inst("x2")],
+                               [{"key": _inst().key, "xy": (0, 0)}], LIM)
+
+
+def test_min_width_ppolyf_u_over_its_body_limit_is_a_finding():
+    # 0.8 um, the PDK minimum: 1 mA/um holds it to 0.8 mA
+    r = _inst(width=0.8)
+    v, f = gate.check_resistors("tt", {"x1": 0.9e-3}, [r], [], LIM,
+                                "layout/x.gds", "ladder")
+    assert [x["kind"] for x in v] == ["em_res_body_over"]
+    assert f["bodies"][0]["ratio"] == pytest.approx(0.9 / 0.8, rel=1e-3)
+    v, _f = gate.check_resistors("tt", {"x1": 0.7e-3}, [r], [], LIM,
+                                 "layout/x.gds", "ladder")
+    assert v == []
+
+
+def test_head_row_is_held_to_its_contacts():
+    r = _inst()
+    head = {"model": "ppolyf_u", "layer": [30, 0], "box": [0, 0, 20, 2],
+            "cuts": [3, 2], "keys": [r.key], "cut": "contact_poly",
+            "limit": 0.14e-3}
+    # 0.3 mA over the smaller row's 2 contacts: 0.15 mA a contact
+    v, f = gate.check_resistors("tt", {"x1": 0.3e-3}, [r], [head], LIM,
+                                "layout/x.gds", "ladder")
+    assert [x["kind"] for x in v] == ["em_res_contact_over"]
+    assert f["worst_head"]["cuts"] == 2
+    with pytest.raises(CheckError, match="no contact"):
+        gate.check_resistors("tt", {"x1": 0.3e-3}, [r], [dict(head, cuts=[])],
+                             LIM, "layout/x.gds", "ladder")
+
+
+# --- transient benches: pulsed nets (issue #268) -----------------------------
+
+RAW = """\
+Title: emir
+Date: today
+Plotname: Transient Analysis
+Flags: real
+No. Variables: 3
+No. Points: 2
+Variables:
+\t0\ttime\ttime
+\t1\tv(xdut.out)\tvoltage
+\t2\ti(@b.xdut.x1.brb[i])\tcurrent
+Values:
+ 0\t0.000000e+00
+\t1.0e+00
+\t2.0e-03
+ 1\t1.000000e-06
+\t1.5e+00
+\t-1.0e-03
+"""
+
+
+def test_parse_ascii_raw_and_series_names():
+    names, arr = emirlib.parse_ascii_raw(RAW)
+    assert names == ["time", "v(xdut.out)", "i(@b.xdut.x1.brb[i])"]
+    assert arr.shape == (2, 3) and arr[1, 2] == pytest.approx(-1e-3)
+    series, t = gate._series_of(names, arr)
+    assert set(series) == {"xdut.out", "@b.xdut.x1.brb[i]"}
+    assert t[1] == pytest.approx(1e-6)
+
+
+def test_a_source_current_does_not_overwrite_its_node_voltage():
+    # ngspice saves vdd's branch current as i(vdd) beside node v(vdd): the
+    # supply pin must read 3.3 V, not the source's few uA
+    import numpy as np
+    names = ["time", "v(vdd)", "i(vdd)", "i(@b.xdut.x1.brb[i])"]
+    arr = np.array([[0.0, 3.3, -4e-5, 1e-3], [1e-6, 3.3, -5e-5, 2e-3]])
+    series, _t = gate._series_of(names, arr)
+    assert series["vdd"][1] == pytest.approx(3.3)
+    assert series["i(vdd)"][1] == pytest.approx(-5e-5)
+    assert series["@b.xdut.x1.brb[i]"][1] == pytest.approx(2e-3)
+
+
+def test_wave_stats_weigh_uneven_timepoints():
+    import numpy as np
+    t = np.array([0.0, 0.1, 1.0])
+    w = emirlib.trapezoid_weights(t)
+    assert w.sum() == pytest.approx(1.0)
+    mean, rms, peak = emirlib.wave_stats(np.array([1.0, 1.0, 1.0]), w)
+    assert (mean, rms, peak) == pytest.approx((1.0, 1.0, 1.0))
+
+
+def _pulse(peak, duty):
+    import numpy as np
+    eps = 1e-6
+    t = np.array([0.0, eps, duty, duty + eps, 1.0])
+    return t, np.array([peak, peak, peak, 0.0, 0.0])
+
+
+def test_pulsed_ratios_follow_the_yaml_derating():
+    import numpy as np
+    t, i = _pulse(2e-3, 0.05)
+    st = emirlib.wave_stats(i, emirlib.trapezoid_weights(t))
+    assert st[0] == pytest.approx(1e-4, rel=1e-3)
+    assert st[1] == pytest.approx(2e-3 * np.sqrt(0.05), rel=1e-3)
+    r = emirlib.pulsed_ratios(*st, 1e-3, LIM)
+    assert r["duty"] == pytest.approx(0.05, rel=1e-3)
+    # under the floor, the peak is held to L / duty_floor
+    assert r["peak"] == pytest.approx(LIM["pulsed"]["duty_floor"] * 2.0,
+                                      rel=1e-3)
+
+
+STRAP_FH = """\
+* List of nodes in network
+.external Nout
+Nout x=0 y=0 z=0
+N1 x=10 y=0 z=0
+E1 Nout N1 w=0.4 h=0.55
+.freq fmin=1 fmax=1
+"""
+
+
+def _strap_case(peak, duty):
+    """A 0.4 um metal1 strap (limit 0.268 mA DC) fed at its far end with a
+    pulse. Cuts are left out of it (a lifted cut limit)."""
+    import copy as _copy
+    lim = _copy.deepcopy(LIM)
+    for c in lim["cuts"].values():
+        c["limit"] = 1.0
+    fh = emirlib.parse_fh(STRAP_FH)
+    t, i = _pulse(peak, duty)
+    res = [("out", "out.n1", 1.0)]
+    volts = {"out": 0.0 * i, "out.n1": -i * 1.0}  # current into the wire at n1
+    rnodes = {"out.n1": (10.0, 0.0)}
+    return lim, fh, t, i, res, volts, rnodes
+
+
+def test_a_resistor_bulk_terminal_far_off_the_geometry_is_handed_on():
+    """A poly resistor's well terminal sits where magic puts it, 40 um from
+    any wire of the net; in a transient its body capacitance's current
+    flows there. Placed as a wire node it is refused (a lost wire); named as
+    a resistor's bulk it is handed on through its extracted resistor."""
+    net = emirlib.parse_fh(STRAP_FH)["out"]
+    inj = {"out.t5": 1e-4}
+    rnodes = {"out.t5": (50.0, 0.0), "out.n1": (10.0, 0.0)}
+    res = [("out.t5", "out.n1", 1.0)]
+    volts = {"out.t5": 1e-4, "out.n1": 0.0}
+    with pytest.raises(emirlib.EmirError, match="um away"):
+        emirlib.place(net, inj, rnodes, res, volts)
+    placed, folded = emirlib.place(net, inj, rnodes, res, volts,
+                                   bulk=frozenset({"out.t5"}))
+    assert folded == 1
+    assert placed == [("1", pytest.approx(1e-4))]
+
+
+def _kinds(v):
+    return sorted(x["kind"] for x in v)
+
+
+def test_a_narrow_pulsed_strap_passes_dc_but_fails_rms():
+    lim, fh, t, i, res, volts, rnodes = _strap_case(2e-3, 0.05)
+    # the DC check at the mean current (0.1 mA) passes the strap
+    mean = float(emirlib.wave_stats(i, emirlib.trapezoid_weights(t))[0])
+    dc = {"out": 0.0, "out.n1": -mean}
+    v, _f = gate.analyse("tt", dc, fh, rnodes, res, {}, lim, [], 1.0,
+                         "layout/x.gds", "strap")
+    assert v == []
+    v, f = gate.analyse_tran("tt", t, volts, fh, rnodes, res, {}, lim,
+                             "layout/x.gds", "strap")
+    assert _kinds(v) == ["em_wire_rms_over"]
+    assert f["worst_wire"]["ratio"] > 1.0
+
+
+def test_a_rare_narrow_pulse_fails_the_duty_scaled_peak_only():
+    # duty 0.5 %: rms 0.21 mA and mean 15 uA pass, 0.1 x 3 mA does not
+    lim, fh, t, i, res, volts, rnodes = _strap_case(3e-3, 0.005)
+    v, _f = gate.analyse_tran("tt", t, volts, fh, rnodes, res, {}, lim,
+                              "layout/x.gds", "strap")
+    assert _kinds(v) == ["em_wire_peak_over"]
+
+
+def test_a_quiet_pulsed_strap_passes():
+    lim, fh, t, i, res, volts, rnodes = _strap_case(0.2e-3, 0.5)
+    v, f = gate.analyse_tran("tt", t, volts, fh, rnodes, res, {}, lim,
+                             "layout/x.gds", "strap")
+    assert v == [] and f["nets"][0]["i_peak"] == pytest.approx(0.2e-3)
+
+
+def test_with_tran_saves_the_probes_and_needs_a_tran_line():
+    tb = BENCH.replace(".end", ".tran 1n 1u\n.end")
+    out = gate.with_tran(tb, "x.raw", ["@b.xdut.x1.brb[i]"])
+    assert "save all @b.xdut.x1.brb[i]\nrun\nwrite x.raw" in out
+    assert out.index(".control") < out.rindex(".end")
+    with pytest.raises(CheckError, match=".tran"):
+        gate.with_tran(BENCH, "x.raw")

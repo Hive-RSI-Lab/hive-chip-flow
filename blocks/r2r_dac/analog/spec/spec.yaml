@@ -237,4 +237,7 @@ macro_timing:
 # and 23 min on the clock on a busy machine (load about 50), past the 600 s this
 # used to hold; 2400 s leaves room for a slower corner and machine. A run past
 # this limit is still a failure.
-sim_timeout_s: {pex_sim: 2400}
+# em_ir's transient (layout_ref/r2r_dac_analog_emir_tran_tb.cir, 4 us at a
+# 400 ps max step on the extracted ladder) ran past the 120 s default at
+# tt_m40c; 1200 s leaves room for a busy machine.
+sim_timeout_s: {pex_sim: 2400, em_ir: 1200}
