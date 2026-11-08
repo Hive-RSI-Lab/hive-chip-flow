@@ -116,12 +116,12 @@
      "vss": 2.4878
     },
     "ir_node": {
-     "vdd": "vdd.t259",
-     "vss": "vss.t92"
+     "vdd": "vdd.t269",
+     "vss": "vss.t269"
     },
     "worst_wire": {
      "net": "vdd",
-     "mA_per_um": 0.30186469631501783,
+     "mA_per_um": 0.3018646964285793,
      "limit": 0.67
     },
     "worst_cut": {
@@ -130,7 +130,7 @@
       0
      ],
      "cuts": 1,
-     "mA_per_cut": 0.12074587852600713,
+     "mA_per_cut": 0.12074587857143171,
      "limit": 0.18
     },
     "cuts_located_off_magic": []
@@ -200,12 +200,12 @@
      "vss": 2.5082
     },
     "ir_node": {
-     "vdd": "vdd.t259",
-     "vss": "vss.t92"
+     "vdd": "vdd.t337",
+     "vss": "vss.t269"
     },
     "worst_wire": {
      "net": "vdd",
-     "mA_per_um": 0.3043007259105801,
+     "mA_per_um": 0.3043007260250767,
      "limit": 0.67
     },
     "worst_cut": {
@@ -214,7 +214,7 @@
       0
      ],
      "cuts": 1,
-     "mA_per_cut": 0.12172029036423206,
+     "mA_per_cut": 0.12172029041003068,
      "limit": 0.18
     },
     "cuts_located_off_magic": []
@@ -284,12 +284,12 @@
      "vss": 2.5114
     },
     "ir_node": {
-     "vdd": "vdd.t259",
-     "vss": "vss.t92"
+     "vdd": "vdd.t337",
+     "vss": "vss.t269"
     },
     "worst_wire": {
      "net": "vdd",
-     "mA_per_um": 0.30463340770068975,
+     "mA_per_um": 0.304633407815305,
      "limit": 0.67
     },
     "worst_cut": {
@@ -298,7 +298,7 @@
       0
      ],
      "cuts": 1,
-     "mA_per_cut": 0.12185336308027589,
+     "mA_per_cut": 0.121853363126122,
      "limit": 0.18
     },
     "cuts_located_off_magic": []
@@ -369,12 +369,12 @@
      "vss": 3.1049
     },
     "ir_node": {
-     "vdd": "vdd.t259",
-     "vss": "vss.t92"
+     "vdd": "vdd.t337",
+     "vss": "vss.t269"
     },
     "worst_wire": {
      "net": "vdd",
-     "mA_per_um": 0.3766798035971721,
+     "mA_per_um": 0.3766798037389154,
      "limit": 0.67
     },
     "worst_cut": {
@@ -383,7 +383,7 @@
       0
      ],
      "cuts": 1,
-     "mA_per_cut": 0.15079164730215308,
+     "mA_per_cut": 0.1507916473588504,
      "limit": 0.18
     },
     "cuts_located_off_magic": [
@@ -413,7 +413,7 @@
        221.69,
        -0.72
       ],
-      "amps": 1.100728938576063e-07,
+      "amps": 1.100728938576046e-07,
       "charged": null,
       "what": "substrate joins metal with no drawn tap"
      },
@@ -423,7 +423,7 @@
        182.08,
        90.98
       ],
-      "amps": 1.0223457141677612e-06,
+      "amps": 1.0223457141675528e-06,
       "charged": null,
       "what": "substrate joins metal with no drawn tap"
      },
@@ -433,7 +433,7 @@
        217.92,
        90.98
       ],
-      "amps": 7.659283910918813e-08,
+      "amps": 7.659283910911733e-08,
       "charged": null,
       "what": "substrate joins metal with no drawn tap"
      },
@@ -443,7 +443,7 @@
        182.08,
        -0.72
       ],
-      "amps": 1.0584531433968173e-07,
+      "amps": 1.0584531433968932e-07,
       "charged": null,
       "what": "substrate joins metal with no drawn tap"
      },
@@ -453,7 +453,7 @@
        0.3,
        -3.0
       ],
-      "amps": 1.2378601814853083e-06,
+      "amps": 1.237860181485319e-06,
       "charged": null,
       "what": "substrate joins metal with no drawn tap"
      }
@@ -525,12 +525,12 @@
      "vss": 3.1306
     },
     "ir_node": {
-     "vdd": "vdd.t259",
-     "vss": "vss.t92"
+     "vdd": "vdd.t337",
+     "vss": "vss.t269"
     },
     "worst_wire": {
      "net": "vdd",
-     "mA_per_um": 0.3797313868162584,
+     "mA_per_um": 0.37973138695915626,
      "limit": 0.67
     },
     "worst_cut": {
@@ -539,7 +539,7 @@
       0
      ],
      "cuts": 1,
-     "mA_per_cut": 0.1523345713719847,
+     "mA_per_cut": 0.15233457142914383,
      "limit": 0.18
     },
     "cuts_located_off_magic": [
@@ -569,7 +569,7 @@
        152.52,
        81.36
       ],
-      "amps": 4.225931232091739e-05,
+      "amps": 4.225931232091734e-05,
       "what": "a wire under metal1 meets metal",
       "charged": [
        33,
@@ -589,7 +589,7 @@
        221.69,
        -0.72
       ],
-      "amps": 1.1095761296063979e-07,
+      "amps": 1.1095761296063954e-07,
       "charged": null,
       "what": "substrate joins metal with no drawn tap"
      },
@@ -599,7 +599,7 @@
        182.08,
        90.98
       ],
-      "amps": 1.030541773706962e-06,
+      "amps": 1.0305417737067545e-06,
       "charged": null,
       "what": "substrate joins metal with no drawn tap"
      },
@@ -609,7 +609,7 @@
        217.92,
        90.98
       ],
-      "amps": 7.722057978500222e-08,
+      "amps": 7.722057978495264e-08,
       "charged": null,
       "what": "substrate joins metal with no drawn tap"
      },
@@ -619,7 +619,7 @@
        182.08,
        -0.72
       ],
-      "amps": 1.0665868217785437e-07,
+      "amps": 1.0665868217786596e-07,
       "charged": null,
       "what": "substrate joins metal with no drawn tap"
      },
@@ -629,7 +629,7 @@
        0.3,
        -3.0
       ],
-      "amps": 1.2479172714982775e-06,
+      "amps": 1.2479172714982881e-06,
       "charged": null,
       "what": "substrate joins metal with no drawn tap"
      }
@@ -701,12 +701,12 @@
      "vss": 3.1353
     },
     "ir_node": {
-     "vdd": "vdd.t259",
-     "vss": "vss.t92"
+     "vdd": "vdd.t337",
+     "vss": "vss.t269"
     },
     "worst_wire": {
      "net": "vdd",
-     "mA_per_um": 0.38030355866975213,
+     "mA_per_um": 0.3803035588128546,
      "limit": 0.67
     },
     "worst_cut": {
@@ -715,7 +715,7 @@
       0
      ],
      "cuts": 1,
-     "mA_per_cut": 0.15233457137367265,
+     "mA_per_cut": 0.15233457143091364,
      "limit": 0.18
     },
     "cuts_located_off_magic": [
@@ -725,7 +725,7 @@
        152.52,
        81.36
       ],
-      "amps": 4.232481475431746e-05,
+      "amps": 4.232481475431751e-05,
       "what": "a wire under metal1 meets metal",
       "charged": [
        33,
@@ -745,7 +745,7 @@
        221.69,
        -0.72
       ],
-      "amps": 1.1109012414602898e-07,
+      "amps": 1.1109012414602707e-07,
       "charged": null,
       "what": "substrate joins metal with no drawn tap"
      },
@@ -755,7 +755,7 @@
        182.08,
        90.98
       ],
-      "amps": 1.032031919449142e-06,
+      "amps": 1.0320319194489718e-06,
       "charged": null,
       "what": "substrate joins metal with no drawn tap"
      },
@@ -765,7 +765,7 @@
        217.92,
        90.98
       ],
-      "amps": 7.727450042535343e-08,
+      "amps": 7.727450042528262e-08,
       "charged": null,
       "what": "substrate joins metal with no drawn tap"
      },
@@ -775,7 +775,7 @@
        182.08,
        -0.72
       ],
-      "amps": 1.068772066352607e-07,
+      "amps": 1.0687720663527338e-07,
       "charged": null,
       "what": "substrate joins metal with no drawn tap"
      },
@@ -785,7 +785,7 @@
        0.3,
        -3.0
       ],
-      "amps": 1.2495463738074655e-06,
+      "amps": 1.249546373807477e-06,
       "charged": null,
       "what": "substrate joins metal with no drawn tap"
      }
@@ -856,12 +856,12 @@
      "vss": 2.0749
     },
     "ir_node": {
-     "vdd": "vdd.t259",
-     "vss": "vss.t92"
+     "vdd": "vdd.t269",
+     "vss": "vss.t269"
     },
     "worst_wire": {
      "net": "vdd",
-     "mA_per_um": 0.25174619780002344,
+     "mA_per_um": 0.2517461978947422,
      "limit": 0.67
     },
     "worst_cut": {
@@ -870,7 +870,7 @@
       0
      ],
      "cuts": 1,
-     "mA_per_cut": 0.10069847912000937,
+     "mA_per_cut": 0.10069847915789686,
      "limit": 0.18
     },
     "cuts_located_off_magic": []
@@ -940,12 +940,12 @@
      "vss": 2.0917
     },
     "ir_node": {
-     "vdd": "vdd.t259",
-     "vss": "vss.t92"
+     "vdd": "vdd.t337",
+     "vss": "vss.t269"
     },
     "worst_wire": {
      "net": "vdd",
-     "mA_per_um": 0.2537530851118938,
+     "mA_per_um": 0.2537530852073942,
      "limit": 0.67
     },
     "worst_cut": {
@@ -954,7 +954,7 @@
       0
      ],
      "cuts": 1,
-     "mA_per_cut": 0.10200039307745466,
+     "mA_per_cut": 0.10200039311565481,
      "limit": 0.18
     },
     "cuts_located_off_magic": []
@@ -1024,8 +1024,8 @@
      "vss": 2.094
     },
     "ir_node": {
-     "vdd": "vdd.t259",
-     "vss": "vss.t92"
+     "vdd": "vdd.t337",
+     "vss": "vss.t269"
     },
     "worst_wire": null,
     "worst_cut": {
@@ -1034,7 +1034,7 @@
       0
      ],
      "cuts": 1,
-     "mA_per_cut": 0.10159599821377273,
+     "mA_per_cut": 0.10159599825199395,
      "limit": 0.18
     },
     "cuts_located_off_magic": []
@@ -1104,8 +1104,8 @@
      "vss": 2.0938
     },
     "ir_node": {
-     "vdd": "vdd.t259",
-     "vss": "vss.t92"
+     "vdd": "vdd.t269",
+     "vss": "vss.t269"
     },
     "worst_wire": null,
     "worst_cut": {
@@ -1114,7 +1114,7 @@
       0
      ],
      "cuts": 1,
-     "mA_per_cut": 0.10200244585559737,
+     "mA_per_cut": 0.10200244589383924,
      "limit": 0.18
     },
     "cuts_located_off_magic": []
@@ -1185,12 +1185,12 @@
      "vss": 3.1285
     },
     "ir_node": {
-     "vdd": "vdd.t259",
-     "vss": "vss.t92"
+     "vdd": "vdd.t337",
+     "vss": "vss.t269"
     },
     "worst_wire": {
      "net": "vdd",
-     "mA_per_um": 0.3794453008892829,
+     "mA_per_um": 0.37944530103204666,
      "limit": 0.67
     },
     "worst_cut": {
@@ -1209,7 +1209,7 @@
        152.52,
        81.36
       ],
-      "amps": 4.223727781655111e-05,
+      "amps": 4.2237277816551064e-05,
       "what": "a wire under metal1 meets metal",
       "charged": [
        33,
@@ -1229,7 +1229,7 @@
        221.69,
        -0.72
       ],
-      "amps": 1.1086396352615738e-07,
+      "amps": 1.1086396352615693e-07,
       "charged": null,
       "what": "substrate joins metal with no drawn tap"
      },
@@ -1239,7 +1239,7 @@
        182.08,
        90.98
       ],
-      "amps": 1.029769326819519e-06,
+      "amps": 1.0297693268193294e-06,
       "charged": null,
       "what": "substrate joins metal with no drawn tap"
      },
@@ -1249,7 +1249,7 @@
        217.92,
        90.98
       ],
-      "amps": 7.714132314980309e-08,
+      "amps": 7.71413231497252e-08,
       "charged": null,
       "what": "substrate joins metal with no drawn tap"
      },
@@ -1259,7 +1259,7 @@
        182.08,
        -0.72
       ],
-      "amps": 1.0654224723457397e-07,
+      "amps": 1.0654224723458375e-07,
       "charged": null,
       "what": "substrate joins metal with no drawn tap"
      },
@@ -1269,7 +1269,7 @@
        0.3,
        -3.0
       ],
-      "amps": 1.24695231859485e-06,
+      "amps": 1.2469523185948606e-06,
       "charged": null,
       "what": "substrate joins metal with no drawn tap"
      }
@@ -1282,13 +1282,13 @@
   "tb": "dir_text:f39ddda9f2efd5463da75d99f486ff1ea8d2038b91027869426db82f0bf513e4",
   "layout_ref": "dir_text:3877121e758def7d2fcd326931f83d5dfad6ae2f65fec2e70b868dfdf45a8f9a",
   "netlist": "dir_text:2c6d358ba4c3ec93f5dc910e1777df9a3f5418293791a715229fa1b8d22d1e4e",
-  "spec_yaml": "json_canonical:8c9cd25a18e9f52cb3d6890c8bb10c49e0fd4727727abbe712a4ce5fc7367fb4",
+  "spec_yaml": "json_canonical:b391e767c6c4d39480d7ef7b38f0dd7cfa96ed092067417f753de42680542655",
   "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
   "pdk_models": "dir_text:84e0f27991c27acae27ec5243fd0d1587f7bfb2655e802ed0eb92a811cf5f7f8",
   "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
   "pdk_klayout": "dir_text:876da90e8aab65b830b36eca12bd720adfe8240a0952872419d9f2b4abda605d"
  },
  "strength_at_start": 0,
- "recorded_ts": "2026-11-07T18:24:04",
- "attempts": 1
+ "recorded_ts": "2026-11-08T01:18:10",
+ "attempts": 2
 }
