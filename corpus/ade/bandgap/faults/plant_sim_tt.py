@@ -1,7 +1,7 @@
 """Fault: W and L swapped on the output branch's own mirror device
 (gates.yaml's sim_tt row, same class of fault as corpus/ade/mirror's own
 plant_sim_tt.py) - confirmed empirically: this design's real `vref` goes
-from 1.18814V (inside spec.yaml's [1.16, 1.21] bound) to 0.716937V (nowhere
+from 1.18949V (inside spec.yaml's [1.16, 1.21] bound) to 0.716937V (nowhere
 close) once xm5's own w/l values trade places."""
 from pathlib import Path
 
