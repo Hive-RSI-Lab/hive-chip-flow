@@ -882,3 +882,67 @@ def test_poly_body_residual_refuses_a_negative_residual():
         layoutlib.add_poly_body_residuals(
             ".subckt t a b c\nX1 a b c ppolyf_u r_width=2u r_length=10u\n"
             ".ends\n", tech, models)
+
+# a magic tech cut down to what mim_plate_areacaps reads: the MIM's top
+# plate type is in the metal4 alias, its area cap differs by variant
+MIM_TECH = """\
+aliases
+  allm4 *m4,rm4,*mimcap
+end
+extract
+ style ngspice variants (),(hrhc)
+ variants ()
+ defaultareacap allm4 metal4 7.602
+ variants (hrhc)
+ defaultareacap allm4 metal4 8.213
+ variants *
+ device csubcircuit cap_mim_2f0_m4m5_noshield *mimcap *m4 l=c_length w=c_width
+ style pnm
+ defaultareacap allm4 metal4 99
+end
+"""
+MIM_EXT = 'style ngspice()\nsubstrate "vss" 0 0 0 0 pw\n'
+MIM_PEX = """\
+.subckt top d2 out vss
+X0 d2.t0 out.t1 cap_mim_2f0_m4m5_noshield c_width=10u c_length=10u
+C0 d2 vss 0.6f
+C1 d2.t0 vss 0.4f
+C2 d2 out 0.1f
+C3 out vss 0.2f
+.ends
+"""
+
+
+def test_mim_plate_areacaps_reads_the_styles_variant():
+    assert layoutlib.mim_plate_areacaps(MIM_TECH, "ngspice", "") == {
+        "cap_mim_2f0_m4m5_noshield": 7.602}
+    assert layoutlib.mim_plate_areacaps(MIM_TECH, "ngspice", "hrhc") == {
+        "cap_mim_2f0_m4m5_noshield": 8.213}
+
+
+def test_move_mim_plate_caps_puts_the_bottom_plates_c_on_its_net():
+    # 100 um^2 x 7.602 aF/um^2 = 0.7602 fF off d2's 1.0 fF to vss, scaled
+    # together, onto the bottom plate's node; the coupling stays
+    out, moved = layoutlib.move_mim_plate_caps(
+        MIM_EXT, MIM_PEX, {"cap_mim_2f0_m4m5_noshield": 7.602})
+    assert moved == {"X0": {"top": "d2", "bottom": "out", "ff": 0.7602}}
+    assert c_to(out, "d2", "vss") == pytest.approx(0.2398, abs=1e-5)
+    assert c_to(out, "out", "vss") == pytest.approx(0.9602, abs=1e-5)
+    assert c_to(out, "d2", "out") == pytest.approx(0.1)
+    assert out.splitlines()[-1] == ".ends"
+
+
+def test_move_mim_plate_caps_refuses_when_something_under_the_plate_took_it():
+    # d2 has less C to vss than its plate area gives it: a shape under the
+    # MIM took it as an overlap this cannot split
+    with pytest.raises(layoutlib.LayoutError, match="under the MIM"):
+        layoutlib.move_mim_plate_caps(
+            MIM_EXT, MIM_PEX, {"cap_mim_2f0_m4m5_noshield": 20.0})
+
+
+def test_move_mim_plate_caps_leaves_a_netlist_without_a_mim_alone():
+    pex = ".subckt top a vss\nC0 a vss 1f\n.ends\n"
+    assert layoutlib.move_mim_plate_caps(
+        MIM_EXT, pex, {"cap_mim_2f0_m4m5_noshield": 7.602}) == (pex, {})
+    assert not layoutlib._has_mim(MIM_TECH, pex)
+    assert layoutlib._has_mim(MIM_TECH, MIM_PEX)
