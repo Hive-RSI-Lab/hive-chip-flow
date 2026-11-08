@@ -1388,6 +1388,110 @@ def uncount_rnode_caps(ext_text: str, res_ext_text: str,
     return "".join(lines), changed
 
 
+def restore_unsplit_node_caps(ext_text: str, res_ext_text: str,
+                              pex_text: str) -> tuple[str, dict]:
+    """pex_text with each net extresist did not split given exactly the C
+    to the substrate net its .ext node has, and {net: [before_ff,
+    after_ff]} for each net whose C changed.
+
+    With extresist on, ext2spice does not write a net extresist left whole
+    (one that touches no transistor, such as a resistor-to-MIM node) at
+    its .ext node C. It writes no C to the substrate at all, or it writes
+    one with a split net's rnode share on top. On the ota, the 16.35 fF
+    rnode of d2 at the MIM's top terminal came out on dz, the MIM's other
+    terminal: setting that rnode to 1 fF moved dz's C to vss to its .ext
+    4.71 fF plus 1. Every split net's C is scaled to its .ext's by
+    uncount_rnode_caps, so such a share is counted twice. An unsplit net is
+    exactly what the .ext extracted: extresist changed nothing on it. So
+    each unsplit net named in the netlist has its C lines to the substrate
+    replaced by one capacitor of its .ext substrate C plus any .ext
+    coupling to the substrate net (none if that is 0)."""
+    import netlistlib
+
+    split = set()
+    for line in res_ext_text.splitlines():
+        m = _RNODE_RE.match(line)
+        if m:
+            split.add(_pex_net(_ext_net(m.group(1))))
+    subs = [_ext_net(m.group(1)) for m in map(
+        _EXT_SUBSTRATE_RE.match, ext_text.splitlines()) if m]
+    target: dict[str, float] = {}
+    for n in ext_nodes(ext_text):
+        net = _ext_net(n["name"])
+        target.setdefault(net, 0.0)
+        target[net] += n["cap"] / 1e3
+    whole = {net for net in target if net not in split}
+    if len(subs) != 1:
+        if not any(target[n] > 0 for n in whole):
+            return pex_text, {}
+        raise LayoutError(
+            f"the .ext names {len(subs)} substrate nets, not one - the node "
+            "C of a net extresist did not split has no net to go to")
+    sub = subs[0]
+    whole.discard(sub)
+    if not whole:
+        return pex_text, {}
+    for line in ext_text.splitlines():
+        m = _EXT_CAP_RE.match(line)
+        if m:
+            a, b = _ext_net(m.group(1)), _ext_net(m.group(2))
+            if sub in (a, b) and a != b:
+                net = b if a == sub else a
+                target[net] = target.get(net, 0.0) + float(m.group(3)) / 1e3
+    named: set[str] = set()
+    have: dict[str, float] = {}
+    at: dict[str, list[int]] = {}
+    names: set[str] = set()
+    lines = pex_text.splitlines(keepends=True)
+    end = len(lines)
+    for i, raw in enumerate(lines):
+        line = netlistlib.strip_comment(raw).strip()
+        parts = line.split()
+        if not parts or parts[0].startswith(("*", "+")):
+            continue
+        head = parts[0].lower()
+        if head == ".ends":
+            end = i
+            break
+        if head.startswith("."):
+            continue
+        names.add(parts[0].lower())
+        nodes = parts[1:]
+        if head[:1] == "c" and len(parts) >= 4:
+            a, b = (_pex_net(node) for node in parts[1:3])
+            value = netlistlib.spice_number(parts[3])
+            if value is not None and sub in (a, b) and a != b:
+                net = b if a == sub else a
+                if net in whole:
+                    have[net] = have.get(net, 0.0) + value * 1e15
+                    at.setdefault(net, []).append(i)
+            nodes = parts[1:3]
+        for node in nodes:
+            if "=" in node:
+                break
+            if _pex_net(node) in whole and node == _pex_net(node):
+                named.add(node)
+    changed: dict[str, list[float]] = {}
+    drop: set[int] = set()
+    extra = []
+    k = 0
+    for net in sorted(named | set(have)):
+        ff, before = target.get(net, 0.0), have.get(net, 0.0)
+        if abs(before - ff) <= 1e-5 * max(ff, 1.0):
+            continue
+        drop.update(at.get(net, ()))
+        if ff > 0:
+            while f"cnode{k}" in names:
+                k += 1
+            names.add(f"cnode{k}")
+            extra.append(f"Cnode{k} {net} {sub} {ff:.6g}f\n")
+        changed[net] = [round(before, 5), round(ff, 5)]
+    if not changed:
+        return pex_text, {}
+    kept = [line for i, line in enumerate(lines[:end]) if i not in drop]
+    return "".join(kept + extra + lines[end:]), changed
+
+
 # a style's own variants line in a magic tech: "variants (),(hrhc)" or "*"
 _TECH_VARIANTS_RE = re.compile(r"^\s*variants\s+(\S+)\s*$")
 _TECH_STYLE_RE = re.compile(r"^\s*style\s+(\S+)")
@@ -1588,7 +1692,10 @@ def run_magic_extract(work_dir, gds_path, topcell: str, *, parasitics: bool,
     (lost_couplings); a pair that did not is a refusal, never an
     optimistic netlist. extresist also writes each split net's coupling C
     a second time, as C to the substrate (uncount_rnode_caps takes that
-    back off), so the netlist written is magic's with those lines scaled.
+    back off), so the netlist written is magic's with those lines scaled,
+    and writes a net it left whole (one with no transistor on it) with no
+    C to the substrate, or with a split net's rnode share on it:
+    restore_unsplit_node_caps sets it to the .ext's.
     The tech also leaves resistor types out of parasitic C, trusting the
     device models, and the poly resistor models carry less than the tech's
     own poly-to-substrate C: the difference on each poly body is added
@@ -1680,6 +1787,16 @@ def run_magic_extract(work_dir, gds_path, topcell: str, *, parasitics: bool,
                     f"before -> after): " + ", ".join(
                         f"{net} {a:g} -> {b:g}"
                         for net, (a, b) in uncounted.items()) + "\n")
+        pex_text, restored = restore_unsplit_node_caps(
+            ext_text, res_path.read_text(encoding="utf-8", errors="replace"),
+            pex_text)
+        if restored:
+            out_path.write_text(pex_text, encoding="utf-8")
+            out += (f"\nC to the substrate set to the .ext's on "
+                    f"{len(restored)} net(s) extresist did not split (fF, "
+                    "before -> after): " + ", ".join(
+                        f"{net} {a:g} -> {b:g}"
+                        for net, (a, b) in restored.items()) + "\n")
         tech_text = (tech or magic_tech_source()).read_text(
             encoding="utf-8", errors="replace")
         moved = {}

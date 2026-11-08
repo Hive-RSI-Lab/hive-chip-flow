@@ -352,6 +352,57 @@ def test_uncount_rnode_caps_refuses_without_one_substrate():
             "C0 a.t0 vss 1f\n")
 
 
+UNSPLIT_EXT = ('substrate "vss" 0 0 0 0 m1\n'
+               'node "d2" 0 3000 0 0 m1\n'
+               'node "dz" 0 8764 0 0 m2\n'
+               'cap "dz" "vss" 236\n')
+UNSPLIT_RES = 'rnode "d2.t0" 0 1000 0 0 0\n'
+UNSPLIT_PEX = (".subckt top d2 dz out vss\n"
+               "X1 dz out cap_mim_2f0_m4m5_noshield c_width=26u c_length=26u\n"
+               "X2 dz d2.t0 vss ppolyf_u_1k r_width=2u r_length=9u\n"
+               "C0 d2.t0 vss 3f\n"
+               "C1 dz out 2.5f\n"
+               ".ends\n")
+
+
+def test_restore_unsplit_node_caps_gives_a_whole_net_its_ext_c():
+    # dz holds no transistor, so extresist leaves it whole and ext2spice
+    # writes it no C to vss: it gets its .ext node C plus its coupling to
+    # vss; split d2 and the dz-out coupling are left as they were
+    out, changed = layoutlib.restore_unsplit_node_caps(
+        UNSPLIT_EXT, UNSPLIT_RES, UNSPLIT_PEX)
+    assert changed == {"dz": [0.0, 9.0]}
+    assert c_to(out, "dz", "vss") == pytest.approx(9.0)
+    assert c_to(out, "d2", "vss") == pytest.approx(3.0)
+    assert c_to(out, "dz", "out") == pytest.approx(2.5)
+    assert out.splitlines()[-1] == ".ends"
+
+
+def test_restore_unsplit_node_caps_takes_a_split_nets_share_off():
+    # ext2spice can file the rnode share of the split net on a device's
+    # other terminal (d2.t0's 16 fF on dz): dz is set back to its .ext 9 fF
+    pex = UNSPLIT_PEX.replace(".ends", "C2 dz vss 25f\n.ends")
+    out, changed = layoutlib.restore_unsplit_node_caps(
+        UNSPLIT_EXT, UNSPLIT_RES, pex)
+    assert changed == {"dz": [25.0, 9.0]}
+    assert c_to(out, "dz", "vss") == pytest.approx(9.0)
+    assert "C2 dz vss" not in out
+    assert c_to(out, "d2", "vss") == pytest.approx(3.0)
+
+
+def test_restore_unsplit_node_caps_leaves_a_net_at_its_ext_c_alone():
+    pex = UNSPLIT_PEX.replace(".ends", "C2 dz vss 9f\n.ends")
+    assert layoutlib.restore_unsplit_node_caps(
+        UNSPLIT_EXT, UNSPLIT_RES, pex) == (pex, {})
+
+
+def test_restore_unsplit_node_caps_refuses_without_one_substrate():
+    with pytest.raises(layoutlib.LayoutError, match="substrate"):
+        layoutlib.restore_unsplit_node_caps(
+            UNSPLIT_EXT.replace('substrate "vss"', 'node "vss"'),
+            UNSPLIT_RES, UNSPLIT_PEX)
+
+
 def test_parasitic_extraction_labels_unlabelled_nets_before_extresist(
         tmp_path, monkeypatch):
     fake_pdk(tmp_path, monkeypatch)

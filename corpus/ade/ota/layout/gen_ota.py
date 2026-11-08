@@ -41,13 +41,20 @@ rectangle covers P1, P2 and their taps. Each row has one pplus/nplus
 across all its units: at a 3um pitch neighbouring units' implants would sit
 0.36um apart, under PP.2/NP.2's 0.4.
 
-xcc, the Miller cap, is a 32um MIM-B (metal4 bottom, metal5 top) left of
+xcc, the Miller cap, is a 26um MIM-B (metal4 bottom, metal5 top) left of
 the spines: its top plate is d2 (the netlist's first terminal) and comes
-out on metal5, its bottom plate out through a via4 on its widened right
-edge, each strap running right to a via4+via3 stack on its net's spine.
+out on metal5 to a via4+via3 stack on the d2 spine. xrz, its nulling
+resistor (a 2um x 25.5um ppolyf_u, #297), lies below the cap: its left
+terminal goes up a via1/via2/via3 stack to a metal4 strip into the bottom
+plate (dz), its right terminal on metal2 to the out spine. Every strap
+stays as short as the old cap's were, so each spine end of a wire is
+within reach of a node of magic's FastHenry geometry (em_ir). xrz carries
+its own substrate contact; the substrate is vss. It is a ppolyf_u, not the
+1 kohm/sq ppolyf_u_1k, because pex_sim's second extractor (kpex) cuts a
+plain poly resistor's body but refuses the high-Rs layer 62/0.
 
 Pins (metal1/metal2 label layers, PINS order: magic numbers ports in label
-order) sit on their tracks; tail, d1 and d2 are labelled on metal2 drawing,
+order) sit on their tracks; tail, d1, d2 and dz are labelled on metal2 drawing,
 a name and not a port, so layout_match can tell the pair's units apart.
 """
 from __future__ import annotations
@@ -85,7 +92,12 @@ NW_ENC = 0.8      # nwell margin round the nwell taps
 CUT, CUT_SP, CUT_ENC = 0.26, 0.26, 0.07
 VIA_GAP = 0.8     # same-net stub ends closer than this share one via1
 
-CC_SIDE = 32.0    # xcc: c_width = c_length = cc_w
+CC_SIDE = 26.0    # xcc: c_width = c_length = cc_w
+RZ_W, RZ_L = 2.0, 25.5  # xrz: r_width = rz_w, r_length = rz_l
+RZ_SP = 1.0       # xrz's cell edge to the d2 spine's metal3
+RZ_DROP = 1.5     # xrz's cell top below the cap's bottom plate (its metal2
+                  # to out then clears the out track's at the spine)
+RZ_A_IN = 1.5     # xrz's left terminal this far inside the plate's left edge
 MIM_ENC = 0.6     # draw_cap_mim's own bottom-plate margin
 BOT_EXT = 2.0     # bottom plate widened right of the top plate, for via4
 M4_KEEP = 2.0     # other metal4 kept this far off the cap's bottom plate
@@ -159,10 +171,28 @@ def cx_of(b):
     return (b[0] + b[2]) / 2
 
 
+def res_cell(draw_res):
+    """xrz: a flat ppolyf_u (RZ_W x RZ_L), drawn as r2r_dac's units are.
+    Returns (cell, pads): pads 'sub', 'a' (left terminal), 'b' (right),
+    each a metal1 box in the cell's frame."""
+    import gdsfactory as gf
+
+    cell = gf.Component()
+    cell.add_ref(draw_res.draw_ppolyf_res(l_res=RZ_L, w_res=RZ_W,
+                                          res_type="ppolyf_u"))
+    cell.flatten()
+    boxes = layoutlib.layer_boxes(cell, M1)
+    if len(boxes) != 3:
+        raise layoutlib.LayoutError(
+            f"expected 3 metal1 pads on xrz, got {len(boxes)}")
+    sub, a, b = sorted(boxes, key=lambda r: r[0])
+    return cell, {"sub": sub, "a": a, "b": b}
+
+
 def generate():
     import gdsfactory as gf
 
-    draw_fet, _draw_res = layoutlib.gf180_cells()
+    draw_fet, draw_res = layoutlib.gf180_cells()
     from cells.draw_cap_mim import draw_cap_mim
 
     top = gf.Component()
@@ -398,7 +428,7 @@ def generate():
             spine_y[net] += [y - w / 2, y + w / 2]
         rect(top, x0, y - w / 2, x1, y + w / 2, M2)
 
-    # ---- xcc: MIM-B left of the spines ----
+    # ---- xcc then xrz: the MIM-B left of the spines, the resistor below it
     d2_ys = [tracks[k][0] for k in tracks if k[1] == "d2"]
     y_d2s = r5(sum(d2_ys) / len(d2_ys))
     y_outs = r5(y_d2s - STRAP_SEP)
@@ -411,20 +441,39 @@ def generate():
     top.add_ref(draw_cap_mim(mim_option="MIM-B", metal_level="M5",
                              lc=CC_SIDE, wc=CC_SIDE)).move((fx0, fy0))
     rect(top, fx1, fy0 - MIM_ENC, fx1 + MIM_ENC + BOT_EXT, fy1 + MIM_ENC, M4)
-    vx = r5(fx1 + MIM_ENC + BOT_EXT / 2)
-    for plate, net, yt in (("top", "d2", y_d2s), ("bot", "out", y_outs)):
-        lo, hi = ((fy0 + 1.0, fy1 - 1.0) if plate == "top"
-                  else (fy0 + 0.4, fy1 - 0.4))
-        if not lo <= yt <= hi:
-            raise layoutlib.LayoutError(
-                f"xcc.{plate}: strap y={yt:.2f} is off the plate")
-        x_from = fx1 - 1.0 if plate == "top" else vx
-        if plate == "bot":
-            via(top, vx, yt, "via4", M4, M5, land=1.0)
-        rect(top, x_from - 0.5, yt - 0.5, px[net] + 0.5, yt + 0.5, M5)
-        via(top, px[net], yt, "via4", M4, M5)
-        via(top, px[net], yt, "via3", M3, M4)
-        spine_y[net] += [yt - 0.5, yt + 0.5]
+    if not fy0 + 1.0 <= y_d2s <= fy1 - 1.0:
+        raise layoutlib.LayoutError(
+            f"xcc.top: strap y={y_d2s:.2f} is off the plate")
+    # top plate (d2): metal5 right to a via4+via3 stack on the d2 spine
+    rect(top, fx1 - 1.5, y_d2s - 0.5, px["d2"] + 0.5, y_d2s + 0.5, M5)
+    via(top, px["d2"], y_d2s, "via4", M4, M5)
+    via(top, px["d2"], y_d2s, "via3", M3, M4)
+    spine_y["d2"] += [y_d2s - 0.5, y_d2s + 0.5]
+    # xrz below the bottom plate: its left terminal (a) RZ_A_IN inside the
+    # plate's left edge, its cell's top RZ_DROP below the plate
+    rz, rp = res_cell(draw_res)
+    rbb = rz.dbbox()
+    plate_y0 = fy0 - MIM_ENC
+    rx = r5(fx0 - MIM_ENC + RZ_A_IN - cx_of(rp["a"]))
+    ry = r5(plate_y0 - RZ_DROP - rbb.top)
+    if rx + rbb.right > px["d2"] - 0.2 - RZ_SP:
+        raise layoutlib.LayoutError("xrz runs into the d2 spine")
+    top.add_ref(rz).move((rx, ry))
+    pa = shift(rp["a"], rx, ry)
+    pb = shift(rp["b"], rx, ry)
+    y_rz = r5((pa[1] + pa[3]) / 2)
+    # a (dz): via1..via3 up to metal4, metal4 up into the bottom plate
+    ax = r5(cx_of(pa))
+    for cut, lo, hi in (("via1", M1, M2), ("via2", M2, LY["metal3"]),
+                        ("via3", M3, M4)):
+        via(top, ax, y_rz, cut, lo, hi)
+    rect(top, ax - 0.5, y_rz - 0.5, ax + 0.5, plate_y0 + 0.5, M4)
+    # b (out): via1 on its pad, metal2 right to a via2 on the out spine
+    bx = r5(cx_of(pb))
+    via(top, bx, y_rz, "via1", M1, M2)
+    rect(top, bx - 0.2, y_rz - 0.2, px["out"], y_rz + 0.2, M2)
+    via(top, px["out"], y_rz, "via2", M2, M3)
+    spine_y["out"] += [y_rz - 0.2, y_rz + 0.2]
     for net, sx in spine_x.items():
         w = SPINE_W[net]
         rect(top, sx - w / 2, min(spine_y[net]), sx + w / 2,
@@ -451,6 +500,9 @@ def generate():
             ("d2", 2, None, "metal2")):
         lx, ly = on_track(ci, net, x)
         labels.append((net, lx, ly, LY[layer]))
+    # dz (Cc bottom plate to xrz) holds no transistor: label it so the
+    # extraction keeps its own node and its plate C to the substrate.
+    labels.append(("dz", ax, y_rz, LY["metal2"]))
     labels.sort(key=lambda lbl: (PINS.index(lbl[0]) if lbl[0] in PINS
                                  else len(PINS)))
     return layoutlib.finalize(top, CELL, labels)
