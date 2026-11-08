@@ -89,11 +89,21 @@ CHECK_KINDS = {"sim", "formal", "both", "measure"}
 #                                      counts as `mismatch` unless the
 #                                      measure says `statistical: none`
 #                                      with an `mc_waiver` reason
-#         mc_waiver: str              the reason a matching-named measure
-#                                      needs no Monte Carlo (a digital
-#                                      divide ratio; resistors with no
-#                                      per-instance mismatch model), with
-#                                      `statistical: none`
+#         sigma_max: float            optional; the largest Monte Carlo
+#                                      1-sigma allowed, in the measure's
+#                                      unit (a comparator's offset sigma).
+#                                      check_mc.py holds each group's
+#                                      chi-square upper confidence bound
+#                                      on it to this; needs mc.enabled
+#         mc_waiver: str              the reason a measure is not judged
+#                                      under Monte Carlo (a digital divide
+#                                      ratio; resistors with no
+#                                      per-instance mismatch model; a
+#                                      nominal decision whose mismatch part
+#                                      another measure bounds), with
+#                                      `statistical: none` - the mc gate
+#                                      leaves such a measure out of every
+#                                      sample (nominal_only_measures)
 #     mc: {enabled: bool, runs?: int, yield_min?: float, global?: bool,
 #          seed?: int}   optional - runs?/seed? are check_mc.py's own
 #                        per-run count and seed base (`.option seed=<seed
@@ -279,6 +289,25 @@ def lint_spec_ade(spec: dict, rel_path: str = "spec/spec.yaml") -> list[dict]:
             bad("measure_bad_severity",
                f"{where} (name {name!r}) 'severity' must be 'error' or "
                "'warning'", refs=[name] if name else [])
+
+        if "sigma_max" in m:
+            smax = m["sigma_max"]
+            mc_on = isinstance(spec.get("mc"), dict) and bool(
+                spec["mc"].get("enabled"))
+            if isinstance(smax, bool) or not isinstance(smax, (int, float)) \
+                    or not 0 < smax < float("inf"):
+                bad("bad_sigma_max",
+                   f"{where} (name {name!r}) 'sigma_max' must be a positive "
+                   f"number in the measure's own unit, got {smax!r}",
+                   refs=[name] if name else [])
+            elif not mc_on or m.get("statistical") == "none":
+                bad("sigma_max_no_mc",
+                   f"{where} (name {name!r}) has a 'sigma_max', which only "
+                   "the mc gate checks, but "
+                   + ("it says 'statistical: none'" if mc_on else
+                      "the spec has no 'mc: {enabled: true}'")
+                   + " - turn Monte Carlo on for it, or drop the sigma_max",
+                   refs=[name] if name else [])
 
     mc_cfg = spec.get("mc")
     if mc_cfg is not None and not isinstance(mc_cfg, dict):
@@ -610,6 +639,16 @@ def matching_by_name(name) -> bool:
     if not isinstance(name, str):
         return False
     return any(t in MATCHING_NAME_TOKENS for t in name.lower().split("_"))
+
+
+def nominal_only_measures(spec: dict) -> set[str]:
+    """The lower-case names of the measures spec.yaml marks `statistical:
+    none`: nominal checks the mc gate leaves out of its samples' judgement
+    (check_mc.py). spec_lint requires each to carry an mc_waiver reason
+    (lint_matching_measures)."""
+    return {m["name"].lower() for m in (spec.get("measures") or [])
+            if isinstance(m, dict) and isinstance(m.get("name"), str)
+            and m.get("statistical") == "none"}
 
 
 def lint_matching_measures(spec: dict, rel_path: str = "spec/spec.yaml",
