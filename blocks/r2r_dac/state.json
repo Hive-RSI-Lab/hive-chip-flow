@@ -4,7 +4,7 @@
  "block": "r2r_dac",
  "workspace": "blocks/r2r_dac",
  "created": "2026-09-25T05:42:01",
- "updated": "2026-11-08T01:23:32",
+ "updated": "2026-11-08T01:24:04",
  "phase": "P4",
  "toolchain": null,
  "gates": {
@@ -1473,14 +1473,14 @@
   "precheck": {
    "phase": "P3",
    "status": "pass",
-   "attempts": 16,
+   "attempts": 17,
    "last": {
-    "ts": "2026-11-07T17:25:02",
+    "ts": "2026-11-08T01:24:04",
     "status": "pass",
     "failing_count": 0,
     "total": 0,
     "inputs": {
-     "top_gds": "dir_text:577fff324377bbee57b1c6081e99f02c93e3d701629f12f0ec2c4e032d022c0a",
+     "top_gds": "dir_text:391fd6ebf81476e47d1ab8084aaf9f27e544f599b01b1cb2472b8d185c03e6c9",
      "top_lef": "dir_text:b9a8f7233ede8fa839cc01e0e23c10dc84734fffcc1f14ab0b0d47fccb0b2dcb",
      "interface": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
@@ -1765,6 +1765,25 @@
      "total": 0,
      "inputs": {
       "top_gds": "dir_text:577fff324377bbee57b1c6081e99f02c93e3d701629f12f0ec2c4e032d022c0a",
+      "top_lef": "dir_text:b9a8f7233ede8fa839cc01e0e23c10dc84734fffcc1f14ab0b0d47fccb0b2dcb",
+      "interface": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
+      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+      "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
+      "pdk_klayout": "dir_text:876da90e8aab65b830b36eca12bd720adfe8240a0952872419d9f2b4abda605d"
+     },
+     "strength": 0,
+     "job": null,
+     "facts": {
+      "checks_run": 12
+     }
+    },
+    {
+     "ts": "2026-11-08T01:24:04",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "top_gds": "dir_text:391fd6ebf81476e47d1ab8084aaf9f27e544f599b01b1cb2472b8d185c03e6c9",
       "top_lef": "dir_text:b9a8f7233ede8fa839cc01e0e23c10dc84734fffcc1f14ab0b0d47fccb0b2dcb",
       "interface": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
       "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
@@ -5063,7 +5082,7 @@
    "path": "interface.yaml",
    "kind": "interface",
    "sha256": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
-   "hashed": "2026-11-08T01:23:00"
+   "hashed": "2026-11-08T01:24:04"
   },
   "digital_rtl": {
    "path": "digital/rtl",
@@ -5099,7 +5118,7 @@
    "path": "top/harden/runs/run/final/gds",
    "kind": "top_gds",
    "sha256": "dir_text:391fd6ebf81476e47d1ab8084aaf9f27e544f599b01b1cb2472b8d185c03e6c9",
-   "hashed": "2026-11-08T01:23:32"
+   "hashed": "2026-11-08T01:24:04"
   },
   "analog_spec": {
    "path": "analog/spec/spec.yaml",
@@ -5111,7 +5130,7 @@
    "path": "${PDK_ROOT}/SOURCES",
    "kind": "pdk_version",
    "sha256": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
-   "hashed": "2026-11-08T01:23:32"
+   "hashed": "2026-11-08T01:24:04"
   },
   "pdk_models": {
    "path": "${PDK_ROOT}/libs.tech/ngspice",
@@ -5171,13 +5190,13 @@
    "path": "${PDK_ROOT}/libs.tech/magic",
    "kind": "pdk_magic",
    "sha256": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
-   "hashed": "2026-11-08T01:23:32"
+   "hashed": "2026-11-08T01:24:04"
   },
   "pdk_klayout": {
    "path": "${PDK_ROOT}/libs.tech/klayout",
    "kind": "pdk_klayout",
    "sha256": "dir_text:876da90e8aab65b830b36eca12bd720adfe8240a0952872419d9f2b4abda605d",
-   "hashed": "2026-11-08T01:23:30"
+   "hashed": "2026-11-08T01:24:04"
   },
   "pdk_netgen": {
    "path": "${PDK_ROOT}/libs.tech/netgen",
@@ -5225,7 +5244,7 @@
    "path": "top/harden/runs/run/final/lef",
    "kind": "top_lef",
    "sha256": "dir_text:b9a8f7233ede8fa839cc01e0e23c10dc84734fffcc1f14ab0b0d47fccb0b2dcb",
-   "hashed": "2026-11-07T17:25:10"
+   "hashed": "2026-11-08T01:24:04"
   },
   "top_sdf": {
    "path": "top/harden/runs/run/final/sdf",
@@ -6626,6 +6645,14 @@
    "ts": "2026-11-08T01:23:32",
    "event": "gate",
    "gate": "top_lvs",
+   "status": "pass",
+   "attempt": 17,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-11-08T01:24:04",
+   "event": "gate",
+   "gate": "precheck",
    "status": "pass",
    "attempt": 17,
    "failing_count": 0
