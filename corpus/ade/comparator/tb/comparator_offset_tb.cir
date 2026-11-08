@@ -34,7 +34,15 @@ cloadn outn 0 10f
 evid vid 0 inp inn 1
 vhalf vid vmid 0.5m
 
-.tran 20p 644n
+* Max step 10 ps, the clock edge (50 ps) over 5. vin_offset is read at
+* outn's crossing after the latch has regenerated, not during the edge, and
+* xsim measured it within 0.7% of Xyce at 10 ps, against 1.8% at the default
+* 20 ps step (docs/xsim.md; xsim's tolerance is 2%). Each finer step costs
+* this 644 ns bench run time under the mc gate's hundreds of samples, for
+* microvolts of vin_offset against the bench's millivolt resolution: 5 ps
+* cost 1.9x the 10 ps time and took the comparator rung's slow test past
+* CI's cap. So sim_run warns tran_step_coarse here, and xsim is what settles it.
+.tran 20p 644n 0 10p
 .measure tran vin_offset FIND v(vmid) WHEN v(outn)=1.4 FALL=1
 
 .control

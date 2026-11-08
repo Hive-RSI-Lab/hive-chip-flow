@@ -631,3 +631,57 @@ def tran_max_steps(texts: list[str]) -> list[float]:
             out.append(nums[3] if len(nums) > 3
                        else min(tstep, (tstop - tstart) / 50.0))
     return out
+
+
+
+# A transient's max step against its fastest source edge (#105's comparator
+# finding): ngspice's default step, min(tstep, span/50), stepped a 50 ps
+# clock edge in 10 ps and put the comparator's tail-current peak 10% off;
+# at a max step of edge/10 it was still 3.5% off, at edge/25 within 0.2% of
+# Xyce. A bench must hold its max step to EDGE_STEPS steps per edge.
+EDGE_STEPS = 25
+SOURCE_FN_RE = re.compile(r"\b(pulse|pwl)\s*\(([^()]*)\)", re.IGNORECASE)
+
+
+def source_edges(text: str) -> list[float]:
+    """The rise and fall times of every independent source's PULSE (tr,
+    tf) and the duration of every PWL segment that changes value, in
+    `text`. A zero edge (ngspice then uses tstep) and an edge written as an
+    expression or a parameter are left out: no number can be read."""
+    out = []
+    for line in join_continuations(text):
+        if line.lstrip()[:1].lower() not in ("v", "i"):
+            continue
+        for m in SOURCE_FN_RE.finditer(line):
+            toks = re.split(r"[\s,]+", m.group(2).strip())
+            if m.group(1).lower() == "pulse":
+                times = [spice_number(t) for t in toks[3:5]]
+                out += [t for t in times if t]
+                continue
+            pts = list(zip(toks[0::2], toks[1::2]))
+            for (t0, v0), (t1, v1) in zip(pts, pts[1:]):
+                a, b = spice_number(t0), spice_number(t1)
+                n0, n1 = spice_number(v0), spice_number(v1)
+                same = (n0 == n1) if None not in (n0, n1) else v0 == v1
+                if a is not None and b is not None and b > a and not same:
+                    out.append(b - a)
+    return out
+
+
+def tran_step_coarse(text: str) -> dict | None:
+    """{tmax, edge, limit} when a bench's transient max step (tran_max_steps)
+    is coarser than its fastest source edge / EDGE_STEPS, else None. A bench
+    with no transient, no readable edge, or a tran line that is not plain
+    numbers (a `$&` vector from .control) is not checked."""
+    edges = source_edges(text)
+    try:
+        steps = tran_max_steps([text])
+    except ValueError:
+        return None
+    if not edges or not steps:
+        return None
+    edge, tmax = min(edges), max(steps)
+    limit = edge / EDGE_STEPS
+    if tmax > limit * (1 + 1e-9):
+        return {"tmax": tmax, "edge": edge, "limit": limit}
+    return None

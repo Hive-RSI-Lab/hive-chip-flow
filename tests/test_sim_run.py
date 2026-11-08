@@ -172,6 +172,29 @@ def test_bench_can_ask_for_a_longer_timeout(tmp_path, monkeypatch):
     assert seen == [900.0]  # a bench never shortens the caller's limit
 
 
+
+def test_a_step_coarser_than_the_fastest_edge_is_a_warning(tmp_path, monkeypatch):
+    # the comparator's default step read its tail-current peak 10% high
+    # (docs/xsim.md): a bench whose tran max step exceeds its fastest
+    # source edge / 25 is named, as a warning, and the run still scores
+    ws = make_ws(tmp_path)
+    _capture_ngspice(monkeypatch, CLEAN_MEASURE_STDOUT)
+    bench = ws / "tb" / "widget_tb.cir"
+    coarse = BENCH_TEMPLATE.replace(
+        "op\n", "tran 10p 20n\n").replace(
+        "vdd vdd 0 {{VDD}}\n",
+        "vdd vdd 0 {{VDD}}\nvclk clk 0 pulse(0 3.3 1n 50p 50p 1n 2n)\n")
+    bench.write_text(coarse, encoding="utf-8")
+    result = sim_run.run_workspace_benches(ws, corner_names=["tt"])
+    found = [v for v in result["violations"] if v["kind"] == "tran_step_coarse"]
+    assert len(found) == 1 and found[0]["severity"] == "warning"
+    assert {v["severity"] for v in result["violations"]} == {"warning"}
+
+    bench.write_text(coarse.replace("tran 10p 20n", "tran 10p 20n 0 2p"),
+                     encoding="utf-8")
+    result = sim_run.run_workspace_benches(ws, corner_names=["tt"])
+    assert result["violations"] == []
+
 def test_a_bench_that_did_not_settle_is_a_finding_not_a_number(tmp_path, monkeypatch):
     # the shakedown's step bench read "99 ns" off a 100 ns window; a bench
     # built on templates/step_settle_tb.cir says not_settled instead

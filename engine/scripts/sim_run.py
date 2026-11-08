@@ -86,6 +86,7 @@ sys.path.insert(0, str(SCRIPTS))
 sys.path.insert(0, str(ENGINE / "lib"))
 import checklib  # noqa: E402
 import corners as corners_mod  # noqa: E402
+import netlistlib  # noqa: E402
 import simlib  # noqa: E402
 import speclib  # noqa: E402
 from checklib import CheckError  # noqa: E402
@@ -483,6 +484,23 @@ def run_workspace_benches(ws: Path, eda_bin: Path | None = None,
                 f"which is recorded from their answer with state.py "
                 f"scope-out, never by editing the bench",
                 "sim_run"))
+        coarse = netlistlib.tran_step_coarse(template_text)
+        if coarse:
+            unselected.append(checklib.violation(
+                check, "warning", f"tb/{bench_path.name}", None,
+                "tran_step_coarse", [f"{coarse['tmax']:.3g}",
+                                     f"{coarse['edge']:.3g}"],
+                f"{bench_path.name}: the transient's max step "
+                f"({coarse['tmax']:.3g} s, its tmax or ngspice's default "
+                f"min(tstep, span/50)) is coarser than its fastest source "
+                f"edge ({coarse['edge']:.3g} s) / "
+                f"{netlistlib.EDGE_STEPS}. A measure taken during an edge "
+                f"(a peak current, a crossing) then carries step error: "
+                f"the comparator's tail-current peak read 10% high at the "
+                f"default step. Give the tran line a tmax of at most "
+                f"{coarse['limit']:.3g} (`.tran tstep tstop 0 tmax`), or "
+                f"check with xsim (docs/xsim.md) that the measure does not "
+                f"move with it", "sim_run"))
         ran = 0
         for corner in corner_list:
             # Brief: "don't run a (bench, corner) pair when every bound in
