@@ -56,14 +56,15 @@ def _moscap(model, mos, volt, pads, tap):
             "pads": pads, "tap": tap}
 
 
-def _diode(fn, volt, pads, tap=None, extra=None):
+def _diode(fn, volt, pads, tap=None, extra=None, ring=None, m1_over=None):
     args = {"cw": 0.36}
     if volt:
         args["volt"] = volt
     args.update(extra or {})
     return {"kind": "diode", "pcell": f"draw_diode.{fn}", "args": args,
             "size_keys": ("la", "wa"), "sizes": ((2.0, 2.0), (4.0, 2.0)),
-            "pins": ("A", "K"), "pads": pads, "tap": tap}
+            "pins": ("A", "K"), "pads": pads, "tap": tap, "ring": ring,
+            "m1_over": m1_over}
 
 
 def _bjt(dev, pins):
@@ -74,7 +75,10 @@ def _bjt(dev, pins):
 
 # model -> entry. `pads` maps a pad class to its pin; `tap` adds a psub
 # ("p") or nwell ("n") tap carrying the named pin, for a terminal the
-# pcell draws no pad for.
+# pcell draws no pad for. `ring` puts layoutlib.psub_ring around the
+# DNWELL (DN.3, DF.18), carrying the named pin ("" for an unnamed
+# substrate tie); `m1_over` draws the metal1 the pcell leaves off the
+# contacts inside that well (diode_pw2dw's anode, #287).
 CATALOG: dict[str, dict] = {}
 for _v, _s in (("3.3V", "03v3"), ("5/6V", "06v0")):
     CATALOG[f"cap_nmos_{_s}"] = _moscap(
@@ -98,11 +102,13 @@ for _v, _s in (("3.3V", "03v3"), ("5/6V", "06v0")):
     CATALOG[f"diode_nw2ps_{_s}"] = _diode(
         "draw_diode_nw2ps", _v, {"p": "A", "n@nw": "K"})
 CATALOG["diode_pw2dw"] = _diode("draw_diode_pw2dw", "3.3V",
-                                {"p@dnw": "A", "n@dnw": "K"})
+                                {"p@lvpw": "A", "n@dnw": "K"}, ring="",
+                                m1_over="lvpw")
 CATALOG["diode_dw2ps"] = _diode("draw_diode_dw2ps", "3.3V", {"n@dnw": "K"},
-                                tap=("p", "A"))
+                                ring="A")
 CATALOG["sc_diode"] = _diode("draw_sc_diode", None,
-                             {"?@dnw": "A", "n@dnw": "K"}, extra={"m": 1})
+                             {"?@dnw": "A", "n@dnw": "K"}, extra={"m": 1},
+                             ring="")
 for _d in ("npn_10p00x10p00", "npn_05p00x05p00", "npn_00p54x16p00",
            "npn_00p54x08p00", "npn_00p54x04p00", "npn_00p54x02p00"):
     CATALOG[_d] = _bjt(_d, ("C", "B", "E", "S"))
@@ -117,7 +123,12 @@ CATALOG["cap_mim_2f0_m4m5_noshield"] = {
     "args": {"mim_option": "MIM-B", "metal_level": "M5"},
     "size_keys": ("lc", "wc"), "sizes": ((10.0, 10.0), (20.0, 10.0)),
     "pins": ("T", "B"), "pads": {}, "tap": None,
-    "plates": {"T": ((81, 0), (81, 10)), "B": ((46, 0), (46, 10))}}
+    "plates": {"T": ((81, 0), (81, 10)), "B": ((46, 0), (46, 10))},
+    # pdk_devices appends this to a TT failure's reason: it is the rule,
+    # not a flow fault, so the flow does not try to fix it (#290)
+    "tt_note": ("by design: the TT precheck's tech_data forbids Metal5 and "
+                "its label on gf180mcuD, the tile's own power grid, and "
+                "this MIM's top plate is Metal5 (#290)")}
 
 
 class DeviceError(RuntimeError):
@@ -267,6 +278,27 @@ def build(model: str, size=None, name: str | None = None):
             layoutlib.rect(top, x0 - 1.0, min(nb[1], y0 - 1.0), nb[2],
                            max(nb[3], y0 + tsz + 1.0), _L["nwell"])
         labels.append((pin, x0 + tsz / 2, y0 + tsz / 2, lab))
+    if e.get("m1_over"):
+        import klayout.db as kdb
+        well = kdb.Region(cell.kdb_cell.begin_shapes_rec(
+            cell.kcl.layer(*_L[e["m1_over"]])))
+        cos = kdb.Region(cell.kdb_cell.begin_shapes_rec(
+            cell.kcl.layer(*_L["contact"]))) & well
+        if cos.is_empty():
+            raise DeviceError(f"{model}'s pcell draws no contact in its "
+                              f"{e['m1_over']} for the metal1 pad")
+        b = cos.bbox().to_dtype(cell.kcl.dbu)
+        layoutlib.rect(top, b.left - 0.06, b.bottom - 0.06, b.right + 0.06,
+                       b.top + 0.06, _L["metal1"])
+    if e.get("ring") is not None:
+        dn = layoutlib.layer_boxes(cell, _L["dnwell"])
+        if not dn:
+            raise DeviceError(f"{model}'s pcell draws no DNWELL to ring")
+        box = (min(b[0] for b in dn), min(b[1] for b in dn),
+               max(b[2] for b in dn), max(b[3] for b in dn))
+        rx, ry = layoutlib.psub_ring(top, box)
+        if e["ring"]:
+            labels.append((e["ring"], rx, ry, lab))
     placed = {l[0] for l in labels}
     for k, x, y in _pad_classes(top):
         pin = e["pads"].get(k)

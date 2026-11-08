@@ -19,7 +19,9 @@ devices:
     - mimcap_ss
     - mimcap_ff
     reason: null
-    tt_reason: Metal5 (81/0) is forbidden in a TT tile; Metal5_Label (81/10) is forbidden in a TT tile
+    tt_reason: 'Metal5 (81/0) is forbidden in a TT tile; Metal5_Label (81/10) is forbidden in a TT tile
+      - by design: the TT precheck''s tech_data forbids Metal5 and its label on gf180mcuD, the tile''s
+      own power grid, and this MIM''s top plate is Metal5 (#290)'
   cap_nmos_03v3:
     kind: mos_cap
     pcell: draw_cap_mos.draw_cap_mos
@@ -129,8 +131,8 @@ devices:
     - - 4.0
       - 2.0
     drc_ok: true
-    extract_ok: false
-    lvs_ok: false
+    extract_ok: true
+    lvs_ok: true
     sim_ok: true
     tt_legal: true
     corner_kind: moscap
@@ -138,7 +140,7 @@ devices:
     - moscap_typical
     - moscap_ss
     - moscap_ff
-    reason: 'cap_pmos_03v3_b_2x2: magic extracts no device, not one cap_pmos_03v3_b'
+    reason: null
     tt_reason: null
   cap_pmos_06v0:
     kind: mos_cap
@@ -169,8 +171,8 @@ devices:
     - - 4.0
       - 2.0
     drc_ok: true
-    extract_ok: false
-    lvs_ok: false
+    extract_ok: true
+    lvs_ok: true
     sim_ok: true
     tt_legal: true
     corner_kind: moscap
@@ -178,7 +180,7 @@ devices:
     - moscap_typical
     - moscap_ss
     - moscap_ff
-    reason: 'cap_pmos_06v0_b_2x2: magic extracts no device, not one cap_pmos_06v0_b'
+    reason: null
     tt_reason: null
   diode_dw2ps:
     kind: diode
@@ -188,9 +190,9 @@ devices:
       - 2.0
     - - 4.0
       - 2.0
-    drc_ok: false
-    extract_ok: false
-    lvs_ok: false
+    drc_ok: true
+    extract_ok: true
+    lvs_ok: true
     sim_ok: true
     tt_legal: true
     corner_kind: diode
@@ -198,7 +200,7 @@ devices:
     - diode_typical
     - diode_ss
     - diode_ff
-    reason: 'diode_dw2ps_2x2: DRC: DF.18, DN.3'
+    reason: null
     tt_reason: null
   diode_nd2ps_03v3:
     kind: diode
@@ -249,8 +251,8 @@ devices:
     - - 4.0
       - 2.0
     drc_ok: true
-    extract_ok: false
-    lvs_ok: false
+    extract_ok: true
+    lvs_ok: true
     sim_ok: true
     tt_legal: true
     corner_kind: diode
@@ -258,7 +260,7 @@ devices:
     - diode_typical
     - diode_ss
     - diode_ff
-    reason: 'diode_nw2ps_03v3_2x2: magic extracts no device, not one diode_nw2ps_03v3'
+    reason: null
     tt_reason: null
   diode_nw2ps_06v0:
     kind: diode
@@ -269,8 +271,8 @@ devices:
     - - 4.0
       - 2.0
     drc_ok: true
-    extract_ok: false
-    lvs_ok: false
+    extract_ok: true
+    lvs_ok: true
     sim_ok: true
     tt_legal: true
     corner_kind: diode
@@ -278,7 +280,7 @@ devices:
     - diode_typical
     - diode_ss
     - diode_ff
-    reason: 'diode_nw2ps_06v0_2x2: magic extracts no device, not one diode_nw2ps_06v0'
+    reason: null
     tt_reason: null
   diode_pd2nw_03v3:
     kind: diode
@@ -328,19 +330,18 @@ devices:
       - 2.0
     - - 4.0
       - 2.0
-    drc_ok: false
-    extract_ok: false
-    lvs_ok: false
+    drc_ok: true
+    extract_ok: true
+    lvs_ok: true
     sim_ok: true
-    tt_legal: false
+    tt_legal: true
     corner_kind: diode
     sections:
     - diode_typical
     - diode_ss
     - diode_ff
-    reason: 'diode_pw2dw_2x2: build: diode_pw2dw''s pcell (draw_diode.draw_diode_pw2dw) draws no metal1
-      pad for pin A; found pads [''n@dnw'']'
-    tt_reason: 'not checked: nothing was drawn'
+    reason: null
+    tt_reason: null
   npn_00p54x02p00:
     kind: bjt
     pcell: bjt/npn_00p54x02p00.gds
@@ -519,9 +520,9 @@ devices:
       - 2.0
     - - 4.0
       - 2.0
-    drc_ok: false
-    extract_ok: false
-    lvs_ok: false
+    drc_ok: true
+    extract_ok: true
+    lvs_ok: true
     sim_ok: true
     tt_legal: true
     corner_kind: diode
@@ -529,5 +530,5 @@ devices:
     - diode_typical
     - diode_ss
     - diode_ff
-    reason: 'sc_diode_2x2: DRC: DN.3'
+    reason: null
     tt_reason: null

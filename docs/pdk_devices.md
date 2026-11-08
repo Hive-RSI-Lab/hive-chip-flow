@@ -50,43 +50,86 @@ as input, so a check there would not rerun when the netlist changed.
 netlist_lint reads the netlist and spec.yaml, and its record goes stale
 with either.
 
-## Results (2026-11-08): 20 of 28 pass
+## Results (2026-11-08): 27 of 28 pass
 
 These pass and layoutlib draws them:
 - `cap_nmos_03v3`, `cap_nmos_03v3_b`, `cap_nmos_06v0`, `cap_nmos_06v0_b`;
-- `cap_pmos_03v3`, `cap_pmos_06v0`;
+- `cap_pmos_03v3`, `cap_pmos_06v0`, and `cap_pmos_03v3_b`,
+  `cap_pmos_06v0_b` (since #288);
 - `diode_nd2ps_03v3`, `diode_nd2ps_06v0`, `diode_pd2nw_03v3`,
   `diode_pd2nw_06v0`;
+- `diode_nw2ps_03v3`, `diode_nw2ps_06v0` (#291), `diode_pw2dw` (#287),
+  `diode_dw2ps` (#286), `sc_diode` (#289);
 - the six `npn_*`;
-- the four `pnp_*` (since #285, below).
+- the four `pnp_*` (since #285).
 
-These fail:
+One fails, by design:
 
 | model | fails | why |
 |---|---|---|
-| `cap_pmos_03v3_b`, `cap_pmos_06v0_b` | extract, LVS | magic extracts no device of that name from the pcell: the pcell and the magic tech disagree |
-| `diode_nw2ps_03v3`, `diode_nw2ps_06v0` | extract, LVS | the magic tech has no device of that name (it has `nw2pw`, `dnw2pw`, `dnw2ps`) |
-| `diode_pw2dw` | everything but sim | the pcell draws no metal1 pad for the anode, so nothing is drawn |
-| `diode_dw2ps` | DRC, extract, LVS | DN.3 (a DNWELL needs a PCOMP guard ring), DF.18 |
-| `sc_diode` | DRC, extract, LVS | DN.3 |
-| `cap_mim_2f0_m4m5_noshield` | tt_legal | Metal5 (81/0) and its label are forbidden in a TT tile: the tile's own power grid is on Metal5 |
+| `cap_mim_2f0_m4m5_noshield` | tt_legal | the TT rule itself (#290): the precheck's `tech_data` forbids Metal5 (81/0) and its label on gf180mcuD, because the tile's own power grid is on Metal5, and this MIM's top plate is Metal5. Its row passes every other flag. The catalogue's `tt_note` puts this in the row's `tt_reason`, so the table records it as the rule, not as an open fault. A TT tile can't use it. |
 
-The pnp rows were a PDK tech finding (#285). The magic tech picks the pnp
-name with `device msubcircuit pnp_* pnp pwell,space/w *pdiff error a2>..`:
-that makes the emitter (`*pdiff`) the substrate terminal, so the device has
-one terminal and `a2` (its area) is always 0. No selector applied, and the
-first rule (`pnp_10p00x00p42`) always won. `layoutlib.magic_tech` rewrites
-each rule to `device msubcircuit pnp_* pnp *pdiff pwell,space/w a1>.. a1<..`:
-the emitter is terminal 1, selected on its own area (the npn rules work
-the same way), the collector (`pwell,space/w`) is terminal 2, and there is
-no substrate terminal (the collector is the substrate). ext2spice then
-writes `C B E`, the model's pin order, and each size extracts as itself.
-The areas are the PDK's. `magic_tech` refuses a tech with no pnp rule or a
-pnp rule in neither form. `corpus/ade/bandgap` uses `pnp_10p00x10p00`.
+### What the flow fixes
+
+Each fix below is in the flow, not in a list. `layoutlib.magic_tech` writes a
+patched copy of the PDK's magic tech for each extraction. It refuses a tech
+that has neither the fault nor its fix, rather than guess. `devicelib.build`
+draws what a pcell leaves out.
+
+- **pnp (#285).** The magic tech picks the pnp name with
+  `device msubcircuit pnp_* pnp pwell,space/w *pdiff error a2>..`. That
+  makes the emitter (`*pdiff`) the substrate terminal, so the device has one
+  terminal and `a2` (its area) is always 0. No selector applied, and the
+  first rule (`pnp_10p00x00p42`) always won. `magic_tech` rewrites each rule
+  to `device msubcircuit pnp_* pnp *pdiff pwell,space/w a1>.. a1<..`. The
+  emitter is terminal 1, selected on its own area (the npn rules work the
+  same way). The collector (`pwell,space/w`) is terminal 2, and there is no
+  substrate terminal, since the collector is the substrate. ext2spice then
+  writes `C B E`, the model's pin order, and each size extracts as itself.
+  The areas are the PDK's. `corpus/ade/bandgap` uses `pnp_10p00x10p00`.
+- **The well diodes (#286, #287, #291).** The tech has no device rule for
+  `diode_dw2ps`, `diode_pw2dw` or `diode_nw2ps_*`, and it never reads their
+  `WELL_DIODE` marker (153/51). `magic_tech` reads the marker into one well
+  type per diode: `dnwdiode`, `pwdiode`, `nwdiode` and `mvnwdiode`. Outside
+  the marker, those types connect, draw and write out as the plain wells.
+  It adds one rule per diode, for example
+  `device ndiode diode_dw2ps dnwdiode space/w,pwell`.
+- **The DNWELL guard ring (#286, #287, #289).** DN.3 wants every DNWELL
+  directly inside a PCOMP ring, and DF.18 wants any PCOMP outside the well
+  to be 2.5 um from it. The PDK pcells' own ring (`pcmpgr`) comes out of
+  gdsfactory as a filled square with no metal1. So `devicelib.build` draws
+  `layoutlib.psub_ring` around the DNWELL of `diode_dw2ps` (where the ring
+  is the anode), `diode_pw2dw` and `sc_diode`.
+- **The diode_pw2dw anode pad (#287).** The pcell draws contacts in the
+  LVPWELL anode but no metal1 over them. `build` draws that metal1
+  (`m1_over`).
+- **sc_diode (#289).** Two faults. `nsd` took the anode's edge, so the tech
+  extracted three sc_diodes. It also counted the anode-cathode gap as
+  anode: 5.12p of area for 4p drawn. The fix keeps `nsd` off SCHOTTKY and
+  gives the closed gap to the cathode, so the cell extracts as
+  `D0 A K sc_diode pj=8u area=4p`. The model has `cjp=0`, so it is an area
+  device: the pcell and the reference netlist give w x l, and the area is
+  what LVS checks. The PDK's klayout LVS counts the device differently. This
+  flow uses magic and netgen, so it keeps the drawn area.
+- **The P-varactors (#288).** `cap_pmos_03v3_b` and `cap_pmos_06v0_b` are a
+  P+ poly gate on P+ diffusion in the substrate, with no well. The tech
+  reads the gate as `pvaractor` (`mvpvaractor`) and names the device on its
+  `*ppdiff` terminals. But it also counts the gate as a pfet area. It grows
+  `pfetexpand` (`mvpfetexpand`) over the gate, so the source and drain read
+  as pfet diffusion (`pdiff`/`pdc`), not `psd`/`psc`. For 3.3 V it also
+  forces an nwell under the gate. The device rule found no terminal, so
+  nothing extracted. The fix keeps a MOSCAP-marked P+ gate outside any
+  nwell out of both rules. The cell then extracts as
+  `X0 G SD cap_pmos_03v3_b c_width=2u c_length=2u`. A pfet, a pcap in its
+  nwell, and a pfet drawn with no nwell all read as before. The full round
+  trip changed no other row.
 
 ## Tests
 
 `tests/test_devicelib.py` holds these.
+
+Fast, on the shipped table: it passes each primitive the flow fixed, and
+it records the Metal5 MIM's failure as the TT rule.
 
 Fast, on a planted table:
 - the readers;
@@ -96,13 +139,20 @@ Fast, on a planted table:
 - the extracted-netlist reader.
 
 Slow:
-- `--check` on passing models of three kinds, a pnp among them, plus a
-  `cap_pmos_*_b` that fails at extraction, gives the table back.
+- `--check` gives the table back. It runs on passing models of three kinds,
+  a pnp and a P-varactor among them, plus the Metal5 MIM, which fails only
+  `tt_legal`.
+- Each DNWELL diode sits inside a PCOMP ring with no COMP within 2.5 um
+  outside its DNWELL. Every anode contact of `diode_pw2dw` has metal1.
 - A netgen setup with `cap_nmos_03v3`'s class misspelt gives
   `lvs_ok: false`. netgen compares the device as an empty black box
   (`layoutlib.LvsBlackBox`), and the round trip records that as an LVS
   failure, not a tool error.
-- `layoutlib.mos_cap` draws a passing device.
+- `layoutlib.mos_cap` draws a passing device, and `layoutlib.diode` and
+  `layoutlib.mos_cap` draw fixed ones.
+
+`tests/test_layoutlib.py` holds the `magic_tech` tests. Each tech fix has a
+test on a fake PDK: the patch goes in, and a tech in neither form is refused.
 
 ## Not covered
 

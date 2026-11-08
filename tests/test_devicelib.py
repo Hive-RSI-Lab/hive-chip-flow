@@ -69,6 +69,27 @@ def test_shipped_table_covers_the_catalog():
             assert r["reason"] or r["tt_reason"], m
 
 
+
+# the primitives the flow now draws and extracts (#286-#289, #291); a
+# layoutlib wrapper refuses any model whose row does not pass
+FIXED = ("diode_dw2ps", "diode_pw2dw", "diode_nw2ps_03v3", "diode_nw2ps_06v0",
+         "sc_diode", "cap_pmos_03v3_b", "cap_pmos_06v0_b")
+
+
+@pytest.mark.parametrize("model", FIXED)
+def test_shipped_table_passes_the_fixed_primitives(model):
+    assert devicelib.not_ready(model) is None
+
+
+def test_shipped_table_records_the_metal5_mim_as_the_rule():
+    # #290: not TT-legal by the TT rule itself, recorded as such
+    row = devicelib.load()["cap_mim_2f0_m4m5_noshield"]
+    assert all(row[f] for f in devicelib.FLAGS if f != "tt_legal")
+    assert row["tt_legal"] is False
+    assert "Metal5 (81/0)" in row["tt_reason"]
+    assert row["tt_reason"].endswith(
+        devicelib.CATALOG["cap_mim_2f0_m4m5_noshield"]["tt_note"])
+
 # ---- layoutlib refuses a device that failed --------------------------
 
 @pytest.fixture
@@ -184,15 +205,20 @@ needs_pdk = pytest.mark.skipif(not layoutlib.pdk_root().is_dir(),
 @needs_pdk
 def test_check_reproduces_the_table(tmp_path):
     # passing models of three kinds, the pnp among them now it extracts as
-    # itself (#285), and one that fails at extraction
+    # itself (#285) and the P-varactor now its terminals read (#288), and
+    # the one that fails: the Metal5 MIM, drawn and extracted but not legal
+    # in a TT tile (#290)
     models = ["cap_nmos_03v3", "diode_nd2ps_03v3", "npn_00p54x02p00",
-              "pnp_05p00x05p00", "cap_pmos_03v3_b"]
+              "pnp_05p00x05p00", "cap_pmos_03v3_b",
+              "cap_mim_2f0_m4m5_noshield"]
     rc, out = _pdk_devices("--out", str(tmp_path), "--check",
                            "--models", *models, "--jobs", "4")
     assert rc == 0, out
     assert out["violations"] == []
-    assert sorted(out["passed"]) == ["cap_nmos_03v3", "diode_nd2ps_03v3",
-                                     "npn_00p54x02p00", "pnp_05p00x05p00"]
+    assert sorted(out["passed"]) == ["cap_nmos_03v3", "cap_pmos_03v3_b",
+                                     "diode_nd2ps_03v3", "npn_00p54x02p00",
+                                     "pnp_05p00x05p00"]
+    assert "Metal5" in out["failed"]["cap_mim_2f0_m4m5_noshield"]
 
 
 @pytest.mark.slow
@@ -223,3 +249,44 @@ def test_wrapper_draws_a_passing_device(tmp_path):
     gds = tmp_path / "mc.gds"
     cell.write_gds(str(gds))
     assert gds.stat().st_size > 0
+    # and the fixed ones, ring and pad included
+    for model, draw in (("diode_dw2ps", layoutlib.diode),
+                        ("cap_pmos_06v0_b", layoutlib.mos_cap)):
+        draw(model, 2.0, 2.0, name=model).write_gds(str(tmp_path / "f.gds"))
+
+
+def _region(cell, layer):
+    import klayout.db as kdb
+    return kdb.Region(cell.kdb_cell.begin_shapes_rec(
+        cell.kcl.layer(*layer))).merged()
+
+
+@pytest.mark.slow
+@needs_pdk
+@pytest.mark.parametrize("model", ["diode_dw2ps", "diode_pw2dw", "sc_diode"])
+def test_deep_nwell_diodes_get_a_pcomp_ring(model):
+    # DN.3: every DNWELL sits inside a PCOMP ring; DF.18: no COMP outside
+    # the well within 2.5 um of it (#286 #287 #289)
+    cell = devicelib.build(model)
+    um = int(round(1 / cell.kcl.dbu))
+    dn = _region(cell, devicelib._L["dnwell"])
+    comp = _region(cell, devicelib._L["comp"])
+    pplus = _region(cell, devicelib._L["pplus"])
+    assert not dn.is_empty()
+    near = dn.sized(int(2.5 * um)) - dn
+    assert (comp & near).is_empty()
+    ring = (comp - dn.sized(int(2.5 * um))) & pplus
+    hull = ring.holes()
+    assert not ring.is_empty() and (dn - hull).is_empty()
+
+
+@pytest.mark.slow
+@needs_pdk
+def test_pw2dw_anode_contacts_get_metal1():
+    # the pcell leaves its LVPWELL contacts without metal1, so the anode
+    # had no terminal (#287)
+    cell = devicelib.build("diode_pw2dw")
+    cos = _region(cell, devicelib._L["contact"]) & _region(
+        cell, devicelib._L["lvpw"])
+    assert not cos.is_empty()
+    assert (cos - _region(cell, devicelib._L["metal1"])).is_empty()
