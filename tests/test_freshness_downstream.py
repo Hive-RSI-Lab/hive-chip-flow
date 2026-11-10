@@ -77,7 +77,7 @@ def test_upstream_order_comes_from_what_each_gate_writes():
         assert statelib.upstream_gates("vde", g, imap) == ["harden"]
     # harden rewrites harden/config.json, one of its own inputs: no self-edge
     assert statelib.upstream_gates("vde", "harden", imap) == []
-    for g in ("top_drc", "top_lvs", "precheck"):
+    for g in ("top_drc", "top_lvs", "top_erc", "precheck"):
         assert statelib.upstream_gates("msde", g, imap) == ["top_harden"]
     assert statelib.upstream_gates("msde", "top_harden", imap) == ["macro_lib"]
 

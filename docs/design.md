@@ -144,6 +144,7 @@ Mixed-signal (`/msde`):
 | boundary | ngspice on the sized schematic, three STA corners | every a2d pin's swing and 10-90% edge into its declared load and every d2a pin's switching point inside its level in `engine/reference/levels.yaml` | an output stage supplied from 2.0 V |
 | top_drc | magic and klayout on the assembled GDS | 0 | a planted spacing violation |
 | top_lvs | netgen on the assembled GDS, the analog block as a subcircuit | match | a macro pin left unconnected |
+| top_erc | CVC on the flat transistor netlist of the top: powered, held in reset, and the macro alone | no floating gate, overvoltage, forward-biased junction or supply-to-supply leak, unless waived with a reason | a macro input left unconnected in the top |
 | release | attest, strict | both nested runs released, top gates fresh; every file in the staged tree held by a gate record (release/manifest.json) | a stale nested release |
 
 ### 1.6 The stale map

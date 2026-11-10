@@ -254,10 +254,11 @@ def _boundary_not_applicable(ws: Path) -> str | None:
 
 
 def owed_gates(ws: Path, skill: str, imap: dict | None = None) -> list[str]:
-    """applicable_gates, less `boundary` for a released block that
-    engine/lib/boundary.py's V1_BLOCKS names while it is still on interface
-    version 1. That list is two names a test pins, not a carve-out a block
-    can opt into: each block leaves it by moving to version 2."""
+    """applicable_gates, less `boundary` and `top_erc` for a released block
+    that engine/lib/boundary.py's V1_BLOCKS names while it is still on
+    interface version 1: both gates came after those blocks were released.
+    That list is two names a test pins, not a carve-out a block can opt
+    into: each block leaves it by moving to version 2."""
     gates = applicable_gates(skill, imap)
     if skill != "msde" or not boundary.is_v1_block(ws):
         return gates
@@ -268,7 +269,7 @@ def owed_gates(ws: Path, skill: str, imap: dict | None = None) -> list[str]:
         return gates
     if boundary.interface_version(data or {}) == boundary.TYPED_VERSION:
         return gates
-    return [g for g in gates if g != "boundary"]
+    return [g for g in gates if g not in ("boundary", "top_erc")]
 
 
 def _macro_lib_not_applicable(ws: Path) -> str | None:

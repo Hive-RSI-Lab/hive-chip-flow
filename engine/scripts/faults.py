@@ -229,7 +229,7 @@ def _ordered_gate_names(names: set[str], skill: str, gates: dict) -> list[str]:
     return sorted(names, key=lambda g: index.get(g, len(order)))
 
 
-TOP_GATES = frozenset({"top_harden", "top_drc", "top_lvs", "precheck"})
+TOP_GATES = frozenset({"top_harden", "top_drc", "top_lvs", "top_erc", "precheck"})
 
 
 def macro_lib_first(ws: Path, gate_names, gates: dict, skill: str) -> None:

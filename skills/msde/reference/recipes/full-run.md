@@ -18,7 +18,7 @@ answer, and handing them to the splitter or integrator defeats the proof.
 The workspace ends up shaped like this:
 
     blocks/<name>/
-      state.json            skill msde - split, cosim, boundary, macro_lib, top_harden, top_drc, top_lvs, precheck, release
+      state.json            skill msde - split, cosim, boundary, macro_lib, top_harden, top_drc, top_lvs, top_erc, precheck, release
       brief/                the task's spec, verbatim
       interface.yaml        the splitter's crossing signals
       digital_spec.yaml     the digital side's copy of the same entries
@@ -80,7 +80,7 @@ bench (`recipes/integrate.md`). Then, in this order:
    --workspace {ws} --skill msde`), polled with `jobs.py status`. It
    assembles `{ws}/top/` from the two sides and hardens it, the analog GDS
    as a LibreLane macro.
-5. `top_drc`, `top_lvs` and `precheck` on the GDS it left at
+5. `top_drc`, `top_lvs`, `top_erc` and `precheck` on the GDS it left at
    `top/harden/runs/run/final/gds`. When interface.yaml's `ua_pins` sends
    analog pins to pads, the top is a Tiny Tapeout analog tile and precheck
    checks those pads.

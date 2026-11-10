@@ -18,7 +18,7 @@
 # with the analog GDS as a LibreLane macro. It is a `job: true` gate, so it
 # is started with jobs.py and polled, never scheduled as a `gate:` step -
 # which is also why `integrate` lists it in no `gates:` (the router would
-# append it after top_lvs).
+# append it after top_erc).
 
 version: 1
 verbs:
@@ -27,7 +27,7 @@ verbs:
   full-run:
     summary: The whole mixed-signal pipeline, spec.md to a released tile -
       P1 split, P2 the two nested runs (each to its own release), P3 cosim
-      and the top gates (boundary, macro_lib, top_harden, top_drc, top_lvs), P4 release with H2.
+      and the top gates (boundary, macro_lib, top_harden, top_drc, top_lvs, top_erc), P4 release with H2.
       Overrides the engine's own placeholder.
     doc: skills/msde/reference/recipes/full-run.md
     workspace: created
@@ -121,6 +121,10 @@ verbs:
         why: "top/harden's final GDS matches the powered netlist with the
               analog .subckt compared device by device - a macro pin left
               unconnected fails here"
+      - gate: top_erc
+        why: "CVC on the flat transistor netlist, the macro included: no
+              floating gate, overvoltage, forward-biased junction or
+              supply-to-supply leak, powered and held in reset"
       - gate: precheck
         why: "the shuttle's own signoff on top/harden's GDS - pins against
               the tile template, and on an analog tile metal on exactly the
@@ -172,7 +176,7 @@ verbs:
         why: "fresh context; edits interface.yaml, digital_spec.yaml and
               analog_spec.yaml together, never one alone. No web tools."
       - do: "scripts/state.py edit --workspace {ws} --class interface_edit --note \"split\""
-        why: "marks split, cosim, boundary, macro_lib, top_harden, top_drc, top_lvs and release
+        why: "marks split, cosim, boundary, macro_lib, top_harden, top_drc, top_lvs, top_erc and release
               stale here"
       - gate: split
         why: "both side specs agree with interface.yaml"
@@ -199,7 +203,7 @@ verbs:
       analog GDS as a macro (top_harden) and check what came out.
     doc: skills/msde/reference/recipes/integrate.md
     workspace: required
-    gates: [cosim, macro_lib, top_drc, top_lvs, precheck]
+    gates: [cosim, macro_lib, top_drc, top_lvs, top_erc, precheck]
     human_hold: 1
     preconditions: [workspace, gates_fresh:split]
     match:
@@ -235,6 +239,9 @@ verbs:
       - gate: top_lvs
         why: "top/harden's final GDS against the powered netlist, the
               analog block compared device by device"
+      - gate: top_erc
+        why: "CVC on the flat top, powered and held in reset, and on the
+              macro alone"
       - gate: precheck
         why: "the shuttle's signoff on the same GDS"
 
