@@ -1127,3 +1127,42 @@ def test_move_mim_plate_caps_leaves_a_netlist_without_a_mim_alone():
         MIM_EXT, pex, {"cap_mim_2f0_m4m5_noshield": 7.602}) == (pex, {})
     assert not layoutlib._has_mim(MIM_TECH, pex)
     assert layoutlib._has_mim(MIM_TECH, MIM_PEX)
+
+
+# ---- parallel devices in a fixed order before netgen compares them
+
+_PAR_REF = """.subckt top vss
+.param a=150u b=148.36u
+xr1 vss vss vss ppolyf_u r_width=2u r_length={a}
+xm1 vss vss vss vss nfet_05v0 w=1u l=1u
+xr2 vss vss vss ppolyf_u r_width=2u r_length={b}
+.ends
+"""
+
+
+def test_parallel_sort_swaps_whole_lines_and_keeps_the_rest_in_place():
+    out = layoutlib.parallel_devices_sorted(_PAR_REF).splitlines()
+    assert out[2].startswith("xr2 ") and out[4].startswith("xr1 ")
+    assert out[3].startswith("xm1 ")
+
+
+def test_parallel_sort_gives_both_netlists_the_same_order():
+    ext = (".subckt top vss\n"
+           "X19 vss vss vss ppolyf_u r_width=2u r_length=0.15m\n"
+           "X34 vss vss vss ppolyf_u r_width=2u r_length=0.14836m\n"
+           ".ends\n")
+    a = layoutlib.parallel_devices_sorted(ext).splitlines()
+    assert a[1].startswith("X34 ") and a[2].startswith("X19 ")
+
+
+def test_parallel_sort_leaves_devices_on_other_nets_and_unknown_values():
+    other = (".subckt top a b\n"
+             "x1 a a a ppolyf_u r_length=2u\n"
+             "x2 b b b ppolyf_u r_length=1u\n"
+             ".ends\n")
+    assert layoutlib.parallel_devices_sorted(other) == other
+    unread = (".subckt top a\n"
+              "x1 a a a ppolyf_u r_length={nope}\n"
+              "x2 a a a ppolyf_u r_length=1u\n"
+              ".ends\n")
+    assert layoutlib.parallel_devices_sorted(unread) == unread

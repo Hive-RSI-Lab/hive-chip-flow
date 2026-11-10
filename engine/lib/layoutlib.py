@@ -1984,6 +1984,84 @@ def std_cell_subckts(netlist_text: str) -> tuple[str, list[str]]:
     return "".join(library[c] for c in added), added
 
 
+# Properties that say nothing about which parallel device is which: netgen
+# drops them under the PDK setup, and only one side of an LVS has them.
+_ORDER_BLIND_PROPS = {"ad", "pd", "as", "ps", "nrd", "nrs", "sa", "sb", "sd",
+                      "nf", "m", "par", "par1", "pm", "r", "c"}
+
+
+def parallel_devices_sorted(text: str) -> str:
+    """`text` with the instance lines of each group of same-model devices on
+    the same nets sorted by value, the lines swapped whole between the slots
+    the group already holds. netgen merges parallel devices of equal length
+    but compares the merged groups in file order, so a reference listing
+    150u before 148u fails against an extraction listing 148u first although
+    the circuits are the same; magic's order moves with its tech file. Only
+    order changes here: a device of the wrong value still compares unequal.
+    A group with a value this cannot read, or a line continued with `+`, is
+    left as it is (at worst the false failure stays, never a false pass)."""
+    import netlistlib
+    lines = text.splitlines(keepends=True)
+    params: dict[str, float] = {}
+    for line in lines:
+        if line.lstrip().lower().startswith(".param"):
+            for name, val in re.findall(r"(\S+?)=(\S+)", line):
+                num = netlistlib.spice_number(val)
+                if num is not None:
+                    params[name.lower()] = num
+
+    def value(token: str) -> float | None:
+        if token.startswith("{") and token.endswith("}"):
+            return params.get(token[1:-1].strip().lower())
+        return netlistlib.spice_number(token)
+
+    groups: dict[tuple, list[tuple[int, tuple | None]]] = {}
+    scope = 0
+    for i, line in enumerate(lines):
+        low = line.strip().lower()
+        if low.startswith((".subckt", ".ends")):
+            scope += 1
+        tokens = line.split()
+        if not tokens or tokens[0][0] not in "xX" or (
+                i + 1 < len(lines) and lines[i + 1].startswith("+")):
+            continue
+        n = next((k for k, t in enumerate(tokens) if "=" in t), len(tokens))
+        if n < 3:
+            continue
+        pairs = [t.split("=", 1) for t in tokens[n:]]
+        vals = [(k.lower(), value(v)) for k, v in pairs
+                if k.lower() not in _ORDER_BLIND_PROPS]
+        known = None if any(v is None for _, v in vals) else tuple(sorted(vals))
+        nets = tuple(sorted(t.lower() for t in tokens[1:n - 1]))
+        groups.setdefault((scope, tokens[n - 1].lower(), nets), []).append(
+            (i, known))
+    for members in groups.values():
+        if len(members) < 2 or any(k is None for _, k in members):
+            continue
+        slots = [i for i, _ in members]
+        order = sorted(members, key=lambda m: m[1])
+        moved = [lines[i] for i, _ in order]
+        for slot, line in zip(slots, moved):
+            lines[slot] = line
+    return "".join(lines)
+
+
+def _parallel_sorted_copy(work_dir, spice) -> str:
+    """The name to give netgen for `spice`: itself when sorting changes
+    nothing, else a sorted copy in work_dir. A file with an .include stays
+    as it is, its relative paths would break from another directory."""
+    path = Path(work_dir) / spice
+    if not path.is_file():
+        return str(spice)  # netgen says so in its own words
+    text = path.read_text(encoding="utf-8", errors="replace")
+    done = parallel_devices_sorted(text)
+    if done == text or re.search(r"^\s*\.(include|lib)\b", text, re.I | re.M):
+        return str(spice)
+    copy = Path(work_dir) / f"{path.stem}.parsorted{path.suffix}"
+    copy.write_text(done, encoding="utf-8")
+    return copy.name
+
+
 def run_netgen_lvs(work_dir, extracted_spice, extracted_cell: str,
                    ref_spice, ref_cell: str, out_log,
                    timeout: float = 120.0,
@@ -2000,8 +2078,10 @@ def run_netgen_lvs(work_dir, extracted_spice, extracted_cell: str,
     # there regardless of the caller's own cwd.
     log_path = Path(work_dir) / out_log
     fresh(log_path)
-    cmd = (f"lvs {{{extracted_spice} {extracted_cell}}} "
-           f"{{{ref_spice} {ref_cell}}} {setup} {out_log}")
+    left = _parallel_sorted_copy(work_dir, extracted_spice)
+    right = _parallel_sorted_copy(work_dir, ref_spice)
+    cmd = (f"lvs {{{left} {extracted_cell}}} "
+           f"{{{right} {ref_cell}}} {setup} {out_log}")
     proc = run_eda(["netgen", "-batch", cmd], cwd=work_dir, timeout=timeout)
     out = require_ok(proc, "netgen LVS")
     if not log_path.is_file():
