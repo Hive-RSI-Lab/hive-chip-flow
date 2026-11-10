@@ -262,7 +262,10 @@ def frame_spec(ws: Path) -> dict | None:
              "pins": {s: ports[s] for s in sorted(signals)},
              "ua": {str(p).lower(): k
                     for p, k in (iface.get("ua_pins") or {}).items()}}
-    return ttlib.macro_top_spec(dspec, macro, signals, iface.get("tiles"))
+    # pad: true signals keep their tt_pins pad, as in check_top_harden
+    return ttlib.macro_top_spec(dspec, macro,
+                                signals - ttlib.interface_pad_signals(iface),
+                                iface.get("tiles"))
 
 
 SCOPE_RE = re.compile(r'^S_(\w+) \.scope module, "([^"]+)" "([^"]+)"'

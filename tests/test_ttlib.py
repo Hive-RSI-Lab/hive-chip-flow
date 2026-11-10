@@ -802,3 +802,26 @@ def test_opt_out_passes_rst_n_straight_through_and_says_so(tmp_path):
         "latency": 0, "sync": False, "opt_out_reason": "tb holds clk; see #1"}
     assert ttlib.pad_reset_facts(CLOCKED_COUNTER8) == {
         "latency": 2, "sync": True, "opt_out_reason": None}
+
+
+def test_macro_bound_output_may_also_go_to_a_uo_pad_but_an_input_may_not():
+    spec = _analog_spec({"vout": 0})
+    spec["tt_pins"]["b"] = "uo_out[3]"
+    assert ttlib.validate_tt_pins(spec) == []
+    text = ttlib.generate_tt_wrapper(spec)
+    assert ".b(w_b)" in text and "w_b," in text.split("assign uo_out")[1]
+    spec["tt_pins"]["a"] = "ui_in[0]"
+    spec["macros"][0]["pins"]["a"] = "a"
+    assert any("may not also have a tt_pins" in p
+               for p in ttlib.validate_tt_pins(spec))
+
+
+def test_pad_true_signal_keeps_its_tt_pin_in_the_macro_top_spec():
+    iface = {"signals": [{"name": "b", "direction": "d2a", "pad": True},
+                         {"name": "c", "direction": "d2a"},
+                         {"name": "d", "direction": "a2d", "pad": True}]}
+    pads = ttlib.interface_pad_signals(iface)
+    assert pads == {"b"}
+    dspec = {"tt_pins": {"b": "uo_out[3]", "c": "uo_out[4]", "d": "ui_in[0]"}}
+    tspec = ttlib.macro_top_spec(dspec, {"cell": "m"}, {"b", "c", "d"} - pads)
+    assert tspec["tt_pins"] == {"b": "uo_out[3]"}

@@ -365,11 +365,14 @@ def validate_tt_pins(spec: dict, tiles: str | None = None) -> list[str]:
                         "spec.yaml 'ports'")
     for name, port in ports.items():
         if name in bound:
-            if name in tt_pins:
+            # a digital OUTPUT that feeds a macro pin may also fan out to a
+            # TT output pad (debug visibility); an input may not
+            if name in tt_pins and port.get("dir") != "output":
                 problems.append(f"port {name!r} is wired to macro pin "
                                 f"{'.'.join(bound[name])} and may not also "
                                 "have a tt_pins mapping")
-            continue
+            if name not in tt_pins:
+                continue
         if name not in tt_pins:
             problems.append(f"port {name!r} has no tt_pins mapping")
             continue
@@ -582,7 +585,8 @@ def generate_tt_wrapper(spec: dict, tiles: str | None = None,
         width = int(port.get("width", 1))
         wire = f"w_{name}"
         conns.append(f"      .{name}({wire})")
-        if name in bound:
+        if name in bound and not (port.get("dir") == "output"
+                                  and name in tt_pins):
             # driven by (or driving) a macro pin, not a TT pin
             in_assigns.append(f"  wire [{width - 1}:0] {wire};" if width > 1
                               else f"  wire {wire};")
@@ -858,6 +862,15 @@ def generate_glsim_harness(spec: dict, dut_instance: str = "dut",
 # the analog cell's instance name in an analog tile's top (check_top_harden
 # assembles it; check_cosim frames the same top for its bench)
 ANALOG_MACRO_INSTANCE = "u_analog"
+
+
+def interface_pad_signals(iface: dict) -> set[str]:
+    """Lowercase names of interface.yaml's signals marked `pad: true`: a d2a
+    signal that goes to the analog macro and ALSO stays on its tt_pins pad
+    (debug visibility). Leave them out of macro_top_spec's `crossing`, so
+    the top keeps their tt_pins entry."""
+    return {str(s["name"]).lower() for s in iface.get("signals") or []
+            if s.get("pad") and s.get("direction") == "d2a"}
 
 
 def macro_top_spec(dspec: dict, macro: dict, crossing,

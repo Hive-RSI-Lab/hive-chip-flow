@@ -209,6 +209,17 @@ def test_crossing_pins_map_each_pad_bit_to_its_macro_pin():
         "uo_out[4]": "u_analog/code[0]", "uo_out[5]": "u_analog/code[1]"}
 
 
+def test_pad_signals_keep_their_pad_out_of_the_crossing_rewrite():
+    iface = {"signals": [
+        {"name": "code", "direction": "d2a", "pad": True},
+        {"name": "vco_out", "direction": "a2d", "pad": True},
+        {"name": "other", "direction": "d2a"}]}
+    pads = check_top_harden.pad_signals(iface)
+    assert pads == {"code"}
+    assert check_top_harden.crossing_pins(PLL_DSPEC, PLL_MACRO, pads) == {
+        "ui_in[3]": "u_analog/vco_out"}
+
+
 def test_rewrite_moves_crossing_ports_onto_the_macro_pins():
     cross = check_top_harden.crossing_pins(PLL_DSPEC, PLL_MACRO)
     out = check_top_harden.rewrite_crossing_ports(PLL_SDC, cross)
