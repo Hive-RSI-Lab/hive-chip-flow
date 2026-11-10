@@ -814,3 +814,14 @@ def test_macro_bound_output_may_also_go_to_a_uo_pad_but_an_input_may_not():
     spec["macros"][0]["pins"]["a"] = "a"
     assert any("may not also have a tt_pins" in p
                for p in ttlib.validate_tt_pins(spec))
+
+
+def test_pad_true_signal_keeps_its_tt_pin_in_the_macro_top_spec():
+    iface = {"signals": [{"name": "b", "direction": "d2a", "pad": True},
+                         {"name": "c", "direction": "d2a"},
+                         {"name": "d", "direction": "a2d", "pad": True}]}
+    pads = ttlib.interface_pad_signals(iface)
+    assert pads == {"b"}
+    dspec = {"tt_pins": {"b": "uo_out[3]", "c": "uo_out[4]", "d": "ui_in[0]"}}
+    tspec = ttlib.macro_top_spec(dspec, {"cell": "m"}, {"b", "c", "d"} - pads)
+    assert tspec["tt_pins"] == {"b": "uo_out[3]"}

@@ -54,6 +54,10 @@ from scratch on every run:
   those signals to the analog pin of the same name
   (`engine/lib/ttlib.py`'s `macros` schema). The analog cell's two other
   pins go to VPWR (the one like `vdd`) and VGND (the one like `vss`/`gnd`).
+  A d2a signal marked `pad: true` in `interface.yaml` keeps its `tt_pins`
+  entry: it drives the macro pin and that `uo_out` pad both (debug
+  visibility, e.g. a PFD's UP/DN), and the top SDC keeps naming the pad.
+  Only a digital output may do that; a bound input with a pad is refused.
 - `top/rtl/` - a copy of `digital/rtl`.
 - `top/macros/` - the analog cell's GDS (rebuilt from
   `analog/layout/gen_<block>.py`), a LEF abstract magic writes from it, a
