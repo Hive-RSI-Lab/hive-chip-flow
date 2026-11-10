@@ -171,7 +171,7 @@ PLANTED = {
     "pads in analog_spec.yaml": (
         lambda ws: _edit_yaml(ws / "analog_spec.yaml",
                               lambda d: _set(d, ["pads"], ["vout", "vref"])),
-        {"split", "top_erc", "release"}),
+        {"split", "release"}),
     # reference_cell reads the analog spec's top; cosim names the frame's
     # macro model after it (#208)
     "top in analog/spec/spec.yaml": (
