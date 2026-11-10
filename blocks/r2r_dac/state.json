@@ -4,7 +4,7 @@
  "block": "r2r_dac",
  "workspace": "blocks/r2r_dac",
  "created": "2026-09-25T05:42:01",
- "updated": "2026-11-10T04:58:59",
+ "updated": "2026-11-10T04:59:59",
  "phase": "P4",
  "toolchain": null,
  "gates": {
@@ -1630,14 +1630,14 @@
   "precheck": {
    "phase": "P3",
    "status": "pass",
-   "attempts": 18,
+   "attempts": 19,
    "last": {
-    "ts": "2026-11-08T09:52:09",
+    "ts": "2026-11-10T04:59:59",
     "status": "pass",
     "failing_count": 0,
     "total": 0,
     "inputs": {
-     "top_gds": "dir_text:2243d599fa33f822b244078e43e4f49e4b3b600a0655414af2fdf6c7bace7ae6",
+     "top_gds": "dir_text:8db98b9651509948ea6536fbc32b65a0aa2f28a781c626b4f24af48aebf6e3b3",
      "top_lef": "dir_text:b1aed146f6f2a3c5556a061d24c0ad4d534d22442c5f4bcf417b39e07d7a8448",
      "interface": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
@@ -1960,6 +1960,25 @@
      "total": 0,
      "inputs": {
       "top_gds": "dir_text:2243d599fa33f822b244078e43e4f49e4b3b600a0655414af2fdf6c7bace7ae6",
+      "top_lef": "dir_text:b1aed146f6f2a3c5556a061d24c0ad4d534d22442c5f4bcf417b39e07d7a8448",
+      "interface": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
+      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+      "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
+      "pdk_klayout": "dir_text:876da90e8aab65b830b36eca12bd720adfe8240a0952872419d9f2b4abda605d"
+     },
+     "strength": 0,
+     "job": null,
+     "facts": {
+      "checks_run": 12
+     }
+    },
+    {
+     "ts": "2026-11-10T04:59:59",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "top_gds": "dir_text:8db98b9651509948ea6536fbc32b65a0aa2f28a781c626b4f24af48aebf6e3b3",
       "top_lef": "dir_text:b1aed146f6f2a3c5556a061d24c0ad4d534d22442c5f4bcf417b39e07d7a8448",
       "interface": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
       "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
@@ -5654,7 +5673,7 @@
    "path": "interface.yaml",
    "kind": "interface",
    "sha256": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
-   "hashed": "2026-11-10T04:57:55"
+   "hashed": "2026-11-10T04:59:59"
   },
   "digital_rtl": {
    "path": "digital/rtl",
@@ -5690,7 +5709,7 @@
    "path": "top/harden/runs/run/final/gds",
    "kind": "top_gds",
    "sha256": "dir_text:8db98b9651509948ea6536fbc32b65a0aa2f28a781c626b4f24af48aebf6e3b3",
-   "hashed": "2026-11-10T04:58:59"
+   "hashed": "2026-11-10T04:59:59"
   },
   "analog_spec": {
    "path": "analog/spec/spec.yaml",
@@ -5702,7 +5721,7 @@
    "path": "${PDK_ROOT}/SOURCES",
    "kind": "pdk_version",
    "sha256": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
-   "hashed": "2026-11-10T04:58:59"
+   "hashed": "2026-11-10T04:59:59"
   },
   "pdk_models": {
    "path": "${PDK_ROOT}/libs.tech/ngspice",
@@ -5762,13 +5781,13 @@
    "path": "${PDK_ROOT}/libs.tech/magic",
    "kind": "pdk_magic",
    "sha256": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
-   "hashed": "2026-11-10T04:58:59"
+   "hashed": "2026-11-10T04:59:59"
   },
   "pdk_klayout": {
    "path": "${PDK_ROOT}/libs.tech/klayout",
    "kind": "pdk_klayout",
    "sha256": "dir_text:876da90e8aab65b830b36eca12bd720adfe8240a0952872419d9f2b4abda605d",
-   "hashed": "2026-11-10T04:58:57"
+   "hashed": "2026-11-10T04:59:59"
   },
   "pdk_netgen": {
    "path": "${PDK_ROOT}/libs.tech/netgen",
@@ -5816,7 +5835,7 @@
    "path": "top/harden/runs/run/final/lef",
    "kind": "top_lef",
    "sha256": "dir_text:b1aed146f6f2a3c5556a061d24c0ad4d534d22442c5f4bcf417b39e07d7a8448",
-   "hashed": "2026-11-08T09:52:13"
+   "hashed": "2026-11-10T04:59:59"
   },
   "top_sdf": {
    "path": "top/harden/runs/run/final/sdf",
@@ -7337,6 +7356,14 @@
    "ts": "2026-11-10T04:58:59",
    "event": "gate",
    "gate": "top_lvs",
+   "status": "pass",
+   "attempt": 19,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-11-10T04:59:59",
+   "event": "gate",
+   "gate": "precheck",
    "status": "pass",
    "attempt": 19,
    "failing_count": 0
