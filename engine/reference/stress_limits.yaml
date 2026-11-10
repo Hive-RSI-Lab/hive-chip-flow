@@ -1,0 +1,42 @@
+# Per-device transient stress limits, read by engine/lib/stresslib.py for the
+# opt-in stage of the pex_sim gate. A block opts in with
+# layout_ref/<block>_stress.yaml (see the remediation device_overstress.md).
+# 3.3 V thin-oxide devices only: a block with another MOS class is refused
+# until its class is added here with its own citation.
+gate_oxide:
+  citation: >-
+    GF180MCU design rule manual 14.1.4.2: 3.63 V maximum DC between the gate
+    and any other FET node (3.3 V devices); the gate-node voltage may
+    periodically exceed the DC maximum depending on duty cycle (TDDB).
+  own_numbers: >-
+    The manual publishes no numbers for that allowance. The bounds below are
+    this flow's own, chosen on principle and not fitted to any macro.
+  dc_limit_v: 3.63
+  # less than this over the limit is simulator noise, not an excursion (ours)
+  floor_v: 0.001
+  # an excess that repeats, judged per cycle of a declared repeating window:
+  # peak, share of the cycle over the limit, and the cycle average under
+  # dc_limit_v
+  repeating:
+    peak_over_v: 0.100
+    time_over_share: 0.02
+  # a one-off edge (enable, start-up): each excursion outside those windows
+  one_off:
+    peak_over_v: 0.300
+    time_over_s: 1.0e-6
+junction:
+  citation: >-
+    The GF180MCU design rule manual gives no number for a drain, source or
+    body junction: 14.1.4.2 covers the gate only, and 14.1.4.1 (hot carriers,
+    drain-source) asks that the supply stay within 10% over Vdd for any
+    significant time, with no number. The limit here is the minimum BVDSS of
+    the PDK electrical specification, 3.3 V devices, W/L 10/0.28.
+  # junction pairs above this are listed with peak and time, not failed
+  dc_reference_v: 3.63
+models:
+  nfet_03v3: {kind: mos, breakdown_v: 7.0}
+  pfet_03v3: {kind: mos, breakdown_v: 6.5}
+  cap_nmos_03v3: {kind: cap}
+  cap_nmos_03v3_b: {kind: cap}
+  cap_pmos_03v3: {kind: cap}
+  cap_pmos_03v3_b: {kind: cap}

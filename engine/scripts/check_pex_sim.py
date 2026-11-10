@@ -176,6 +176,21 @@ The bench run has a time limit: --timeout when given, else the spec's
 `sim_timeout_s: {pex_sim: N}` (speclib.sim_timeout; a large RC netlist can
 take minutes), else 120 s, per corner. A run past it is a refusal whose
 remediation names that knob and the corner, never a pass.
+
+Device stress. A block with layout_ref/<block>_stress.yaml also runs that
+file's transient benches on the extracted netlist and scores every MOS
+device's own terminal voltages over each whole run, at the corners the
+sidecar names (stresslib; limits and their citations in
+engine/reference/stress_limits.yaml). Gate-oxide pairs (gate to source,
+drain or bulk) are held to the 3.63 V DC limit of DRM 14.1.4.2 with two
+allowances for true transients, which are this flow's own numbers: a
+repeating excess inside a declared window, and a one-off edge. Past either
+it is a `device_overstress` finding. Junction pairs (drain or source to
+bulk, drain to source) have their own limit per model and are a
+`junction_over_breakdown` finding past it. The report adds `stress`: every
+run, every device that passes only through an allowance with its peak and
+time, and the junction pairs above the 3.63 V reference. A block without
+the file is not stress-checked, and its report has no `stress` key.
 """
 from __future__ import annotations
 
@@ -202,6 +217,7 @@ import sim_run  # noqa: E402
 import simlib  # noqa: E402
 import speclib  # noqa: E402
 import statelib  # noqa: E402
+import stresslib  # noqa: E402
 from checklib import CheckError  # noqa: E402
 
 SCRIPT = "check_pex_sim"
@@ -877,6 +893,81 @@ def corner_tokens(corner: dict, nominal_vdd) -> dict:
             "temp_c": corner["temp_c"], "vdd": vdd}
 
 
+def stress_stage(ws: Path, side: Path, block: str, work_dir: Path,
+                 extracted: Path, ref_text: str, ref_cell: str, topcell: str,
+                 rel_gds: str, pdk: str, nominal_vdd, timeout,
+                 violations: list[dict]) -> dict:
+    """The opt-in per-device stage (stresslib): each deck of `side` at each
+    of its corners on the extracted netlist, findings onto `violations`,
+    and the report's `stress` facts."""
+    limits = stresslib.load_limits()
+    decks = stresslib.load_sidecar(side)
+    raw_text = extracted.read_text(encoding="utf-8", errors="replace")
+    devices, others = stresslib.parse_devices(raw_text, topcell)
+    stresslib.check_models(devices, limits, f"{extracted.name} cell {topcell}")
+    stresslib.check_flat(raw_text, topcell, others)
+    stresslib.label_devices(devices, ref_text, ref_cell)
+    pins = stresslib.subckt_pins(raw_text, topcell)
+    sweep, _ = sim_run.spec_sweep(ws)
+    out = work_dir / "stress"
+    out.mkdir(parents=True, exist_ok=True)
+
+    rows: list[dict] = []
+    for row in decks:
+        template = row["bench"].read_text(encoding="utf-8")
+        outer, cell = stresslib.dut_of(template, row["bench"].name)
+        if cell.lower() != topcell.lower() or len(outer) != len(pins):
+            raise CheckError(
+                f"{row['bench'].name} instantiates {cell} with {len(outer)} "
+                f"nodes; the extraction is {topcell} with {len(pins)} pins")
+        stresslib.vectors_of(devices, pins, outer)
+        vectors = sorted({v for d in devices for v in d["vectors"] if v})
+        for name in row["corners"]:
+            corner = _named(sweep, name)
+            if corner is None:
+                raise CheckError(f"{side.name}: deck {row['name']} names "
+                                 f"corner {name}, which the sweep lacks")
+            stem = f"{row['name']}__{name}"
+            bench_path, raw = out / f"{stem}.cir", out / f"{stem}.raw"
+            layoutlib.fresh(bench_path)
+            bench_path.write_text(stresslib.with_control(
+                template.format(pdk=pdk, extracted=extracted.resolve(),
+                                **corner_tokens(corner, nominal_vdd)),
+                raw.name, vectors, row["bench"].name), encoding="utf-8")
+            limit = row["timeout"] if row["timeout"] is not None else timeout
+            try:
+                layoutlib.run_ngspice(bench_path, cwd=out, timeout=limit)
+            except layoutlib.LayoutError as exc:
+                if isinstance(exc.__cause__, subprocess.TimeoutExpired):
+                    raise CheckError(f"stress {stem}: " + speclib.timeout_hint(
+                        "pex_sim", limit)) from exc
+                raise CheckError(f"stress {stem}: {exc}") from exc
+            if not raw.is_file():
+                raise CheckError(f"stress {stem}: ngspice wrote no {raw.name}")
+            t, store = stresslib.read_binary_raw(raw)
+            found = stresslib.score_run(t, store, devices, row["windows"], limits)
+            rows += [{**r, "corner": name, "deck": row["name"]} for r in found]
+            del store
+            raw.unlink()    # every terminal of a macro: gigabytes per run
+
+    for (_dev, pair), bad in sorted(stresslib.failures_by_pair(rows).items()):
+        first = bad[0]
+        kind = "device_overstress" if first["class"] == "gate" \
+            else "junction_over_breakdown"
+        detail = ("; ".join(first["reasons"]) if first["class"] == "gate"
+                  else f"peak {first['peak_v']:.3f} V at {first['t_peak_s']:.4g} s, "
+                       f"breakdown {first['breakdown_v']:g} V")
+        runs = sorted({f"{r['corner']} / {r['deck']}" for r in bad})
+        violations.append(checklib.violation(
+            "pex_sim", "error", rel_gds, topcell, kind,
+            [first["label"], pair, first["corner"], first["deck"]],
+            f"{first['label']} {pair} at {first['corner']} / {first['deck']}: "
+            f"{detail} (fails in {len(runs)} run(s): {', '.join(runs[:8])})",
+            "check_pex_sim"))
+    return stresslib.summarise(rows, sum(len(d["corners"]) for d in decks),
+                               len(devices), limits, others)
+
+
 def fill_view(ws: Path, gds_path: Path, topcell: str, rel_gds: str,
               work_dir: Path, ref_text: str, ref_pins: list[str],
               raw_text: str, bench_text: str, sym_rows: list[dict],
@@ -1366,6 +1457,11 @@ def run(argv=None):
     typical = typical_corner(corner_list)["name"]
     measured = by_corner.get(typical) or next(iter(by_corner.values()))
 
+    side = stresslib.find_sidecar(ws, block)
+    stress = None if side is None else stress_stage(
+        ws, side, block, work_dir, extracted, ref_text, ref_cell, topcell,
+        str(gds_path.relative_to(ws)), pdk, nominal_vdd, timeout, violations)
+
     payload = checklib.report(
         SCRIPT, ws / "layout", violations, topcell=topcell,
         gds=str(gds_path.relative_to(ws)),
@@ -1377,6 +1473,7 @@ def run(argv=None):
         **({"rc_knobs": rc_runs} if rc_runs else {}),
         **({"rc_variants": variant_rows} if variant_rows else {}),
         **({"fill": fill["facts"]} if fill is not None else {}),
+        **({"stress": stress} if stress is not None else {}),
         **({"pad_runs": pad_runs} if ua_pins else {}))
     return payload, args.out
 
