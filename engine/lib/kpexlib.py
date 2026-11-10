@@ -21,9 +21,11 @@ What kpex is handed, and why:
     magic's netlist: check_pex_sim.subtract_model_c takes that share off
     kpex's nets before comparing. Any other resistor
     marking (res_mk 110/5 over anything but a metal resistor or poly2 -
-    a diffusion resistor - and the resistor layers 62/0 and 110/16) is a
-    resistor kpex reads otherwise than magic, so it is a refusal
-    (KpexError), not a comparison of two different circuits.
+    a diffusion resistor - the marker 110/16, and the high-Rs implant
+    62/0 anywhere but around a poly resistor body, where it makes the
+    body a ppolyf_u_1k) is a resistor kpex reads otherwise than magic, so
+    it is a refusal (KpexError), not a comparison of two different
+    circuits.
   - kpex_runner.py: kpex with gate poly as a conductor (its docstring).
 Net names: kpex calls the substrate VSUBS; it is renamed to the name
 magic's .ext gives the substrate net.
@@ -55,8 +57,11 @@ METAL_RES = {11: (34, 0), 12: (36, 0), 13: (42, 0), 14: (46, 0), 15: (81, 0)}
 RES_MK = (110, 5)
 # poly2: a res_mk over poly2 alone is a poly resistor body (ppolyf_u ...)
 POLY_RES_LAYER = (30, 0)
-OTHER_RES = {(62, 0): "the resistor layer 62/0",
-             (110, 16): "the diffusion/poly resistor marker 110/16"}
+# the high-Rs implant (magic's HRES) a ppolyf_u_1k body sits in: the body is
+# a poly resistor like ppolyf_u's (its own sheet R, which kpex never reads),
+# so 62/0 is taken only where it covers one and is dropped from kpex's copy
+HRES_LAYER = (62, 0)
+OTHER_RES = {(110, 16): "the diffusion/poly resistor marker 110/16"}
 # drawing layers whose texts name a net: comp, poly2 and the five metals
 TEXT_LAYERS = (22, 30, 34, 36, 42, 46, 81)
 LABEL_PURPOSE = 10
@@ -103,6 +108,14 @@ def prepare_gds(src, dst, topcell: str, gap_um: float = RES_GAP_UM) -> dict:
             "res_mk 110/5 marks a resistor that is neither a metal nor a "
             f"poly resistor at ({b.left * ly.dbu:g}, {b.bottom * ly.dbu:g}): "
             "kpex does not extract that resistor as magic does")
+    for piece in region(HRES_LAYER).each():
+        if kdb.Region(piece).interacting(poly_res).is_empty():
+            b = piece.bbox()
+            raise KpexError(
+                "the high-Rs implant 62/0 at "
+                f"({b.left * ly.dbu:g}, {b.bottom * ly.dbu:g}) covers no "
+                "poly resistor body (res_mk 110/5 over poly2): kpex does not "
+                "extract what it marks as magic does")
 
     for layer in TEXT_LAYERS:
         li = ly.find_layer(layer, 0)
@@ -127,9 +140,10 @@ def prepare_gds(src, dst, topcell: str, gap_um: float = RES_GAP_UM) -> dict:
     if not poly_res.is_empty():
         cuts_made += _cut_bodies(ly, top, poly_res.merged(), POLY_RES_LAYER,
                                  gap, "a poly resistor", gap_um)
-    rm = ly.find_layer(*RES_MK)
-    if rm is not None:
-        top.shapes(rm).clear()
+    for layer in (RES_MK, HRES_LAYER):
+        li = ly.find_layer(*layer)
+        if li is not None:
+            top.shapes(li).clear()
     ly.write(str(dst))
     return {"res_cuts": cuts_made}
 
