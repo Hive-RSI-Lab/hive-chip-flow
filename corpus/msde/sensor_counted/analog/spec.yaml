@@ -37,3 +37,10 @@ macro_timing:
   static: {osc_en: vdd}
   arcs:
     - {to: osc_out, source: true, enable: osc_en, settle_ns: 1500, window_ns: 2500, step_ns: 0.02}
+boundary:
+  static: {osc_en: vdd}
+  a2d:
+    osc_out: {source: osc_en, settle_ns: 1500, window_ns: 2500, step_ns: 0.02}
+  d2a:
+    # the NAND's output follows osc_en while the ring is stopped
+    osc_en: {observe: xdut.n0, ramp_ns: 2000}

@@ -35,3 +35,7 @@ faults:
     gate: cosim
     plant: plant_cosim_unframed.py
     expect: {status: refused, error: "cosim_top_unframed"}
+  - name: boundary_switch_ratioed_past_vil
+    gate: boundary
+    plant: plant_boundary_threshold.py
+    expect: {status: fail, kind: boundary_threshold}

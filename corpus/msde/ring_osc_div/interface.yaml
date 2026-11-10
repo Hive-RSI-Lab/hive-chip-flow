@@ -3,11 +3,11 @@
 # against this file (invalidation.yaml gate_inputs.msde.cosim's first
 # kind), so it must exist even though this rung's own focus is the bench,
 # not `split` (see corpus/msde/sensor_counted/ for that gate's rung).
-version: 1
+version: 2
 signals:
   - name: osc_out
     direction: a2d
     level: cmos_3v3
     domain: clk_free
     width: 1
-    load: "digital divider clock input"
+    load: {pin: gf180mcu_fd_sc_mcu7t5v0__dffq_1/CLK, note: "digital divider clock input"}

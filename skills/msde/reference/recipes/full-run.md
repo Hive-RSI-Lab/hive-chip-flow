@@ -18,7 +18,7 @@ answer, and handing them to the splitter or integrator defeats the proof.
 The workspace ends up shaped like this:
 
     blocks/<name>/
-      state.json            skill msde - split, cosim, macro_lib, top_harden, top_drc, top_lvs, precheck, release
+      state.json            skill msde - split, cosim, boundary, macro_lib, top_harden, top_drc, top_lvs, precheck, release
       brief/                the task's spec, verbatim
       interface.yaml        the splitter's crossing signals
       digital_spec.yaml     the digital side's copy of the same entries
@@ -71,13 +71,16 @@ bench (`recipes/integrate.md`). Then, in this order:
 
 1. `cosim` - minutes, and it catches a polarity or ratio error before the
    harden spends ten.
-2. `macro_lib` - the macro's liberty per STA corner, from `macro_timing` in the
+2. `boundary` - every crossing pin measured on the sized schematic against
+   its level in `engine/reference/levels.yaml`, using the `boundary:` section
+   of the analog spec; owed for every macro with a crossing pin.
+3. `macro_lib` - the macro's liberty per STA corner, from `macro_timing` in the
    analog spec; not applicable with none declared.
-3. `top_harden` as a detached job (`jobs.py start --gate top_harden
+4. `top_harden` as a detached job (`jobs.py start --gate top_harden
    --workspace {ws} --skill msde`), polled with `jobs.py status`. It
    assembles `{ws}/top/` from the two sides and hardens it, the analog GDS
    as a LibreLane macro.
-4. `top_drc`, `top_lvs` and `precheck` on the GDS it left at
+5. `top_drc`, `top_lvs` and `precheck` on the GDS it left at
    `top/harden/runs/run/final/gds`. When interface.yaml's `ua_pins` sends
    analog pins to pads, the top is a Tiny Tapeout analog tile and precheck
    checks those pads.

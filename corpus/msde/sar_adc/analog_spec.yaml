@@ -12,22 +12,22 @@ interface:
     level: cmos_3v3
     domain: clk_sys
     width: 8
-    load: "internal DAC trial-voltage code"
+    load: {cap_ff: 20, note: "internal DAC trial-voltage code; placeholder estimate, no netlist yet"}
   - name: sample
     direction: d2a
     level: cmos_3v3
     domain: clk_sys
     width: 1
-    load: "sample-and-hold close/track control"
+    load: {cap_ff: 50, note: "sample-and-hold close/track control; placeholder estimate, no netlist yet"}
   - name: cmp_out
     direction: a2d
     level: cmos_3v3
     domain: clk_sys
     width: 1
-    load: "SAR bit-decision input"
+    load: {pin: gf180mcu_fd_sc_mcu7t5v0__dffq_1/D, note: "SAR bit-decision input"}
   - name: comp_clk
     direction: d2a
     level: cmos_3v3
     domain: clk_sys
     width: 1
-    load: "comparator strobe clock"
+    load: {cap_ff: 30, note: "comparator strobe clock; placeholder estimate, no netlist yet"}

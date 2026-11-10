@@ -27,7 +27,7 @@ verbs:
   full-run:
     summary: The whole mixed-signal pipeline, spec.md to a released tile -
       P1 split, P2 the two nested runs (each to its own release), P3 cosim
-      and the top gates (macro_lib, top_harden, top_drc, top_lvs), P4 release with H2.
+      and the top gates (boundary, macro_lib, top_harden, top_drc, top_lvs), P4 release with H2.
       Overrides the engine's own placeholder.
     doc: skills/msde/reference/recipes/full-run.md
     workspace: created
@@ -102,6 +102,9 @@ verbs:
         why: "cheapest top check first - one bench drives both sides
               (cocotbext-ams); a polarity or ratio error shows here long
               before a ten-minute harden would"
+      - gate: boundary
+        why: "minutes: every crossing pin against its level (swing, edge into
+              the real load, threshold) before the macro is characterised"
       - gate: macro_lib
         why: "the macro's liberty per corner and its clocks' ceilings, which
               top_harden delivers and checks the SDC against"
@@ -169,7 +172,7 @@ verbs:
         why: "fresh context; edits interface.yaml, digital_spec.yaml and
               analog_spec.yaml together, never one alone. No web tools."
       - do: "scripts/state.py edit --workspace {ws} --class interface_edit --note \"split\""
-        why: "marks split, cosim, macro_lib, top_harden, top_drc, top_lvs and release
+        why: "marks split, cosim, boundary, macro_lib, top_harden, top_drc, top_lvs and release
               stale here"
       - gate: split
         why: "both side specs agree with interface.yaml"
@@ -217,6 +220,9 @@ verbs:
               top netlist, top_harden generates both. No web tools."
       - gate: cosim
         why: "before the harden: minutes, not ten-plus"
+      - gate: boundary
+        why: "minutes: every crossing pin against its level (swing, edge into
+              the real load, threshold) before the macro is characterised"
       - gate: macro_lib
         why: "the macro's liberty per corner and its clocks' ceilings, which
               top_harden delivers and checks the SDC against"

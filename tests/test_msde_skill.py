@@ -235,7 +235,7 @@ def test_full_run_gates_in_phase_order_and_never_forced():
     steps = _steps("full-run")
     gate_seq = [s["gate"] for s in steps if "gate" in s]
     # top_harden is a job: started with jobs.py, never a `gate:` step
-    assert gate_seq == ["split", "cosim", "macro_lib", "top_drc", "top_lvs",
+    assert gate_seq == ["split", "cosim", "boundary", "macro_lib", "top_drc", "top_lvs",
                         "precheck", "release"]
     assert not any(s.get("gate") in ("harden", "top_harden") for s in steps)
     phases = [s["do"].rsplit(" ", 1)[1] for s in steps
@@ -295,7 +295,7 @@ def test_split_plans_the_interface_cascade_into_both_nested_runs(tmp_path):
                    for c in cmds), side
     # the router appends every gate interface_edit marks
     gates = [s["gate"] for s in recipe["steps"] if s["kind"] == "gate"]
-    assert gates == ["split", "cosim", "macro_lib", "top_harden", "top_drc",
+    assert gates == ["split", "cosim", "boundary", "macro_lib", "top_harden", "top_drc",
                      "top_lvs", "precheck", "release"]
 
 
@@ -344,12 +344,12 @@ def test_gate_lists_in_prose_name_every_msde_gate():
     """Every place the skill lists the msde workspace's gates lists all
     of them, top_harden and macro_lib included."""
     msde_gates = list(tr.load_gate_order("msde"))
-    assert msde_gates == ["split", "cosim", "macro_lib", "top_harden", "top_drc",
+    assert msde_gates == ["split", "cosim", "boundary", "macro_lib", "top_harden", "top_drc",
                           "top_lvs", "precheck", "release"]
     skill_md = (SKILL / "SKILL.md").read_text(encoding="utf-8")
     full_run = (SKILL / "reference" / "recipes" / "full-run.md").read_text(
         encoding="utf-8")
-    listing = ("split, cosim, macro_lib, top_harden, top_drc, top_lvs, precheck, "
+    listing = ("split, cosim, boundary, macro_lib, top_harden, top_drc, top_lvs, precheck, "
                "release")
     assert listing in skill_md
     assert listing in full_run
