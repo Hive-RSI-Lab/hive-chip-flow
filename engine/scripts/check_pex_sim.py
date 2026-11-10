@@ -97,6 +97,26 @@ netlist's hash and pair in the gate's state entry as a view of its own
 stales the gate. A variant with no bound scored at its corner is a refusal, before
 any extraction.
 
+Fill (#136). The shuttle fills the tile after precheck with the PDK's
+fill_all.rb, and the block's own extraction never sees that metal. spec.yaml's
+`pex_fill` ("all", or a list of `floating` and `grounded`; absent means none)
+asks for the view after fill (engine/lib/filllib.py):
+- a copy of the GDS is filled the way the shuttle fills it;
+- DRC runs on the copy with every deck but antenna and density, and a
+  finding is `fill_drc`, refs [rule, "fill"];
+- the density deck runs too, but is only reported (`fill.density_deck`):
+  its rules read a whole die's coverage, not a tile's;
+- magic extracts the copy with each fill island a net of its own, and the
+  ground, probe and symmetry checks run on that netlist too;
+- the bench then runs at every scored corner, once per mode.
+
+`floating` folds the islands out exactly (filllib.float_fill), and
+`grounded` ties them to the cell's ground pin. A finding names the mode in
+refs ("fill_floating") and in the message. The report adds `fill`: the
+density per layer before and after, the island count, each reference net's
+total C before and after, and each mode's netlist, hash and measures.
+gate.py records each netlist as a view of its own (statelib.views_of).
+
 The bench template carries substitution tokens, filled by str.format: `{pdk}`
 (the resolved toolchain's PDK root) and `{extracted}` (the parasitic netlist
 this run just produced), so it runs unchanged on any host, and per corner
@@ -172,10 +192,12 @@ sys.path.insert(0, str(SCRIPTS))
 sys.path.insert(0, str(ENGINE / "lib"))
 import checklib  # noqa: E402
 import corners as corners_mod  # noqa: E402
+import filllib  # noqa: E402
 import kpexlib  # noqa: E402
 import layoutlib  # noqa: E402
 import layout_gen  # noqa: E402
 import netlistlib  # noqa: E402
+import padlib  # noqa: E402
 import sim_run  # noqa: E402
 import simlib  # noqa: E402
 import speclib  # noqa: E402
@@ -641,6 +663,10 @@ def bound_list(measures: dict, where: str) -> list[dict]:
             if not isinstance(b, dict):
                 raise CheckError(f"{where}: measure {name!r} must be a "
                                  "{min, max, corners} mapping or a list of them")
+            if b.get("pad", "both") not in padlib.PAD_SCOPES:
+                raise CheckError(
+                    f"{where}: measure {name!r}: pad must be one of "
+                    f"{', '.join(padlib.PAD_SCOPES)}, got {b.get('pad')!r}")
             out.append({**b, "measure": name})
     return out
 
@@ -851,6 +877,107 @@ def corner_tokens(corner: dict, nominal_vdd) -> dict:
             "temp_c": corner["temp_c"], "vdd": vdd}
 
 
+def fill_view(ws: Path, gds_path: Path, topcell: str, rel_gds: str,
+              work_dir: Path, ref_text: str, ref_pins: list[str],
+              raw_text: str, bench_text: str, sym_rows: list[dict],
+              modes: list[str]) -> dict:
+    """spec.yaml's `pex_fill` (module docstring): the block filled the way
+    the shuttle fills it, on a copy under log/pex_sim/fill/, its DRC with
+    the dummy-fill decks, and one extracted netlist per fill mode, written
+    and hashed for the benches. {violations, unrun, facts}: `unrun` are
+    findings that make the benches pointless (a filled extraction with no
+    ground or no probed net); `facts` is the report's `fill`."""
+    fdir = work_dir / "fill"
+    fdir.mkdir(exist_ok=True)
+    rdb = fdir / f"{topcell}.filled.lyrdb"
+    drdb = fdir / f"{topcell}.filled.density.lyrdb"
+    xgds = fdir / f"{topcell}.filled.extract.gds"
+    try:
+        filled = filllib.shuttle_fill(gds_path.resolve(), topcell, fdir)
+        density = filllib.fill_summary(filled, gds_path, topcell)
+        layoutlib.run_klayout_drc(filled, topcell, rdb, timeout=600,
+                                  decks=filllib.FILL_DRC_DECKS)
+        drc_items = layoutlib.parse_drc_rdb(rdb)
+        layoutlib.run_klayout_drc(filled, topcell, drdb, timeout=600,
+                                  decks=filllib.DENSITY_DECKS)
+        density_items = layoutlib.parse_drc_rdb(drdb)
+        islands = filllib.extraction_copy(filled, topcell, xgds)
+        fraw, _log = layoutlib.run_magic_extract(
+            fdir, xgds.resolve(), topcell, parasitics=True, timeout=600)
+    except layoutlib.LayoutError as exc:
+        raise CheckError(f"pex_fill: {exc}") from exc
+    ftext = fraw.read_text(encoding="utf-8", errors="replace")
+    counts = layoutlib.count_parasitics(ftext)
+    nets = filllib.fill_nets(ftext, topcell)
+    if islands and not nets:
+        raise CheckError(
+            f"pex_fill: {islands} fill islands went into the extraction and "
+            f"{fraw.name} has no net only capacitors touch - magic extracted "
+            "no fill, so a bench on it is the unfilled layout again")
+
+    by_rule: dict[str, list[dict]] = {}
+    for item in drc_items:
+        by_rule.setdefault(item["category"], []).append(item)
+    violations = [checklib.violation(
+        "pex_sim", "error", rel_gds, topcell, "fill_drc", [rule, "fill"],
+        f"after the shuttle's fill (PDK fill_all.rb): {rule} x{len(items)} - "
+        f"{items[0]['description']}. The drawn layout leaves fill a gap it "
+        "cannot fill legally; fix in layout/gen_<block>.py (the "
+        "layout-fixer), see log/pex_sim/fill/" + rdb.name, "klayout")
+        for rule, items in sorted(by_rule.items())]
+
+    unrun = []
+    ground = ground_finding(ref_text, ref_pins, ftext, topcell, rel_gds)
+    for v in ([ground] if ground is not None else []) + probe_findings(
+            bench_text, ref_text, ftext, topcell, rel_gds):
+        v["refs"] = [*v["refs"], "fill"]
+        v["msg"] = f"after fill: {v['msg']}"
+        unrun.append(v)
+
+    if sym_rows:
+        sym, _rows = symmetry_findings(sym_rows, ref_text, ftext, topcell,
+                                       rel_gds, "spec/spec.yaml")
+        for v in sym:
+            v["refs"] = [*v["refs"], "fill"]
+            v["msg"] = f"after fill (floating): {v['msg']}"
+        violations += sym
+
+    named = sorted(element_nodes(ref_text) - {"0"})
+    base = net_parasitics(raw_text, named)
+    after = net_parasitics(ftext, named)
+    coupling = {n: {"c_ff": round(base[n]["c_ff"], 3),
+                    "c_ff_filled": round(after[n]["c_ff"], 3)}
+                for n in named if n in base and n in after}
+
+    ground_pin = filllib.ground_net(ref_pins)
+    views = []
+    for mode in modes:
+        text = (filllib.float_fill(ftext, topcell, nets) if mode == "floating"
+                else filllib.ground_fill(ftext, topcell, nets, ground_pin))
+        view = work_dir / f"{topcell}.pex.ordered.fill_{mode}.spice"
+        layoutlib.fresh(view)
+        view.write_text(reorder_pins(text, topcell, ref_pins), encoding="utf-8")
+        views.append({"mode": mode, "netlist": str(view.relative_to(ws)),
+                      "sha256": statelib.hash_artifact(view, "text_eol"),
+                      "parasitics": layoutlib.count_parasitics(text),
+                      **({"ground": ground_pin} if mode == "grounded" else {})})
+    facts = {
+        "script": filllib.FILL_SCRIPT_REL,
+        "filled_gds": str(filled.relative_to(ws)),
+        "islands": islands, "fill_nets": len(nets), "parasitics": counts,
+        "drc": {"decks": filllib.FILL_DRC_DECKS, "findings": len(drc_items),
+                "report": str(rdb.relative_to(ws))},
+        # the density deck's rules are whole-die figures (">30% of the
+        # die"): on a tile they say how much the tile adds, not whether the
+        # die passes, so they are reported here with the tile's own
+        # numbers, never a finding
+        "density": density,
+        "density_deck": sorted({f"{i['category']}: {i['description']}"
+                                for i in density_items}),
+        "coupling": coupling, "views": views}
+    return {"violations": violations, "unrun": unrun, "facts": facts}
+
+
 def run(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--workspace", required=True, help="block workspace")
@@ -902,7 +1029,8 @@ def run(argv=None):
         # bare workspace has no sweep to read, so typical is all there is
         sweep, field, nominal_vdd = [dict(BASE, name="tt")], None, None
         corner_list, source, unswept = sweep, "no spec.yaml: typical only", []
-        knob_runs, variant_runs = [], []
+        knob_runs, variant_runs, fill_modes = [], [], []
+        ua_pins, board = [], {}
     else:
         sweep, _scoped = sim_run.spec_sweep(ws)
         field, nominal_vdd = spec.get("pex_corners"), (spec.get("supply")
@@ -912,6 +1040,11 @@ def run(argv=None):
             None if field is not None else fresh_sim_pvt_results(ws))
         knob_runs = rc_knob_runs(spec.get("pex_rc_knobs"), sweep)
         variant_runs = rc_variant_runs(spec.get("pex_rc_corners"), sweep)
+        try:
+            fill_modes = filllib.modes_of(spec.get("pex_fill"))
+            ua_pins, board = padlib.ua_pins_of(spec), padlib.board_of(spec)
+        except ValueError as exc:
+            raise CheckError(f"{exc} - run spec_lint first") from exc
 
     template = bench_tpl.read_text(encoding="utf-8")
     if "{vdd}" in template and (isinstance(nominal_vdd, bool) or not isinstance(
@@ -924,6 +1057,39 @@ def run(argv=None):
         return template.format(pdk=pdk, extracted=netlist.resolve(),
                                **corner_tokens(corner, nominal_vdd))
     bench_text = deck(corner_list[0])
+
+    # a spec with ua_pins runs every bench bare and again with TT's pad on
+    # each ua pin of every instance of the extracted cell (#112). A bench
+    # the pad cannot be put in is a refusal: its "pad" runs would only be
+    # bare runs again
+    conditions = padlib.conditions_of(spec) if spec is not None else [None]
+
+    def pad_deck(text: str, corner: dict) -> str:
+        vdd = corner_tokens(corner, nominal_vdd)["vdd"]
+        return padlib.insert_pads(
+            text, topcell, ref_pins or [], ua_pins, padlib.pad_subckt(
+                pdk, corner["process"], float(vdd) if vdd else 0.0,
+                board))[0]
+    if ua_pins:
+        try:
+            if not nominal_vdd:
+                raise padlib.PadRefused(
+                    "ua_pad_not_inserted", "spec.yaml has no numeric "
+                    "'supply.vdd', and the pad's ESD diodes sit on DVDD")
+            pad_deck(bench_text, corner_list[0])
+        except padlib.PadRefused as exc:
+            payload = checklib.report(
+                SCRIPT, ws / "layout", [checklib.violation(
+                    "pex_sim", "error", str(bench_tpl.relative_to(ws)), topcell,
+                    exc.kind, ["pad"], f"{bench_tpl.name}: {exc} - every "
+                    "bench of a spec with ua_pins runs through the pad model "
+                    "too (engine/lib/padlib.py), so put an instance of "
+                    f"{topcell} with every port on it in the bench",
+                    "check_pex_sim")], topcell=topcell,
+                gds=str(gds_path.relative_to(ws)),
+                extracted=str(extracted.relative_to(ws)),
+                parasitics=parasitics, measured={})
+            return payload, args.out
 
     # a floating ground or an unlabelled probe is not a bench worth running:
     # the findings alone
@@ -970,11 +1136,12 @@ def run(argv=None):
         for token in unaware_tokens(
             template, corner_list + [k["corner"] for k in knob_runs + variant_runs],
             passives)]
-    if (knob_runs or variant_runs) and "{extracted}" not in template:
+    if (knob_runs or variant_runs or fill_modes) and "{extracted}" not in template:
         refused.append(checklib.violation(
             "pex_sim", "error", rel_bench, topcell, "pex_bench_not_corner_aware",
             ["extracted"], f"{bench_tpl.name} never uses {{extracted}}, and "
-            "spec.yaml's pex_rc_knobs and pex_rc_corners need it to reach their "
+            "spec.yaml's pex_rc_knobs, pex_rc_corners and pex_fill need it to "
+            "reach their "
             "netlists: every run would simulate the nominal wires and pass "
             "unseen. Use the token in the bench (the bench-writer)",
             "check_pex_sim"))
@@ -992,13 +1159,38 @@ def run(argv=None):
             extractor_crosscheck=crosscheck)
         return payload, args.out
 
+    pad_runs: list[dict] = []
+
     def run_bench(corner: dict, scored: list[dict], stem: str, where: str,
                   refs: list[str], netlist: Path = extracted) -> dict:
-        """One ngspice run at `corner`: the values of `scored`, and their
-        findings appended to `violations`, each naming `where`."""
+        """run_once in each of the spec's pad conditions: the bare run's
+        values (the pad runs' go to pad_runs), each condition scoring only
+        the bounds padlib.scored_in gives it."""
+        measured: dict = {}
+        for cond in conditions:
+            mine = [b for b in scored if padlib.scored_in(b, cond)]
+            if not mine:
+                continue
+            if cond != "pad":
+                measured = run_once(corner, mine, stem, where, refs, netlist)
+                continue
+            pad_runs.append({"run": where, "corner": corner["name"],
+                             "measured": run_once(
+                                 corner, mine, f"{stem}__pad", f"{where} / pad",
+                                 [*refs, "pad"], netlist, pad=True)})
+        return measured
+
+    def run_once(corner: dict, scored: list[dict], stem: str, where: str,
+                 refs: list[str], netlist: Path = extracted,
+                 pad: bool = False) -> dict:
+        """One ngspice run at `corner`, through the ua pad model when `pad`:
+        the values of `scored`, and their findings appended to
+        `violations`, each naming `where`."""
         bench_path = work_dir / f"{block}_pex_tb__{stem}.cir"
         layoutlib.fresh(bench_path)
-        bench_path.write_text(deck(corner, netlist), encoding="utf-8")
+        text = deck(corner, netlist)
+        bench_path.write_text(pad_deck(text, corner) if pad else text,
+                              encoding="utf-8")
 
         # a meas whose trigger/target never happened (a latch that decided
         # the wrong way never lets outn fall) comes back by name and is a
@@ -1111,6 +1303,18 @@ def run(argv=None):
         view.write_text(reorder_pins(vtext, topcell, ref_pins), encoding="utf-8")
         views[variant] = {"path": view, "parasitics": vcounts}
 
+    fill = None
+    if fill_modes:
+        fill = fill_view(ws, gds_path, topcell, rel_gds, work_dir, ref_text,
+                         ref_pins, raw_text, bench_text, rows, fill_modes)
+        if fill["unrun"]:
+            payload = checklib.report(
+                SCRIPT, ws / "layout", fill["unrun"], topcell=topcell,
+                gds=rel_gds, extracted=str(extracted.relative_to(ws)),
+                parasitics=parasitics, measured={}, fill=fill["facts"])
+            return payload, args.out
+        violations += fill["violations"]
+
     by_corner: dict[str, dict] = {}
     not_scored = []
     for corner in corner_list:
@@ -1145,6 +1349,16 @@ def run(argv=None):
                                   f"{cname} / {variant}", [cname, variant],
                                   view["path"])})
 
+    if fill is not None:
+        for row in fill["facts"]["views"]:
+            mode, path = row["mode"], ws / row["netlist"]
+            row["measured_by_corner"] = {
+                c["name"]: run_bench(
+                    c, scored_at(c), f"{c['name']}__fill_{mode}",
+                    f"{c['name']} / fill {mode}", [c["name"], f"fill_{mode}"],
+                    path)
+                for c in corner_list if scored_at(c)}
+
     if not by_corner:
         raise CheckError(
             f"no bound in {bounds_path.name} is scored at any of "
@@ -1161,7 +1375,9 @@ def run(argv=None):
         not_scored=not_scored, extractor_crosscheck=crosscheck,
         **({"symmetry": symmetry} if symmetry else {}),
         **({"rc_knobs": rc_runs} if rc_runs else {}),
-        **({"rc_variants": variant_rows} if variant_rows else {}))
+        **({"rc_variants": variant_rows} if variant_rows else {}),
+        **({"fill": fill["facts"]} if fill is not None else {}),
+        **({"pad_runs": pad_runs} if ua_pins else {}))
     return payload, args.out
 
 

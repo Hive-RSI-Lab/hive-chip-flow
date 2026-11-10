@@ -27,10 +27,12 @@ person signs off between stages. Submitting a tile is always the person's.
 ## Test and score
 
 - **Test**, `bin/chip-flow test`, every change: upstream's engine suite
-  without its real-tool tests (`tests/check-engine.sh`, held to 120 s of CPU)
+  without its real-tool tests (`tests/check-engine.sh`, held to 120 s of CPU on the reference box, scaled to the runner by a calibration)
   with the workaround probes (`tests/test_workarounds.py`), then every
   corpus rung's planted faults that need no harden, each caught by its gate
-  (`tests/test_corpus_faults.py`).
+  (`tests/test_corpus_faults.py`). On CI it runs as four parallel shards
+  (`bin/chip-flow test SHARD`), and main's ruleset won't merge a PR until
+  their `test` job is green.
 - **Blocks**, `bin/chip-flow check-all`: re-runs every gate each block under
   `blocks/` owes (gates.yaml's rows for its skill, less those its spec
   declares not applicable; one with no record shows as owed), from a scratch copy, through `bin/eda`, then the

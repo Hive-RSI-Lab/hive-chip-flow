@@ -821,18 +821,23 @@ def gate_strength(skill: str, gate: str,
 
 def views_of(facts: dict | None) -> dict[str, dict]:
     """The extracted views a gate result carries beyond its one nominal
-    netlist (pex_sim's `rc_variants`), each kept in the gate's record: name ->
-    {path, sha256, pair}."""
-    return {r["variant"]: {"path": r["netlist"], "sha256": r["sha256"],
-                           "pair": r["pair"]}
-            for r in (facts or {}).get("rc_variants") or []}
+    netlist (pex_sim's `rc_variants`, and its `fill` views, named
+    fill_<mode>), each kept in the gate's record: name -> {path, sha256,
+    pair} for an RC variant, {path, sha256, kind: fill} for a fill view."""
+    views = {r["variant"]: {"path": r["netlist"], "sha256": r["sha256"],
+                            "pair": r["pair"]}
+             for r in (facts or {}).get("rc_variants") or []}
+    for r in ((facts or {}).get("fill") or {}).get("views") or []:
+        views[f"fill_{r['mode']}"] = {"path": r["netlist"],
+                                      "sha256": r["sha256"], "kind": "fill"}
+    return views
 
 
 def view_changes(gate_entry: dict, ws: Path) -> list[str]:
     """`view:<name>` for each recorded view that no longer stands: its file on
     disk differs from the hash recorded, or the table now pairs it with another
-    process. A file that is not there (a clean checkout: log/ is not tracked) is
-    not judged; the gate's inputs, which include the tech and the spec, vouch
+    process (an RC variant; a fill view has no pair). A file that is not there
+    (a clean checkout: log/ is not tracked) is not judged; the gate's inputs, which include the tech and the spec, vouch
     for what a re-extraction would give."""
     views = (gate_entry.get("last") or {}).get("views") or {}
     if not views:
@@ -841,7 +846,8 @@ def view_changes(gate_entry: dict, ws: Path) -> list[str]:
     pairs = (table or {}).get("variants") or {}
     return sorted(
         f"view:{name}" for name, v in views.items()
-        if (pairs.get(name) or {}).get("pair") != v.get("pair")
+        if (v.get("kind") != "fill"
+            and (pairs.get(name) or {}).get("pair") != v.get("pair"))
         or ((ws / v["path"]).exists()
             and hash_artifact(ws / v["path"], "text_eol") != v.get("sha256")))
 

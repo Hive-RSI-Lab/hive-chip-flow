@@ -28,9 +28,20 @@ gf180mcuD models drove a REAL floating gate node through "singular matrix"
 -> failed gmin/source stepping -> a "successful", exit-0 `.op` anyway
 (simlib.py's own docstring has the transcript) - a purely textual scan
 cannot see that ngspice's own DC solve never actually converged cleanly.
+
+DEVICES (#137): every MOS cap, diode, BJT and MIM the netlist uses is held
+to its row in engine/reference/devices.yaml (engine/scripts/pdk_devices.py):
+- not lvs_ok: `device_not_lvs_ok`, with the round trip's reason - an error
+  when the workspace has a layout generator (layout/gen_*.py: analog_lvs
+  would fail on it), a warning when it has none yet;
+- not tt_legal, in a TT tile: `device_not_tt_legal` (an error). A workspace
+  is in a TT tile when spec.yaml says `tt_tile: true`, or, with no
+  `tt_tile`, when it is an msde side (its parent has an interface.yaml).
+A model with no row (the FETs, the resistors) is not judged here.
 """
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 
@@ -39,6 +50,7 @@ ENGINE = SCRIPTS.parent
 sys.path.insert(0, str(SCRIPTS))
 sys.path.insert(0, str(ENGINE / "lib"))
 import checklib  # noqa: E402
+import devicelib  # noqa: E402
 import netlistlib  # noqa: E402
 import sim_run  # noqa: E402
 import speclib  # noqa: E402
@@ -85,7 +97,57 @@ def static_violations(ws: Path, spec: dict, netlist_path: Path,
             f"node {node!r} is touched by fewer than two device terminals "
             "in the netlist - likely floating", "netlistlib"))
 
+    violations += device_violations(ws, spec, rel, text)
     return violations
+
+
+# a diode element: d<name> anode cathode model [params]
+_DIODE_RE = re.compile(r"^\s*(d\S*)\s+(\S+)\s+(\S+)\s+(\S+)",
+                                  re.I)
+
+
+def in_tt_tile(ws: Path, spec: dict) -> bool:
+    """spec.yaml's `tt_tile`, else whether the workspace is an msde side."""
+    if "tt_tile" in spec:
+        return spec["tt_tile"] is True
+    return (ws.resolve().parent / "interface.yaml").is_file()
+
+
+def device_violations(ws: Path, spec: dict, rel: str, text: str,
+                      table: dict | None = None) -> list[dict]:
+    """devices.yaml's verdict on each device the netlist uses (#137)."""
+    table = devicelib.load() if table is None else table
+    if "tt_tile" in spec and not isinstance(spec["tt_tile"], bool):
+        return [checklib.violation(
+            "netlist_lint", "error", "spec/spec.yaml", None, "bad_tt_tile",
+            [], f"spec.yaml's tt_tile is {spec['tt_tile']!r}, not true or "
+            "false", "devicelib")]
+    uses = [(d["ref"], d["model"], d["line"])
+            for d in netlistlib.parse_devices(text)]
+    for lineno, raw in enumerate(text.splitlines(), 1):
+        m = _DIODE_RE.match(netlistlib.strip_comment(raw))
+        if m and "=" not in m.group(4):
+            uses.append((m.group(1), m.group(4).lower(), lineno))
+    tt = in_tt_tile(ws, spec)
+    # a generator, not the bare layout/ dir: state.py and faults.py
+    # scaffold an empty layout/ before any block has one, and analog_lvs
+    # runs only layout/gen_<block>.py (layout_gen.load_generator)
+    has_layout = any((ws / "layout").glob("gen_*.py"))
+    out = []
+    for ref, model, line in uses:
+        why = devicelib.lvs_problem(model, table)
+        if why:
+            out.append(checklib.violation(
+                "netlist_lint", "error" if has_layout else "warning", rel,
+                None, "device_not_lvs_ok", [ref],
+                f"{ref} (line {line}): {why}", "devicelib"))
+        why = devicelib.tt_problem(model, table) if tt else None
+        if why:
+            out.append(checklib.violation(
+                "netlist_lint", "error", rel, None, "device_not_tt_legal",
+                [ref], f"{ref} (line {line}) in a TT tile: {why}",
+                "devicelib"))
+    return out
 
 
 def dry_run_violations(ws: Path, timeout: float = DRY_RUN_TIMEOUT) -> list[dict]:

@@ -14,7 +14,7 @@
 # it runs), because wall time on this box measures the box's load, not the
 # suite: at load 113 on 6 cores the suite passed in 5m43 wall on ~33 s of
 # CPU, and the old fixed `timeout 120` killed it at 41%. So:
-#   * over CHECK_ENGINE_CPU_S (default 120) of CPU -> a real slowdown: the
+#   * over the budget (120 s, scaled below) of CPU -> a real slowdown: the
 #     suite is ended and this exits 125, saying "FAIL slow".
 #   * its CPU not advancing for CHECK_ENGINE_STALL_S (default 300) -> a
 #     hang: the suite is ended and this exits 124, saying "FAIL hang".
@@ -28,7 +28,20 @@
 #   * otherwise pytest's own exit code, after one stderr line of CPU/wall.
 # CPU is read from /proc every CHECK_ENGINE_POLL_S (default 2) seconds by
 # tests/lib/cpu-cap.sh, which says how it counts.
-# tests/test_check_engine.py plants a slow suite and a hung one.
+#
+# THE BUDGET IS IN THE REFERENCE BOX'S SECONDS. CPU seconds still depend on
+# how fast a core is: the same suite used 60 s here and 76-121 s on
+# GitHub's runners, which are not all the same CPU. So before the suite,
+# tests/lib/cpu_calibrate.py times a fixed piece of the suite's kind of
+# work (pure Python), and the budget is 120 s scaled by that time over the
+# reference box's REF_CALIB_S: twice as slow a core gets 240 s, a faster
+# one less. The budget is not raised; it is the same 120 s of work,
+# counted in this box's seconds. A calibration that does not run or gives
+# no positive number is a refusal (exit 2), not an unscaled budget.
+# CHECK_ENGINE_CPU_S, when set, is taken as this box's seconds as it is,
+# with no calibration (the planted tests shrink it that way).
+# tests/test_check_engine.py plants a slow suite and a hung one, and a
+# slow and a broken calibration.
 #
 # The launcher (bin/eda) is not on main yet (M0 lands it separately). This
 # script reaches it through one helper that prefers ./bin/eda - once M0
@@ -54,10 +67,37 @@ eda_bin() {
 EDA_BIN="$(eda_bin)"
 cd "$REPO_ROOT"
 
-CPU_S="${CHECK_ENGINE_CPU_S:-120}"
+# The budget, in the reference box's CPU seconds, and that box's
+# calibration time (the fastest of 5 runs of tests/lib/cpu_calibrate.py on
+# the box the 120 s was set on, 2026-11-08: 0.347-0.356 s).
+BUDGET_REF_S=120
+REF_CALIB_S=0.35
+CPU_S="${CHECK_ENGINE_CPU_S:-}"
 WALL_S="${CHECK_ENGINE_WALL_S:-0}"
 STALL_S="${CHECK_ENGINE_STALL_S:-300}"
 POLL_S="${CHECK_ENGINE_POLL_S:-2}"
+CALIB_NOTE=""
+if [ -z "$CPU_S" ]; then
+  calib="$("$EDA_BIN" python "$REPO_ROOT/tests/lib/cpu_calibrate.py" 2>&1)" || {
+    echo "check-engine.sh: the CPU calibration (tests/lib/cpu_calibrate.py)" \
+         "did not run, so the suite has no budget: $calib. Fix bin/eda's" \
+         "python, or set CHECK_ENGINE_CPU_S to a budget in this box's" \
+         "seconds." >&2
+    exit 2
+  }
+  CPU_S="$(awk -v c="$calib" -v r="$REF_CALIB_S" -v b="$BUDGET_REF_S" \
+    'BEGIN { if (c !~ /^[0-9]*\.?[0-9]+$/ || c + 0 <= 0) exit 1
+             printf "%d", b * c / r + 0.5 }')" || {
+    echo "check-engine.sh: the CPU calibration gave '$calib', not a" \
+         "positive number of seconds, so the suite has no budget. Run" \
+         "eda python tests/lib/cpu_calibrate.py to see why." >&2
+    exit 2
+  }
+  CALIB_NOTE=" (${BUDGET_REF_S} s on the reference box; calibration ${calib} s here against its ${REF_CALIB_S} s)"
+  echo "check-engine.sh: this box runs the calibration in ${calib} s against" \
+       "the reference box's ${REF_CALIB_S} s, so the ${BUDGET_REF_S} s budget" \
+       "is ${CPU_S} s of CPU here" >&2
+fi
 # _WALL_S alone may be 0: no backstop.
 wall_v="$WALL_S"; [ "$WALL_S" != 0 ] || wall_v=1
 for v in "$CPU_S" "$STALL_S" "$POLL_S" "$wall_v"; do
@@ -86,7 +126,7 @@ CPU_CAP_POLL_S="$POLL_S" CPU_CAP_STALL_S="$STALL_S" cpu_cap "$CPU_S" "$WALL_S" \
 case "$CPU_CAP_VERDICT" in
   slow)
     echo "check-engine.sh: FAIL slow - the suite used $CPU_CAP_USED s of" \
-         "CPU, over its ${CPU_S} s budget (${CPU_CAP_WALL} s wall). That is the" \
+         "CPU, over its ${CPU_S} s budget${CALIB_NOTE} (${CPU_CAP_WALL} s wall). That is the" \
          "suite's own work, not the box's load." >&2
     exit 125 ;;
   hang)
@@ -102,5 +142,5 @@ case "$CPU_CAP_VERDICT" in
     exit 124 ;;
 esac
 echo "check-engine.sh: suite used $CPU_CAP_USED s CPU of its ${CPU_S} s" \
-     "budget in ${CPU_CAP_WALL} s wall (pytest exit $rc)" >&2
+     "budget${CALIB_NOTE} in ${CPU_CAP_WALL} s wall (pytest exit $rc)" >&2
 exit "$rc"

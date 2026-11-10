@@ -304,6 +304,12 @@ layout-fixer read `netlist/` and `sizing/` and edit only `layout/`.
   is a quick envelope, every R and C scaled by a pinned factor
   (engine/reference/pex_rc_knobs.yaml): one factor for all layers, and vias move
   as little as wires, so a via-heavy path needs `pex_rc_corners`.
+  `pex_fill: all` (or `[floating]`, `[grounded]`) adds the view after the
+  shuttle's metal fill. pex_sim fills a copy of the tile with the PDK's
+  fill_all.rb and runs DRC on it with the fill decks (`fill_drc`). It
+  extracts the fill as nets and runs the bench at every scored corner with
+  the fill floating and grounded. The density deck's whole-die rules are
+  reported, not scored.
 - **Only ngspice gates; Xyce is an on-demand cross-check.**
   `engine/scripts/xsim.py --workspace DIR` runs every `* xsim: true` bench
   (tb/ or xsim/, plain SPICE only) on ngspice and on the PDK's Xyce port at

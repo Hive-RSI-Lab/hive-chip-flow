@@ -1594,3 +1594,134 @@ def test_kpex_loses_each_poly_bodys_model_c_before_the_comparison():
     assert pk["n1"]["c_to"]["vss"] == pytest.approx(17.205)
     assert pk["vss"]["c_ff"] == pytest.approx(74.41)
     assert pk["vss"]["c_to"]["mb1"] == pytest.approx(22.205)
+
+
+def test_fill_drc_findings_are_errors_and_density_only_reported(
+        tmp_path, monkeypatch):
+    """pex_fill (#136): the filled tile's DRC (all decks but antenna and
+    density) is a fill_drc error per rule; the whole-die density deck is
+    reported, never a finding. Real tools stubbed: what fill_view does with
+    their answers."""
+    import filllib
+    import layoutlib
+
+    ws = tmp_path / "ws"
+    work = ws / "log" / "pex_sim"
+    work.mkdir(parents=True)
+    gds = ws / "layout" / "blk.gds"
+    gds.parent.mkdir()
+    gds.write_bytes(b"")
+    pex = (".subckt blk a b vss\nm1 a b vss vss n\nC1 a f1 2f\n"
+           "C2 f1 b 2f\nC3 f2 vss 1f\n.ends\n")
+
+    def drc(filled, top, rdb, timeout, decks):
+        rdb.write_text(decks, encoding="utf-8")
+
+    def parse(rdb):
+        if rdb.read_text() == filllib.FILL_DRC_DECKS:
+            return [{"category": "M1.2a", "description": "M1 space"}] * 2
+        return [{"category": "M1.4", "description": "Metal1 coverage >30%"}]
+
+    def extract(fdir, xgds, top, parasitics, timeout):
+        raw = fdir / "blk.spice"
+        raw.write_text(pex, encoding="utf-8")
+        return raw, ""
+
+    filled = ws / "log" / "pex_sim" / "fill" / "blk.filled.gds"
+    monkeypatch.setattr(filllib, "shuttle_fill", lambda *a: filled)
+    monkeypatch.setattr(filllib, "fill_summary", lambda *a: {})
+    monkeypatch.setattr(filllib, "extraction_copy", lambda *a: 2)
+    monkeypatch.setattr(layoutlib, "run_klayout_drc", drc)
+    monkeypatch.setattr(layoutlib, "parse_drc_rdb", parse)
+    monkeypatch.setattr(layoutlib, "run_magic_extract", extract)
+    ref = ".subckt blk a b vss\nm1 a b vss vss n\n.ends\n"
+    out = check_pex_sim.fill_view(
+        ws, gds, "blk", "layout/blk.gds", work, ref, ["a", "b", "vss"],
+        ".subckt blk a b vss\nm1 a b vss vss n\n.ends\n", "", [],
+        ["floating", "grounded"])
+    errors = [v for v in out["violations"] if v["kind"] == "fill_drc"]
+    assert len(errors) == 1 and errors[0]["severity"] == "error"
+    assert errors[0]["refs"] == ["M1.2a", "fill"] and "x2" in errors[0]["msg"]
+    assert not [v for v in out["violations"] if "M1.4" in v["refs"]]
+    facts = out["facts"]
+    assert facts["drc"]["findings"] == 2 and facts["fill_nets"] == 2
+    assert facts["density_deck"] == ["M1.4: Metal1 coverage >30%"]
+    assert [v["mode"] for v in facts["views"]] == ["floating", "grounded"]
+    floating = (ws / facts["views"][0]["netlist"]).read_text()
+    assert "f1" not in floating and "Cfill0 a b 1e-15" in floating
+    grounded = (ws / facts["views"][1]["netlist"]).read_text()
+    assert "C1 a vss 2f" in grounded and "f2" not in grounded
+
+
+@pytest.mark.slow
+def test_clean_ota_post_fill_view_passes(tmp_path):
+    """#136 on the real tools: corpus ota asks for pex_fill: all, so the
+    tile is filled with the PDK's fill_all.rb, DRC-clean after fill, and
+    both fill views are benched at every scored corner and pass."""
+    ws = make_ws(tmp_path, "ota")
+    code, out = run_json(["--workspace", str(ws)], tmp_path)
+    assert code == 0, out
+    fill = out["fill"]
+    assert fill["drc"]["findings"] == 0 and fill["fill_nets"] > 0
+    assert all(d["density_filled"] > d["density_drawn"]
+               for d in fill["density"].values())
+    assert [v["mode"] for v in fill["views"]] == ["floating", "grounded"]
+    for view in fill["views"]:
+        assert set(view["measured_by_corner"]) == set(out["corners"])
+    # fill adds coupling to the sensitive nets, never removes it
+    for net in ("out", "d2", "inp", "inn"):
+        c = fill["coupling"][net]
+        assert c["c_ff_filled"] >= c["c_ff"]
+
+
+# ---- the ua pad model (#112) ------------------------------------------------
+
+def _pad_ws(ws, monkeypatch, bench_line="xd a b blk", bounds=None):
+    _rc_extract(monkeypatch)
+    _spec(ws, "top: blk\nsupply: {vdd: 3.3}\npex_corners: [tt]\n"
+          "ua_pins: [b]\n")
+    (ws / "netlist" / "blk.cir").write_text(
+        ".subckt blk a b\nR1 a b 1k\n.ends\n", encoding="utf-8")
+    (ws / "layout_ref" / "blk_pex_tb.cir").write_text(
+        f".lib x {{corner}}\n.temp {{temp_c}}\nv1 a 0 {{vdd}}\n{bench_line}\n"
+        ".end\n", encoding="utf-8")
+    (ws / "layout_ref" / "blk_pex_tb.bounds.json").write_text(
+        json.dumps({"measures": bounds or {"x": {"min": 1}}}),
+        encoding="utf-8")
+
+
+def test_a_ua_pin_spec_runs_the_pex_bench_bare_and_through_the_pad(
+        unlaunchable_eda, tmp_path, monkeypatch):
+    import layoutlib
+    ws = unlaunchable_eda
+    _pad_ws(ws, monkeypatch, bounds={"x": {"min": 3}})
+    decks = {}
+
+    def sim(bench, cwd, timeout, failed_measures):
+        decks[bench.name] = bench.read_text(encoding="utf-8")
+        return "x = 2.0\n"
+    monkeypatch.setattr(layoutlib, "run_ngspice", sim)
+    code, out = run_json(["--workspace", str(ws)], tmp_path)
+    assert code == 1, out
+    assert "tt_ua_pad" not in decks["blk_pex_tb__tt.cir"]
+    pad = decks["blk_pex_tb__tt__pad.cir"]
+    assert "xd a b__ua_die_xd_b blk" in pad
+    assert "xuapad_xd_b b__ua_die_xd_b b tt_ua_pad" in pad
+    assert "vdvdd dvdd 0 3.3" in pad
+    assert out["pad_runs"] == [{"run": "tt", "corner": "tt",
+                                "measured": {"x": 2.0}}]
+    assert sorted(v["msg"] for v in out["violations"]) == [
+        "x @ tt / pad = 2, outside bound [3, None]",
+        "x @ tt = 2, outside bound [3, None]"]
+
+
+def test_a_pex_bench_the_pad_cannot_go_in_is_refused(
+        unlaunchable_eda, tmp_path, monkeypatch):
+    import layoutlib
+    ws = unlaunchable_eda
+    _pad_ws(ws, monkeypatch, bench_line="r1 a b 1k")
+    monkeypatch.setattr(layoutlib, "run_ngspice",
+                        lambda *a, **k: pytest.fail("no bench may run"))
+    code, out = run_json(["--workspace", str(ws)], tmp_path)
+    assert code == 1, out
+    assert [v["kind"] for v in out["violations"]] == ["ua_pad_not_inserted"]

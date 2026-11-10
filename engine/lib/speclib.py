@@ -134,6 +134,12 @@ CHECK_KINDS = {"sim", "formal", "both", "measure"}
 #                        one more magic extraction and ngspice run per variant
 #                        in engine/reference/pex_rc_variants.yaml, each with the
 #                        process the table pairs it with. Absent: none
+#     pex_fill: "all" | [floating, grounded]   optional; pex_sim also
+#                        fills a copy of the tile as the shuttle will
+#                        (the PDK's fill_all.rb), runs DRC on it, and
+#                        runs the bench at every scored corner with the
+#                        fill left floating and/or tied to ground
+#                        (engine/lib/filllib.py). Absent: no fill view
 #     erc_nets: {<pin>: {power: V} | {min: V, max: V}}   optional; the
 #                        voltage the ERC gate (check_analog_erc.py) gives a
 #                        pin other than supply.vdd's `vdd` and the 0 V
@@ -309,6 +315,34 @@ def lint_spec_ade(spec: dict, rel_path: str = "spec/spec.yaml") -> list[dict]:
                    + " - turn Monte Carlo on for it, or drop the sigma_max",
                    refs=[name] if name else [])
 
+    # the ua pad model (padlib): ua_pins, the optional board load, and each
+    # measure's pad condition
+    import padlib
+    try:
+        ua_pins = padlib.ua_pins_of(spec)
+    except ValueError as exc:
+        bad("bad_ua_pins", str(exc))
+        ua_pins = None
+    try:
+        padlib.board_of(spec)
+    except ValueError as exc:
+        bad("bad_ua_pad", str(exc))
+    for i, m in enumerate(measures):
+        if not isinstance(m, dict) or "pad" not in m:
+            continue
+        name = m.get("name")
+        try:
+            padlib.pad_scope(m)
+        except ValueError as exc:
+            bad("measure_bad_pad", f"measures[{i}] (name {name!r}) {exc}",
+               refs=[name] if isinstance(name, str) else [])
+            continue
+        if ua_pins == []:
+            bad("measure_bad_pad",
+               f"measures[{i}] (name {name!r}) sets 'pad', but the spec "
+               "lists no 'ua_pins', so there is no pad condition to scope",
+               refs=[name] if isinstance(name, str) else [])
+
     mc_cfg = spec.get("mc")
     if mc_cfg is not None and not isinstance(mc_cfg, dict):
         bad("mc_not_a_mapping", "'mc' is present but not a mapping")
@@ -363,6 +397,17 @@ def lint_spec_ade(spec: dict, rel_path: str = "spec/spec.yaml") -> list[dict]:
                 isinstance(n, str) for n in field)):
             bad("bad_pex_corners", "spec.yaml 'pex_corners' must be \"all\" "
                                    "or a non-empty list of corner names")
+
+    if "pex_fill" in spec:
+        import filllib
+        try:
+            if spec["pex_fill"] is None:
+                raise ValueError(
+                    "spec.yaml 'pex_fill' is empty: leave the field out for "
+                    "no fill view, or give \"all\" or a list of fill modes")
+            filllib.modes_of(spec["pex_fill"])
+        except ValueError as exc:
+            bad("bad_pex_fill", str(exc))
 
     if "pex_rc_knobs" in spec:
         field = spec["pex_rc_knobs"]
@@ -818,6 +863,22 @@ def lint_measures_vs_bench_bounds(spec: dict, bench_bounds: dict[str, list[dict]
                f"corners {show(got)} but spec.yaml scores it at "
                f"{show(want)} - a narrower bound hides a corner the spec "
                "scores, a wider one fails a corner it does not",
+               refs=[name, bench_name])
+
+    # the ua pad condition (padlib.PAD_SCOPES): a bench scoring a measure
+    # bare-only that the spec scores through the pad would hide the pad
+    spec_pad = {m["name"]: m.get("pad", "both") for m in measures
+                if isinstance(m, dict) and m.get("name") in spec_names}
+    for bench_name, bounds in sorted(bench_bounds.items()):
+        for b in bounds:
+            name = b.get("measure")
+            if name not in spec_pad or b.get("pad", "both") == spec_pad[name]:
+                continue
+            bad("bench_bound_pad_mismatch",
+               f"measure {name!r} in {bench_name}: the bound is scored in "
+               f"ua pad condition {b.get('pad', 'both')!r} but spec.yaml "
+               f"scores it in {spec_pad[name]!r} - the spec says where a "
+               "measure assumes a bare pin, and the bench follows it",
                refs=[name, bench_name])
 
     spec_bounds = {m["name"]: m.get("bounds") for m in measures

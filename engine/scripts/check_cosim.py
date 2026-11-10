@@ -96,6 +96,8 @@ REPO = ENGINE.parent
 sys.path.insert(0, str(ENGINE / "lib"))
 import checklib  # noqa: E402
 import cocotblib  # noqa: E402
+import layoutlib  # noqa: E402
+import padlib  # noqa: E402
 import simlib  # noqa: E402
 import speclib  # noqa: E402
 import ttlib  # noqa: E402
@@ -196,6 +198,11 @@ def load_bench_meta(tb_dir: Path) -> dict:
         raise CheckError(f"{bounds_path} is not valid JSON: {exc}") from exc
     if not isinstance(bounds, dict) or not bounds:
         raise CheckError(f"{bounds_path}: no non-empty bounds mapping")
+    for name, bound in bounds.items():
+        try:
+            padlib.pad_scope(bound if isinstance(bound, dict) else {})
+        except ValueError as exc:
+            raise CheckError(f"{bounds_path}: bound {name!r}: {exc}") from exc
     # Which SPICE netlist this bench actually simulated, and whether it is
     # an ideal behavioral stand-in or a real transistor-level block - a
     # reader of the report should not have to open tb/ to tell the two
@@ -337,7 +344,9 @@ def scan_ic_ignored(log_text: str) -> list[str]:
     return hits
 
 
-def evaluate_measures(measures: dict | None, bounds: dict) -> list[dict]:
+def evaluate_measures(measures: dict | None, bounds: dict,
+                      condition: str | None = None,
+                      measures_rel: str = MEASURES_REL) -> list[dict]:
     """The pure, unit-testable half of this gate: given what the bench
     measured (or None - the file never appeared) and the bounds sidecar,
     return the violations. No workspace, no subprocess, no ngspice -
@@ -349,14 +358,16 @@ def evaluate_measures(measures: dict | None, bounds: dict) -> list[dict]:
     with the analog bridge never actually running - `digital_toggles_unbacked`
     and `spice_time_missing`/`spice_time_behind_last_edge` close those."""
     out = []
+    tag = "[pad] " if condition == "pad" else ""
 
     def bad(kind, refs, msg):
         out.append(checklib.violation(
-            "cosim", "error", MEASURES_REL, None, kind, refs, msg,
+            "cosim", "error", measures_rel, None, kind,
+            refs + (["pad"] if condition == "pad" else []), tag + msg,
             "check_cosim"))
 
     if measures is None:
-        bad("measures_missing", [], f"{MEASURES_REL} was never written - "
+        bad("measures_missing", [], f"{measures_rel} was never written - "
            "the bench did not run to the point of recording a result")
         return out
 
@@ -396,6 +407,8 @@ def evaluate_measures(measures: dict | None, bounds: dict) -> list[dict]:
                "reached the point the digital side claims to have toggled at")
 
     for name, bound in sorted(bounds.items()):
+        if not padlib.scored_in(bound, condition):
+            continue
         if name not in measures or measures.get(name) is None:
             bad("measure_missing", [name],
                f"{name!r} has a bound but no recorded value")
@@ -411,6 +424,135 @@ def evaluate_measures(measures: dict | None, bounds: dict) -> list[dict]:
                f"{name!r} = {value!r} is outside its bound [{lo}, {hi}]")
 
     return out
+
+
+PAD_SUBDIR = "log/cosim_pad"
+
+
+def pad_setup(ws: Path, tb_dir: Path, meta: dict) -> dict | None:
+    """None for a workspace with no interface.yaml `ua_pins` (one bare run).
+    Otherwise the padded analog netlist {text, block, inserted}, or
+    {refused: violation} when the pad model cannot be put in: no subckt
+    to wrap, no analog supply.vdd for the ESD's DVDD, or a bench that never
+    names its analog netlist (the padded copy would then never be loaded,
+    and the "pad" run would only be a second bare run)."""
+    import yaml
+    iface = yaml.safe_load((ws / "interface.yaml").read_text(
+        encoding="utf-8")) or {}
+    ua = iface.get("ua_pins") or {}
+    if not isinstance(ua, dict):
+        raise CheckError("interface.yaml 'ua_pins' must map each analog "
+                         "port on a ua pad to its ua index")
+    if not ua:
+        return None
+    pins = [str(p) for p in ua]
+    apath = ws / "analog" / "spec" / "spec.yaml"
+    aspec = speclib.load_spec(apath) if apath.is_file() else {}
+    aspec = aspec if isinstance(aspec, dict) else {}
+    vdd = (aspec.get("supply") or {}).get("vdd") \
+        if isinstance(aspec.get("supply"), dict) else None
+    try:
+        board = padlib.board_of({**aspec, "ua_pins": pins}) \
+            if "ua_pad" in aspec else {}
+    except ValueError as exc:
+        raise CheckError(f"{apath}: {exc}") from exc
+    netlist = tb_dir / meta["analog_netlist"]
+    try:
+        if isinstance(vdd, bool) or not isinstance(vdd, (int, float)) \
+                or vdd <= 0:
+            raise padlib.PadRefused(
+                "ua_pad_not_inserted", f"{apath} has no numeric "
+                "'supply.vdd', and the pad's ESD diodes sit on DVDD")
+        if not any(meta["analog_netlist"] in f.read_text(
+                encoding="utf-8", errors="replace")
+                for f in sorted(tb_dir.glob("test_*.py"))):
+            raise padlib.PadRefused(
+                "ua_pad_not_inserted", "no tb/test_*.py names "
+                f"{meta['analog_netlist']}, so a padded copy of it would "
+                "never be the netlist the bench loads")
+        text, block, inserted = padlib.wrap_subckt_pads(
+            netlist.read_text(encoding="utf-8"), pins,
+            padlib.pad_subckt(str(layoutlib.pdk_root()), "typical",
+                              float(vdd), board))
+    except padlib.PadRefused as exc:
+        return {"refused": checklib.violation(
+            "cosim", "error", f"tb/{meta['analog_netlist']}", None,
+            exc.kind, ["pad"], f"{exc} - interface.yaml puts "
+            f"{', '.join(pins)} on ua pads, so cosim runs the block "
+            "through the pad model too (engine/lib/padlib.py): the "
+            "analog netlist must hold the block as its one top-level "
+            "subckt with those ports, loaded by the bench from tb/",
+            "check_cosim")}
+    return {"text": text, "block": block, "inserted": inserted}
+
+
+def run_condition(ws: Path, test_dir: Path, report_root: Path,
+                  build_dir: Path, sources: list[Path], modules: list[str],
+                  meta: dict, condition: str | None, results_xml: Path,
+                  violations: list[dict]) -> dict:
+    """One cocotb run of the bench from test_dir (its measures land under
+    report_root, as the bench writes them beside its tb/), its findings
+    appended to violations, tagged with the condition when it is "pad"."""
+    tag = "[pad] " if condition == "pad" else ""
+    refs = ["pad"] if condition == "pad" else []
+    # A stale measures.json from a previous run must never be mistaken for
+    # this run's result - if this run crashes before the bench's own
+    # finally-block writes one, that must read as "missing", not "old".
+    measures_path = report_root / MEASURES_REL
+    measures_path.unlink(missing_ok=True)
+    xml_path = cocotblib.run_cocotb(build_dir, test_dir, sources, meta["top"],
+                                    modules, results_xml,
+                                    timeout_s=COCOTB_TIMEOUT_S,
+                                    stall_s=checklib.stall_s())
+    results = cocotblib.parse_results_xml(xml_path)
+    if not results:
+        raise CheckError(f"cocotb produced no test cases in {xml_path}")
+
+    log_path = build_dir / "sim.log"
+    log_text = log_path.read_text(encoding="utf-8", errors="replace") \
+        if log_path.is_file() else ""
+    log_rel = str(log_path.relative_to(ws)) if condition == "pad" \
+        else "log/sim.log"
+    nonconv = scan_nonconvergence(log_text)
+    ic_ignored = scan_ic_ignored(log_text)
+    if nonconv:
+        violations.append(checklib.violation(
+            "cosim", "error", log_rel, None, "ngspice_non_convergence",
+            refs, tag + "ngspice logged a non-convergence signature during "
+            f"this run: {', '.join(sorted(set(nonconv)))}", "ngspice"))
+    if ic_ignored:
+        nodes = sorted(set(ic_ignored))
+        violations.append(checklib.violation(
+            "cosim", "error", log_rel, None, "ic_ignored", nodes + refs,
+            tag + "ngspice ignored an .ic on a node that does not exist: "
+            f"{', '.join(nodes)} - the initial condition it named was "
+            "silently dropped, not applied", "ngspice"))
+
+    measures = None
+    if measures_path.is_file():
+        try:
+            measures = json.loads(measures_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            raise CheckError(f"{measures_path} is not valid JSON: {exc}") from exc
+    violations.extend(evaluate_measures(
+        measures, meta["bounds"], condition,
+        str(measures_path.relative_to(ws))))
+
+    for name, res in sorted(results.items()):
+        if res["passed"]:
+            continue
+        if res.get("skipped"):
+            violations.append(checklib.violation(
+                "cosim", "error", None, name, "test_skipped", refs,
+                f"{tag}{name} was skipped - it never ran", "cocotb"))
+            continue
+        violations.append(checklib.violation(
+            "cosim", "error", None, name, "test_failed", refs,
+            f"{tag}{name} failed: {res['message'] or 'see the sim log'}",
+            "cocotb"))
+    return {"measures": measures, "tests_run": sorted(results),
+            "signatures": sorted(set(nonconv)),
+            "ic_ignored": sorted(set(ic_ignored))}
 
 
 def run(argv=None):
@@ -438,13 +580,15 @@ def run(argv=None):
     if not modules:
         raise CheckError(f"no test_*.py modules under {tb_dir}")
 
-    ensure_ngspice_env(toolchain_root())
+    pads = pad_setup(ws, tb_dir, meta)
+    if pads is not None and pads.get("refused"):
+        payload = checklib.report(SCRIPT, interface_path, [pads["refused"]],
+                                  top=meta["top"],
+                                  analog_netlist=meta["analog_netlist"],
+                                  analog_kind=meta["analog_kind"])
+        return payload, args.out
 
-    # A stale measures.json from a previous run must never be mistaken for
-    # this run's result - if this run crashes before the bench's own
-    # finally-block writes one, that must read as "missing", not "old".
-    measures_path = ws / MEASURES_REL
-    measures_path.unlink(missing_ok=True)
+    ensure_ngspice_env(toolchain_root())
 
     build_dir = ws / BUILD_SUBDIR
     shutil.rmtree(build_dir, ignore_errors=True)
@@ -454,62 +598,40 @@ def run(argv=None):
     if framed:
         sources = sources + framed[0]
         check_framed(spec, sources, meta["top"], build_dir)
-    results_xml = ws / "log" / RESULTS_NAME
-    xml_path = cocotblib.run_cocotb(build_dir, tb_dir, sources, meta["top"],
-                                    modules, results_xml,
-                                    timeout_s=COCOTB_TIMEOUT_S,
-                                    stall_s=checklib.stall_s())
-    results = cocotblib.parse_results_xml(xml_path)
-    if not results:
-        raise CheckError(f"cocotb produced no test cases in {xml_path}")
 
-    log_text = (build_dir / "sim.log").read_text(
-        encoding="utf-8", errors="replace") if (build_dir / "sim.log").is_file() else ""
-    nonconv = scan_nonconvergence(log_text)
-    ic_ignored = scan_ic_ignored(log_text)
-
-    violations = []
-    if nonconv:
-        violations.append(checklib.violation(
-            "cosim", "error", "log/sim.log", None, "ngspice_non_convergence",
-            [], "ngspice logged a non-convergence signature during this "
-            f"run: {', '.join(sorted(set(nonconv)))}", "ngspice"))
-    if ic_ignored:
-        nodes = sorted(set(ic_ignored))
-        violations.append(checklib.violation(
-            "cosim", "error", "log/sim.log", None, "ic_ignored", nodes,
-            "ngspice ignored an .ic on a node that does not exist: "
-            f"{', '.join(nodes)} - the initial condition it named was "
-            "silently dropped, not applied", "ngspice"))
-
-    measures = None
-    if measures_path.is_file():
-        try:
-            measures = json.loads(measures_path.read_text(encoding="utf-8"))
-        except json.JSONDecodeError as exc:
-            raise CheckError(f"{measures_path} is not valid JSON: {exc}") from exc
-    violations.extend(evaluate_measures(measures, meta["bounds"]))
-
-    for name, res in sorted(results.items()):
-        if res["passed"]:
-            continue
-        if res.get("skipped"):
-            violations.append(checklib.violation(
-                "cosim", "error", None, name, "test_skipped", [],
-                f"{name} was skipped - it never ran", "cocotb"))
-            continue
-        violations.append(checklib.violation(
-            "cosim", "error", None, name, "test_failed", [],
-            f"{name} failed: {res['message'] or 'see the sim log'}", "cocotb"))
+    violations: list[dict] = []
+    # no_pad: the bench as written. pad (interface.yaml ua_pins): the same
+    # bench from a copy of tb/ whose analog netlist has the block behind
+    # the TT ua pad model (padlib.wrap_subckt_pads)
+    bare = run_condition(ws, tb_dir, ws, build_dir, sources, modules,
+                         meta, None if pads is None else "no_pad",
+                         ws / "log" / RESULTS_NAME, violations)
+    extra = {}
+    if pads is not None:
+        root = ws / PAD_SUBDIR
+        shutil.rmtree(root, ignore_errors=True)
+        shutil.copytree(tb_dir, root / "tb",
+                        ignore=shutil.ignore_patterns("__pycache__"))
+        (root / "tb" / meta["analog_netlist"]).write_text(
+            pads["text"], encoding="utf-8")
+        padded = run_condition(ws, root / "tb", root, root / "build",
+                               sources, modules, meta, "pad",
+                               root / RESULTS_NAME, violations)
+        extra = {"pad": {"block": pads["block"], "pins": pads["inserted"],
+                         "netlist": f"{PAD_SUBDIR}/tb/"
+                                    f"{meta['analog_netlist']}",
+                         "source": padlib.SOURCE,
+                         "measures": padded["measures"],
+                         "tests_run": padded["tests_run"]}}
 
     payload = checklib.report(SCRIPT, interface_path, violations, top=meta["top"],
                               analog_netlist=meta["analog_netlist"],
                               analog_kind=meta["analog_kind"],
                               sim_frame=framed[1] if framed else None,
-                              measures=measures,
-                              tests_run=sorted(results),
-                              ngspice_signatures=sorted(set(nonconv)),
-                              ic_ignored_nodes=sorted(set(ic_ignored)))
+                              measures=bare["measures"],
+                              tests_run=bare["tests_run"],
+                              ngspice_signatures=bare["signatures"],
+                              ic_ignored_nodes=bare["ic_ignored"], **extra)
     return payload, args.out
 
 

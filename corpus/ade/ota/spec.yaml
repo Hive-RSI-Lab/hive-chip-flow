@@ -44,6 +44,10 @@ matching:
 # post-layout stb, PSRR and noise at every corner of the sweep, not only
 # typical, slow/hot and each measure's worst (check_pex_sim)
 pex_corners: all
+# the tile as the shuttle fills it (#136): fill_all.rb on a copy, DRC with
+# the fill decks, and the bench at every corner with the fill floating
+# and grounded - the fill's C lands on out, d2 and the inputs
+pex_fill: all
 # ERC pin voltages (check_analog_erc). ibias takes the bench's current, so
 # xmb's diode sets its voltage: CVC models that node as at most one Vth.
 erc_nets:

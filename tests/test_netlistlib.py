@@ -286,6 +286,29 @@ def test_tran_max_steps_reads_tmax_or_ngspice_default():
         netlistlib.tran_max_steps([".tran 1n {tend}\n"])
 
 
+
+def test_source_edges_reads_pulse_and_changing_pwl_segments():
+    text = ("vclk clk 0 pulse(0 3.3 1n 50p 60p 1n 2n)\n"
+            "vin in 0 pwl(0 0 1n 0 1.1n 1 5n 1)\n"
+            "vz z 0 pulse(0 1 0 0 0 1n 2n)\n"      # zero edges: tstep, unread
+            "vp p 0 pulse(0 1 0 {tr} {tr} 1n 2n)\n"  # expression: unread
+            "r1 a b pulse(0 1 0 1p 1p)\n")          # not a source line
+    assert sorted(netlistlib.source_edges(text)) == pytest.approx(
+        [50e-12, 60e-12, 0.1e-9])
+
+
+def test_tran_step_coarse_flags_a_step_coarser_than_edge_over_25():
+    src = "vclk clk 0 pulse(0 3.3 1n 50p 50p 1n 2n)\n"
+    # ngspice default: min(10p, 20n/50) = 10p > 50p/25 = 2p
+    got = netlistlib.tran_step_coarse(src + ".tran 10p 20n\n")
+    assert got == pytest.approx({"tmax": 10e-12, "edge": 50e-12, "limit": 2e-12})
+    assert netlistlib.tran_step_coarse(src + ".tran 10p 20n 0 2p\n") is None
+    assert netlistlib.tran_step_coarse(".tran 10p 20n\n") is None  # no edge
+    assert netlistlib.tran_step_coarse(src + "op\n") is None       # no tran
+    # a .control tran with a `$&` vector cannot be read: not checked
+    assert netlistlib.tran_step_coarse(
+        src + ".control\ntran 10p $&t_stop 0 $&t_max\n.endc\n") is None
+
 def test_sim_tolerances_defaults_and_the_loosest_option_set():
     assert netlistlib.sim_tolerances(["op\n"]) == {
         "reltol": 1e-3, "abstol": 1e-12, "vntol": 1e-6}
