@@ -95,7 +95,7 @@ GATE_WHAT = {
     "boundary": "crossing pins against their level",
     "macro_lib": "analog macro timing abstract",
     "top_harden": "top-level harden", "top_drc": "top-level DRC",
-    "top_lvs": "top-level LVS",
+    "top_lvs": "top-level LVS", "top_erc": "top-level voltage rule check",
 }
 
 

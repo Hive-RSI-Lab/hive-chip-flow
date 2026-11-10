@@ -62,6 +62,10 @@ faults:
     gate: top_lvs
     plant: plant_top_lvs.py
     expect: {status: fail, kind: netlist_mismatch}
+  - name: top_erc_macro_input_floating
+    gate: top_erc
+    plant: plant_top_erc.py
+    expect: {status: fail, kind: floating_gate}
   - name: release_stale_nested_release
     gate: release
     plant: plant_release.py

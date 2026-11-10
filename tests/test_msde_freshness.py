@@ -137,7 +137,7 @@ def _set(doc, keys, value):
 # the gates that read what top_harden writes (gate_writes, #147): an edit
 # that stales top_harden stales them too, before it has rewritten top/.
 # release reads its LEF, SDF and SPEF (#164).
-AFTER_TOP_HARDEN = {"top_drc", "top_lvs", "precheck", "release"}
+AFTER_TOP_HARDEN = {"top_drc", "top_lvs", "top_erc", "precheck", "release"}
 
 # (what is edited, the edit, the gates that read it - from the scripts, plus
 # the gates after a stale one)
@@ -230,8 +230,8 @@ def test_a_new_open_pdks_commit_stales_every_pdk_gate_and_only_those(
     ws.mkdir()
     msde_block(ws)
     stale = stale_after(ws, lambda: _w(pdk / "SOURCES", "open_pdks deadbeef\n"))
-    assert stale == {"cosim", "top_harden", "top_drc", "top_lvs", "precheck",
-                     "release"}
+    assert stale == {"cosim", "top_harden", "top_drc", "top_lvs", "top_erc",
+                     "precheck", "release"}
 
 
 def test_a_new_toolchain_root_stales_the_pdk_gates(tmp_path, pdk, monkeypatch):

@@ -566,6 +566,16 @@ gates:
       max_count: 0
       fault: "a macro pin left unconnected"
       description: "Match."
+    top_erc:
+      # CVC on the flat transistor netlist of the assembled top: the tile
+      # powered, the digital side held in reset, and the macro alone (#111).
+      phase: P3
+      tool: top_erc
+      strength: 0
+      fail_severities: [error]
+      max_count: 0
+      fault: "a macro input left unconnected in the top"
+      description: "No floating gate, overvoltage, forward-biased junction or supply-to-supply leak, unless waived with a reason."
     precheck:
       # the shuttle's own signoff (check_precheck.py) on the chip top at
       # top/; an analog tile is checked against the analog pin template and
