@@ -478,7 +478,9 @@ def run_numeric(argv=None):
                 winner, f"round {rnd} winner, full corner set", 0)
             rounds.append({"round": rnd, "corners": list(search["corners"]),
                            "winner_trial": check["trial"],
-                           "winner_pass": check["pass"]})
+                           "winner_pass": check["pass"],
+                           "winner_sizing": {n: winner[n]["value"]
+                                             for n in names}})
             if check["pass"]:
                 break
             # re-pick: the corners this round's failures were worst at

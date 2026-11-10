@@ -342,12 +342,16 @@ def test_workers_two_runs_and_three_is_refused(tmp_path, monkeypatch):
 
 
 @pytest.mark.slow
-def test_real_r2r_dac_optimise_reaches_bounds_from_wrong_start(tmp_path):
-    """This milestone's own done criterion, run for real: corpus/ade/r2r_dac
-    ships with a deliberately wrong 1:1 R:2R ratio (netlist/r2r_dac.cir's
-    own comment explains why sim_tt is not in that rung's faults/
-    manifest.yaml) - `optimise.py numeric` against its real sizing.yaml and
-    the real gf180mcuD toolchain must reach every measure inside bounds."""
+def test_real_r2r_dac_optimise_finds_the_ratio_and_refuses_the_corners(tmp_path):
+    """corpus/ade/r2r_dac ships with a deliberately wrong 1:1 R:2R ratio.
+    The search finds the 2:1 ratio (every bound met at typical), but the
+    ladder's output is a fixed fraction of VDD, and the spec's bounds are
+    absolute volts: at the default sweep's -10%/+10% supply corners no
+    resistor sizing stays inside them (vout_both ~0.91 VDD against
+    [2.9, 3.1] V). So no sizing passes sim_pvt, and the corner-aware loop
+    must say so and write nothing, rather than write a typical-only
+    winner. The fix belongs to the design (a supply-independent
+    reference), never the bounds."""
     ws = tmp_path / "ws"
     for sub in ("spec", "netlist", "tb", "sizing"):
         (ws / sub).mkdir(parents=True)
@@ -365,24 +369,19 @@ def test_real_r2r_dac_optimise_reaches_bounds_from_wrong_start(tmp_path):
         "the shipped corpus rung is supposed to start wrong (1:1) - if this "
         "ever fires, the corpus file itself changed under this test")
 
+    before = (ws / "sizing" / "sizing.yaml").read_bytes()
     optimise.run_start(["--workspace", str(ws), "--target", "sizing/sizing.yaml"])
     payload, _ = optimise.run_numeric(
         ["--workspace", str(ws), "--popsize", "8", "--maxiter", "20", "--seed", "1"])
 
-    assert payload["status"] == "pass", payload
-    assert payload["improved"] is True
-    assert payload["best_score"] >= 0
-
-    final = yaml.safe_load((ws / "sizing" / "sizing.yaml").read_text())
-    ratio = final["r2_length"]["value"] / final["r_length"]["value"]
-    assert ratio == pytest.approx(2.0, rel=0.05)
-
-    # and the sim_tt gate itself, which failed on the untouched rung, now
-    # passes against the optimiser's own winning sizing.
-    sys.path.insert(0, str(SCRIPTS))
-    import check_sim_tt
-    code = check_sim_tt.main(["--workspace", str(ws)])
-    assert code == 0
+    # the search found the right ratio...
+    winner = payload["rounds"][0]["winner_sizing"]
+    assert winner["r2_length"] / winner["r_length"] == pytest.approx(2.0, rel=0.05)
+    # ...but no sizing passes every corner, so nothing is written
+    assert payload["status"] == "violations", payload
+    assert payload["written"] is False and payload["remediation"]
+    assert (ws / "sizing" / "sizing.yaml").read_bytes() == before
+    assert all(not r["winner_pass"] for r in payload["rounds"])
 
 
 # ------------------------------------------------------------ RTL loop (M7)
