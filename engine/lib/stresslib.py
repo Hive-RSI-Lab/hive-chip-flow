@@ -351,30 +351,41 @@ def cycle_mean(t: np.ndarray, mag: np.ndarray, a: float, b: float) -> float:
     return float(np.trapezoid(mm, tt) / (b - a))
 
 
+def _share_in(events: list[Excursion], a: float, b: float) -> float:
+    return sum(max(0.0, min(e.stop, b) - max(e.start, a)) for e in events) / (b - a)
+
+
 def _window_row(t, mag, win: Window, events: list[Excursion], dc: float,
                 bounds: dict) -> tuple[dict, list[str]]:
-    """The worst cycle of one window, and the bounds it breaks."""
-    worst_share, worst_mean, worst_cycle = -1.0, -1.0, 0
+    """The worst cycle of one window, and the bounds it breaks. The share
+    counts only time more than `share_band_v` over `dc`; the share over `dc`
+    itself is kept so a pass that rests on the band can be listed."""
+    band = bounds["share_band_v"]
+    counted = [e for w in (excursions(t, mag, dc + band),) for e in w
+               if e.start < win.stop and e.stop > win.start]
+    worst_share, worst_raw, worst_mean, worst_cycle = -1.0, 0.0, -1.0, 0
     for k in range(win.cycles):
         a, b = win.start + k * win.period, win.start + (k + 1) * win.period
-        over = sum(max(0.0, min(e.stop, b) - max(e.start, a)) for e in events)
-        share = over / win.period
+        share = _share_in(counted, a, b)
         if share > worst_share:
             worst_share, worst_cycle = share, k
+        worst_raw = max(worst_raw, _share_in(events, a, b))
         worst_mean = max(worst_mean, cycle_mean(t, mag, a, b))
     top = max(events, key=lambda e: e.peak)
+    limit = bounds["time_over_share"]
     row = {"kind": "repeating", "window": win.name, "peak_v": top.peak,
            "peak_over_v": top.peak - dc, "t_peak_s": top.t_peak,
-           "share": worst_share, "worst_cycle": worst_cycle,
-           "cycle_mean_v": worst_mean}
+           "share": worst_share, "share_over_dc": worst_raw,
+           "worst_cycle": worst_cycle, "cycle_mean_v": worst_mean,
+           "band_only": worst_raw > limit >= worst_share}
     bad = []
     if top.peak - dc > bounds["peak_over_v"]:
         bad.append(f"repeating peak {1e3 * (top.peak - dc):.1f} mV over in "
                    f"window {win.name}, bound {1e3 * bounds['peak_over_v']:.0f} mV")
-    if worst_share > bounds["time_over_share"]:
-        bad.append(f"over the limit for {100 * worst_share:.2f}% of a cycle "
-                   f"in window {win.name}, bound "
-                   f"{100 * bounds['time_over_share']:g}%")
+    if worst_share > limit:
+        bad.append(f"more than {1e3 * band:g} mV over the limit for "
+                   f"{100 * worst_share:.2f}% of a cycle in window {win.name}, "
+                   f"bound {100 * limit:g}%")
     if worst_mean >= dc:
         bad.append(f"cycle average {worst_mean:.4f} V in window {win.name}, "
                    f"must stay under {dc:g} V")
@@ -559,6 +570,8 @@ def summarise(rows: list[dict], decks_run: int, devices: int,
             "other_models_not_scored": others,
             "devices_failing": sorted(failed_devices),
             "allowance_only": sorted(allowance.values(), key=order),
+            "share_band_only": sorted(
+                (a for a in allowance.values() if a.get("band_only")), key=order),
             "junctions_over_reference": sorted(junctions.values(), key=order)}
 
 

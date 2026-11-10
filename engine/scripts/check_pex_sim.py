@@ -187,9 +187,12 @@ allowances for true transients, which are this flow's own numbers: a
 repeating excess inside a declared window, and a one-off edge. Past either
 it is a `device_overstress` finding. Junction pairs (drain or source to
 bulk, drain to source) have their own limit per model and are a
-`junction_over_breakdown` finding past it. The report adds `stress`: every
-run, every device that passes only through an allowance with its peak and
-time, and the junction pairs above the 3.63 V reference. A block without
+`junction_over_breakdown` finding past it. The repeating share counts only
+time more than a small band over the limit (share_band_v, a provisional
+project number). The report adds `stress`: every run, every device that
+passes only through an allowance with its peak and time, the ones that pass
+only because of the share band with their peak and both shares, and the
+junction pairs above the 3.63 V reference. A block without
 the file is not stress-checked, and its report has no `stress` key.
 """
 from __future__ import annotations

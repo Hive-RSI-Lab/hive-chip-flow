@@ -12,8 +12,14 @@ chosen on principle and not fitted to any macro:
 
 | excess | peak over 3.63 V | time over |
 |---|---|---|
-| repeating, in a declared window | 100 mV | 2% of the worst cycle, and that cycle's average under 3.63 V |
+| repeating, in a declared window | 100 mV | 2% of the worst cycle spent more than 50 mV over, and that cycle's average under 3.63 V |
 | one-off edge (enable, start-up) | 300 mV | 1 us per event |
+
+The 50 mV share band is a provisional project number, to be checked against
+the PDK documents; where they disagree, the documents win. Time inside the
+band still counts toward the peak and the cycle average, and every device
+that passes only because of the band is listed under `stress` as
+`share_band_only`, with its peak and both shares.
 
 Less than 1 mV over is not an excursion. An excursion still over when the run
 ends fails, because nothing shows it ever ends.

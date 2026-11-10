@@ -48,7 +48,8 @@ def test_limits_cite_the_section_and_say_they_are_ours():
     ox = LIMITS["gate_oxide"]
     assert "14.1.4.2" in ox["citation"]
     assert "not fitted to any macro" in " ".join(ox["own_numbers"].split())
-    assert ox["repeating"] == {"peak_over_v": 0.1, "time_over_share": 0.02}
+    assert ox["repeating"] == {"peak_over_v": 0.1, "time_over_share": 0.02,
+                              "share_band_v": 0.05}
     assert ox["one_off"] == {"peak_over_v": 0.3, "time_over_s": 1e-6}
 
 
@@ -58,7 +59,11 @@ def test_under_the_limit_is_clean():
 
 def test_under_the_floor_is_not_an_excursion():
     assert score(pulses(0.0009, 40 * NS), [WIN]) is None
-    assert score(pulses(0.0011, 40 * NS), [WIN])["status"] == "fail"
+    # just past the floor it is an excursion: inside the share band it
+    # passes, but only through the band, and is listed so
+    found = score(pulses(0.0011, 40 * NS), [WIN])
+    assert found["status"] == "allowance"
+    assert found["rows"][0]["band_only"] is True
 
 
 def test_repeating_inside_every_bound_passes_only_through_the_allowance():
@@ -78,18 +83,60 @@ def test_repeating_peak_past_the_bound_fails():
 
 
 def test_repeating_share_past_the_bound_fails():
-    assert score(pulses(0.05, 1.5 * NS), [WIN])["status"] == "allowance"
-    found = score(pulses(0.05, 1.7 * NS), [WIN])
+    assert score(pulses(0.08, 1.5 * NS), [WIN])["status"] == "allowance"
+    found = score(pulses(0.08, 1.7 * NS), [WIN])
     assert found["status"] == "fail"
     assert "of a cycle" in found["reasons"][0]
 
 
+def test_time_inside_the_band_does_not_count_toward_the_share():
+    # 40 mV over for 10% of each cycle: the share counts only time more than
+    # 50 mV over, so it passes, and the row says it rests on the band
+    found = score(pulses(0.04, 8 * NS), [WIN])
+    assert found["status"] == "allowance"
+    row = found["rows"][0]
+    assert row["share"] == 0
+    assert row["share_over_dc"] == pytest.approx(0.1, rel=1e-3)
+    assert row["band_only"] is True
+
+
+def test_time_just_past_the_band_counts():
+    found = score(pulses(0.051, 8 * NS), [WIN])
+    assert found["status"] == "fail"
+    assert "more than 50 mV over the limit" in found["reasons"][0]
+
+
+def test_the_band_does_not_move_the_peak_bound():
+    found = score(pulses(0.101, 0.1 * NS), [WIN])
+    assert found["status"] == "fail"
+    assert "repeating peak" in found["reasons"][0]
+
+
+def test_a_pass_inside_the_share_without_the_band_is_not_band_only():
+    row = score(pulses(0.08, 1 * NS), [WIN])["rows"][0]
+    assert row["band_only"] is False
+
+
+def test_the_report_lists_band_only_devices_with_peak_and_share():
+    found = score(pulses(0.04, 8 * NS), [WIN])
+    clean = score(pulses(0.08, 1 * NS), [WIN])
+    common = {"class": "gate", "label": "x", "pair": "Vgs", "corner": "tt",
+              "deck": "d"}
+    rows = [{**common, "device": "XB", **found}, {**common, "device": "XA", **clean}]
+    rep = stresslib.summarise(rows, 1, 2, LIMITS, {})
+    assert [r["device"] for r in rep["share_band_only"]] == ["XB"]
+    listed = rep["share_band_only"][0]
+    assert listed["peak_over_v"] == pytest.approx(0.04, abs=1e-9)
+    assert listed["share_over_dc"] == pytest.approx(0.1, rel=1e-3)
+    assert rep["bounds"]["repeating"]["share_band_v"] == 0.05
+
+
 def test_share_is_the_worst_single_cycle_not_the_average():
-    t, v = pulses(0.05, 1 * NS, count=10)
+    t, v = pulses(0.08, 1 * NS, count=10)
     extra = 7.25 * PERIOD + 10 * NS
     keep = np.argsort(np.r_[t, extra, extra + 1e-15, extra + 2 * NS, extra + 2 * NS + 1e-15])
     t2 = np.r_[t, extra, extra + 1e-15, extra + 2 * NS, extra + 2 * NS + 1e-15][keep]
-    v2 = np.r_[v, 3.3, DC + 0.05, DC + 0.05, 3.3][keep]
+    v2 = np.r_[v, 3.3, DC + 0.08, DC + 0.08, 3.3][keep]
     assert score((t2, v2), [WIN])["status"] == "fail"
 
 
@@ -362,7 +409,7 @@ REAL_BENCH = """* real ngspice, one inverter driven 50 mV over the limit
 .include '{extracted}'
 .temp {temp_c}
 vvdd vdd 0 3.3
-vin in 0 pulse(0 3.68 10n 1n 1n 50n 200n)
+vin in 0 pulse(0 3.72 10n 1n 1n 50n 200n)
 xdut out in vdd 0 top
 .tran 1n 1u
 .end
@@ -398,7 +445,7 @@ def test_stage_reads_a_real_ngspice_raw(tmp_path, monkeypatch):
     facts = check_pex_sim.stress_stage(
         ws, side, "top", work, extracted, REAL_TOP, "top", "top", "layout/top.gds",
         check_pex_sim.layoutlib.pdk_root(), 3.3, 120, violations)
-    # the input sits at 3.68 V for 25% of the cycle: over on share, in every
+    # the input sits at 3.72 V for 25% of the cycle: over on share, in every
     # gate pair to a rail at 0 V
     assert "X0" in facts["devices_failing"], facts
     assert any("of a cycle" in v["msg"] for v in violations), violations

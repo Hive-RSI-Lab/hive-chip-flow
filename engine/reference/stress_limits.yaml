@@ -15,11 +15,16 @@ gate_oxide:
   # less than this over the limit is simulator noise, not an excursion (ours)
   floor_v: 0.001
   # an excess that repeats, judged per cycle of a declared repeating window:
-  # peak, share of the cycle over the limit, and the cycle average under
-  # dc_limit_v
+  # peak over dc_limit_v, the share of the cycle spent more than
+  # share_band_v over it, and the cycle average under dc_limit_v
   repeating:
     peak_over_v: 0.100
     time_over_share: 0.02
+    # Provisional, a project ruling (not a manual number): time within this
+    # band over the limit does not count toward the share. Every device that
+    # passes only because of the band is listed in the report. To be checked
+    # against the PDK documents; if they disagree, they win.
+    share_band_v: 0.050
   # a one-off edge (enable, start-up): each excursion outside those windows
   one_off:
     peak_over_v: 0.300
