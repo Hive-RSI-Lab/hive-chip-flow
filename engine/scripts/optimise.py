@@ -409,11 +409,12 @@ def run_numeric(argv=None):
             out_subdir=f"log/optimise/w{slot}/pvt")
         ok = not result["violations"]
         margin = full_corner_margin(result["results"], benches)
-        trial = write_row(sizing or start_sizing, margin, ok, note)
-        check = {"trial": trial, "sizing": sizing or start_sizing,
+        recorded = sizing if sizing is not None else load_sizing_yaml(target_path)
+        trial = write_row(recorded, margin, ok, note)
+        check = {"trial": trial, "sizing": recorded,
                  "pass": ok, "margin": margin, "result": result}
         with lock:
-            if ok:
+            if ok and sizing is not None:
                 passed.append(check)
             else:
                 failed_at.extend(bounding_corners(
@@ -458,7 +459,7 @@ def run_numeric(argv=None):
     try:
         # trial 0: the starting sizing through sim_pvt's own run - whether
         # it already passes, and the corners that bound it
-        start_check = full_check(None, "starting sizing, full corner set", 0)
+        start_check = full_check(start_sizing, "starting sizing, full corner set", 0)
         search["corners"] = [typical] + bounding_corners(
             start_check["result"]["results"], benches, typical, args.bounding)
         failed_at.clear()

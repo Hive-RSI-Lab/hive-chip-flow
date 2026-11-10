@@ -143,6 +143,10 @@ def test_numeric_reaches_bounds_from_a_wrong_start(tmp_path, monkeypatch):
     assert payload["full_corner_violations"] == []
     last = tsv_lines[-1].split("\t")
     assert last[-1] == "on disk, full corner set" and last[-2] == "True"
+    # the on-disk row names the file as written, not the start
+    assert last[2] == optimise.target_sha(optimise.load_sizing_yaml(
+        ws / "sizing" / "sizing.yaml"))
+    assert last[2] != tsv_lines[1].split("\t")[2]
 
 
 def test_numeric_leaves_file_untouched_when_nothing_improves(tmp_path, monkeypatch):
