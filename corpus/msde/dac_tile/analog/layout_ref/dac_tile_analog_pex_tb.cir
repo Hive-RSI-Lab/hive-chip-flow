@@ -1,0 +1,46 @@
+* dac_tile_analog_pex_tb.cir - the post-layout bench, at each pex_sim
+* corner (docs/design.md 1.5's ade pex_sim row). It runs on the
+* magic-extracted, parasitic-annotated netlist of this run's own GDS;
+* check_pex_sim.py fills in its tokens, never a path typed by hand. The
+* ppolyf_u_1k ladder needs the res_<corner> section as well as the
+* transistor one.
+*
+* Same stimulus as tb/dac_tile_analog_tb.cir: codes 00, 01, 10, 11 (bmsb
+* blsb) held 100ns each into 1pF, vout read 10ns before each change.
+* What the layout moves is the settling: wire C on vout and the ladder
+* nodes adds to the 1pF and slows the step, so the bench also times the
+* largest step, 01 -> 10 at 200ns, to within 1% of its swing: 21ns at tt,
+* 18-25ns over the sweep (about 4.6 time constants of the ~5k ladder output
+* into 1pF). Its bound, 45ns, is settled to 1% before half the 100ns a
+* code is held, so the read 10ns before the next change sees the code's
+* level, not the step. Values are
+* printed from the .control block ("name = value"), the form
+* check_pex_sim.py reads.
+.include '{pdk}/libs.tech/ngspice/design.spice'
+.lib '{pdk}/libs.tech/ngspice/sm141064.spice' {corner}
+.lib '{pdk}/libs.tech/ngspice/sm141064.spice' {res_corner}
+.include '{extracted}'
+.temp {temp_c}
+
+vdd_src vdd 0 {vdd}
+vbmsb bmsb 0 PWL(0 0 199.9n 0 200n {vdd} 400n {vdd})
+vblsb blsb 0 PWL(0 0 99.9n 0 100n {vdd} 199.9n {vdd} 200n 0 299.9n 0 300n {vdd} 400n {vdd})
+xdut bmsb blsb vout vdd 0 dac_tile_analog
+cload vout 0 1p
+
+.control
+tran 0.1n 400n
+meas tran vout_00 find v(vout) at=90n
+meas tran vout_01 find v(vout) at=190n
+meas tran vout_10 find v(vout) at=290n
+meas tran vout_11 find v(vout) at=390n
+let vsettle = vout_10 + 0.01*(vout_01 - vout_10)
+meas tran t_cross when v(vout)=$&vsettle fall=last from=200n to=300n
+let t_settle = t_cross - 200n
+print vout_00
+print vout_01
+print vout_10
+print vout_11
+print t_settle
+.endc
+.end
