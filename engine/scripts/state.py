@@ -555,7 +555,7 @@ class State:
             at_start = {}
         inputs: dict[str, str | None] = {}
         moved: list[str] = []
-        for kind in (imap["gate_inputs"].get(self._skill()) or {}).get(gate, []):
+        for kind in statelib.gate_inputs_here(ws, self._skill(), gate, imap):
             rel, sha = statelib.hash_kind(ws, kind, imap, registry)
             seen = at_start.get(kind, sha)
             if seen is not None and not isinstance(seen, str):

@@ -44,6 +44,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import sys
 from pathlib import Path
 
 import yaml
@@ -91,6 +92,7 @@ def load_map(path: Path | str | None = None) -> dict:
             if unknown:
                 raise ValueError(f"{p}: {skill}.gate_inputs[{gate!r}] names "
                                  f"unknown artifact kinds {unknown}")
+    _check_inputs_when(p, data)
     writes = data.get("gate_writes") or {}
     if not isinstance(writes, dict):
         raise ValueError(f"{p}: gate_writes is not a mapping")
@@ -125,6 +127,23 @@ def load_map(path: Path | str | None = None) -> dict:
                                  f"{unknown}")
     _MAP_CACHE[key] = data
     return data
+
+
+def _check_inputs_when(p: Path, data: dict) -> None:
+    """Raise when gate_inputs_when names a predicate this module lacks, or a
+    kind outside the gate's own row: such a row could never apply, and the
+    input would silently be hashed everywhere or nowhere."""
+    for skill, gates in (data.get("gate_inputs_when") or {}).items():
+        for gate, preds in (gates or {}).items():
+            row = (data["gate_inputs"].get(skill) or {}).get(gate) or []
+            for pred, kinds in (preds or {}).items():
+                if pred not in INPUT_PREDICATES:
+                    raise ValueError(f"{p}: gate_inputs_when names unknown "
+                                     f"predicate {pred!r}")
+                outside = [k for k in kinds if k not in row]
+                if outside:
+                    raise ValueError(f"{p}: gate_inputs_when[{skill}.{gate}] "
+                                     f"names kinds not in its row: {outside}")
 
 
 def _check_gate_order(p: Path, skill: str, data: dict) -> None:
@@ -405,6 +424,21 @@ def _norm_dir_bytes(path: Path) -> bytes:
     return b"dirbytes\0" + h.digest()
 
 
+def _norm_pex_netlists(path: Path) -> bytes:
+    """The extracted netlists under a nested analog side's log/ the pex
+    gates left, and nothing else log/ holds: a re-run of any other analog
+    gate writes there too and changes no extraction."""
+    if not path.is_dir():
+        raise ValueError(f"{path} is not a directory")
+    parts = [b"pex\0"]
+    for sub in ("pex_sim", "pex_pvt"):
+        for f in sorted((path / sub).glob("*.pex.ordered.spice")):
+            parts.append(f"{sub}/{f.name}".encode() + b"\0"
+                         + f.read_text(encoding="utf-8").replace(
+                             "\r\n", "\n").encode("utf-8") + b"\0")
+    return b"".join(parts)
+
+
 NORMALIZERS = {
     "text_eol": _norm_text_eol,
     "dir_bytes": _norm_dir_bytes,
@@ -413,6 +447,7 @@ NORMALIZERS = {
     "json_canonical_sans_roots": _norm_json_canonical_sans_roots,
     "harden_signoff": _norm_harden_signoff,
     "dir_text": _norm_dir_text,
+    "pex_netlists": _norm_pex_netlists,
 }
 
 # Suffix -> normalizer for artifacts registered under non-standard names.
@@ -719,6 +754,52 @@ def write_harden_records(ws: Path, skill: str, gate: str, imap: dict,
     return written
 
 
+def view_record_hash(ws: Path, kind: str, imap: dict) -> str | None:
+    """The hash a passing gate recorded for a view git doesn't carry (a kind
+    with `view_record` and `untracked`), so a clone reads the views that run
+    used. Only with the whole untracked dir absent, since real files are
+    always what gets hashed; a hand-edited or missing record reads stale,
+    never fresh."""
+    entry = imap["artifact_kinds"][kind]
+    if "view_record" not in entry or (ws / entry["untracked"]).exists():
+        return None
+    try:
+        value = json.loads(
+            (ws / entry["view_record"]).read_text(encoding="utf-8"))[kind]
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+    return value if (isinstance(value, str)
+                     and value.startswith(entry["norm"] + ":")) else None
+
+
+def drop_view_records(ws: Path, skill: str, gate: str, imap: dict) -> None:
+    """The gate is starting: what its last pass recorded vouches for nothing
+    if this run doesn't pass."""
+    for kind in (imap["gate_inputs"].get(skill) or {}).get(gate) or []:
+        record = imap["artifact_kinds"][kind].get("view_record")
+        if record:
+            (ws / record).unlink(missing_ok=True)
+
+
+def write_view_records(ws: Path, skill: str, gate: str, imap: dict) -> list[str]:
+    """The gate passed: record the views it read that git doesn't carry. Free
+    of paths and times, so an unchanged re-run leaves it as it was. Hashes
+    the files themselves, never an earlier record."""
+    records: dict[str, dict] = {}
+    for kind in gate_inputs_here(ws, skill, gate, imap):
+        entry = imap["artifact_kinds"][kind]
+        if "view_record" not in entry:
+            continue
+        hashed = hash_artifact(ws / entry["path"], entry["norm"])
+        if hashed:
+            records.setdefault(entry["view_record"], {})[kind] = hashed
+    for rel, hashes in records.items():
+        (ws / rel).parent.mkdir(parents=True, exist_ok=True)
+        (ws / rel).write_text(json.dumps(hashes, indent=2, sort_keys=True)
+                              + "\n", encoding="utf-8")
+    return sorted(records)
+
+
 def harden_outputs_changed(ws: Path, skill: str, gate: str, imap: dict,
                            registry: dict | None = None) -> list[dict]:
     """The harden outputs `gate` writes (gate_writes) whose files no longer
@@ -773,17 +854,40 @@ def hash_kind(ws: Path, kind: str, imap: dict,
     norm = imap["artifact_kinds"][kind]["norm"]
     if is_pdk_path(rel):
         return rel, hash_pdk(resolve(ws, rel), norm)
-    return rel, hash_artifact(ws / rel, norm)
+    hashed = hash_artifact(ws / rel, norm)
+    return rel, hashed if hashed is not None \
+        else view_record_hash(ws, kind, imap)
+
+
+def _cosim_corners_owed(ws: Path) -> bool:
+    lib = str(Path(__file__).resolve().parent)
+    if lib not in sys.path:
+        sys.path.insert(0, lib)
+    import cosim_corners  # noqa: PLC0415 - only asked for an msde cosim
+    return cosim_corners.owed(ws)
+
+
+# What a gate_inputs_when row may name: a workspace's answer, from its files.
+INPUT_PREDICATES = {"cosim_corners_owed": _cosim_corners_owed}
+
+
+def gate_inputs_here(ws: Path, skill: str, gate: str, imap: dict) -> list[str]:
+    """The gate's row, without the kinds gate_inputs_when says this workspace
+    does not read."""
+    kinds = (imap["gate_inputs"].get(skill) or {}).get(gate) or []
+    preds = ((imap.get("gate_inputs_when") or {}).get(skill) or {}).get(gate)
+    skip = {k for pred, ks in (preds or {}).items()
+            if not INPUT_PREDICATES[pred](ws) for k in ks}
+    return [k for k in kinds if k not in skip]
 
 
 def gate_input_hashes(ws: Path, skill: str, gate: str, imap: dict,
                       registry: dict | None = None) -> dict[str, str | None]:
-    """{kind: hash|None} for every input the gate reads; {} for a gate the
-    map does not know (freshness then reports it 'unknown', never 'fresh')."""
-    kinds = (imap["gate_inputs"].get(skill) or {}).get(gate)
-    if not kinds:
-        return {}
-    return {k: hash_kind(ws, k, imap, registry)[1] for k in kinds}
+    """{kind: hash|None} for every input the gate reads here; {} for a gate
+    the map does not know (freshness then reports it 'unknown', never
+    'fresh')."""
+    return {k: hash_kind(ws, k, imap, registry)[1]
+            for k in gate_inputs_here(ws, skill, gate, imap)}
 
 
 def load_strengths(path: Path | str | None = None) -> dict:

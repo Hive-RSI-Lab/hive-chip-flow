@@ -112,7 +112,8 @@ def run_cocotb(build_dir: Path, test_dir: Path, sources: list[Path],
               hdl_toplevel: str, test_modules_: list[str], results_xml: Path,
               timescale: tuple[str, str] = ("1ns", "1ps"),
               timeout_s: float | None = None, waves: bool = False,
-              stall_s: float | None = None) -> Path:
+              stall_s: float | None = None,
+              build_args: list[str] | None = None) -> Path:
     """Build the design then run every module in test_modules_ as one cocotb
     regression over Icarus. Returns the results.xml path (results_xml is
     pinned explicitly - concurrent callers, e.g. check_mutate.py running one
@@ -164,7 +165,10 @@ def run_cocotb(build_dir: Path, test_dir: Path, sources: list[Path],
 
     waves=True has cocotb dump `<build_dir>/<hdl_toplevel>.fst` (Icarus
     always gets -fst or -none, so never VCD); optimise.py's power metric
-    is the one caller, and converts it with `eda fst2vcd`."""
+    is the one caller, and converts it with `eda fst2vcd`.
+
+    build_args go to the Icarus compile: a gate-level run with SDF needs
+    -gspecify -ginterconnect, or $sdf_annotate has no delays to write."""
     from cocotb_tools.runner import get_runner
     build_dir = Path(build_dir).resolve()
     test_dir = Path(test_dir).resolve()
@@ -202,7 +206,7 @@ def run_cocotb(build_dir: Path, test_dir: Path, sources: list[Path],
     try:
         runner.build(sources=[str(s) for s in sources], hdl_toplevel=hdl_toplevel,
                     build_dir=str(build_dir), waves=waves, timescale=timescale,
-                    log_file=log_file)
+                    log_file=log_file, build_args=build_args or [])
         try:
             # cocotb_tools.runner.test() itself does sys.exit(1) when any
             # test in the run FAILED (mirroring a CLI tool's own exit code)
