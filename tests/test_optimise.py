@@ -132,16 +132,17 @@ def test_numeric_reaches_bounds_from_a_wrong_start(tmp_path, monkeypatch):
 
     tsv_lines = (ws / optimise.TSV_PATH).read_text().splitlines()
     assert len(tsv_lines) > 2  # header + start row + at least one DE trial
-    assert tsv_lines[1].split("\t")[-1] == "starting sizing"
+    assert tsv_lines[1].split("\t")[-1] == "starting sizing, full corner set"
+    assert tsv_lines[2].split("\t")[-1] == "starting sizing"
 
-    # design.md 4: "the winner run[s] the full corner set" - the identity
-    # fake eda is corner-invariant (y = x regardless of which .lib section
-    # the deck selects), so the winner holds at every corner too, and that
-    # is now checked and reported, not left silently unexercised.
+    # the identity fake is corner-invariant (y = x whatever .lib section the
+    # deck selects), so the winner passes sim_pvt's own run, which gates
+    # the write and is run once more on the file as written
     assert payload["full_corner_pass"] is True
     assert set(payload["full_corner_corners"]) == {"tt", "ss", "ff", "sf", "fs"}
     assert payload["full_corner_violations"] == []
-    assert tsv_lines[-1].split("\t")[-1] == "winner, full corner set"
+    last = tsv_lines[-1].split("\t")
+    assert last[-1] == "on disk, full corner set" and last[-2] == "True"
 
 
 def test_numeric_leaves_file_untouched_when_nothing_improves(tmp_path, monkeypatch):
@@ -185,58 +186,159 @@ def test_tsv_rows_survive_a_crash_mid_search(tmp_path, monkeypatch):
     with pytest.raises(RuntimeError):
         optimise.run_numeric(["--workspace", str(ws)])
 
-    # despite the crash, every trial that ran before it (the start row +
-    # the 3 objective() calls) is already on disk.
+    # despite the crash, every trial that ran before it (the start's
+    # full-corner row and search row + the 3 objective() calls) is
+    # already on disk.
     tsv_lines = (ws / optimise.TSV_PATH).read_text().splitlines()
-    assert len(tsv_lines) == 1 + 1 + 3, tsv_lines  # header + start + 3 trials
+    assert len(tsv_lines) == 1 + 2 + 3, tsv_lines
 
 
-def test_winner_runs_full_corner_set_and_reports_a_corner_only_failure(tmp_path, monkeypatch):
-    # design.md 4: "the winner run[s] the full corner set" - a winner that
-    # only holds at 'tt' (every trial's own, cheap, tt-only evaluator) must
-    # still be caught and reported once the search concludes, even though
-    # `status` itself stays keyed on the tt-only evaluator (the DAC's own
-    # documented done-criterion, unlike the mirror's).
-    ws = make_ws(tmp_path, start_value=1.0)  # already "optimal" at tt
-    optimise.run_start(["--workspace", str(ws), "--target", "sizing/sizing.yaml"])
-
+def make_corner_fake_eda(tmp_path: Path, shifts: dict[str, str]) -> Path:
+    """Like make_identity_fake_eda, but at each corner in `shifts` the
+    reported y is `x` run through that corner's awk expression (`x` bound)
+    - a corner-sensitive circuit with no ngspice call."""
     fake_root = tmp_path / "fake_toolchain"
-    (fake_root / "foss" / "pdks" / "gf180mcuD").mkdir(parents=True)
-    script = tmp_path / "corner_sensitive_fake_eda"
-    script.write_text(
-        "#!/usr/bin/env bash\n"
-        "if [ \"$1\" = --print-toolchain-root ]; then\n"
-        f"  echo '{fake_root}'\n  exit 0\nfi\n"
-        "deck=\"$3\"\n"
-        "x=$(grep -oE '\\.param x=[-0-9.eE+]+' \"$deck\" | cut -d= -f2)\n"
-        # at 'ss' the fake reports a value well outside [0.9, 1.1]
-        # regardless of x - every other corner (including tt) reports x
-        # unchanged, same as make_identity_fake_eda.
-        "if grep -q \"sm141064.spice' ss\" \"$deck\"; then y=0.2; else y=\"$x\"; fi\n"
-        "echo\n"
-        "echo '  Measurements for Transient Analysis'\n"
-        "echo \"y                     =  $y\"\n",
-        encoding="utf-8")
-    import stat as stat_mod
-    script.chmod(script.stat().st_mode | stat_mod.S_IEXEC)
-    monkeypatch.setattr(sim_run, "EDA_BIN", script)
+    (fake_root / "foss" / "pdks" / "gf180mcuD").mkdir(parents=True,
+                                                         exist_ok=True)
+    script = tmp_path / "corner_fake_eda"
+    lines = ["#!/usr/bin/env bash",
+             "if [ \"$1\" = --print-toolchain-root ]; then",
+             f"  echo '{fake_root}'", "  exit 0", "fi",
+             "deck=\"$3\"",
+             "x=$(grep -oE '\\.param x=[-0-9.eE+]+' \"$deck\" | cut -d= -f2)",
+             "y=\"$x\""]
+    for corner, expr in shifts.items():
+        lines.append(f"if grep -q \"sm141064.spice' {corner}$\" \"$deck\"; "
+                     f"then y=$(awk -v x=\"$x\" 'BEGIN{{print {expr}}}'); fi")
+    lines += ["echo", "echo '  Measurements for Transient Analysis'",
+              "echo \"y                     =  $y\""]
+    script.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    script.chmod(script.stat().st_mode | stat.S_IEXEC)
+    return script
+
+
+def _x_on_disk(ws: Path) -> float:
+    import yaml
+    return yaml.safe_load(
+        (ws / "sizing" / "sizing.yaml").read_text())["x"]["value"]
+
+
+def test_planted_corner_fault_is_not_written(tmp_path, monkeypatch):
+    # The planted fault: x = 1.0 is dead centre at tt, so a tt-only search
+    # keeps it, but ss reads x + 0.15 = 1.15 > 1.1, so sim_pvt fails it.
+    # Every bound holds at every corner only for x in [0.9, 0.95]; the
+    # corner-aware loop must find that and write only a sizing that passes
+    # sim_pvt's own run.
+    ws = make_ws(tmp_path, start_value=1.0)
+    optimise.run_start(["--workspace", str(ws), "--target", "sizing/sizing.yaml"])
+    monkeypatch.setattr(sim_run, "EDA_BIN",
+                        make_corner_fake_eda(tmp_path, {"ss": "x+0.15"}))
 
     payload, _ = optimise.run_numeric(
-        ["--workspace", str(ws), "--popsize", "6", "--maxiter", "10", "--seed", "1"])
+        ["--workspace", str(ws), "--popsize", "6", "--maxiter", "15", "--seed", "1"])
 
-    assert payload["status"] == "pass", payload  # tt-only evaluator: unaffected
-    assert payload["full_corner_pass"] is False
-    assert payload["full_corner_violations"] != []
-    # checklib.violation() sorts refs alphabetically, so don't assume an
-    # index - just confirm 'ss' (and only 'ss') shows up across every ref.
+    assert payload["start_full_corner_pass"] is False
+    assert payload["status"] == "pass", payload
+    assert payload["written"] is True and payload["full_corner_pass"] is True
+    assert 0.9 <= _x_on_disk(ws) <= 0.95
+    # ss, the corner that failed the start, is in the search from round 1
+    assert "ss" in payload["rounds"][0]["corners"]
+
+    import check_sim_pvt
+    result, _ = check_sim_pvt.sweep(ws)
+    assert result["violations"] == []
+
+
+def test_failed_winner_re_picks_corners(tmp_path, monkeypatch):
+    # --bounding 1 searches tt + ss only (ss fails the start worst). The
+    # tt+ss optimum (x ~ 0.925) then fails ff (x - 0.04 < 0.9), so round 2
+    # adds ff and lands in the only all-corner window, [0.94, 0.95].
+    ws = make_ws(tmp_path, start_value=1.0)
+    optimise.run_start(["--workspace", str(ws), "--target", "sizing/sizing.yaml"])
+    monkeypatch.setattr(sim_run, "EDA_BIN", make_corner_fake_eda(
+        tmp_path, {"ss": "x+0.15", "ff": "x-0.04"}))
+
+    payload, _ = optimise.run_numeric(
+        ["--workspace", str(ws), "--bounding", "1", "--popsize", "8",
+         "--maxiter", "30", "--seed", "1"])
+
+    rounds = payload["rounds"]
+    assert set(rounds[0]["corners"]) == {"tt", "ss"}
+    assert rounds[0]["winner_pass"] is False
+    assert "ff" in rounds[1]["corners"] and rounds[1]["winner_pass"] is True
+    assert payload["status"] == "pass", payload
+    assert 0.94 <= _x_on_disk(ws) <= 0.95
+
+
+def test_no_full_corner_pass_writes_nothing(tmp_path, monkeypatch):
+    # ss reads 0.2 whatever x is: no sizing passes sim_pvt, so nothing is
+    # written - the file stays byte-identical - and the run says so (status
+    # violations, with a remediation), rather than writing a tt-only winner.
+    ws = make_ws(tmp_path, start_value=1.0)
+    optimise.run_start(["--workspace", str(ws), "--target", "sizing/sizing.yaml"])
+    before = (ws / "sizing" / "sizing.yaml").read_bytes()
+    monkeypatch.setattr(sim_run, "EDA_BIN",
+                        make_corner_fake_eda(tmp_path, {"ss": "0.2"}))
+
+    payload, _ = optimise.run_numeric(
+        ["--workspace", str(ws), "--popsize", "6", "--maxiter", "8",
+         "--rounds", "2", "--seed", "1"])
+
+    assert payload["status"] == "violations"
+    assert payload["written"] is False and payload["improved"] is False
+    assert (ws / "sizing" / "sizing.yaml").read_bytes() == before
+    assert payload["remediation"]
     corner_names = {"tt", "ss", "ff", "sf", "fs"}
-    bad_corners = {r for v in payload["full_corner_violations"]
-                  for r in v["refs"] if r in corner_names}
-    assert bad_corners == {"ss"}
-    tsv_lines = (ws / optimise.TSV_PATH).read_text().splitlines()
-    last = tsv_lines[-1].split("\t")
-    assert last[-1] == "winner, full corner set"
-    assert last[-2] == "False"  # the 'kept' column doubles as pass/fail here
+    bad = {r for v in payload["full_corner_violations"]
+           for r in v["refs"] if r in corner_names}
+    assert bad == {"ss"}
+    last = (ws / optimise.TSV_PATH).read_text().splitlines()[-1].split("\t")
+    assert last[-1] == "on disk, full corner set" and last[-2] == "False"
+
+
+def test_every_kth_kept_trial_runs_the_full_corner_set(tmp_path, monkeypatch):
+    ws = make_ws(tmp_path)
+    optimise.run_start(["--workspace", str(ws), "--target", "sizing/sizing.yaml"])
+    monkeypatch.setattr(sim_run, "EDA_BIN", make_identity_fake_eda(tmp_path))
+    optimise.run_numeric(["--workspace", str(ws), "--check-every", "1",
+                          "--popsize", "6", "--maxiter", "6", "--seed", "1"])
+    rows = [ln.split("\t") for ln in
+            (ws / optimise.TSV_PATH).read_text().splitlines()[1:]]
+    kept_search = [r for r in rows if r[-2] == "True"
+                   and "full corner set" not in r[-1]]
+    checks = [r for r in rows if r[-1] == "kept trial, full corner set"]
+    # every kept search trial is followed by its check, bar the start's
+    # own (trial 0 already ran it)
+    assert len(checks) == len(kept_search) - 1 >= 1
+    assert all(r[-1] != "kept trial, full corner set"
+               for r in rows[:3]), rows[:3]
+
+
+def test_bounding_corners_picks_the_least_margin(tmp_path):
+    bench = Path("widget_tb.cir")
+    benches = [(bench, "", [{"measure": "y", "min": 0.9, "max": 1.1}])]
+
+    def res(corner, y):
+        return {"bench": bench.name, "corner": corner, "names": [corner],
+                "engine_errors": [], "measures": {"y": y}}
+    results = [res("tt", 1.0), res("ss", 1.3), res("ff", 1.05),
+               res("sf", 0.95), res("fs", 1.08)]
+    assert optimise.bounding_corners(results, benches, "tt", 2) == ["ss", "fs"]
+
+
+def test_workers_two_runs_and_three_is_refused(tmp_path, monkeypatch):
+    ws = make_ws(tmp_path)
+    optimise.run_start(["--workspace", str(ws), "--target", "sizing/sizing.yaml"])
+    monkeypatch.setattr(sim_run, "EDA_BIN", make_identity_fake_eda(tmp_path))
+    with pytest.raises(CheckError):
+        optimise.run_numeric(["--workspace", str(ws), "--workers", "3"])
+    payload, _ = optimise.run_numeric(
+        ["--workspace", str(ws), "--workers", "2", "--popsize", "6",
+         "--maxiter", "10", "--seed", "1"])
+    assert payload["status"] == "pass" and payload["written"] is True
+    assert 0.9 <= _x_on_disk(ws) <= 1.1
+    assert {p.name for p in (ws / "log" / "optimise").iterdir()
+            if p.is_dir()} >= {"w0", "w1"}
 
 
 @pytest.mark.slow
