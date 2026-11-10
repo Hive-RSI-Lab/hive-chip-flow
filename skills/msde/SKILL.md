@@ -32,7 +32,7 @@ resolved to that root, and led by `bin/eda python`, by the time it reaches
 
 ## The workspace: one msde block, two nested runs
 
-    blocks/<name>/          skill msde: split, cosim, macro_lib, top_harden, top_drc, top_lvs, precheck, release
+    blocks/<name>/          skill msde: split, cosim, boundary, macro_lib, top_harden, top_drc, top_lvs, top_erc, precheck, release
       brief/                the task's spec, verbatim
       interface.yaml        every crossing signal (splitter)
       digital_spec.yaml     the digital side's copy of the same entries
@@ -99,7 +99,7 @@ side's skill and nested workspace, then re-check what it touched here.
 P0 Intake - P1 Split -
 P2 The two nested runs, independent: analog to its own release, digital
    to its own release (its own harden and signoff included) -
-P3 cosim, then the top gates (macro_lib, top_harden, top_drc, top_lvs, precheck) -
+P3 cosim, then the top gates (boundary, macro_lib, top_harden, top_drc, top_lvs, top_erc, precheck) -
 P4 Release -[H2: sign-off]- then the design document
 ```
 
@@ -141,10 +141,12 @@ Gates (`engine/reference/gates.yaml`, msde rows), in pipeline order:
 |---|---|---|---|
 | split | P1 | every crossing signal appears in both side specs with matching direction, level, domain, width and load | `check_split.py` |
 | cosim | P3 | every top-level measure inside its bound, the digital side toggled, the analog side ran | `check_cosim.py`, cocotbext-ams |
+| boundary | P3 | every crossing pin on the sized schematic at the three STA corners, against its level in `engine/reference/levels.yaml`: a2d swing and 10-90% edge into the declared load, d2a switching point; owed for every macro with a crossing pin | `check_boundary.py` |
 | macro_lib | P3 | one liberty per STA corner for the macro's crossing pins, from the analog spec's `macro_timing` arc list; owed for every macro with a crossing pin, not applicable only with none | `check_macro_lib.py` |
 | top_harden | P3 | the assembled top hardens with the analog GDS as a macro: no failing step, GDS, LEF, netlist, SDF, metrics; in the final ODB no net lacks a driver, and none lacks a load unless it is a TT input or waived (a job) | `check_top_harden.py` |
 | top_drc | P3 | 0 violations, magic and klayout, on the top's final GDS | `check_top_drc.py` |
 | top_lvs | P3 | the top's final GDS matches the powered netlist, the analog block compared device by device | `check_top_lvs.py` |
+| top_erc | P3 | CVC finds no floating gate, overvoltage, forward-biased junction or supply-to-supply leak on the flat top: powered, held in reset, and the macro alone | `check_top_erc.py` |
 | precheck | P3 | Tiny Tapeout's own precheck passes on the top's GDS; an analog tile's used ua pads, and only those, carry metal | `check_precheck.py` |
 | release | P4 | every msde gate fresh-pass AND both nested workspaces released | `check_release.py` |
 
@@ -173,7 +175,7 @@ it and never passes a refused one.
 ## Edit classes and the nested cascade
 
 msde's own edit classes (`invalidation.yaml`) are `spec_edit` and
-`interface_edit`, which both mark `split`, `cosim`, `macro_lib`, `top_harden`, `top_drc`,
+`interface_edit`, which both mark `split`, `cosim`, `boundary`, `macro_lib`, `top_harden`, `top_drc`,
 `top_lvs` and `release`, and `top_sdc_edit` (the integrator's `top.sdc`),
 which marks `top_harden` onward. `docs/design.md` 1.6 adds that `interface_edit` marks both
 nested runs' `spec_edit`, and a plain `state.py edit` cannot reach a

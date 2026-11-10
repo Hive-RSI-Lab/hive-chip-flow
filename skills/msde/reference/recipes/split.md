@@ -7,7 +7,8 @@ crosses between the two sides.
 
 - `interface.yaml` - `signals:`, one entry per crossing signal, each with
   `name`, `direction` (`a2d` or `d2a`), `level`, `domain`, `width` and
-  `load`. Every field is required; `check_split.py` refuses (exit 2) an
+  `load` (typed: `{cap_ff: N}` or `{pin: <liberty cell>/<pin>}`; the file is
+  `version: 2`). Every field is required; `check_split.py` refuses (exit 2) an
   entry missing one rather than compare nothing with nothing.
 - `digital_spec.yaml` and `analog_spec.yaml` - each an `interface:` list
   with the same entries, plus whatever that side's own spec needs.

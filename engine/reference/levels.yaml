@@ -1,0 +1,31 @@
+# The signal levels an msde crossing signal can name (`level:` in
+# interface.yaml) and what each one means electrically (#110). The boundary
+# gate (engine/scripts/check_boundary.py) judges the analog netlist against
+# these numbers; tests/test_boundary.py ties them to the PDK's liberty.
+#
+# vih_frac, vil_frac: the fraction of the corner's vdd an a2d output must reach
+#   and a d2a input's switching point must stay inside. The liberty's own
+#   input_voltage group gives only the rails (vih = vdd, vil = 0), which say
+#   nothing, so these are the library's slew thresholds: the band every
+#   characterised input was timed across.
+# voh_frac, vol_frac: what a digital driver puts on a d2a pin.
+# slew_lower, slew_upper, slew_derate: the liberty's slew_lower_threshold_pct_*,
+#   slew_upper_threshold_pct_* and slew_derate_from_library. A measured 10-90%
+#   edge is turned into the liberty's transition unit with them.
+# corners: per LibreLane PVT, the supply and the library's max_transition
+#   (one value for every pin of the library at that corner).
+version: 1
+library: gf180mcu_fd_sc_mcu7t5v0
+levels:
+  cmos_3v3:
+    vih_frac: 0.7
+    vil_frac: 0.3
+    voh_frac: 1.0
+    vol_frac: 0.0
+    slew_lower: 0.3
+    slew_upper: 0.7
+    slew_derate: 0.5
+    corners:
+      tt_025C_3v30: {vdd: 3.3, max_transition_ns: 8.6}
+      ss_125C_3v00: {vdd: 3.0, max_transition_ns: 15.6}
+      ff_n40C_3v60: {vdd: 3.6, max_transition_ns: 5.2}

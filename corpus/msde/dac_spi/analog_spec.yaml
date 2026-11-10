@@ -12,10 +12,10 @@ interface:
     level: cmos_3v3
     domain: clk_sys
     width: 8
-    load: "R2R ladder DAC code input"
+    load: {cap_ff: 20, note: "R2R ladder DAC code input; placeholder estimate, no netlist yet"}
   - name: dac_en
     direction: d2a
     level: cmos_3v3
     domain: clk_sys
     width: 1
-    load: "DAC ladder power-down enable"
+    load: {cap_ff: 20, note: "DAC ladder power-down enable; placeholder estimate, no netlist yet"}

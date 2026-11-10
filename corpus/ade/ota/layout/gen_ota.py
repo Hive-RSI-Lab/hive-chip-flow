@@ -51,8 +51,9 @@ plate (dz), its right terminal on metal2 to the out spine, landing on a
 stays as short as the old cap's were, so each spine end of a wire is
 within reach of a node of magic's FastHenry geometry (em_ir). xrz carries
 its own substrate contact; the substrate is vss. It is a ppolyf_u, not the
-1 kohm/sq ppolyf_u_1k, because pex_sim's second extractor (kpex) cuts a
-plain poly resistor's body but refuses the high-Rs layer 62/0.
+1 kohm/sq ppolyf_u_1k: it was drawn when pex_sim's second extractor (kpex)
+refused the high-Rs layer 62/0. kpex now takes 62/0 around a poly resistor
+body (engine/lib/kpexlib.py), so this is history and no longer a constraint.
 
 Pins (metal1/metal2 label layers, PINS order: magic numbers ports in label
 order) sit on their tracks; tail, d1, d2 and dz are labelled on metal2 drawing,

@@ -5,6 +5,7 @@ driver was sized for a different load than the receiver presents.
 
 **Cheapest fix first:** describe the load the receiver really presents
 (the digital input it drives, or the analog node it biases) and copy the
-same string to all three files.
+same typed `load` to all three files.
 
-**Trap:** `load` is free text and compared exactly; keep one wording.
+**Trap:** every field but `note` is compared exactly, so `cap_ff` and `count`
+must match; only `note` may differ.

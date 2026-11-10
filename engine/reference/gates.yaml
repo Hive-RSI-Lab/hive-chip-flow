@@ -491,6 +491,19 @@ gates:
       max_count: 0
       fault: "control word polarity inverted"
       description: "Every top-level measure inside its bound."
+    boundary:
+      phase: P3
+      tool: boundary
+      strength: 1
+      fail_severities: [error]
+      max_count: 0
+      fault: "an analog output stage supplied from 2.0 V, so its high level is below vih"
+      description: >-
+        Every crossing pin measured by ngspice on the sized schematic at the
+        three STA corners against its level in levels.yaml: each a2d pin's
+        swing and 10-90% edge into its declared load, each d2a pin's
+        switching point. Owed for every macro with a crossing pin, not
+        applicable only with none.
     macro_lib:
       phase: P3
       tool: macro_lib
@@ -553,6 +566,16 @@ gates:
       max_count: 0
       fault: "a macro pin left unconnected"
       description: "Match."
+    top_erc:
+      # CVC on the flat transistor netlist of the assembled top: the tile
+      # powered, the digital side held in reset, and the macro alone (#111).
+      phase: P3
+      tool: top_erc
+      strength: 0
+      fail_severities: [error]
+      max_count: 0
+      fault: "a macro input left unconnected in the top"
+      description: "No floating gate, overvoltage, forward-biased junction or supply-to-supply leak, unless waived with a reason."
     precheck:
       # the shuttle's own signoff (check_precheck.py) on the chip top at
       # top/; an analog tile is checked against the analog pin template and

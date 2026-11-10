@@ -70,6 +70,7 @@ SCRIPTS = Path(__file__).resolve().parent
 ENGINE = SCRIPTS.parent
 sys.path.insert(0, str(SCRIPTS))
 sys.path.insert(0, str(ENGINE / "lib"))
+import boundary  # noqa: E402
 import checklib  # noqa: E402
 import attest as attest_mod  # noqa: E402
 import corners as corners_mod  # noqa: E402
@@ -91,9 +92,10 @@ GATE_WHAT = {
     "mc": "Monte Carlo", "pex_sim": "post-layout sim",
     "em_ir": "EM and IR drop",
     "split": "interface agrees", "cosim": "mixed-signal cosim",
+    "boundary": "crossing pins against their level",
     "macro_lib": "analog macro timing abstract",
     "top_harden": "top-level harden", "top_drc": "top-level DRC",
-    "top_lvs": "top-level LVS",
+    "top_lvs": "top-level LVS", "top_erc": "top-level voltage rule check",
 }
 
 
@@ -667,7 +669,7 @@ def render_layout(gds: Path, png: Path) -> str | None:
 # ---- the document -----------------------------------------------------------
 
 def side_rows(ws: Path, data: dict) -> tuple[list[dict], dict]:
-    gates = attest_mod.applicable_gates(data["skill"])
+    gates = attest_mod.owed_gates(ws, data["skill"])
     rows = [gate_record(ws, data, g) for g in gates]
     return rows, {r["gate"]: r for r in rows}
 
@@ -759,7 +761,7 @@ def build_tex(ws: Path, data: dict, figs: dict) -> tuple[str, dict]:
             for s in sigs:
                 t.append(r"\texttt{" + tex(s.get("name")) + "} & " + tex(s.get("direction", "")) + " & " +
                          tex(s.get("level", "")) + " & " + tex(s.get("domain", "")) + " & " +
-                         tex(s.get("load", "")) + r"\\ \hline")
+                         tex(boundary.load_text(s.get("load", ""))) + r"\\ \hline")
             t.append(r"\end{xltabular}\end{hsblock}" + "\n")
     t.append(r"\section{Architecture, and why}")
     if figs.get("block"):

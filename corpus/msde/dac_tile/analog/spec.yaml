@@ -23,3 +23,8 @@ macro_timing:
   static: {bmsb: 0, blsb: 0}
   pad_caps_pf: {vout: 1.0}
   arcs: []
+boundary:
+  static: {bmsb: 0, blsb: 0, vout: open}
+  d2a:
+    bmsb: {observe: xdut.dm, ramp_ns: 1000}
+    blsb: {observe: xdut.dl, ramp_ns: 1000}

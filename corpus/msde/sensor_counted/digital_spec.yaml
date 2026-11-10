@@ -10,10 +10,10 @@ interface:
     level: cmos_3v3
     domain: clk_free
     width: 1
-    load: "digital counter clock input"
+    load: {pin: gf180mcu_fd_sc_mcu7t5v0__dffq_1/CLK, note: "digital counter clock input"}
   - name: osc_en
     direction: d2a
     level: cmos_3v3
     domain: clk_sys
     width: 1
-    load: "oscillator power-down enable"
+    load: {cap_ff: 180, note: "oscillator power-down enable; two NAND gates of 20 um2, estimated from gate area"}

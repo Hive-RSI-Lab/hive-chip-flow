@@ -311,6 +311,11 @@ gate_inputs:
     # it writes to top/macros) + analog spec.yaml's `top`. The digital
     # side's harden config.json is NOT read: top/ is rebuilt from scratch
     # and check_harden generates top/harden/config.json itself.
+    # boundary: the sized .subckt, the analog spec's boundary section and the
+    # models and liberty the level and pin loads are read against; it writes
+    # nothing, so nothing downstream reads it.
+    boundary: [interface, analog_netlist, analog_sizing, analog_spec,
+               pdk_version, pdk_models, pdk_liberty]
     # macro_lib: the sized .subckt, the analog spec's macro_timing (limits,
     # arcs, clocks) and the models. The record a clock's ceiling comes from
     # and an extracted netlist are named in the spec, so no static artifact
@@ -331,6 +336,11 @@ gate_inputs:
     # gate_writes below.
     top_lvs:  [top_gds, top_spec, top_macros, top_pnl, pdk_version,
                pdk_magic, pdk_netgen]
+    # top_erc reads the powered netlist, the macro .subckt, the PDK's
+    # standard-cell spice, the macro's supply and the d2a signals it holds
+    # (#111). A waiver lives in the same spec/erc_waivers.yaml as ade's.
+    top_erc:  [top_spec, top_macros, top_pnl, interface, analog_spec,
+               erc_waivers, pdk_version]
     # precheck: the GDS and the LEF it copies into its design dir (#164)
     precheck: [top_gds, top_lef, interface, pdk_version, pdk_magic,
                pdk_klayout]
@@ -471,7 +481,7 @@ edit_classes:
     spec_edit:
       mutates: [spec_yaml, spec_md]
       stale_artifacts: []
-      gates: [split, cosim, macro_lib, top_harden, top_drc, top_lvs, precheck, release]
+      gates: [split, cosim, boundary, macro_lib, top_harden, top_drc, top_lvs, top_erc, precheck, release]
       human_hold: 2
     interface_edit:
       # "marks the top gates and both nested runs' spec_edit" (1.6). The
@@ -480,12 +490,12 @@ edit_classes:
       # top-level gates a plain `state.py edit` can reach on its own.
       mutates: [interface]
       stale_artifacts: []
-      gates: [split, cosim, macro_lib, top_harden, top_drc, top_lvs, precheck, release]
+      gates: [split, cosim, boundary, macro_lib, top_harden, top_drc, top_lvs, top_erc, precheck, release]
       human_hold: 2
     top_sdc_edit:
       # the integrator's top.sdc: the top's clocks move, so the top GDS
       # and everything that reads it re-run
       mutates: [top_sdc]
       stale_artifacts: []
-      gates: [top_harden, top_drc, top_lvs, precheck, release]
+      gates: [top_harden, top_drc, top_lvs, top_erc, precheck, release]
       human_hold: 2
