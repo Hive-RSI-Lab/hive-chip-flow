@@ -483,8 +483,9 @@ def pad_setup(ws: Path, tb_dir: Path, meta: dict) -> dict | None:
             exc.kind, ["pad"], f"{exc} - interface.yaml puts "
             f"{', '.join(pins)} on ua pads, so cosim runs the block "
             "through the pad model too (engine/lib/padlib.py): the "
-            "analog netlist must hold the block as its one top-level "
-            "subckt with those ports, loaded by the bench from tb/",
+            "analog netlist must hold the block as its one outermost "
+            "subckt with those ports (the subckt the bench loads, or one "
+            "it instantiates), loaded by the bench from tb/",
             "check_cosim")}
     return {"text": text, "block": block, "inserted": inserted}
 
