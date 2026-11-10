@@ -1,6 +1,8 @@
 # sizing.yaml (docs/design.md section 4) - this rung's own sizing, and the
 # values netlist/ota.cir's global .param defaults carry. W and L in meters;
-# cc_w is the side of the square MIM comp cap (C = 2 fF/um^2 * cc_w^2).
+# cc_w is the side of the square MIM comp cap (C = 2 fF/um^2 * cc_w^2);
+# rz_w/rz_l the nulling resistor's ppolyf_u body (about 350 ohm/sq: 4.6 kohm
+# at 2 x 25.5 um, typical).
 # Ranges are two_stage_miller_ota.sp's SIZING BOUNDS.
 w_b:
   value: 4.0e-6
@@ -43,6 +45,14 @@ l_2:
   min: 2.8e-7
   max: 4.0e-6
 cc_w:
-  value: 32.0e-6
+  value: 26.0e-6
   min: 5.0e-6
+  max: 5.0e-5
+rz_w:
+  value: 2.0e-6
+  min: 1.0e-6
+  max: 1.0e-5
+rz_l:
+  value: 25.5e-6
+  min: 2.0e-6
   max: 5.0e-5

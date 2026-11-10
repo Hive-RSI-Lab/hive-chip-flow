@@ -8,7 +8,11 @@
 * diode: the bench forces a current into the ibias pin and xmt/xm7 mirror
 * it. xcc is the Miller compensation cap from the first stage's output d2
 * to out, a MIM cap (cap_mim_2f0_m4m5_noshield, 2 fF/um^2, the MIM the
-* benches' {{MIM_CORNER}} section corners).
+* benches' {{MIM_CORNER}} section corners), in series with xrz, a nulling
+* resistor (ppolyf_u, about 350 ohm/sq, the benches' {{RES_CORNER}} section)
+* from the cap's bottom plate dz to out. xrz moves the Miller zero from the
+* right half plane into the left, where it cancels the pole the out pin's
+* Tiny Tapeout pad (500 ohm, 5 pF) adds (#297, spec.md "Values chosen").
 * inp rising pulls d2 down and out up: inp is the non-inverting input.
 *
 * Sizing: every W/L is a GLOBAL .param named in sizing/sizing.yaml, with the
@@ -19,7 +23,7 @@
 .param w_in=10e-6 l_in=1e-6
 .param w_ld=4e-6 l_ld=1e-6
 .param w_2=80e-6 w_s=80e-6 l_2=1e-6
-.param cc_w=32e-6
+.param cc_w=26e-6 rz_w=2e-6 rz_l=25.5e-6
 .subckt two_stage_miller_ota inp inn out vdd vss ibias
 xmb  ibias ibias vss  vss nfet_03v3 w=w_b  l=l_b
 xmt  tail  ibias vss  vss nfet_03v3 w=w_t  l=l_b
@@ -29,7 +33,8 @@ xm3  d1    d1    vdd  vdd pfet_03v3 w=w_ld l=l_ld
 xm4  d2    d1    vdd  vdd pfet_03v3 w=w_ld l=l_ld
 xm6  out   d2    vdd  vdd pfet_03v3 w=w_2  l=l_2
 xm7  out   ibias vss  vss nfet_03v3 w=w_s  l=l_b
-xcc  d2    out   cap_mim_2f0_m4m5_noshield c_width=cc_w c_length=cc_w
+xrz  dz    out   vss  ppolyf_u r_width=rz_w r_length=rz_l
+xcc  d2    dz    cap_mim_2f0_m4m5_noshield c_width=cc_w c_length=cc_w
 * The layout (layout/gen_ota.py) draws each transistor as unit devices in
 * three matched rows, a dummy at each row's ends: the bias row's 4um units,
 * the pair's 5um units, the load's 2um units. The dummies are drawn, so they
