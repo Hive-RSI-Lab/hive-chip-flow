@@ -66,6 +66,7 @@ POWER_PORTS = ("VPWR", "VDPWR", "VAPWR")
 GROUND_PORTS = ("VGND",)
 RESET_PORTS = ("rst_n", "clk")
 SEP = "."           # between instance path levels in a flat net name
+NUMBER_RE = re.compile(r"[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?[a-z]*", re.I)
 COMMENT_RE = re.compile(r"//[^\n]*|/\*.*?\*/|\(\*.*?\*\)", re.S)
 DECL_RE = re.compile(r"^(input|output|inout|wire)\s*(?:\[\s*(\d+)\s*:\s*(\d+)\s*\])?\s*(.*)$",
                      re.S)
@@ -143,7 +144,11 @@ def parse_subckts(text: str) -> dict:
             lines[-1] += " " + raw[1:]
         else:
             lines.append(raw)
-    cells, current = {}, None
+    params = {}
+    for line in lines:
+        if line.split()[:1] and line.split()[0].lower() == ".param":
+            params.update(_assignments(line.split("$")[0].split(None, 1)[1:]))
+    cells, current, scope = {}, None, params
     for line in lines:
         t = line.split("$")[0].split()
         if not t or t[0].startswith("*"):
@@ -151,12 +156,31 @@ def parse_subckts(text: str) -> dict:
         head = t[0].lower()
         if head == ".subckt":
             current = []
+            scope = {**params, **_assignments(t[2:])}
             cells[t[1].lower()] = ([x for x in t[2:] if "=" not in x], current)
         elif head == ".ends":
-            current = None
+            current, scope = None, params
         elif current is not None and not head.startswith("."):
-            current.append(t)
+            current.append([_resolve(tok, scope) for tok in t])
     return cells
+
+
+def _assignments(tokens: list[str]) -> dict[str, str]:
+    """{lowercased name: value} of `.param`-style `name=value` text."""
+    return {k.lower(): v for k, v in
+            re.findall(r"(\w+)\s*=\s*(\S+)", " ".join(tokens))}
+
+
+def _resolve(token: str, scope: dict[str, str]) -> str:
+    """A device line's `name=value` with a `.param` name (bare or in braces)
+    replaced by its value: top_harden delivers the macro's sized .subckt with
+    the sizing on `.param` lines. Anything else is left for emit to judge."""
+    key, eq, value = token.partition("=")
+    seen = set()
+    while eq and value.strip("{}'").lower() in scope and value not in seen:
+        seen.add(value)
+        value = scope[value.strip("{}'").lower()]
+    return f"{key}={value}" if eq else token
 
 
 class Nets:
@@ -235,6 +259,12 @@ def flatten(design: dict, library: dict, ground: str) -> tuple[str, dict]:
                  for n in t[1:first - 1]]
         name = f"{letter}{seq}"
         paths[name] = path + device
+        for tok in t[first:]:
+            if not NUMBER_RE.fullmatch(tok.partition("=")[2]):
+                raise CheckError(f"{path}{device}: parameter {tok} is not a "
+                                 "number - CVC would read a device of no size; "
+                                 "the macro's .subckt must carry its sizing "
+                                 "as numbers or `.param` names")
         # the PDK spice mixes `0.6U` with `6e-07`; CVC reads a lower-case
         # suffix only
         out.append(" ".join([name, *terms, t[first - 1],

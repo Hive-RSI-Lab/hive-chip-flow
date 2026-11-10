@@ -160,6 +160,29 @@ def test_an_unrated_device_or_stray_element_refuses():
         top_erc.flatten(design, lib, "VGND")
 
 
+def test_macro_sizing_on_param_lines_reaches_the_device():
+    lib = top_erc.parse_subckts(
+        ".param r_len=2e-05 W_A=4e-06\n"
+        ".subckt c a w_b=1e-06\n"
+        "xr a b 0 ppolyf_u r_width=1e-6 r_length=r_len\n"
+        "xn a b 0 0 nfet_03v3 w={W_A} l=w_b\n"
+        ".ends\n")
+    design = top_erc.parse_powered_netlist(
+        "module t (VGND, a);\n inout VGND;\n input a;\n c u (.a(a));\nendmodule\n")
+    flat, _ = top_erc.flatten(design, lib, "VGND")
+    assert "r_length=2e-05" in flat
+    assert "w=4e-06 l=1e-06" in flat
+
+
+def test_a_parameter_with_no_value_refuses():
+    lib = top_erc.parse_subckts(
+        ".subckt c a\nxn a a 0 0 nfet_03v3 w=wmissing l=1e-6\n.ends\n")
+    design = top_erc.parse_powered_netlist(
+        "module t (VGND, a);\n inout VGND;\n input a;\n c u (.a(a));\nendmodule\n")
+    with pytest.raises(CheckError, match="not a number"):
+        top_erc.flatten(design, lib, "VGND")
+
+
 def test_rails_and_inputs_get_voltages_outputs_do_not():
     design = top_erc.parse_powered_netlist(POWERED)
     pins = top_erc.rail_voltages(design["ports"], 3.3)
