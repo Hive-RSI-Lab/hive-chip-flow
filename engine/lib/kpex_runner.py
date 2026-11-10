@@ -15,7 +15,9 @@ above it couples to it (area and the metal edge's fringe, the same values as
 over wire poly), and it has no C of its own to the substrate or from its
 own edges (magic's `*poly` sidewall, perimeter and fringe exclude the fets;
 the channel is the device's own model). kpex divides by a capacitance, so a
-1e-6 aF/um^2 entry stands for "none".
+1e-6 aF/um^2 entry stands for "none". The gate sits just below Poly2 in the
+process stack, so a wire poly edge's fringe to the substrate is shielded by
+the gate it ends on rather than counted over the channel.
 
 The tech file also files metal5 (81/0) under "MetalTop", which its
 capacitance tables know only as a substrate plate, so any layout with metal5
@@ -92,7 +94,13 @@ def patched_tech(tech: dict) -> dict:
     poly_gate = copy.deepcopy(stack[i])
     poly_gate["name"] = "PolyGate"
     poly_gate.get("metal_layer", {}).pop("contact_above", None)
-    stack.insert(i + 1, poly_gate)
+    # below Poly2: kpex shields a Poly2 edge's fringe to the substrate only
+    # with the layers between the two, so the gate it ends on has to be one
+    # of them. Above it, the wire/gate seam (an edge drawn by this split,
+    # not one in the layout) fringed to the substrate as if open, over the
+    # channel the gate covers: 2 fF on a pair of L=10um gates that magic,
+    # which counts no poly perimeter onto a fet, does not have.
+    stack.insert(i, poly_gate)
 
     c = t["process_parasitics"]["capacitance"]
     over = [o for o in c["overlaps"] if o["bottom_layer_name"] == "Poly2"]

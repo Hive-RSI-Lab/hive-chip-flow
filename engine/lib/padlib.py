@@ -337,28 +337,41 @@ def wrap_subckt_pads(netlist_text: str, ua_pins: list[str],
     instance line to rewrite. Instead the block's subckt is renamed
     `<name>__core`, and a wrapper with the block's own name and ports puts
     the core behind a pad on each ua pin: the bench loads the same name and
-    gets the pin through the pad. The block is the one subckt that no
-    other subckt in the file instantiates and whose ports hold every ua
-    pin; none, or more than one, is refused (PadRefused), since a pad put
-    on the wrong subckt would leave the real pin bare.
+    gets the pin through the pad. The block is the one subckt whose ports
+    hold every ua pin and that no other such subckt instantiates: the
+    outermost one carrying the pins. It may sit under the subckt the bench
+    loads, since cocotbext-ams gives that one only the bridged digital
+    pins and the supplies, so a block whose ua pins are analog only (a
+    PLL's VCTRL) keeps them on an inner subckt the bench's wrapper
+    instantiates. None, or more than one, is refused (PadRefused), since a
+    pad put on the wrong subckt would leave the real pin bare.
 
     Returns (text, block name, [{instance, port, node}])."""
     import netlistlib
     pins = netlistlib.subckt_pins(netlist_text)
+    want = {p.lower() for p in ua_pins}
+    carriers = {n for n, ports in pins.items()
+                if want <= {q.lower() for q in ports}}
+    # what each carrier (and the file's top level) instantiates
     used = set()
+    current = None
     for _a, _b, joined in _logical_lines(netlist_text):
-        if joined[0] in "xX":
-            names = [t for t in joined.split()[1:] if "=" not in t]
+        toks = joined.split()
+        word = toks[0].lower()
+        if word == ".subckt" and len(toks) > 1:
+            current = toks[1].lower()
+        elif word.startswith(".ends"):
+            current = None
+        elif word[0] == "x" and (current is None or current in carriers):
+            names = [t for t in toks[1:] if "=" not in t]
             if names:
                 used.add(names[-1].lower())
-    want = {p.lower() for p in ua_pins}
-    blocks = [n for n, ports in pins.items() if n not in used
-              and want <= {q.lower() for q in ports}]
+    blocks = [n for n in pins if n in carriers and n not in used]
     if len(blocks) != 1:
         found = ", ".join(sorted(pins)) or "none"
         raise PadRefused(
             "ua_pad_not_inserted",
-            f"{'no' if not blocks else 'more than one'} top-level subckt in "
+            f"{'no' if not blocks else 'more than one'} outermost subckt in "
             f"the cosim netlist has every ua pin ({', '.join(ua_pins)}) as "
             f"a port (subckts: {found}), so the pad model has nowhere "
             "definite to go")

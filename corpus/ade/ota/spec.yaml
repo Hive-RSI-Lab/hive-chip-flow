@@ -1,12 +1,17 @@
 top: two_stage_miller_ota
 supply:
   vdd: 3.3
-devices: [xmb, xmt, xm1, xm2, xm3, xm4, xm6, xm7, xcc]
+devices: [xmb, xmt, xm1, xm2, xm3, xm4, xm6, xm7, xrz, xcc]
 corners: default
 # the OTA runs in unity-gain feedback (out tied to inn): the loop must be
 # stable at every corner, so pm_deg is bound everywhere (spec_lint's
 # feedback rule, issue #100)
 feedback: true
+# every signal port leaves the Tiny Tapeout analog tile on a ua pad: the
+# board drives inp and ibias and closes the loop from out to inn. Each bench
+# runs bare and through TT's pad model (engine/lib/padlib.py, #112), and the
+# compensation (xrz + xcc) is sized for the pad's load (#297)
+ua_pins: [inp, inn, out, ibias]
 measures:
   # ota_stb_tb: Tian loop gain probed in the feedback wire (never broken), 2 pF load
   - name: pm_deg

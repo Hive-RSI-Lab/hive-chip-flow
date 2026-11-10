@@ -18,6 +18,7 @@
 .include '{pdk}/libs.tech/ngspice/design.spice'
 .lib '{pdk}/libs.tech/ngspice/sm141064.spice' {corner}
 .lib '{pdk}/libs.tech/ngspice/sm141064.spice' {mim_corner}
+.lib '{pdk}/libs.tech/ngspice/sm141064.spice' {res_corner}
 .include '{extracted}'
 .temp {temp_c}
 

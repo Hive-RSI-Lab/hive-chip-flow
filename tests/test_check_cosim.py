@@ -288,6 +288,39 @@ def test_wrap_subckt_pads_puts_the_block_behind_the_pad():
     assert ".subckt blk code_0 vout vdd vss" in text.splitlines()
 
 
+INNER_PAD_NETLIST = """* the bench loads cos (digital pins and supplies only); the
+* analog-only ua pin vctrl is a port of the inner blk alone
+.subckt blk up vctrl vdd vss
+r1 up vctrl 1k
+.ends blk
+.subckt cos up vdd vss
+xb up vctrl vdd vss blk
+c1 vctrl vss 1p
+.ends cos
+"""
+
+
+def test_wrap_subckt_pads_finds_an_inner_block_with_the_analog_pin():
+    import padlib
+    text, block, ins = padlib.wrap_subckt_pads(
+        INNER_PAD_NETLIST, ["vctrl"], padlib.pad_subckt("/pdk", "tt", 3.3))
+    assert block == "blk"
+    assert ins == [{"instance": "blk", "port": "vctrl", "node": "vctrl"}]
+    lines = text.splitlines()
+    assert ".subckt blk__core up vctrl vdd vss" in lines
+    assert "xcore up vctrl__ua_die_vctrl vdd vss blk__core" in lines
+    assert "xuapad_vctrl vctrl__ua_die_vctrl vctrl tt_ua_pad" in lines
+    # cos, the subckt the bench loads, still instantiates blk, now padded
+    assert "xb up vctrl vdd vss blk" in lines
+    assert ".subckt cos up vdd vss" in lines
+    # a carrier under another carrier is not the block: the outer one is
+    nested = INNER_PAD_NETLIST + (
+        ".subckt top up vctrl vdd vss\nxc up vdd vss cos\n"
+        "xd up vctrl vdd vss blk\n.ends top\n")
+    _t, outer, _i = padlib.wrap_subckt_pads(nested, ["vctrl"], "")
+    assert outer == "top"
+
+
 def test_wrap_subckt_pads_refuses_a_netlist_with_no_block_on_the_pin():
     import padlib
     with pytest.raises(padlib.PadRefused) as exc:

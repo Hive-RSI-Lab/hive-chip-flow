@@ -79,6 +79,7 @@ NGSPICE_LC = """\
 .include '{{PDK}}/libs.tech/ngspice/design.spice'
 .lib '{{PDK}}/libs.tech/ngspice/sm141064.spice' typical
 .lib '{{PDK}}/libs.tech/ngspice/sm141064.spice' mimcap_typical
+.lib '{{PDK}}/libs.tech/ngspice/sm141064.spice' res_typical
 .temp 27
 """ + DUT + """\
 .control
@@ -101,6 +102,7 @@ XYCE_LC = """\
 .include '{{PDK}}/libs.tech/xyce/design.xyce'
 .lib '{{PDK}}/libs.tech/xyce/sm141064.xyce' typical
 .lib '{{PDK}}/libs.tech/xyce/sm141064.xyce' mimcap_typical
+.lib '{{PDK}}/libs.tech/xyce/sm141064.xyce' res_typical
 .temp 27
 """ + DUT + """\
 .ac dec 40 1 100g

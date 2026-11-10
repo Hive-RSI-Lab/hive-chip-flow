@@ -161,6 +161,19 @@ def test_prepare_gds_cuts_a_poly_resistor(tmp_path):
     assert layer(110, 5) == []
 
 
+def test_prepare_gds_takes_a_high_rs_poly_resistor(tmp_path):
+    pytest.importorskip("klayout.db")
+    # a ppolyf_u_1k-style body: the ppolyf_u one inside the 62/0 implant
+    src = _gds(tmp_path / "a.gds",
+               [((30, 0), (0, 0, 10000, 2000)), ((110, 5), (1000, 0, 9000, 2000)),
+                ((62, 0), (-500, -500, 10500, 2500))])
+    dst = tmp_path / "k.gds"
+    assert kpexlib.prepare_gds(src, dst, "blk") == {"res_cuts": 1}
+    layer = _read(dst)
+    assert len(layer(30, 0)) == 2
+    assert layer(62, 0) == [] and layer(110, 5) == []
+
+
 @pytest.mark.parametrize("shape", [((62, 0), (0, 0, 1000, 1000)),
                                    # res_mk over no poly: a diffusion
                                    # resistor, say
@@ -211,6 +224,17 @@ def test_kpex_runner_files_metal5_under_the_name_its_cap_tables_use():
     m5 = [x for x in t["lvs_computed_layers"]
           if x["layer_info"]["name"] == "metal5_ncap"]
     assert [x["original_layer_name"] for x in m5] == ["Metal5"]
+
+
+def test_kpex_runner_stacks_the_gate_poly_just_below_poly2():
+    # kpex shields a fringe only with the layers between its two ends in
+    # the stack: a Poly2 edge's fringe to the substrate has to pass PolyGate,
+    # or the wire/gate seam the split draws fringes over the channel (2 fF
+    # on sensor_counted's osc_en that magic does not have)
+    import kpex_runner
+    t = kpex_runner.patched_tech(_tech())
+    names = [x["name"] for x in t["process_stack"]["layers"]]
+    assert names == ["PolyGate", "Poly2", "Metal5"]
 
 
 def test_kpex_runner_refuses_a_tech_without_metal5_con():

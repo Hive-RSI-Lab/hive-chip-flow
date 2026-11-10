@@ -10,11 +10,16 @@ The message names why:
 
 - the analog spec has no `supply.vdd`, which the pad's ESD diodes return to;
 - no `tb/test_*.py` names `analog_netlist`, so there is no netlist to wrap;
-- no single top-level subckt in that netlist has every ua pin as a port
-  (none, or more than one).
+- no single outermost subckt in that netlist has every ua pin as a port
+  (none, or more than one): the pad goes on the subckt that carries them
+  all and that no other such subckt instantiates.
 
-Fix the cosim bench or the analog netlist so one block subckt, instantiated
-by nothing else in the file, carries every `ua_pins` entry as a port.
+Fix the cosim bench or the analog netlist so one block subckt carries every
+`ua_pins` entry as a port. It may be the subckt the bench loads, or, when a
+ua pin is analog only and so cannot be a port of the loaded subckt
+(cocotbext-ams gives that one just the bridged digital pins and the
+supplies), an inner subckt the loaded one instantiates, with the ua pins
+as its ports.
 Triage it to the integrator.
 
 **Trap:** do not remove the pin from `ua_pins` or rename the port to dodge
