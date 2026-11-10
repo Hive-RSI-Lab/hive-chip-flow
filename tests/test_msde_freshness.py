@@ -33,7 +33,7 @@ import yaml  # noqa: E402
 import state as state_mod  # noqa: E402
 import statelib  # noqa: E402
 
-MSDE_GATES = ("split", "cosim", "top_harden", "top_drc", "top_lvs",
+MSDE_GATES = ("split", "cosim", "top_harden", "top_drc", "top_lvs", "top_erc",
               "precheck", "release")
 
 
@@ -171,7 +171,7 @@ PLANTED = {
     "pads in analog_spec.yaml": (
         lambda ws: _edit_yaml(ws / "analog_spec.yaml",
                               lambda d: _set(d, ["pads"], ["vout", "vref"])),
-        {"split", "release"}),
+        {"split", "top_erc", "release"}),
     # reference_cell reads the analog spec's top; cosim names the frame's
     # macro model after it (#208)
     "top in analog/spec/spec.yaml": (
@@ -191,7 +191,7 @@ PLANTED = {
     "top/macros .subckt": (
         lambda ws: (lambda: _w(ws / "top" / "macros" / "blk_analog.spice",
                                ".subckt blk_analog x\n.ends\n")),
-        {"top_lvs"}),
+        {"top_lvs", "top_erc"}),
     # #164: precheck copies the LEF into its design dir and release stages
     # it; release archives the SDF and SPEF, which no other gate reads
     "top LEF": (
@@ -209,7 +209,7 @@ PLANTED = {
     "top powered netlist": (
         lambda ws: (lambda: _w(ws / "top" / "harden" / "runs" / "run" /
                                "final" / "pnl" / "t.v", "N2")),
-        {"top_lvs"}),
+        {"top_lvs", "top_erc"}),
 }
 
 
