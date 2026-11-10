@@ -46,7 +46,8 @@ the spines: its top plate is d2 (the netlist's first terminal) and comes
 out on metal5 to a via4+via3 stack on the d2 spine. xrz, its nulling
 resistor (a 2um x 25.5um ppolyf_u, #297), lies below the cap: its left
 terminal goes up a via1/via2/via3 stack to a metal4 strip into the bottom
-plate (dz), its right terminal on metal2 to the out spine. Every strap
+plate (dz), its right terminal on metal2 to the out spine, landing on a
+2x2 via2 (em_ir puts out's whole current through it). Every strap
 stays as short as the old cap's were, so each spine end of a wire is
 within reach of a node of magic's FastHenry geometry (em_ir). xrz carries
 its own substrate contact; the substrate is vss. It is a ppolyf_u, not the
@@ -472,8 +473,15 @@ def generate():
     bx = r5(cx_of(pb))
     via(top, bx, y_rz, "via1", M1, M2)
     rect(top, bx - 0.2, y_rz - 0.2, px["out"], y_rz + 0.2, M2)
-    via(top, px["out"], y_rz, "via2", M2, M3)
-    spine_y["out"] += [y_rz - 0.2, y_rz + 0.2]
+    # the via2 there carries out's full current in em_ir (0.205 mA, over
+    # one cut's 0.18): a spine-wide landing hung below the strap, clear of
+    # the out track above, takes a 2x2 array
+    ow = SPINE_W["out"]
+    lb = (px["out"] - ow / 2, y_rz + 0.2 - ow, px["out"] + ow / 2, y_rz + 0.2)
+    rect(top, *lb, M2)
+    rect(top, *lb, M3)
+    via_array(top, *lb, "via2")
+    spine_y["out"] += [lb[1], lb[3]]
     for net, sx in spine_x.items():
         w = SPINE_W[net]
         rect(top, sx - w / 2, min(spine_y[net]), sx + w / 2,
