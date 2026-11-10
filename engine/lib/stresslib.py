@@ -67,6 +67,12 @@ def find_sidecar(ws: Path, block: str) -> Path | None:
 
 
 def _number(raw, what: str) -> float:
+    # PyYAML reads an exponent with no decimal point (8e-08) as a string.
+    if isinstance(raw, str):
+        try:
+            raw = float(raw)
+        except ValueError:
+            pass
     if isinstance(raw, bool) or not isinstance(raw, (int, float)) or raw != raw:
         raise CheckError(f"{what} must be a number, not {raw!r}")
     return float(raw)

@@ -402,3 +402,10 @@ def test_stage_reads_a_real_ngspice_raw(tmp_path, monkeypatch):
     # gate pair to a rail at 0 V
     assert "X0" in facts["devices_failing"], facts
     assert any("of a cycle" in v["msg"] for v in violations), violations
+
+
+def test_exponent_read_as_string_is_a_number():
+    # PyYAML gives "8e-08" back as a string; the sidecar must still load.
+    assert stresslib._number("8e-08", "w period_s") == pytest.approx(8e-08)
+    with pytest.raises(CheckError):
+        stresslib._number("eighty", "w period_s")
