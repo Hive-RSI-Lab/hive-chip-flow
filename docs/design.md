@@ -139,8 +139,9 @@ Mixed-signal (`/msde`):
 
 | gate | tool | passes when | planted fault it must catch |
 |---|---|---|---|
-| split | speclib over interface.yaml | every crossing signal appears in both specs with matching direction, level and domain | a control word width that differs between the two |
+| split | speclib over interface.yaml | every crossing signal appears in both specs with matching direction, level and domain; the typed version 2 interface; the nested digital spec's ports, when it exists | a control word width that differs between the two |
 | cosim | ngspice `d_cosim` running the Icarus-compiled digital side inside the analog bench | every top-level measure inside its bound | control word polarity inverted |
+| boundary | ngspice on the sized schematic, three STA corners | every a2d pin's swing and 10-90% edge into its declared load and every d2a pin's switching point inside its level in `engine/reference/levels.yaml` | an output stage supplied from 2.0 V |
 | top_drc | magic and klayout on the assembled GDS | 0 | a planted spacing violation |
 | top_lvs | netgen on the assembled GDS, the analog block as a subcircuit | match | a macro pin left unconnected |
 | release | attest, strict | both nested runs released, top gates fresh; every file in the staged tree held by a gate record (release/manifest.json) | a stale nested release |

@@ -11,12 +11,18 @@ they agree") plus the two side specs that must carry the same entries,
 <workspace>/digital_spec.yaml and <workspace>/analog_spec.yaml, each an
 `interface:` list of the same shape.
 
-Nested vde/ade workspaces (docs/design.md 1.4's P2 "the two nested runs")
-are not built yet at M10 - they arrive once M4 and M9 merge. Until then the
-two "specs carrying the same entries" are these two small top-level files,
-not a real nested block's spec.yaml `interface:` section; once nested runs
-land, this gate should read THOSE instead and these two files retire. That
-substitution is out of scope here (docs/design.md, "### M10." boundaries).
+Typed interface (#110, engine/lib/boundary.py): interface.yaml is `version:
+2`, each `level` is a name in engine/reference/levels.yaml and each `load` is
+`{cap_ff: N}` or `{pin: <cell>/<pin>}`. Findings: `interface_untyped`,
+`level_unknown`, `load_untyped`. The released blocks boundary.V1_BLOCKS names
+may stay on version 1 until they are measured.
+
+The nested digital spec: when digital/spec/spec.yaml exists, its `ports` must
+carry every crossing signal, a2d as an input and d2a as an output, at the
+interface's width (`nested_port_missing`, `nested_direction_mismatch`,
+`nested_width_mismatch`; a spec with no `ports` is `nested_ports_missing`).
+The nested analog spec has no port list; its `boundary:` section is read and
+held to the crossing pins by the boundary gate.
 
 Passes when every interface.yaml signal appears, by name, in both
 digital_spec.yaml's and analog_spec.yaml's `interface:` lists, with matching
@@ -65,6 +71,7 @@ from pathlib import Path
 SCRIPTS = Path(__file__).resolve().parent
 ENGINE = SCRIPTS.parent
 sys.path.insert(0, str(ENGINE / "lib"))
+import boundary  # noqa: E402
 import checklib  # noqa: E402
 from checklib import CheckError  # noqa: E402
 
@@ -151,6 +158,62 @@ def load_side_interface(path: Path, side: str) -> dict[str, dict]:
         name = sig.get("name")
         if isinstance(name, str) and name.strip():
             out[name] = {k: sig.get(k) for k in SIGNAL_FIELDS}
+    return out
+
+
+def typed_findings(path: Path, interface: dict[str, dict], ws: Path,
+                   levels: dict) -> list[tuple[str, str, str]]:
+    """(kind, signal, msg) for each place interface.yaml is not the typed
+    version 2 form (engine/lib/boundary.py). A released block named in
+    boundary.V1_BLOCKS may stay on version 1."""
+    version = boundary.interface_version(_load_yaml_mapping(path, "interface.yaml"))
+    if version != boundary.TYPED_VERSION:
+        if boundary.is_v1_block(ws):
+            return []
+        return [("interface_untyped", INTERFACE_REL,
+                 f"interface.yaml is version {version!r}: it must be version "
+                 f"{boundary.TYPED_VERSION}, with each level named in "
+                 "levels.yaml and each load typed")]
+    out = []
+    for name, sig in sorted(interface.items()):
+        if sig["level"] not in levels:
+            out.append(("level_unknown", name,
+                        f"{name!r} level {sig['level']!r} is not in "
+                        f"levels.yaml ({sorted(levels)})"))
+        problem = boundary.load_problem(sig["load"])
+        if problem:
+            out.append(("load_untyped", name, f"{name!r}: {problem}"))
+    return out
+
+
+def nested_port_findings(interface: dict[str, dict],
+                         path: Path) -> list[tuple[str, str, str]]:
+    """(kind, signal, msg) for each crossing signal the nested digital
+    spec's `ports` disagrees with: a2d is one of its inputs, d2a an output."""
+    ports = _load_yaml_mapping(path, "digital spec").get("ports")
+    if not isinstance(ports, dict):
+        return [("nested_ports_missing", DIGITAL_NESTED_SPEC,
+                 f"{DIGITAL_NESTED_SPEC} has no 'ports' mapping to compare "
+                 "the crossing signals with")]
+    out = []
+    for name, sig in sorted(interface.items()):
+        port = ports.get(name)
+        if not isinstance(port, dict):
+            out.append(("nested_port_missing", name,
+                        f"{name!r} is in interface.yaml but not in "
+                        f"{DIGITAL_NESTED_SPEC}'s ports"))
+            continue
+        want = {"a2d": "input", "d2a": "output"}.get(sig["direction"])
+        if port.get("dir") != want:
+            out.append(("nested_direction_mismatch", name,
+                        f"{name!r} is {sig['direction']} in interface.yaml, so "
+                        f"{DIGITAL_NESTED_SPEC} must have it as {want}, not "
+                        f"{port.get('dir')!r}"))
+        if port.get("width") != sig["width"]:
+            out.append(("nested_width_mismatch", name,
+                        f"{name!r} width disagrees: interface.yaml says "
+                        f"{sig['width']!r}, {DIGITAL_NESTED_SPEC} says "
+                        f"{port.get('width')!r}"))
     return out
 
 
@@ -254,6 +317,10 @@ def run(argv=None):
         violations.append(checklib.violation(
             "split", "error", INTERFACE_REL, None, kind, refs, msg, "check_split"))
 
+    for kind, name, msg in typed_findings(interface_path, interface, ws,
+                                          boundary.load_levels()):
+        bad(kind, [name], msg)
+
     for name, canon in sorted(interface.items()):
         for side, entries in sides.items():
             if name not in entries:
@@ -264,6 +331,9 @@ def run(argv=None):
             side_entry = entries[name]
             for field in SIGNAL_FIELDS:
                 want, got = canon.get(field), side_entry.get(field)
+                if field == "load":
+                    want = boundary.comparable_load(want)
+                    got = boundary.comparable_load(got)
                 if want != got:
                     kind = f"{field}_mismatch"
                     bad(kind, [name],
@@ -300,6 +370,9 @@ def run(argv=None):
            "or it never reaches a pad")
 
     if (ws / DIGITAL_NESTED_SPEC).is_file():
+        for kind, name, msg in nested_port_findings(interface,
+                                                    ws / DIGITAL_NESTED_SPEC):
+            bad(kind, [name], msg)
         clocks = digital_clock_domains(ws / DIGITAL_NESTED_SPEC)
         for kind, name, msg in cdc_findings(
                 interface, clocks, load_cdc_ports(ws / DIGITAL_CDC)):

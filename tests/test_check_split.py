@@ -6,6 +6,8 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import pytest
+
 REPO = Path(__file__).resolve().parents[1]
 ENGINE = REPO / "engine"
 SCRIPTS = ENGINE / "scripts"
@@ -16,20 +18,20 @@ import check_split  # noqa: E402
 from checklib import CheckError  # noqa: E402
 
 INTERFACE = """\
-version: 1
+version: 2
 signals:
   - name: osc_out
     direction: a2d
     level: cmos_3v3
     domain: clk_free
     width: 1
-    load: 2pF
+    load: {cap_ff: 2000}
   - name: osc_en
     direction: d2a
     level: cmos_3v3
     domain: clk_sys
     width: 1
-    load: 4pF
+    load: {cap_ff: 4000}
 """
 
 DIGITAL_SPEC = """\
@@ -40,13 +42,13 @@ interface:
     level: cmos_3v3
     domain: clk_free
     width: 1
-    load: 2pF
+    load: {cap_ff: 2000}
   - name: osc_en
     direction: d2a
     level: cmos_3v3
     domain: clk_sys
     width: 1
-    load: 4pF
+    load: {cap_ff: 4000}
 """
 
 ANALOG_SPEC = DIGITAL_SPEC.replace("sensor_counted_digital", "sensor_counted_analog")
@@ -96,8 +98,8 @@ def test_load_mismatch_caught(tmp_path):
     # `load` used to be read into canon/side dicts but never compared - a
     # differing load slipped through silently.
     analog = ANALOG_SPEC.replace(
-        "    width: 1\n    load: 4pF\n",
-        "    width: 1\n    load: 8pF\n", 1)
+        "    width: 1\n    load: {cap_ff: 4000}\n",
+        "    width: 1\n    load: {cap_ff: 8000}\n", 1)
     ws = make_ws(tmp_path, analog=analog)
     payload, _out = check_split.run(["--workspace", str(ws)])
     assert payload["status"] == "violations"
@@ -191,7 +193,7 @@ def test_missing_load_is_refused(tmp_path):
 def test_name_only_entry_is_refused(tmp_path):
     # The exact shape of the original bug: an entry with only a name.
     interface = """\
-version: 1
+version: 2
 signals:
   - name: osc_out
   - name: osc_en
@@ -199,7 +201,7 @@ signals:
     level: cmos_3v3
     domain: clk_sys
     width: 1
-    load: 4pF
+    load: {cap_ff: 4000}
 """
     ws = make_ws(tmp_path, interface=interface)
     try:
@@ -218,10 +220,10 @@ signals:
 PAD_SIGNAL = """\
   - name: vctrl
     direction: a2d
-    level: analog
+    level: cmos_3v3
     domain: clk_free
     width: 1
-    load: "PLL control voltage pad"
+    load: {cap_ff: 1000, note: PLL control voltage pad}
 """
 
 
@@ -321,11 +323,16 @@ def test_corpus_rungs_pass_split():
 
 # --- #169: the digital side's spec/cdc.yaml against the interface ---------
 
-def _nested_digital(ws: Path, clocks=("clk",), cdc=None) -> None:
+NESTED_PORTS = ("  osc_out: {dir: input, width: 1}\n"
+                "  osc_en: {dir: output, width: 1}\n")
+
+
+def _nested_digital(ws: Path, clocks=("clk",), cdc=None,
+                    ports=NESTED_PORTS) -> None:
     spec = ws / "digital" / "spec"
     spec.mkdir(parents=True)
     (spec / "spec.yaml").write_text(
-        f"top: sensor_counted_digital\nclock:\n  domains: {list(clocks)}\n",
+        f"top: sensor_counted_digital\nports:\n{ports}clock:\n  domains: {list(clocks)}\n",
         encoding="utf-8")
     if cdc is not None:
         (spec / "cdc.yaml").write_text(cdc, encoding="utf-8")
@@ -463,3 +470,68 @@ def test_blocks_split_cdc_ports():
         assert payload["cdc"]["async_ports"] == [], blk
         assert not [v for v in payload["violations"]
                     if v["kind"].startswith("cdc_")], blk
+
+
+# --- #110: interface version 2 and the nested digital ports --------------
+
+def test_version_1_interface_fails_outside_the_released_blocks(tmp_path):
+    ws = make_ws(tmp_path, interface=INTERFACE.replace("version: 2", "version: 1"))
+    payload, _ = check_split.run(["--workspace", str(ws)])
+    assert "interface_untyped" in {v["kind"] for v in payload["violations"]}
+
+
+def test_version_1_is_kept_for_a_named_released_block(tmp_path):
+    root = tmp_path / "blocks"
+    root.mkdir()
+    ws = make_ws(tmp_path, interface=INTERFACE.replace("version: 2", "version: 1"))
+    pll = ws.rename(root / "pll")
+    payload, _ = check_split.run(["--workspace", str(pll)])
+    assert "interface_untyped" not in {v["kind"] for v in payload["violations"]}
+
+
+def _swap_everywhere(text: str, old: str, new: str) -> str:
+    assert old in text
+    return text.replace(old, new)
+
+
+def test_unknown_level_fails(tmp_path):
+    ws = make_ws(
+        tmp_path,
+        interface=_swap_everywhere(INTERFACE, "cmos_3v3", "ttl_5v"),
+        digital=_swap_everywhere(DIGITAL_SPEC, "cmos_3v3", "ttl_5v"),
+        analog=_swap_everywhere(ANALOG_SPEC, "cmos_3v3", "ttl_5v"))
+    payload, _ = check_split.run(["--workspace", str(ws)])
+    assert "level_unknown" in {v["kind"] for v in payload["violations"]}
+
+
+def test_string_load_fails_even_when_all_three_agree(tmp_path):
+    ws = make_ws(
+        tmp_path,
+        interface=_swap_everywhere(INTERFACE, "{cap_ff: 2000}", "2pF"),
+        digital=_swap_everywhere(DIGITAL_SPEC, "{cap_ff: 2000}", "2pF"),
+        analog=_swap_everywhere(ANALOG_SPEC, "{cap_ff: 2000}", "2pF"))
+    payload, _ = check_split.run(["--workspace", str(ws)])
+    assert "load_untyped" in {v["kind"] for v in payload["violations"]}
+
+
+@pytest.mark.parametrize("ports, kind", [
+    ("  osc_out: {dir: input, width: 2}\n  osc_en: {dir: output, width: 1}\n",
+     "nested_width_mismatch"),
+    ("  osc_out: {dir: output, width: 1}\n  osc_en: {dir: output, width: 1}\n",
+     "nested_direction_mismatch"),
+    ("  osc_en: {dir: output, width: 1}\n", "nested_port_missing")])
+def test_nested_digital_port_disagreement_fails(tmp_path, ports, kind):
+    ws = make_ws(tmp_path)
+    _nested_digital(ws, ports=ports)
+    payload, _ = check_split.run(["--workspace", str(ws)])
+    assert kind in {v["kind"] for v in payload["violations"]}
+
+
+def test_nested_digital_spec_with_no_ports_fails(tmp_path):
+    ws = make_ws(tmp_path)
+    spec = ws / "digital" / "spec"
+    spec.mkdir(parents=True)
+    (spec / "spec.yaml").write_text("top: x\nclock:\n  domains: [clk]\n",
+                                    encoding="utf-8")
+    payload, _ = check_split.run(["--workspace", str(ws)])
+    assert "nested_ports_missing" in {v["kind"] for v in payload["violations"]}

@@ -75,6 +75,7 @@ ENGINE = SCRIPTS.parent
 sys.path.insert(0, str(SCRIPTS))
 sys.path.insert(0, str(ENGINE / "lib"))
 
+import boundary  # noqa: E402
 import checklib  # noqa: E402
 import corners as corners_mod  # noqa: E402
 import gate as gate_mod  # noqa: E402
@@ -196,7 +197,7 @@ def applicable_gates(skill: str, imap: dict | None = None) -> list[str]:
     below - /ade's `mc`, /vde's `cdc`) still appears in checks.json, as an ok
     entry that did not run and says why, bound to spec.yaml's hash so
     attest.verify() notices the spec changing afterwards. It is never
-    dropped from the list.
+    dropped from the list. owed_gates below is the one per-block subtraction.
 
     The one gate left out is `release` itself: check_release.py calls
     build() to decide release, so counting release among the gates it owes
@@ -246,6 +247,30 @@ def _cdc_not_applicable(ws: Path) -> str | None:
         return None
 
 
+def _boundary_not_applicable(ws: Path) -> str | None:
+    """/msde's `boundary`, not applicable only with no crossing pin."""
+    import check_boundary
+    return check_boundary.not_applicable_at_release(ws)
+
+
+def owed_gates(ws: Path, skill: str, imap: dict | None = None) -> list[str]:
+    """applicable_gates, less `boundary` for a released block that
+    engine/lib/boundary.py's V1_BLOCKS names while it is still on interface
+    version 1. That list is two names a test pins, not a carve-out a block
+    can opt into: each block leaves it by moving to version 2."""
+    gates = applicable_gates(skill, imap)
+    if skill != "msde" or not boundary.is_v1_block(ws):
+        return gates
+    import yaml
+    try:
+        data = yaml.safe_load((Path(ws) / "interface.yaml").read_text(encoding="utf-8"))
+    except (OSError, yaml.YAMLError):
+        return gates
+    if boundary.interface_version(data or {}) == boundary.TYPED_VERSION:
+        return gates
+    return [g for g in gates if g != "boundary"]
+
+
 def _macro_lib_not_applicable(ws: Path) -> str | None:
     """/msde's `macro_lib`, not applicable only when the analog spec declares
     no macro_timing and the macro has no crossing pin (#177): every macro with
@@ -268,7 +293,8 @@ def _layout_match_not_applicable(ws: Path) -> str | None:
 NOT_APPLICABLE = {("ade", "mc"): _mc_not_applicable,
                   ("ade", "layout_match"): _layout_match_not_applicable,
                   ("vde", "cdc"): _cdc_not_applicable,
-                  ("msde", "macro_lib"): _macro_lib_not_applicable}
+                  ("msde", "macro_lib"): _macro_lib_not_applicable,
+                  ("msde", "boundary"): _boundary_not_applicable}
 
 
 def not_applicable_reason(ws: Path, skill: str, gate: str) -> str | None:
@@ -368,7 +394,7 @@ def build(ws: Path, max_report_age_h: float = 24.0) -> tuple[dict | None, list[s
         return None, [str(exc)]
     checks = [gate_check(ws, skill, g, data, imap, fresh, waivers,
                          skill_rows.get(g))
-             for g in applicable_gates(skill, imap)]
+             for g in owed_gates(ws, skill, imap)]
     problems = []
     for c in checks:
         if c.get("ok"):
@@ -579,7 +605,7 @@ def disposition(ws: Path) -> dict:
     imap = statelib.load_map()
     fresh = statelib.freshness_report(data, ws, imap)
     checks = [gate_check(ws, skill, g, data, imap, fresh)
-             for g in applicable_gates(skill, imap)]
+             for g in owed_gates(ws, skill, imap)]
     failing = [c["gate"] for c in checks if c.get("status") == "fail"]
     if skill == "msde":
         for side in NESTED:

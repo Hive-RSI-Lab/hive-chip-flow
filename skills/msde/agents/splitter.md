@@ -23,11 +23,13 @@ JSON out, exit 0/1/2. Keep output ASCII. **No web tools.**
   answer for the block you are splitting.
 
 ## Outputs (workspace-relative)
-- `interface.yaml` - `version: 1`, `signals:`; each entry has `name`,
+- `interface.yaml` - `version: 2`, `signals:`; each entry has `name`,
   `direction` (`a2d` analog drives digital, `d2a` digital drives analog),
-  `level` (e.g. `cmos_3v3`), `domain` (the clock domain, or `clk_free`
-  for an asynchronous analog output), `width` and `load`. Every field,
-  every entry - `check_split.py` refuses an incomplete one.
+  `level` (a name in `engine/reference/levels.yaml`, e.g. `cmos_3v3`),
+  `domain` (the clock domain, or `clk_free` for an asynchronous analog
+  output), `width` and `load`, either `{cap_ff: N}` or
+  `{pin: <liberty cell>/<pin>}`, with an optional `count` and `note`. Every
+  field, every entry - `check_split.py` refuses an incomplete one.
 - `digital_spec.yaml` - `top` plus an `interface:` list carrying the same
   entries, field for field.
 - `analog_spec.yaml` - the same, for the analog side, plus `pads:` - a

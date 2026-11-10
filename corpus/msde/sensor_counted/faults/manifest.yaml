@@ -66,3 +66,23 @@ faults:
     gate: release
     plant: plant_release.py
     expect: {status: fail, kind: nested_not_released}
+  - name: boundary_output_stage_on_low_rail
+    gate: boundary
+    plant: plant_boundary_swing.py
+    expect: {status: fail, kind: boundary_swing}
+  - name: boundary_output_stage_too_weak
+    gate: boundary
+    plant: plant_boundary_transition.py
+    expect: {status: fail, kind: boundary_transition}
+  - name: boundary_section_missing
+    gate: boundary
+    plant: plant_boundary_undeclared.py
+    expect: {status: fail, kind: boundary_undeclared}
+  - name: boundary_observe_missing
+    gate: boundary
+    plant: plant_boundary_incomplete.py
+    expect: {status: refused, error: "has no observe"}
+  - name: split_nested_digital_width
+    gate: split
+    plant: plant_nested_width_mismatch.py
+    expect: {status: fail, kind: nested_width_mismatch}
