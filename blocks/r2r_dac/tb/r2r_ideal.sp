@@ -10,10 +10,13 @@
 *
 * Values: ru = 27k, the analog side's nominal unit R (sizing.yaml: 26.99k,
 * each 2R branch trimmed to 2R including driver Ron, so an ideal 0-ohm
-* switch + 2R is the same Thevenin network). Pad load = the analog spec's
-* stated assumption, 100 ohm in series with 7 pF to vss.
+* switch + 2R is the same Thevenin network). No pad load in here: vout is
+* on ua[0] (interface.yaml ua_pins), so cosim's pad run wraps this subckt in
+* TT's real ua path (engine/lib/padlib.py: 500 ohm, 5 pF, the ESD diodes).
+* The hand-made 100 ohm + 7 pF this used to carry stood in for that pad;
+* kept, it would sit on the die side of the real pad and count it twice.
 .subckt r2r_dac_ideal dac_code_0 dac_code_1 dac_code_2 dac_code_3 dac_code_4 dac_code_5 dac_code_6 dac_code_7 vout vdd vss
-.param ru=27k rpad=100 cpad=7p
+.param ru=27k
 * ideal switch drivers, bit 7 = MSB
 bd0 d0 vss v = v(dac_code_0,vss) > 0.5*v(vdd,vss) ? v(vdd,vss) : 0
 bd1 d1 vss v = v(dac_code_1,vss) > 0.5*v(vdd,vss) ? v(vdd,vss) : 0
@@ -42,7 +45,4 @@ rs1 n2 n1 {ru}
 rs0 n1 n0 {ru}
 * LSB termination 2R to vss
 rt n0 vss {2*ru}
-* assumed pad load
-rp vout np {rpad}
-cp np vss {cpad}
 .ends r2r_dac_ideal
