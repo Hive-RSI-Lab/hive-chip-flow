@@ -31,1141 +31,21 @@
    "line": null,
    "kind": "possible_leak",
    "refs": [
-    "X2",
-    "a_36752_5556#",
-    "d7",
-    "vdd"
-   ],
-   "msg": "X2 (+19 parallel) pfet_05v0 w=1.22u l=0.5u at one of 20 places (positions): pmos possible leak errors - gate a_36752_5556# 0..3.3 V; source d7 0 V; drain vdd 3.3 V; bulk vdd 3.3 V",
-   "source": "cvc",
-   "items": [
-    {
-     "msg": "X2 (+19 parallel) pfet_05v0 w=1.22u l=0.5u at one of 20 places (positions): pmos possible leak errors - gate a_36752_5556# 0..3.3 V; source d7 0 V; drain vdd 3.3 V; bulk vdd 3.3 V",
-     "file": "layout",
-     "line": null
-    }
-   ],
-   "device": "X2",
-   "refdes": null,
-   "model": "pfet_05v0",
-   "terminals": {
-    "gate": {
-     "net": "a_36752_5556#",
-     "min_v": 0.0,
-     "max_v": 3.3
-    },
-    "source": {
-     "net": "d7",
-     "min_v": 0.0,
-     "max_v": 0.0
-    },
-    "drain": {
-     "net": "vdd",
-     "min_v": 3.3,
-     "max_v": 3.3
-    },
-    "bulk": {
-     "net": "vdd",
-     "min_v": 3.3,
-     "max_v": 3.3
-    }
-   },
-   "nets": {
-    "d": "vdd",
-    "g": "a_36752_5556#",
-    "s": "d7",
-    "b": "vdd"
-   },
-   "cvc_check": "pmos possible leak errors",
-   "cvc_detail": null,
-   "position": null,
-   "positions": [
-    [
-     215.74,
-     27.78
-    ],
-    [
-     214.62,
-     27.78
-    ],
-    [
-     213.5,
-     27.78
-    ],
-    [
-     212.38,
-     27.78
-    ],
-    [
-     211.26,
-     27.78
-    ],
-    [
-     210.14,
-     27.78
-    ],
-    [
-     209.02,
-     27.78
-    ],
-    [
-     207.9,
-     27.78
-    ],
-    [
-     206.78,
-     27.78
-    ],
-    [
-     205.66,
-     27.78
-    ],
-    [
-     204.54,
-     27.78
-    ],
-    [
-     203.42,
-     27.78
-    ],
-    [
-     202.3,
-     27.78
-    ],
-    [
-     201.18,
-     27.78
-    ],
-    [
-     200.06,
-     27.78
-    ],
-    [
-     198.94,
-     27.78
-    ],
-    [
-     197.82,
-     27.78
-    ],
-    [
-     196.7,
-     27.78
-    ],
-    [
-     195.58,
-     27.78
-    ],
-    [
-     194.46,
-     27.78
-    ]
-   ],
-   "parallel": [
-    "X240",
-    "X337",
-    "X380",
-    "X403",
-    "X412",
-    "X428",
-    "X432",
-    "X435",
-    "X440",
-    "X442",
-    "X453",
-    "X455",
-    "X463",
-    "X471",
-    "X475",
-    "X477",
-    "X483",
-    "X493",
-    "X500"
-   ]
-  },
-  {
-   "check": "analog_erc",
-   "severity": "warning",
-   "file": "layout",
-   "module": "r2r_dac_analog",
-   "line": null,
-   "kind": "possible_leak",
-   "refs": [
-    "X4",
-    "a_36752_472#",
-    "d0",
-    "vdd"
-   ],
-   "msg": "X4 (+19 parallel) pfet_05v0 w=1.22u l=0.5u at one of 20 places (positions): pmos possible leak errors - gate a_36752_472# 0..3.3 V; source d0 0 V; drain vdd 3.3 V; bulk vdd 3.3 V",
-   "source": "cvc",
-   "items": [
-    {
-     "msg": "X4 (+19 parallel) pfet_05v0 w=1.22u l=0.5u at one of 20 places (positions): pmos possible leak errors - gate a_36752_472# 0..3.3 V; source d0 0 V; drain vdd 3.3 V; bulk vdd 3.3 V",
-     "file": "layout",
-     "line": null
-    }
-   ],
-   "device": "X4",
-   "refdes": null,
-   "model": "pfet_05v0",
-   "terminals": {
-    "gate": {
-     "net": "a_36752_472#",
-     "min_v": 0.0,
-     "max_v": 3.3
-    },
-    "source": {
-     "net": "d0",
-     "min_v": 0.0,
-     "max_v": 0.0
-    },
-    "drain": {
-     "net": "vdd",
-     "min_v": 3.3,
-     "max_v": 3.3
-    },
-    "bulk": {
-     "net": "vdd",
-     "min_v": 3.3,
-     "max_v": 3.3
-    }
-   },
-   "nets": {
-    "d": "vdd",
-    "g": "a_36752_472#",
-    "s": "d0",
-    "b": "vdd"
-   },
-   "cvc_check": "pmos possible leak errors",
-   "cvc_detail": null,
-   "position": null,
-   "positions": [
-    [
-     215.74,
-     2.36
-    ],
-    [
-     214.62,
-     2.36
-    ],
-    [
-     213.5,
-     2.36
-    ],
-    [
-     212.38,
-     2.36
-    ],
-    [
-     211.26,
-     2.36
-    ],
-    [
-     210.14,
-     2.36
-    ],
-    [
-     209.02,
-     2.36
-    ],
-    [
-     207.9,
-     2.36
-    ],
-    [
-     206.78,
-     2.36
-    ],
-    [
-     205.66,
-     2.36
-    ],
-    [
-     204.54,
-     2.36
-    ],
-    [
-     203.42,
-     2.36
-    ],
-    [
-     202.3,
-     2.36
-    ],
-    [
-     201.18,
-     2.36
-    ],
-    [
-     200.06,
-     2.36
-    ],
-    [
-     198.94,
-     2.36
-    ],
-    [
-     197.82,
-     2.36
-    ],
-    [
-     196.7,
-     2.36
-    ],
-    [
-     195.58,
-     2.36
-    ],
-    [
-     194.46,
-     2.36
-    ]
-   ],
-   "parallel": [
-    "X5",
-    "X8",
-    "X85",
-    "X92",
-    "X123",
-    "X159",
-    "X174",
-    "X210",
-    "X248",
-    "X307",
-    "X315",
-    "X332",
-    "X345",
-    "X364",
-    "X381",
-    "X418",
-    "X431",
-    "X459",
-    "X495"
-   ]
-  },
-  {
-   "check": "analog_erc",
-   "severity": "warning",
-   "file": "layout",
-   "module": "r2r_dac_analog",
-   "line": null,
-   "kind": "possible_leak",
-   "refs": [
-    "X7",
-    "a_36752_852#",
-    "d1",
-    "vdd"
-   ],
-   "msg": "X7 (+19 parallel) pfet_05v0 w=1.22u l=0.5u at one of 20 places (positions): pmos possible leak errors - gate a_36752_852# 0..3.3 V; source vdd 3.3 V; drain d1 0 V; bulk vdd 3.3 V",
-   "source": "cvc",
-   "items": [
-    {
-     "msg": "X7 (+19 parallel) pfet_05v0 w=1.22u l=0.5u at one of 20 places (positions): pmos possible leak errors - gate a_36752_852# 0..3.3 V; source vdd 3.3 V; drain d1 0 V; bulk vdd 3.3 V",
-     "file": "layout",
-     "line": null
-    }
-   ],
-   "device": "X7",
-   "refdes": null,
-   "model": "pfet_05v0",
-   "terminals": {
-    "gate": {
-     "net": "a_36752_852#",
-     "min_v": 0.0,
-     "max_v": 3.3
-    },
-    "source": {
-     "net": "vdd",
-     "min_v": 3.3,
-     "max_v": 3.3
-    },
-    "drain": {
-     "net": "d1",
-     "min_v": 0.0,
-     "max_v": 0.0
-    },
-    "bulk": {
-     "net": "vdd",
-     "min_v": 3.3,
-     "max_v": 3.3
-    }
-   },
-   "nets": {
-    "d": "d1",
-    "g": "a_36752_852#",
-    "s": "vdd",
-    "b": "vdd"
-   },
-   "cvc_check": "pmos possible leak errors",
-   "cvc_detail": null,
-   "position": null,
-   "positions": [
-    [
-     215.74,
-     4.26
-    ],
-    [
-     214.62,
-     4.26
-    ],
-    [
-     213.5,
-     4.26
-    ],
-    [
-     212.38,
-     4.26
-    ],
-    [
-     211.26,
-     4.26
-    ],
-    [
-     210.14,
-     4.26
-    ],
-    [
-     209.02,
-     4.26
-    ],
-    [
-     207.9,
-     4.26
-    ],
-    [
-     206.78,
-     4.26
-    ],
-    [
-     205.66,
-     4.26
-    ],
-    [
-     204.54,
-     4.26
-    ],
-    [
-     203.42,
-     4.26
-    ],
-    [
-     202.3,
-     4.26
-    ],
-    [
-     201.18,
-     4.26
-    ],
-    [
-     200.06,
-     4.26
-    ],
-    [
-     198.94,
-     4.26
-    ],
-    [
-     197.82,
-     4.26
-    ],
-    [
-     196.7,
-     4.26
-    ],
-    [
-     195.58,
-     4.26
-    ],
-    [
-     194.46,
-     4.26
-    ]
-   ],
-   "parallel": [
-    "X21",
-    "X31",
-    "X75",
-    "X91",
-    "X121",
-    "X184",
-    "X205",
-    "X206",
-    "X212",
-    "X298",
-    "X302",
-    "X335",
-    "X367",
-    "X385",
-    "X417",
-    "X449",
-    "X487",
-    "X494",
-    "X504"
-   ]
-  },
-  {
-   "check": "analog_erc",
-   "severity": "warning",
-   "file": "layout",
-   "module": "r2r_dac_analog",
-   "line": null,
-   "kind": "possible_leak",
-   "refs": [
-    "X19",
-    "a_36752_2420#",
-    "d3",
-    "vdd"
-   ],
-   "msg": "X19 (+19 parallel) pfet_05v0 w=1.22u l=0.5u at one of 20 places (positions): pmos possible leak errors - gate a_36752_2420# 0..3.3 V; source vdd 3.3 V; drain d3 0 V; bulk vdd 3.3 V",
-   "source": "cvc",
-   "items": [
-    {
-     "msg": "X19 (+19 parallel) pfet_05v0 w=1.22u l=0.5u at one of 20 places (positions): pmos possible leak errors - gate a_36752_2420# 0..3.3 V; source vdd 3.3 V; drain d3 0 V; bulk vdd 3.3 V",
-     "file": "layout",
-     "line": null
-    }
-   ],
-   "device": "X19",
-   "refdes": null,
-   "model": "pfet_05v0",
-   "terminals": {
-    "gate": {
-     "net": "a_36752_2420#",
-     "min_v": 0.0,
-     "max_v": 3.3
-    },
-    "source": {
-     "net": "vdd",
-     "min_v": 3.3,
-     "max_v": 3.3
-    },
-    "drain": {
-     "net": "d3",
-     "min_v": 0.0,
-     "max_v": 0.0
-    },
-    "bulk": {
-     "net": "vdd",
-     "min_v": 3.3,
-     "max_v": 3.3
-    }
-   },
-   "nets": {
-    "d": "d3",
-    "g": "a_36752_2420#",
-    "s": "vdd",
-    "b": "vdd"
-   },
-   "cvc_check": "pmos possible leak errors",
-   "cvc_detail": null,
-   "position": null,
-   "positions": [
-    [
-     215.74,
-     12.1
-    ],
-    [
-     214.62,
-     12.1
-    ],
-    [
-     213.5,
-     12.1
-    ],
-    [
-     212.38,
-     12.1
-    ],
-    [
-     211.26,
-     12.1
-    ],
-    [
-     210.14,
-     12.1
-    ],
-    [
-     209.02,
-     12.1
-    ],
-    [
-     207.9,
-     12.1
-    ],
-    [
-     206.78,
-     12.1
-    ],
-    [
-     205.66,
-     12.1
-    ],
-    [
-     204.54,
-     12.1
-    ],
-    [
-     203.42,
-     12.1
-    ],
-    [
-     202.3,
-     12.1
-    ],
-    [
-     201.18,
-     12.1
-    ],
-    [
-     200.06,
-     12.1
-    ],
-    [
-     198.94,
-     12.1
-    ],
-    [
-     197.82,
-     12.1
-    ],
-    [
-     196.7,
-     12.1
-    ],
-    [
-     195.58,
-     12.1
-    ],
-    [
-     194.46,
-     12.1
-    ]
-   ],
-   "parallel": [
-    "X26",
-    "X41",
-    "X45",
-    "X46",
-    "X55",
-    "X57",
-    "X67",
-    "X71",
-    "X80",
-    "X97",
-    "X104",
-    "X111",
-    "X119",
-    "X134",
-    "X149",
-    "X163",
-    "X405",
-    "X478",
-    "X502"
-   ]
-  },
-  {
-   "check": "analog_erc",
-   "severity": "warning",
-   "file": "layout",
-   "module": "r2r_dac_analog",
-   "line": null,
-   "kind": "possible_leak",
-   "refs": [
-    "X20",
-    "a_36752_3988#",
-    "d5",
-    "vdd"
-   ],
-   "msg": "X20 (+19 parallel) pfet_05v0 w=1.22u l=0.5u at one of 20 places (positions): pmos possible leak errors - gate a_36752_3988# 0..3.3 V; source d5 0 V; drain vdd 3.3 V; bulk vdd 3.3 V",
-   "source": "cvc",
-   "items": [
-    {
-     "msg": "X20 (+19 parallel) pfet_05v0 w=1.22u l=0.5u at one of 20 places (positions): pmos possible leak errors - gate a_36752_3988# 0..3.3 V; source d5 0 V; drain vdd 3.3 V; bulk vdd 3.3 V",
-     "file": "layout",
-     "line": null
-    }
-   ],
-   "device": "X20",
-   "refdes": null,
-   "model": "pfet_05v0",
-   "terminals": {
-    "gate": {
-     "net": "a_36752_3988#",
-     "min_v": 0.0,
-     "max_v": 3.3
-    },
-    "source": {
-     "net": "d5",
-     "min_v": 0.0,
-     "max_v": 0.0
-    },
-    "drain": {
-     "net": "vdd",
-     "min_v": 3.3,
-     "max_v": 3.3
-    },
-    "bulk": {
-     "net": "vdd",
-     "min_v": 3.3,
-     "max_v": 3.3
-    }
-   },
-   "nets": {
-    "d": "vdd",
-    "g": "a_36752_3988#",
-    "s": "d5",
-    "b": "vdd"
-   },
-   "cvc_check": "pmos possible leak errors",
-   "cvc_detail": null,
-   "position": null,
-   "positions": [
-    [
-     215.74,
-     19.94
-    ],
-    [
-     214.62,
-     19.94
-    ],
-    [
-     213.5,
-     19.94
-    ],
-    [
-     212.38,
-     19.94
-    ],
-    [
-     211.26,
-     19.94
-    ],
-    [
-     210.14,
-     19.94
-    ],
-    [
-     209.02,
-     19.94
-    ],
-    [
-     207.9,
-     19.94
-    ],
-    [
-     206.78,
-     19.94
-    ],
-    [
-     205.66,
-     19.94
-    ],
-    [
-     204.54,
-     19.94
-    ],
-    [
-     203.42,
-     19.94
-    ],
-    [
-     202.3,
-     19.94
-    ],
-    [
-     201.18,
-     19.94
-    ],
-    [
-     200.06,
-     19.94
-    ],
-    [
-     198.94,
-     19.94
-    ],
-    [
-     197.82,
-     19.94
-    ],
-    [
-     196.7,
-     19.94
-    ],
-    [
-     195.58,
-     19.94
-    ],
-    [
-     194.46,
-     19.94
-    ]
-   ],
-   "parallel": [
-    "X110",
-    "X154",
-    "X181",
-    "X193",
-    "X209",
-    "X215",
-    "X216",
-    "X225",
-    "X229",
-    "X243",
-    "X244",
-    "X251",
-    "X261",
-    "X270",
-    "X276",
-    "X284",
-    "X296",
-    "X310",
-    "X325"
-   ]
-  },
-  {
-   "check": "analog_erc",
-   "severity": "warning",
-   "file": "layout",
-   "module": "r2r_dac_analog",
-   "line": null,
-   "kind": "possible_leak",
-   "refs": [
-    "X30",
-    "a_36752_5176#",
-    "d6",
-    "vdd"
-   ],
-   "msg": "X30 (+19 parallel) pfet_05v0 w=1.22u l=0.5u at one of 20 places (positions): pmos possible leak errors - gate a_36752_5176# 0..3.3 V; source d6 0 V; drain vdd 3.3 V; bulk vdd 3.3 V",
-   "source": "cvc",
-   "items": [
-    {
-     "msg": "X30 (+19 parallel) pfet_05v0 w=1.22u l=0.5u at one of 20 places (positions): pmos possible leak errors - gate a_36752_5176# 0..3.3 V; source d6 0 V; drain vdd 3.3 V; bulk vdd 3.3 V",
-     "file": "layout",
-     "line": null
-    }
-   ],
-   "device": "X30",
-   "refdes": null,
-   "model": "pfet_05v0",
-   "terminals": {
-    "gate": {
-     "net": "a_36752_5176#",
-     "min_v": 0.0,
-     "max_v": 3.3
-    },
-    "source": {
-     "net": "d6",
-     "min_v": 0.0,
-     "max_v": 0.0
-    },
-    "drain": {
-     "net": "vdd",
-     "min_v": 3.3,
-     "max_v": 3.3
-    },
-    "bulk": {
-     "net": "vdd",
-     "min_v": 3.3,
-     "max_v": 3.3
-    }
-   },
-   "nets": {
-    "d": "vdd",
-    "g": "a_36752_5176#",
-    "s": "d6",
-    "b": "vdd"
-   },
-   "cvc_check": "pmos possible leak errors",
-   "cvc_detail": null,
-   "position": null,
-   "positions": [
-    [
-     215.74,
-     25.88
-    ],
-    [
-     214.62,
-     25.88
-    ],
-    [
-     213.5,
-     25.88
-    ],
-    [
-     212.38,
-     25.88
-    ],
-    [
-     211.26,
-     25.88
-    ],
-    [
-     210.14,
-     25.88
-    ],
-    [
-     209.02,
-     25.88
-    ],
-    [
-     207.9,
-     25.88
-    ],
-    [
-     206.78,
-     25.88
-    ],
-    [
-     205.66,
-     25.88
-    ],
-    [
-     204.54,
-     25.88
-    ],
-    [
-     203.42,
-     25.88
-    ],
-    [
-     202.3,
-     25.88
-    ],
-    [
-     201.18,
-     25.88
-    ],
-    [
-     200.06,
-     25.88
-    ],
-    [
-     198.94,
-     25.88
-    ],
-    [
-     197.82,
-     25.88
-    ],
-    [
-     196.7,
-     25.88
-    ],
-    [
-     195.58,
-     25.88
-    ],
-    [
-     194.46,
-     25.88
-    ]
-   ],
-   "parallel": [
-    "X125",
-    "X166",
-    "X195",
-    "X204",
-    "X222",
-    "X230",
-    "X231",
-    "X241",
-    "X245",
-    "X252",
-    "X253",
-    "X259",
-    "X275",
-    "X285",
-    "X288",
-    "X299",
-    "X312",
-    "X324",
-    "X339"
-   ]
-  },
-  {
-   "check": "analog_erc",
-   "severity": "warning",
-   "file": "layout",
-   "module": "r2r_dac_analog",
-   "line": null,
-   "kind": "possible_leak",
-   "refs": [
-    "X196",
-    "a_36752_2040#",
-    "d2",
-    "vdd"
-   ],
-   "msg": "X196 (+19 parallel) pfet_05v0 w=1.22u l=0.5u at one of 20 places (positions): pmos possible leak errors - gate a_36752_2040# 0..3.3 V; source d2 0 V; drain vdd 3.3 V; bulk vdd 3.3 V",
-   "source": "cvc",
-   "items": [
-    {
-     "msg": "X196 (+19 parallel) pfet_05v0 w=1.22u l=0.5u at one of 20 places (positions): pmos possible leak errors - gate a_36752_2040# 0..3.3 V; source d2 0 V; drain vdd 3.3 V; bulk vdd 3.3 V",
-     "file": "layout",
-     "line": null
-    }
-   ],
-   "device": "X196",
-   "refdes": null,
-   "model": "pfet_05v0",
-   "terminals": {
-    "gate": {
-     "net": "a_36752_2040#",
-     "min_v": 0.0,
-     "max_v": 3.3
-    },
-    "source": {
-     "net": "d2",
-     "min_v": 0.0,
-     "max_v": 0.0
-    },
-    "drain": {
-     "net": "vdd",
-     "min_v": 3.3,
-     "max_v": 3.3
-    },
-    "bulk": {
-     "net": "vdd",
-     "min_v": 3.3,
-     "max_v": 3.3
-    }
-   },
-   "nets": {
-    "d": "vdd",
-    "g": "a_36752_2040#",
-    "s": "d2",
-    "b": "vdd"
-   },
-   "cvc_check": "pmos possible leak errors",
-   "cvc_detail": null,
-   "position": null,
-   "positions": [
-    [
-     215.74,
-     10.2
-    ],
-    [
-     214.62,
-     10.2
-    ],
-    [
-     213.5,
-     10.2
-    ],
-    [
-     212.38,
-     10.2
-    ],
-    [
-     211.26,
-     10.2
-    ],
-    [
-     210.14,
-     10.2
-    ],
-    [
-     209.02,
-     10.2
-    ],
-    [
-     207.9,
-     10.2
-    ],
-    [
-     206.78,
-     10.2
-    ],
-    [
-     205.66,
-     10.2
-    ],
-    [
-     204.54,
-     10.2
-    ],
-    [
-     203.42,
-     10.2
-    ],
-    [
-     202.3,
-     10.2
-    ],
-    [
-     201.18,
-     10.2
-    ],
-    [
-     200.06,
-     10.2
-    ],
-    [
-     198.94,
-     10.2
-    ],
-    [
-     197.82,
-     10.2
-    ],
-    [
-     196.7,
-     10.2
-    ],
-    [
-     195.58,
-     10.2
-    ],
-    [
-     194.46,
-     10.2
-    ]
-   ],
-   "parallel": [
-    "X289",
-    "X329",
-    "X359",
-    "X374",
-    "X389",
-    "X395",
-    "X396",
-    "X404",
-    "X407",
-    "X414",
-    "X415",
-    "X424",
-    "X437",
-    "X448",
-    "X451",
-    "X458",
-    "X465",
-    "X473",
-    "X479"
-   ]
-  },
-  {
-   "check": "analog_erc",
-   "severity": "warning",
-   "file": "layout",
-   "module": "r2r_dac_analog",
-   "line": null,
-   "kind": "possible_leak",
-   "refs": [
-    "X224",
+    "X0",
     "a_36752_3608#",
     "d4",
     "vdd"
    ],
-   "msg": "X224 (+19 parallel) pfet_05v0 w=1.22u l=0.5u at one of 20 places (positions): pmos possible leak errors - gate a_36752_3608# 0..3.3 V; source d4 0 V; drain vdd 3.3 V; bulk vdd 3.3 V",
+   "msg": "X0 (+19 parallel) pfet_05v0 w=1.22u l=0.5u at one of 20 places (positions): pmos possible leak errors - gate a_36752_3608# 0..3.3 V; source d4 0 V; drain vdd 3.3 V; bulk vdd 3.3 V",
    "source": "cvc",
    "items": [
     {
-     "msg": "X224 (+19 parallel) pfet_05v0 w=1.22u l=0.5u at one of 20 places (positions): pmos possible leak errors - gate a_36752_3608# 0..3.3 V; source d4 0 V; drain vdd 3.3 V; bulk vdd 3.3 V",
+     "msg": "X0 (+19 parallel) pfet_05v0 w=1.22u l=0.5u at one of 20 places (positions): pmos possible leak errors - gate a_36752_3608# 0..3.3 V; source d4 0 V; drain vdd 3.3 V; bulk vdd 3.3 V",
      "file": "layout",
      "line": null
     }
    ],
-   "device": "X224",
+   "device": "X0",
    "refdes": null,
    "model": "pfet_05v0",
    "terminals": {
@@ -1282,25 +162,1145 @@
     ]
    ],
    "parallel": [
-    "X323",
-    "X363",
-    "X392",
-    "X400",
-    "X416",
-    "X422",
-    "X423",
-    "X430",
-    "X434",
-    "X441",
-    "X444",
-    "X452",
-    "X464",
-    "X469",
-    "X472",
-    "X476",
+    "X5",
+    "X11",
+    "X21",
+    "X30",
+    "X264",
+    "X360",
+    "X401",
+    "X431",
+    "X438",
+    "X454",
+    "X458",
+    "X461",
+    "X468",
+    "X473",
+    "X479",
     "X482",
-    "X492",
+    "X490",
+    "X502",
+    "X507"
+   ]
+  },
+  {
+   "check": "analog_erc",
+   "severity": "warning",
+   "file": "layout",
+   "module": "r2r_dac_analog",
+   "line": null,
+   "kind": "possible_leak",
+   "refs": [
+    "X1",
+    "a_36752_5556#",
+    "d7",
+    "vdd"
+   ],
+   "msg": "X1 (+19 parallel) pfet_05v0 w=1.22u l=0.5u at one of 20 places (positions): pmos possible leak errors - gate a_36752_5556# 0..3.3 V; source vdd 3.3 V; drain d7 0 V; bulk vdd 3.3 V",
+   "source": "cvc",
+   "items": [
+    {
+     "msg": "X1 (+19 parallel) pfet_05v0 w=1.22u l=0.5u at one of 20 places (positions): pmos possible leak errors - gate a_36752_5556# 0..3.3 V; source vdd 3.3 V; drain d7 0 V; bulk vdd 3.3 V",
+     "file": "layout",
+     "line": null
+    }
+   ],
+   "device": "X1",
+   "refdes": null,
+   "model": "pfet_05v0",
+   "terminals": {
+    "gate": {
+     "net": "a_36752_5556#",
+     "min_v": 0.0,
+     "max_v": 3.3
+    },
+    "source": {
+     "net": "vdd",
+     "min_v": 3.3,
+     "max_v": 3.3
+    },
+    "drain": {
+     "net": "d7",
+     "min_v": 0.0,
+     "max_v": 0.0
+    },
+    "bulk": {
+     "net": "vdd",
+     "min_v": 3.3,
+     "max_v": 3.3
+    }
+   },
+   "nets": {
+    "d": "d7",
+    "g": "a_36752_5556#",
+    "s": "vdd",
+    "b": "vdd"
+   },
+   "cvc_check": "pmos possible leak errors",
+   "cvc_detail": null,
+   "position": null,
+   "positions": [
+    [
+     215.74,
+     27.78
+    ],
+    [
+     214.62,
+     27.78
+    ],
+    [
+     213.5,
+     27.78
+    ],
+    [
+     212.38,
+     27.78
+    ],
+    [
+     211.26,
+     27.78
+    ],
+    [
+     210.14,
+     27.78
+    ],
+    [
+     209.02,
+     27.78
+    ],
+    [
+     207.9,
+     27.78
+    ],
+    [
+     206.78,
+     27.78
+    ],
+    [
+     205.66,
+     27.78
+    ],
+    [
+     204.54,
+     27.78
+    ],
+    [
+     203.42,
+     27.78
+    ],
+    [
+     202.3,
+     27.78
+    ],
+    [
+     201.18,
+     27.78
+    ],
+    [
+     200.06,
+     27.78
+    ],
+    [
+     198.94,
+     27.78
+    ],
+    [
+     197.82,
+     27.78
+    ],
+    [
+     196.7,
+     27.78
+    ],
+    [
+     195.58,
+     27.78
+    ],
+    [
+     194.46,
+     27.78
+    ]
+   ],
+   "parallel": [
+    "X4",
+    "X6",
+    "X12",
+    "X22",
+    "X29",
+    "X40",
+    "X278",
+    "X375",
+    "X417",
+    "X441",
+    "X450",
+    "X466",
+    "X471",
+    "X472",
+    "X478",
+    "X480",
+    "X491",
+    "X493",
     "X501"
+   ]
+  },
+  {
+   "check": "analog_erc",
+   "severity": "warning",
+   "file": "layout",
+   "module": "r2r_dac_analog",
+   "line": null,
+   "kind": "possible_leak",
+   "refs": [
+    "X2",
+    "a_36752_2040#",
+    "d2",
+    "vdd"
+   ],
+   "msg": "X2 (+19 parallel) pfet_05v0 w=1.22u l=0.5u at one of 20 places (positions): pmos possible leak errors - gate a_36752_2040# 0..3.3 V; source vdd 3.3 V; drain d2 0 V; bulk vdd 3.3 V",
+   "source": "cvc",
+   "items": [
+    {
+     "msg": "X2 (+19 parallel) pfet_05v0 w=1.22u l=0.5u at one of 20 places (positions): pmos possible leak errors - gate a_36752_2040# 0..3.3 V; source vdd 3.3 V; drain d2 0 V; bulk vdd 3.3 V",
+     "file": "layout",
+     "line": null
+    }
+   ],
+   "device": "X2",
+   "refdes": null,
+   "model": "pfet_05v0",
+   "terminals": {
+    "gate": {
+     "net": "a_36752_2040#",
+     "min_v": 0.0,
+     "max_v": 3.3
+    },
+    "source": {
+     "net": "vdd",
+     "min_v": 3.3,
+     "max_v": 3.3
+    },
+    "drain": {
+     "net": "d2",
+     "min_v": 0.0,
+     "max_v": 0.0
+    },
+    "bulk": {
+     "net": "vdd",
+     "min_v": 3.3,
+     "max_v": 3.3
+    }
+   },
+   "nets": {
+    "d": "d2",
+    "g": "a_36752_2040#",
+    "s": "vdd",
+    "b": "vdd"
+   },
+   "cvc_check": "pmos possible leak errors",
+   "cvc_detail": null,
+   "position": null,
+   "positions": [
+    [
+     215.74,
+     10.2
+    ],
+    [
+     214.62,
+     10.2
+    ],
+    [
+     213.5,
+     10.2
+    ],
+    [
+     212.38,
+     10.2
+    ],
+    [
+     211.26,
+     10.2
+    ],
+    [
+     210.14,
+     10.2
+    ],
+    [
+     209.02,
+     10.2
+    ],
+    [
+     207.9,
+     10.2
+    ],
+    [
+     206.78,
+     10.2
+    ],
+    [
+     205.66,
+     10.2
+    ],
+    [
+     204.54,
+     10.2
+    ],
+    [
+     203.42,
+     10.2
+    ],
+    [
+     202.3,
+     10.2
+    ],
+    [
+     201.18,
+     10.2
+    ],
+    [
+     200.06,
+     10.2
+    ],
+    [
+     198.94,
+     10.2
+    ],
+    [
+     197.82,
+     10.2
+    ],
+    [
+     196.7,
+     10.2
+    ],
+    [
+     195.58,
+     10.2
+    ],
+    [
+     194.46,
+     10.2
+    ]
+   ],
+   "parallel": [
+    "X8",
+    "X234",
+    "X327",
+    "X368",
+    "X398",
+    "X412",
+    "X428",
+    "X433",
+    "X434",
+    "X442",
+    "X445",
+    "X452",
+    "X453",
+    "X462",
+    "X475",
+    "X485",
+    "X487",
+    "X497",
+    "X503"
+   ]
+  },
+  {
+   "check": "analog_erc",
+   "severity": "warning",
+   "file": "layout",
+   "module": "r2r_dac_analog",
+   "line": null,
+   "kind": "possible_leak",
+   "refs": [
+    "X7",
+    "a_36752_2420#",
+    "d3",
+    "vdd"
+   ],
+   "msg": "X7 (+19 parallel) pfet_05v0 w=1.22u l=0.5u at one of 20 places (positions): pmos possible leak errors - gate a_36752_2420# 0..3.3 V; source d3 0 V; drain vdd 3.3 V; bulk vdd 3.3 V",
+   "source": "cvc",
+   "items": [
+    {
+     "msg": "X7 (+19 parallel) pfet_05v0 w=1.22u l=0.5u at one of 20 places (positions): pmos possible leak errors - gate a_36752_2420# 0..3.3 V; source d3 0 V; drain vdd 3.3 V; bulk vdd 3.3 V",
+     "file": "layout",
+     "line": null
+    }
+   ],
+   "device": "X7",
+   "refdes": null,
+   "model": "pfet_05v0",
+   "terminals": {
+    "gate": {
+     "net": "a_36752_2420#",
+     "min_v": 0.0,
+     "max_v": 3.3
+    },
+    "source": {
+     "net": "d3",
+     "min_v": 0.0,
+     "max_v": 0.0
+    },
+    "drain": {
+     "net": "vdd",
+     "min_v": 3.3,
+     "max_v": 3.3
+    },
+    "bulk": {
+     "net": "vdd",
+     "min_v": 3.3,
+     "max_v": 3.3
+    }
+   },
+   "nets": {
+    "d": "vdd",
+    "g": "a_36752_2420#",
+    "s": "d3",
+    "b": "vdd"
+   },
+   "cvc_check": "pmos possible leak errors",
+   "cvc_detail": null,
+   "position": null,
+   "positions": [
+    [
+     215.74,
+     12.1
+    ],
+    [
+     214.62,
+     12.1
+    ],
+    [
+     213.5,
+     12.1
+    ],
+    [
+     212.38,
+     12.1
+    ],
+    [
+     211.26,
+     12.1
+    ],
+    [
+     210.14,
+     12.1
+    ],
+    [
+     209.02,
+     12.1
+    ],
+    [
+     207.9,
+     12.1
+    ],
+    [
+     206.78,
+     12.1
+    ],
+    [
+     205.66,
+     12.1
+    ],
+    [
+     204.54,
+     12.1
+    ],
+    [
+     203.42,
+     12.1
+    ],
+    [
+     202.3,
+     12.1
+    ],
+    [
+     201.18,
+     12.1
+    ],
+    [
+     200.06,
+     12.1
+    ],
+    [
+     198.94,
+     12.1
+    ],
+    [
+     197.82,
+     12.1
+    ],
+    [
+     196.7,
+     12.1
+    ],
+    [
+     195.58,
+     12.1
+    ],
+    [
+     194.46,
+     12.1
+    ]
+   ],
+   "parallel": [
+    "X31",
+    "X55",
+    "X65",
+    "X79",
+    "X83",
+    "X84",
+    "X93",
+    "X95",
+    "X106",
+    "X109",
+    "X116",
+    "X133",
+    "X143",
+    "X149",
+    "X157",
+    "X172",
+    "X187",
+    "X202",
+    "X443"
+   ]
+  },
+  {
+   "check": "analog_erc",
+   "severity": "warning",
+   "file": "layout",
+   "module": "r2r_dac_analog",
+   "line": null,
+   "kind": "possible_leak",
+   "refs": [
+    "X16",
+    "a_36752_852#",
+    "d1",
+    "vdd"
+   ],
+   "msg": "X16 (+19 parallel) pfet_05v0 w=1.22u l=0.5u at one of 20 places (positions): pmos possible leak errors - gate a_36752_852# 0..3.3 V; source vdd 3.3 V; drain d1 0 V; bulk vdd 3.3 V",
+   "source": "cvc",
+   "items": [
+    {
+     "msg": "X16 (+19 parallel) pfet_05v0 w=1.22u l=0.5u at one of 20 places (positions): pmos possible leak errors - gate a_36752_852# 0..3.3 V; source vdd 3.3 V; drain d1 0 V; bulk vdd 3.3 V",
+     "file": "layout",
+     "line": null
+    }
+   ],
+   "device": "X16",
+   "refdes": null,
+   "model": "pfet_05v0",
+   "terminals": {
+    "gate": {
+     "net": "a_36752_852#",
+     "min_v": 0.0,
+     "max_v": 3.3
+    },
+    "source": {
+     "net": "vdd",
+     "min_v": 3.3,
+     "max_v": 3.3
+    },
+    "drain": {
+     "net": "d1",
+     "min_v": 0.0,
+     "max_v": 0.0
+    },
+    "bulk": {
+     "net": "vdd",
+     "min_v": 3.3,
+     "max_v": 3.3
+    }
+   },
+   "nets": {
+    "d": "d1",
+    "g": "a_36752_852#",
+    "s": "vdd",
+    "b": "vdd"
+   },
+   "cvc_check": "pmos possible leak errors",
+   "cvc_detail": null,
+   "position": null,
+   "positions": [
+    [
+     215.74,
+     4.26
+    ],
+    [
+     214.62,
+     4.26
+    ],
+    [
+     213.5,
+     4.26
+    ],
+    [
+     212.38,
+     4.26
+    ],
+    [
+     211.26,
+     4.26
+    ],
+    [
+     210.14,
+     4.26
+    ],
+    [
+     209.02,
+     4.26
+    ],
+    [
+     207.9,
+     4.26
+    ],
+    [
+     206.78,
+     4.26
+    ],
+    [
+     205.66,
+     4.26
+    ],
+    [
+     204.54,
+     4.26
+    ],
+    [
+     203.42,
+     4.26
+    ],
+    [
+     202.3,
+     4.26
+    ],
+    [
+     201.18,
+     4.26
+    ],
+    [
+     200.06,
+     4.26
+    ],
+    [
+     198.94,
+     4.26
+    ],
+    [
+     197.82,
+     4.26
+    ],
+    [
+     196.7,
+     4.26
+    ],
+    [
+     195.58,
+     4.26
+    ],
+    [
+     194.46,
+     4.26
+    ]
+   ],
+   "parallel": [
+    "X23",
+    "X33",
+    "X45",
+    "X59",
+    "X69",
+    "X113",
+    "X129",
+    "X159",
+    "X222",
+    "X243",
+    "X244",
+    "X248",
+    "X336",
+    "X340",
+    "X373",
+    "X405",
+    "X422",
+    "X455",
+    "X488"
+   ]
+  },
+  {
+   "check": "analog_erc",
+   "severity": "warning",
+   "file": "layout",
+   "module": "r2r_dac_analog",
+   "line": null,
+   "kind": "possible_leak",
+   "refs": [
+    "X24",
+    "a_36752_472#",
+    "d0",
+    "vdd"
+   ],
+   "msg": "X24 (+19 parallel) pfet_05v0 w=1.22u l=0.5u at one of 20 places (positions): pmos possible leak errors - gate a_36752_472# 0..3.3 V; source d0 0 V; drain vdd 3.3 V; bulk vdd 3.3 V",
+   "source": "cvc",
+   "items": [
+    {
+     "msg": "X24 (+19 parallel) pfet_05v0 w=1.22u l=0.5u at one of 20 places (positions): pmos possible leak errors - gate a_36752_472# 0..3.3 V; source d0 0 V; drain vdd 3.3 V; bulk vdd 3.3 V",
+     "file": "layout",
+     "line": null
+    }
+   ],
+   "device": "X24",
+   "refdes": null,
+   "model": "pfet_05v0",
+   "terminals": {
+    "gate": {
+     "net": "a_36752_472#",
+     "min_v": 0.0,
+     "max_v": 3.3
+    },
+    "source": {
+     "net": "d0",
+     "min_v": 0.0,
+     "max_v": 0.0
+    },
+    "drain": {
+     "net": "vdd",
+     "min_v": 3.3,
+     "max_v": 3.3
+    },
+    "bulk": {
+     "net": "vdd",
+     "min_v": 3.3,
+     "max_v": 3.3
+    }
+   },
+   "nets": {
+    "d": "vdd",
+    "g": "a_36752_472#",
+    "s": "d0",
+    "b": "vdd"
+   },
+   "cvc_check": "pmos possible leak errors",
+   "cvc_detail": null,
+   "position": null,
+   "positions": [
+    [
+     215.74,
+     2.36
+    ],
+    [
+     214.62,
+     2.36
+    ],
+    [
+     213.5,
+     2.36
+    ],
+    [
+     212.38,
+     2.36
+    ],
+    [
+     211.26,
+     2.36
+    ],
+    [
+     210.14,
+     2.36
+    ],
+    [
+     209.02,
+     2.36
+    ],
+    [
+     207.9,
+     2.36
+    ],
+    [
+     206.78,
+     2.36
+    ],
+    [
+     205.66,
+     2.36
+    ],
+    [
+     204.54,
+     2.36
+    ],
+    [
+     203.42,
+     2.36
+    ],
+    [
+     202.3,
+     2.36
+    ],
+    [
+     201.18,
+     2.36
+    ],
+    [
+     200.06,
+     2.36
+    ],
+    [
+     198.94,
+     2.36
+    ],
+    [
+     197.82,
+     2.36
+    ],
+    [
+     196.7,
+     2.36
+    ],
+    [
+     195.58,
+     2.36
+    ],
+    [
+     194.46,
+     2.36
+    ]
+   ],
+   "parallel": [
+    "X42",
+    "X43",
+    "X46",
+    "X124",
+    "X130",
+    "X160",
+    "X197",
+    "X212",
+    "X249",
+    "X286",
+    "X345",
+    "X353",
+    "X370",
+    "X383",
+    "X402",
+    "X419",
+    "X456",
+    "X469",
+    "X495"
+   ]
+  },
+  {
+   "check": "analog_erc",
+   "severity": "warning",
+   "file": "layout",
+   "module": "r2r_dac_analog",
+   "line": null,
+   "kind": "possible_leak",
+   "refs": [
+    "X58",
+    "a_36752_3988#",
+    "d5",
+    "vdd"
+   ],
+   "msg": "X58 (+19 parallel) pfet_05v0 w=1.22u l=0.5u at one of 20 places (positions): pmos possible leak errors - gate a_36752_3988# 0..3.3 V; source d5 0 V; drain vdd 3.3 V; bulk vdd 3.3 V",
+   "source": "cvc",
+   "items": [
+    {
+     "msg": "X58 (+19 parallel) pfet_05v0 w=1.22u l=0.5u at one of 20 places (positions): pmos possible leak errors - gate a_36752_3988# 0..3.3 V; source d5 0 V; drain vdd 3.3 V; bulk vdd 3.3 V",
+     "file": "layout",
+     "line": null
+    }
+   ],
+   "device": "X58",
+   "refdes": null,
+   "model": "pfet_05v0",
+   "terminals": {
+    "gate": {
+     "net": "a_36752_3988#",
+     "min_v": 0.0,
+     "max_v": 3.3
+    },
+    "source": {
+     "net": "d5",
+     "min_v": 0.0,
+     "max_v": 0.0
+    },
+    "drain": {
+     "net": "vdd",
+     "min_v": 3.3,
+     "max_v": 3.3
+    },
+    "bulk": {
+     "net": "vdd",
+     "min_v": 3.3,
+     "max_v": 3.3
+    }
+   },
+   "nets": {
+    "d": "vdd",
+    "g": "a_36752_3988#",
+    "s": "d5",
+    "b": "vdd"
+   },
+   "cvc_check": "pmos possible leak errors",
+   "cvc_detail": null,
+   "position": null,
+   "positions": [
+    [
+     215.74,
+     19.94
+    ],
+    [
+     214.62,
+     19.94
+    ],
+    [
+     213.5,
+     19.94
+    ],
+    [
+     212.38,
+     19.94
+    ],
+    [
+     211.26,
+     19.94
+    ],
+    [
+     210.14,
+     19.94
+    ],
+    [
+     209.02,
+     19.94
+    ],
+    [
+     207.9,
+     19.94
+    ],
+    [
+     206.78,
+     19.94
+    ],
+    [
+     205.66,
+     19.94
+    ],
+    [
+     204.54,
+     19.94
+    ],
+    [
+     203.42,
+     19.94
+    ],
+    [
+     202.3,
+     19.94
+    ],
+    [
+     201.18,
+     19.94
+    ],
+    [
+     200.06,
+     19.94
+    ],
+    [
+     198.94,
+     19.94
+    ],
+    [
+     197.82,
+     19.94
+    ],
+    [
+     196.7,
+     19.94
+    ],
+    [
+     195.58,
+     19.94
+    ],
+    [
+     194.46,
+     19.94
+    ]
+   ],
+   "parallel": [
+    "X148",
+    "X192",
+    "X219",
+    "X231",
+    "X247",
+    "X253",
+    "X254",
+    "X262",
+    "X268",
+    "X281",
+    "X282",
+    "X289",
+    "X299",
+    "X308",
+    "X314",
+    "X322",
+    "X334",
+    "X348",
+    "X363"
+   ]
+  },
+  {
+   "check": "analog_erc",
+   "severity": "warning",
+   "file": "layout",
+   "module": "r2r_dac_analog",
+   "line": null,
+   "kind": "possible_leak",
+   "refs": [
+    "X68",
+    "a_36752_5176#",
+    "d6",
+    "vdd"
+   ],
+   "msg": "X68 (+19 parallel) pfet_05v0 w=1.22u l=0.5u at one of 20 places (positions): pmos possible leak errors - gate a_36752_5176# 0..3.3 V; source d6 0 V; drain vdd 3.3 V; bulk vdd 3.3 V",
+   "source": "cvc",
+   "items": [
+    {
+     "msg": "X68 (+19 parallel) pfet_05v0 w=1.22u l=0.5u at one of 20 places (positions): pmos possible leak errors - gate a_36752_5176# 0..3.3 V; source d6 0 V; drain vdd 3.3 V; bulk vdd 3.3 V",
+     "file": "layout",
+     "line": null
+    }
+   ],
+   "device": "X68",
+   "refdes": null,
+   "model": "pfet_05v0",
+   "terminals": {
+    "gate": {
+     "net": "a_36752_5176#",
+     "min_v": 0.0,
+     "max_v": 3.3
+    },
+    "source": {
+     "net": "d6",
+     "min_v": 0.0,
+     "max_v": 0.0
+    },
+    "drain": {
+     "net": "vdd",
+     "min_v": 3.3,
+     "max_v": 3.3
+    },
+    "bulk": {
+     "net": "vdd",
+     "min_v": 3.3,
+     "max_v": 3.3
+    }
+   },
+   "nets": {
+    "d": "vdd",
+    "g": "a_36752_5176#",
+    "s": "d6",
+    "b": "vdd"
+   },
+   "cvc_check": "pmos possible leak errors",
+   "cvc_detail": null,
+   "position": null,
+   "positions": [
+    [
+     215.74,
+     25.88
+    ],
+    [
+     214.62,
+     25.88
+    ],
+    [
+     213.5,
+     25.88
+    ],
+    [
+     212.38,
+     25.88
+    ],
+    [
+     211.26,
+     25.88
+    ],
+    [
+     210.14,
+     25.88
+    ],
+    [
+     209.02,
+     25.88
+    ],
+    [
+     207.9,
+     25.88
+    ],
+    [
+     206.78,
+     25.88
+    ],
+    [
+     205.66,
+     25.88
+    ],
+    [
+     204.54,
+     25.88
+    ],
+    [
+     203.42,
+     25.88
+    ],
+    [
+     202.3,
+     25.88
+    ],
+    [
+     201.18,
+     25.88
+    ],
+    [
+     200.06,
+     25.88
+    ],
+    [
+     198.94,
+     25.88
+    ],
+    [
+     197.82,
+     25.88
+    ],
+    [
+     196.7,
+     25.88
+    ],
+    [
+     195.58,
+     25.88
+    ],
+    [
+     194.46,
+     25.88
+    ]
+   ],
+   "parallel": [
+    "X161",
+    "X204",
+    "X233",
+    "X242",
+    "X260",
+    "X266",
+    "X269",
+    "X279",
+    "X283",
+    "X290",
+    "X291",
+    "X297",
+    "X313",
+    "X323",
+    "X326",
+    "X337",
+    "X350",
+    "X362",
+    "X377"
    ]
   }
  ],
@@ -1373,6 +1373,6 @@
   "pdk_klayout": "dir_text:876da90e8aab65b830b36eca12bd720adfe8240a0952872419d9f2b4abda605d"
  },
  "strength_at_start": 0,
- "recorded_ts": "2026-11-08T15:10:08",
- "attempts": 8
+ "recorded_ts": "2026-11-10T07:42:07",
+ "attempts": 9
 }
