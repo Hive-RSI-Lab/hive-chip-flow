@@ -534,6 +534,8 @@ def main(argv: list[str] | None = None) -> int:
                 strength_at_start = statelib.gate_strength(skill, args.gate)
                 statelib.drop_harden_records(Path(args.workspace).resolve(), skill,
                                              args.gate, statelib.load_map())
+                statelib.drop_view_records(Path(args.workspace).resolve(), skill,
+                                           args.gate, statelib.load_map())
             try:
                 report = run_report_for_gate(
                     gate, Path(args.workspace).resolve(),
@@ -550,6 +552,8 @@ def main(argv: list[str] | None = None) -> int:
                 and not args.report and not args.no_record):
             statelib.write_harden_records(Path(args.workspace).resolve(), skill,
                                           args.gate, statelib.load_map())
+            statelib.write_view_records(Path(args.workspace).resolve(), skill,
+                                        args.gate, statelib.load_map())
         if args.workspace:
             # what the gate writes and records names the workspace's files
             # relative to it, and holds nothing State.save would scrub

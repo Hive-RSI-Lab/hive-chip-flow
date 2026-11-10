@@ -140,7 +140,7 @@ Gates (`engine/reference/gates.yaml`, msde rows), in pipeline order:
 | Gate | Phase | Passes when | Script |
 |---|---|---|---|
 | split | P1 | every crossing signal appears in both side specs with matching direction, level, domain, width and load | `check_split.py` |
-| cosim | P3 | every top-level measure inside its bound, the digital side toggled, the analog side ran | `check_cosim.py`, cocotbext-ams |
+| cosim | P3 | every top-level measure inside its bound, the digital side toggled, the analog side ran; a transistor-level top again at the corners that bound the analog side, on the extracted netlist and the RTL or gate-level digital with that corner's SDF | `check_cosim.py`, cocotbext-ams |
 | boundary | P3 | every crossing pin on the sized schematic at the three STA corners, against its level in `engine/reference/levels.yaml`: a2d swing and 10-90% edge into the declared load, d2a switching point; owed for every macro with a crossing pin | `check_boundary.py` |
 | macro_lib | P3 | one liberty per STA corner for the macro's crossing pins, from the analog spec's `macro_timing` arc list; owed for every macro with a crossing pin, not applicable only with none | `check_macro_lib.py` |
 | top_harden | P3 | the assembled top hardens with the analog GDS as a macro: no failing step, GDS, LEF, netlist, SDF, metrics; in the final ODB no net lacks a driver, and none lacks a load unless it is a TT input or waived (a job) | `check_top_harden.py` |
@@ -237,8 +237,10 @@ What differs:
   side's own `fix-finding` through its router and its own gates to a
   fresh release, then re-run the msde gate that found it - after a
   layout fix, `top_harden` first.
-  `cosim` hashes `digital/rtl`, `analog/netlist` and the analog sizing,
-  so a fix to any of them marks it stale.
+  `cosim` hashes `digital/rtl`, `analog/netlist`, the analog sizing, the
+  analog side's extraction and, where the block owes corner runs, the digital
+  side's final netlist, SDF, SPEF and SDC, so a fix to any of them marks it
+  stale.
 - **`release`'s findings are re-entry, not fixes.** `nested_not_released`
   names the side; `gate_not_ready` names the msde gate.
 
