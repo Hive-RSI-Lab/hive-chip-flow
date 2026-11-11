@@ -4,7 +4,7 @@
  "block": "r2r_dac",
  "workspace": "blocks/r2r_dac",
  "created": "2026-09-25T05:42:01",
- "updated": "2026-11-10T22:49:33",
+ "updated": "2026-11-10T22:49:35",
  "phase": "P4",
  "toolchain": null,
  "gates": {
@@ -2065,16 +2065,16 @@
   "top_lvs": {
    "phase": "P3",
    "status": "pass",
-   "attempts": 19,
+   "attempts": 20,
    "last": {
-    "ts": "2026-11-10T04:58:59",
+    "ts": "2026-11-10T22:49:35",
     "status": "pass",
     "failing_count": 0,
     "total": 0,
     "inputs": {
-     "top_gds": "dir_text:8db98b9651509948ea6536fbc32b65a0aa2f28a781c626b4f24af48aebf6e3b3",
+     "top_gds": "dir_text:bb511d0cd545cdf089237b480f5e8ab64216eeb209fd1f29cc66bda54dd30b76",
      "top_spec": "json_canonical:d863d5e4ac42eb90b849bfae8bc19ecdb8167ca2c310bd40cdb64c48a4355186",
-     "top_macros": "dir_text:d667ee76b1a0c2b50a3205272d1b9ca989b2eb5ddf7bd594019ec525e2be7aaa",
+     "top_macros": "dir_text:5966eac2cbe6a888e083b918f3e73dd120daaffdd7e033c4c2cf16bf2b2e2ab6",
      "top_pnl": "dir_text:d5af7fd96d8b5a47c3998ae525d45a8b76ebe719ed103a4b3c22e5a83e6f74de",
      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
      "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
@@ -2411,6 +2411,23 @@
       "top_gds": "dir_text:8db98b9651509948ea6536fbc32b65a0aa2f28a781c626b4f24af48aebf6e3b3",
       "top_spec": "json_canonical:d863d5e4ac42eb90b849bfae8bc19ecdb8167ca2c310bd40cdb64c48a4355186",
       "top_macros": "dir_text:d667ee76b1a0c2b50a3205272d1b9ca989b2eb5ddf7bd594019ec525e2be7aaa",
+      "top_pnl": "dir_text:d5af7fd96d8b5a47c3998ae525d45a8b76ebe719ed103a4b3c22e5a83e6f74de",
+      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+      "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
+      "pdk_netgen": "dir_text:8164f65bb7d1bef6e27af4c13b1c6ede50973cec7aec482556abb23881aceb04"
+     },
+     "strength": 0,
+     "job": null
+    },
+    {
+     "ts": "2026-11-10T22:49:35",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "top_gds": "dir_text:bb511d0cd545cdf089237b480f5e8ab64216eeb209fd1f29cc66bda54dd30b76",
+      "top_spec": "json_canonical:d863d5e4ac42eb90b849bfae8bc19ecdb8167ca2c310bd40cdb64c48a4355186",
+      "top_macros": "dir_text:5966eac2cbe6a888e083b918f3e73dd120daaffdd7e033c4c2cf16bf2b2e2ab6",
       "top_pnl": "dir_text:d5af7fd96d8b5a47c3998ae525d45a8b76ebe719ed103a4b3c22e5a83e6f74de",
       "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
       "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
@@ -5959,7 +5976,7 @@
    "path": "top/harden/runs/run/final/gds",
    "kind": "top_gds",
    "sha256": "dir_text:bb511d0cd545cdf089237b480f5e8ab64216eeb209fd1f29cc66bda54dd30b76",
-   "hashed": "2026-11-10T22:49:33"
+   "hashed": "2026-11-10T22:49:35"
   },
   "analog_spec": {
    "path": "analog/spec/spec.yaml",
@@ -5971,7 +5988,7 @@
    "path": "${PDK_ROOT}/SOURCES",
    "kind": "pdk_version",
    "sha256": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
-   "hashed": "2026-11-10T22:49:33"
+   "hashed": "2026-11-10T22:49:35"
   },
   "pdk_models": {
    "path": "${PDK_ROOT}/libs.tech/ngspice",
@@ -6031,7 +6048,7 @@
    "path": "${PDK_ROOT}/libs.tech/magic",
    "kind": "pdk_magic",
    "sha256": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
-   "hashed": "2026-11-10T22:49:33"
+   "hashed": "2026-11-10T22:49:35"
   },
   "pdk_klayout": {
    "path": "${PDK_ROOT}/libs.tech/klayout",
@@ -6043,25 +6060,25 @@
    "path": "${PDK_ROOT}/libs.tech/netgen",
    "kind": "pdk_netgen",
    "sha256": "dir_text:8164f65bb7d1bef6e27af4c13b1c6ede50973cec7aec482556abb23881aceb04",
-   "hashed": "2026-11-10T22:48:19"
+   "hashed": "2026-11-10T22:49:35"
   },
   "top_spec": {
    "path": "top/spec/spec.yaml",
    "kind": "top_spec",
    "sha256": "json_canonical:d863d5e4ac42eb90b849bfae8bc19ecdb8167ca2c310bd40cdb64c48a4355186",
-   "hashed": "2026-11-10T22:49:33"
+   "hashed": "2026-11-10T22:49:35"
   },
   "top_macros": {
    "path": "top/macros",
    "kind": "top_macros",
-   "sha256": "dir_text:d667ee76b1a0c2b50a3205272d1b9ca989b2eb5ddf7bd594019ec525e2be7aaa",
-   "hashed": "2026-11-10T04:58:59"
+   "sha256": "dir_text:5966eac2cbe6a888e083b918f3e73dd120daaffdd7e033c4c2cf16bf2b2e2ab6",
+   "hashed": "2026-11-10T22:49:35"
   },
   "top_pnl": {
    "path": "top/harden/runs/run/final/pnl",
    "kind": "top_pnl",
    "sha256": "dir_text:d5af7fd96d8b5a47c3998ae525d45a8b76ebe719ed103a4b3c22e5a83e6f74de",
-   "hashed": "2026-11-10T04:58:59"
+   "hashed": "2026-11-10T22:49:35"
   },
   "digital_side_spec": {
    "path": "digital_spec.yaml",
@@ -7654,6 +7671,14 @@
    "ts": "2026-11-10T22:49:33",
    "event": "gate",
    "gate": "top_drc",
+   "status": "pass",
+   "attempt": 20,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-11-10T22:49:35",
+   "event": "gate",
+   "gate": "top_lvs",
    "status": "pass",
    "attempt": 20,
    "failing_count": 0
