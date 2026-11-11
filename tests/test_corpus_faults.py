@@ -201,6 +201,20 @@ def test_corpus_rungs_run_in_chip_flow_test_not_check_slow():
     assert '"slow and not harden_faults"' in runner
 
 
+def test_check_slow_parts_name_real_files_and_rest_runs_the_others():
+    # A part naming a file that moved would run nothing and still pass.
+    def part(name):
+        return subprocess.run(
+            ["bash", "-c", 'eval "$(sed -n "/^shard_files()/,/^}/p" '
+             'tests/check-slow.sh)"; shard_files "$1"', "-", name],
+            cwd=REPO, capture_output=True, text=True, check=True).stdout.split()
+    named = part("harden") + part("charlib")
+    rest = part("rest")
+    assert named and all((REPO / f).is_file() for f in named), named
+    assert rest[0] == "tests/"
+    assert sorted(rest[1:]) == sorted(f"--ignore={f}" for f in named), rest
+
+
 def test_ci_matrix_runs_every_corpus_shard():
     import yaml
 
