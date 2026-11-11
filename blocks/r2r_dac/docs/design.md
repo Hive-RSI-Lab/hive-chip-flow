@@ -124,7 +124,9 @@ The pex_sim gate ran the step and glitch benches on the netlist extracted from t
 
 ### Co-simulation
 
-The released RTL drove the real ladder (ideal drivers, nominal 27 kΩ, the 100 Ω + 7 pF pad) through all 256 codes with no code mismatches: DNL and INL 0.006 LSB, full scale 3.287 V, gain error −0.005 LSB, settling 1.19 µs both ways.
+The released RTL drove the real ladder (ideal drivers, nominal 27 kΩ, then the hand-made 100 Ω + 7 pF pad) through all 256 codes with no code mismatches: DNL and INL 0.006 LSB, full scale 3.287 V, gain error −0.005 LSB, settling 1.19 µs both ways.
+
+The co-simulation now runs twice: once on the bare ladder, and once with Tiny Tapeout's ua pad model (500 Ω series, 5 pF shunt, the ESD diodes) wrapped around `vout`. The ladder model no longer carries the hand-made pad load, because it would sit on the die side of the real pad and count the pad twice: with both, settling read 2.07 µs. With only the real pad model, the run with the pad has no code mismatches, DNL and INL 0.02 LSB, and settling 1.03 µs both ways, against the 1.5 µs bound.
 
 ## How the tile was verified
 
