@@ -41,6 +41,10 @@ so a bench that finds `../analog` from its own file still works. `tb/cosim_bench
   OpenSTA when the harden did not write that corner.
 - `env`, `timeout_s` and `jobs`, for the bench's environment, the limit on
   one run and how many run at once.
+  Size `timeout_s` to the slowest corner on a busy box, not to the typical
+  run: a transistor-level loop of tens of microseconds on an extracted
+  netlist can take well over the default 7200 s when the box is loaded,
+  and a corner killed at the limit is a failed run you must repeat.
 
 The analog view is the extracted netlist the recorded sweep ran on, or the
 schematic when the analog side has no sweep. A corner run is the bare cell:

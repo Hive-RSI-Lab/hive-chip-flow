@@ -67,6 +67,10 @@ JSON out, exit 0/1/2. Keep output ASCII. **No web tools.**
      the bench always runs the top at its parameter defaults. A shrunk-
      parameter check belongs in the formal wrapper (which instantiates the
      design with overrides) or in a wrapper module.
+   - Start a monitor for anything the design sends right after reset (a
+     UART banner, a first status word) before you release reset. A monitor
+     started after `pad_reset` returns can miss the first start bit and
+     then decodes garbage or times out, which looks like an RTL bug.
    - An async-reset check that spans the cycle where reset asserts
      mid-cycle sees the reset values for that cycle; end display or LED range
      checks at the cycle before.
