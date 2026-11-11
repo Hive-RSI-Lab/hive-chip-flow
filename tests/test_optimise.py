@@ -346,16 +346,11 @@ def test_workers_two_runs_and_three_is_refused(tmp_path, monkeypatch):
 
 
 @pytest.mark.slow
-def test_real_r2r_dac_optimise_finds_the_ratio_and_refuses_the_corners(tmp_path):
+def test_real_r2r_dac_optimise_reaches_bounds_from_wrong_start(tmp_path):
     """corpus/ade/r2r_dac ships with a deliberately wrong 1:1 R:2R ratio.
-    The search finds the 2:1 ratio (every bound met at typical), but the
-    ladder's output is a fixed fraction of VDD, and the spec's bounds are
-    absolute volts: at the default sweep's -10%/+10% supply corners no
-    resistor sizing stays inside them (vout_both ~0.91 VDD against
-    [2.9, 3.1] V). So no sizing passes sim_pvt, and the corner-aware loop
-    must say so and write nothing, rather than write a typical-only
-    winner. The fix belongs to the design (a supply-independent
-    reference), never the bounds."""
+    Its bits are driven from a fixed reference, so the 2:1 ratio meets the
+    absolute-volt bounds at every corner, supply corners included: the
+    corner-aware loop must find that ratio and save it."""
     ws = tmp_path / "ws"
     for sub in ("spec", "netlist", "tb", "sizing"):
         (ws / sub).mkdir(parents=True)
@@ -378,14 +373,11 @@ def test_real_r2r_dac_optimise_finds_the_ratio_and_refuses_the_corners(tmp_path)
     payload, _ = optimise.run_numeric(
         ["--workspace", str(ws), "--popsize", "8", "--maxiter", "20", "--seed", "1"])
 
-    # the search found the right ratio...
-    winner = payload["rounds"][0]["winner_sizing"]
-    assert winner["r2_length"] / winner["r_length"] == pytest.approx(2.0, rel=0.05)
-    # ...but no sizing passes every corner, so nothing is written
-    assert payload["status"] == "violations", payload
-    assert payload["written"] is False and payload["remediation"]
-    assert (ws / "sizing" / "sizing.yaml").read_bytes() == before
-    assert all(not r["winner_pass"] for r in payload["rounds"])
+    assert payload["status"] == "pass", payload
+    assert payload["written"] is True
+    assert (ws / "sizing" / "sizing.yaml").read_bytes() != before
+    saved = yaml.safe_load((ws / "sizing" / "sizing.yaml").read_text())
+    assert saved["r2_length"]["value"] / saved["r_length"]["value"] == pytest.approx(2.0, rel=0.05)
 
 
 # ------------------------------------------------------------ RTL loop (M7)
