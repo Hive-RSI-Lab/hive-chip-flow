@@ -396,6 +396,39 @@ def test_restore_unsplit_node_caps_leaves_a_net_at_its_ext_c_alone():
         UNSPLIT_EXT, UNSPLIT_RES, pex) == (pex, {})
 
 
+R2R_EXT = ('substrate "0" 8596 0 -200 0 pw\n'
+           'node "body1" 0 1374.7 0 0 rm1\n'
+           'node "body2" 0 1374.7 2200 0 rm1\n'
+           'node "vout" 0 137.47 2100 200 m1\n'
+           'node "bmsb" 0 216.332 -100 200 m1\n'
+           'node "mid" 0 333.548 4200 0 m1\n'
+           'device rsubckt rm1 0 0 1 1 l=2000 w=400 "None" "body1" 0 0 '
+           '"bmsb" 400 80000,1200 "vout" 400 40000,600\n'
+           'device rsubckt rm1 2200 0 2201 1 l=2000 w=400 "None" "body2" 0 0 '
+           '"vout" 400 40000,600 "mid" 400 80000,666\n')
+R2R_PEX = (".subckt r2r bmsb vout\n"
+           "X0 bmsb vout rm1 r_width=2u r_length=10u\n"
+           "X1 vout mid rm1 r_width=2u r_length=10u\n"
+           "C0 vout 0 1.51217f\n"
+           "C1 bmsb 0 0.90368f\n"
+           "C2 mid 0 1.0209f\n"
+           ".ends\n")
+
+
+def test_restore_unsplit_node_caps_keeps_the_resistor_body_shares():
+    # ext2spice writes no rm1 body node as a net: it splits each body's C
+    # equally over the resistor's two ends, so r2r_dac's vout carries half
+    # of each of its two bodies on top of its own 0.137 fF. That is the
+    # .ext's C too, and nothing is changed.
+    assert layoutlib.restore_unsplit_node_caps(
+        R2R_EXT, "scale 1000 1 0.5\n", R2R_PEX) == (R2R_PEX, {})
+    out, changed = layoutlib.restore_unsplit_node_caps(
+        R2R_EXT, "scale 1000 1 0.5\n",
+        R2R_PEX.replace("C0 vout 0 1.51217f\n", ""))
+    assert changed == {"vout": [0.0, 1.51217]}
+    assert c_to(out, "vout", "0") == pytest.approx(1.51217)
+
+
 def test_restore_unsplit_node_caps_refuses_without_one_substrate():
     with pytest.raises(layoutlib.LayoutError, match="substrate"):
         layoutlib.restore_unsplit_node_caps(

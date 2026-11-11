@@ -1173,7 +1173,10 @@ def test_fifty_um_line_at_the_real_variants_matches_the_posted_numbers(tmp_path)
     by = {r["variant"]: r for r in out["rc_variants"]}
     assert {k: v["corner"] for k, v in by.items()} == {
         "hrhc": "ss", "lrlc": "ff", "hrlc": "sf", "lrhc": "fs"}
-    posted = {"hrhc": 425.7e6, "lrlc": 521.0e6, "hrlc": 451.1e6, "lrhc": 487.6e6}
+    # lrlc and lrhc were 521.0 / 487.6 MHz until #298: at low R extresist
+    # leaves iref_node whole, and ext2spice wrote it no C to vss at all;
+    # it now carries its .ext 1.70 / 1.95 fF, as the split hr variants do
+    posted = {"hrhc": 425.7e6, "lrlc": 519.9e6, "hrlc": 451.1e6, "lrhc": 486.5e6}
     for name, want in posted.items():
         assert by[name]["measured"]["f3db"] == pytest.approx(want, abs=0.1e6), name
     assert out["measured_by_corner"]["ss"]["f3db"] == pytest.approx(434.2e6, abs=0.1e6)
