@@ -165,6 +165,33 @@ def test_one_off_time_past_the_bound_fails():
     assert "bound 1 us" in score(one_pulse(0.05, 1.1e-6))["reasons"][0]
 
 
+def test_a_short_kick_on_a_sub_microvolt_creep_passes():
+    """A node an on switch holds at the rail reads ~0.6 uV over it for as
+    long as it is held; a 1 ns kick on top is timed from the floor, not
+    from the creep."""
+    t = np.array([0, 1e-6, 1e-6 + 1e-15, 3e-6, 3e-6 + 1e-15, 3e-6 + NS,
+                  3e-6 + NS + 1e-15, 5e-6, 5e-6 + 1e-15, 6e-6])
+    v = np.array([3.3, 3.3, DC + 0.6e-6, DC + 0.6e-6, DC + 0.06, DC + 0.06,
+                  DC + 0.6e-6, DC + 0.6e-6, 3.3, 3.3])
+    found = score((t, v))
+    assert found["status"] == "allowance", found["reasons"]
+    row = found["rows"][0]
+    assert row["time_over_s"] == pytest.approx(NS, rel=1e-3)
+    assert row["time_over_rail_s"] == pytest.approx(4e-6, rel=1e-3)
+
+
+def test_a_few_millivolts_held_for_two_microseconds_still_fails():
+    found = score(one_pulse(0.003, 2e-6))
+    assert found["status"] == "fail"
+    assert any("bound 1 us" in r for r in found["reasons"])
+    assert found["rows"][0]["time_over_s"] == pytest.approx(2e-6, rel=1e-3)
+
+
+def test_under_the_floor_held_to_the_end_of_the_run_is_noise():
+    t = np.array([0, 1e-6, 1e-6 + 1e-12, 1.2e-6])
+    assert score((t, np.array([3.3, 3.3, DC + 0.5e-3, DC + 0.5e-3]))) is None
+
+
 def test_an_excursion_held_to_the_end_of_the_run_fails_however_small():
     t = np.array([0, 1e-6, 1e-6 + 1e-12, 1.2e-6])
     found = score((t, np.array([3.3, 3.3, 3.64, 3.64])))
@@ -328,7 +355,7 @@ def test_with_control_writes_binary_and_refuses_a_control_block():
 def test_summary_lists_allowance_devices_and_never_a_failing_one():
     common = {"model": "nfet_03v3", "class": "gate", "corner": "c", "deck": "d"}
     row = {"kind": "one_off", "peak_v": 3.7, "peak_over_v": 0.07, "t_peak_s": 1e-6,
-           "time_over_s": 1e-7, "events": 1}
+           "time_over_s": 1e-7, "time_over_rail_s": 2e-6, "events": 1}
     rows = [
         {**common, "device": "X1", "label": "A", "pair": "Vgs",
          "status": "allowance", "rows": [row], "reasons": []},
@@ -340,6 +367,8 @@ def test_summary_lists_allowance_devices_and_never_a_failing_one():
     out = stresslib.summarise(rows, 1, 2, LIMITS, {})
     assert [a["device"] for a in out["allowance_only"]] == ["X1"]
     assert out["allowance_only"][0]["peak_v"] == 3.7
+    assert out["allowance_only"][0]["time_over_s"] == 1e-7
+    assert out["allowance_only"][0]["time_over_rail_s"] == 2e-6
     assert out["devices_failing"] == ["X2"]
     assert "not fitted" in " ".join(out["allowance_is_ours"].split())
 

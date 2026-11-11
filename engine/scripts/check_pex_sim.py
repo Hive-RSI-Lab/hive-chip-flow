@@ -190,7 +190,10 @@ bulk, drain to source) have their own limit per model and are a
 `junction_over_breakdown` finding past it. The repeating share counts only
 time more than a small band over the limit (share_band_v, a provisional
 project number). The report adds `stress`: every run, every device that
-passes only through an allowance with its peak and time, the ones that pass
+passes only through an allowance with its peak and time (a one-off with
+both lengths: time_over_s more than floor_v over the limit, which is what
+the 1 us bound reads, and time_over_rail_s over the limit at all), the ones
+that pass
 only because of the share band with their peak and both shares, and the
 junction pairs above the 3.63 V reference. A block without
 the file is not stress-checked, and its report has no `stress` key.

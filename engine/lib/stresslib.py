@@ -6,7 +6,13 @@ the DRM's DC limit and the allowance in engine/reference/stress_limits.yaml,
 and the junction pairs (Vds, Vsb, Vdb) against breakdown.
 
 A gate-pair excursion is the contiguous time |V| is over the limit. One that
-peaks less than `floor_v` over it does not count. An excursion that touches a
+peaks less than `floor_v` over it does not count. A one-off's length is
+measured above the limit + `floor_v`, the same level that decides whether it
+counts: from its first rise over that level to its last fall under it. Time
+less than `floor_v` over is simulator noise (a node an on switch holds at the
+rail reads a few uV over it for as long as it is held), and timing an event
+from it would read the solver, not the circuit. The time over the limit
+itself is still reported beside it. An excursion that touches a
 declared repeating window is held to the repeating bounds there, per cycle of
 the window; one that is not wholly inside a window is also held to the one-off
 bounds with its whole length. One still over when the run ends is a failure:
@@ -392,6 +398,19 @@ def _window_row(t, mag, win: Window, events: list[Excursion], dc: float,
     return row, bad
 
 
+def _floor_span(event: Excursion, over_floor: list[Excursion]
+                ) -> tuple[float, float, bool]:
+    """(start, length, open_end) of `event` measured above the limit +
+    floor_v: from the first excursion over that level inside the event to
+    the end of the last. An event that only touches the level has length
+    0."""
+    inner = [f for f in over_floor
+             if f.start >= event.start and f.stop <= event.stop]
+    if not inner:
+        return event.t_peak, 0.0, False
+    return inner[0].start, inner[-1].stop - inner[0].start, inner[-1].open_end
+
+
 def score_gate(t: np.ndarray, wave: np.ndarray, windows: list[Window],
                limits: dict) -> dict | None:
     """None when the pair stays within the DC limit, else {status, rows,
@@ -412,24 +431,30 @@ def score_gate(t: np.ndarray, wave: np.ndarray, windows: list[Window],
               for e in events]
     one_off = ox["one_off"]
     edges = [e for e, within in zip(events, inside) if not within]
-    for e in edges:
-        if e.open_end:
+    floor_level = dc + ox["floor_v"]
+    over_floor = excursions(t, mag, floor_level)
+    spans = [_floor_span(e, over_floor) for e in edges]
+    for e, (f_start, f_len, f_open) in zip(edges, spans):
+        if f_open:
             reasons.append(f"still {1e3 * (mag[-1] - dc):.1f} mV over the "
-                           f"limit when the run ends at {t[-1]:.4g} s, over "
-                           f"since {e.start:.4g} s")
+                           f"limit when the run ends at {t[-1]:.4g} s, more "
+                           f"than {1e3 * ox['floor_v']:g} mV over since "
+                           f"{f_start:.4g} s")
         if e.peak - dc > one_off["peak_over_v"]:
             reasons.append(f"one-off peak {1e3 * (e.peak - dc):.1f} mV over at "
                            f"{e.t_peak:.4g} s, bound "
                            f"{1e3 * one_off['peak_over_v']:.0f} mV")
-        if e.length > one_off["time_over_s"]:
-            reasons.append(f"over the limit for {1e6 * e.length:.3g} us "
-                           f"from {e.start:.4g} s, bound "
+        if f_len > one_off["time_over_s"]:
+            reasons.append(f"more than {1e3 * ox['floor_v']:g} mV over the "
+                           f"limit for {1e6 * f_len:.3g} us from "
+                           f"{f_start:.4g} s, bound "
                            f"{1e6 * one_off['time_over_s']:g} us")
     if edges:
         top = max(edges, key=lambda e: e.peak)
         rows.append({"kind": "one_off", "peak_v": top.peak,
                      "peak_over_v": top.peak - dc, "t_peak_s": top.t_peak,
-                     "time_over_s": max(e.length for e in edges),
+                     "time_over_s": max(f_len for _, f_len, _ in spans),
+                     "time_over_rail_s": max(e.length for e in edges),
                      "events": len(edges)})
     return {"status": "fail" if reasons else "allowance", "rows": rows,
             "reasons": reasons}
