@@ -168,6 +168,16 @@ def test_extracted_wins_when_it_exists(tmp_path):
     assert exc.value.kind == "no_netlist"
 
 
+def test_hidden_power_ties_coupling_to_ground():
+    text = ("* x\n.subckt c A Z VDD VNW VSS\n"
+            "C0 A VNW.t0 0.2f\nC1 vdd z 1e-16\nC2 A n1 0.3f m=1\n"
+            "C3 VDD VSS 1f\nM1 Z A VDD VNW pfet\n.ends\n")
+    got = charlib.ground_coupling(text, ["VDD", "VNW", "VSS"]).splitlines()
+    assert got[2:7] == ["C0 A 0 0.2f", "C1 z 0 1e-16", "C2_a A 0 0.3f m=1",
+                        "C2_b n1 0 0.3f m=1", "C3 VDD VSS 1f"]
+    assert got[7] == "M1 Z A VDD VNW pfet"
+
+
 def test_function_evaluator():
     ev = charlib.eval_function
     assert ev('"(!I)"', {"I": False}) is True
@@ -497,7 +507,7 @@ def _band(rows, kinds, load_min, load_max=1e9):
 
 
 @pytest.mark.slow
-@pytest.mark.parametrize("cell", ["inv_1", "nand2_1"])
+@pytest.mark.parametrize("cell", ["inv_1", "nand2_1", "nor2_1", "and2_1"])
 def test_known_answer_extracted_at_real_loads(cell, tmp_path):
     full = f"{LIB}__{cell}"
     report = _run(cell, tmp_path / "out", extracted=_extract(full, tmp_path))
