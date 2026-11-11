@@ -93,6 +93,10 @@
    "tests_run": [
     "test_r2r_dac_cosim"
    ]
+  },
+  "corners": {
+   "owed": false,
+   "reason": "the bench's analog side is an ideal model, with no post-layout view to run"
   }
  },
  "inputs_at_start": {
@@ -107,6 +111,6 @@
   "pdk_models": "dir_text:84e0f27991c27acae27ec5243fd0d1587f7bfb2655e802ed0eb92a811cf5f7f8"
  },
  "strength_at_start": 0,
- "recorded_ts": "2026-11-10T22:48:37",
- "attempts": 24
+ "recorded_ts": "2026-11-10T23:02:28",
+ "attempts": 25
 }
