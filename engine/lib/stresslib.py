@@ -9,10 +9,12 @@ A gate-pair excursion is the contiguous time |V| is over the limit. One that
 peaks less than `floor_v` over it does not count. A one-off's length is
 measured above the limit + `floor_v`, the same level that decides whether it
 counts: from its first rise over that level to its last fall under it. Time
-less than `floor_v` over is simulator noise (a node an on switch holds at the
-rail reads a few uV over it for as long as it is held), and timing an event
-from it would read the solver, not the circuit. The time over the limit
-itself is still reported beside it. An excursion that touches a
+less than `floor_v` over is below what the device ratings and models resolve:
+a node an on switch holds at the rail can be kicked over it and bleed back
+through the switch's on-resistance, reading a few uV over for microseconds
+(a real RC tail, not a solver artefact: it does not move with gmin or the
+tolerances), and a stress rating says nothing at that level, so it is not
+timed as stress. The time over the limit itself is still reported beside it. An excursion that touches a
 declared repeating window is held to the repeating bounds there, per cycle of
 the window; one that is not wholly inside a window is also held to the one-off
 bounds with its whole length. One still over when the run ends is a failure:

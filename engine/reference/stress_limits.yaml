@@ -12,7 +12,8 @@ gate_oxide:
     The manual publishes no numbers for that allowance. The bounds below are
     this flow's own, chosen on principle and not fitted to any macro.
   dc_limit_v: 3.63
-  # less than this over the limit is simulator noise, not an excursion (ours)
+  # less than this over the limit is below what device ratings and models
+  # resolve (a held node's real uV RC tail through its switch), not timed as stress (ours)
   floor_v: 0.001
   # an excess that repeats, judged per cycle of a declared repeating window:
   # peak over dc_limit_v, the share of the cycle spent more than
