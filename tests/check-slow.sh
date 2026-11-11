@@ -33,10 +33,15 @@ cd "$REPO_ROOT"
 # box away from a false-red timeout kill, not a real hang. Tests also
 # marked `harden_faults` (whole corpus rungs, several top hardens each) run
 # in tests/check-harden-faults.sh instead, so they never eat this cap.
+# tests/test_corpus_faults.py's other rungs run in `bin/chip-flow test`
+# (one CI job per corpus shard, each under its own 1800 s cap, and a fast
+# test there keeps that matrix naming every shard), not here: the
+# comparator rung alone measured about 1340 s on CI, so with them this
+# set ran past 1800 s on its own.
 # Scratch in memory and fsync off: tests/lib/scratch.sh.
 # shellcheck source=tests/lib/scratch.sh
 . "$REPO_ROOT/tests/lib/scratch.sh"
 test_scratch
 if [ -n "$TEST_SCRATCH" ]; then trap 'rm -rf "$TEST_SCRATCH"' EXIT; fi
 timeout 1800 "$EDA_BIN" python -m pytest tests/ -q \
-  -m "slow and not harden_faults"
+  --ignore=tests/test_corpus_faults.py -m "slow and not harden_faults"

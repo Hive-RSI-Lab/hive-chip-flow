@@ -84,8 +84,8 @@ test)
 	# Both run with their scratch in memory and fsync off
 	# (tests/lib/scratch.sh says how and why).
 	#
-	# The corpus cap catches a hang, not a slow box (as check-slow.sh's
-	# 1800 s, which runs this same set). The comparator rung's Monte Carlo
+	# The corpus cap catches a hang, not a slow box (this is the only place
+	# the set runs: check-slow.sh leaves it out). The comparator rung's Monte Carlo
 	# (its untouched reference: 144 offset-bench samples in each of two
 	# groups, about 545 s of CPU) took that rung from under a minute to
 	# about eleven on CI, so a normal run of the step measured 1098 s and a
