@@ -50,7 +50,8 @@ def test_limits_cite_the_section_and_say_they_are_ours():
     assert "not fitted to any macro" in " ".join(ox["own_numbers"].split())
     assert ox["repeating"] == {"peak_over_v": 0.1, "time_over_share": 0.02,
                               "share_band_v": 0.05}
-    assert ox["one_off"] == {"peak_over_v": 0.3, "time_over_s": 1e-6}
+    assert ox["one_off"] == {"peak_over_v": 0.3, "time_over_s": 1e-6,
+                             "near_bound_v": 0.01}
 
 
 def test_under_the_limit_is_clean():
@@ -485,3 +486,137 @@ def test_exponent_read_as_string_is_a_number():
     assert stresslib._number("8e-08", "w period_s") == pytest.approx(8e-08)
     with pytest.raises(CheckError):
         stresslib._number("eighty", "w period_s")
+
+
+# --- near the one-off bound: the fine-step repeat (ae868's ruling) ---
+
+def near_stage(tmp_path, monkeypatch, coarse, fine=None, deck_extra=""):
+    """A stage whose run is `coarse` V over 3.3 V on the gate for 100 ns,
+    and `fine` in a run whose .tran was rewritten to the fine step."""
+    ws = tmp_path / "ws"
+    (ws / "layout_ref").mkdir(parents=True)
+    work = ws / "log" / "pex_sim"
+    work.mkdir(parents=True)
+    extracted = work / "top.spice"
+    extracted.write_text(TOP)
+    (ws / "layout_ref" / "b.cir").write_text(BENCH)
+    side = ws / "layout_ref" / "top_stress.yaml"
+    side.write_text("decks:\n- {name: d, bench: b.cir, corners: [tt]"
+                    + deck_extra + "}\n")
+    corner = {"name": "tt", "process": "typical", "temp_c": 27}
+    monkeypatch.setattr(check_pex_sim.sim_run, "spec_sweep",
+                        lambda _ws: ([corner], []))
+    monkeypatch.setattr(check_pex_sim, "_named",
+                        lambda sweep, name: corner if name == "tt" else None)
+    monkeypatch.setattr(check_pex_sim, "corner_tokens", lambda c, v: {
+        "corner": "typical", "res_corner": "r", "mim_corner": "m",
+        "temp_c": 27, "vdd": "3.3"})
+    runs = []
+
+    def fake(bench, cwd, timeout):
+        text = Path(bench).read_text()
+        is_fine = ".tran 1e-11 1u 0 1e-11" in text
+        runs.append("fine" if is_fine else "coarse")
+        raw = next(l.split()[1] for l in text.splitlines()
+                   if l.startswith("write "))
+        wave = fine if is_fine else coarse
+        t = np.array([0.0, 1e-7, 1e-7 + 1e-15, 2e-7, 2e-7 + 1e-15, 1e-6])
+        write_raw(Path(cwd) / raw, t, {
+            "out": np.zeros(6), "in": wave * np.array([0, 0, 1, 1, 0, 0]) + 3.3,
+            "vdd": np.full(6, 3.3)})
+        return ""
+
+    monkeypatch.setattr(check_pex_sim.layoutlib, "run_ngspice", fake)
+    violations: list = []
+    facts = check_pex_sim.stress_stage(
+        ws, side, "top", work, extracted, TOP, "top", "top", "layout/top.gds",
+        "/pdk", 3.3, 60, violations)
+    return facts, violations, runs
+
+
+# 3.3 V + this is 3.63 V + the over-limit in the name
+OVER_295 = 0.625
+OVER_305 = 0.635
+OVER_250 = 0.58
+OVER_320 = 0.65
+OVER_289 = 0.619
+OVER_311 = 0.641
+
+
+def test_limits_carry_the_near_bound_band():
+    assert stresslib.load_limits()["gate_oxide"]["one_off"]["near_bound_v"] == 0.010
+
+
+@pytest.mark.parametrize("coarse", [OVER_295, OVER_305])
+def test_a_peak_near_the_bound_without_a_repeat_fails_either_side(
+        tmp_path, monkeypatch, coarse):
+    facts, violations, runs = near_stage(tmp_path, monkeypatch, coarse)
+    assert runs == ["coarse"]
+    kinds = {v["kind"] for v in violations}
+    assert "stress_needs_fine_repeat" in kinds
+    assert all("needs the fine-step repeat" in v["msg"] for v in violations
+               if v["kind"] == "stress_needs_fine_repeat")
+    assert {n["pair"] for n in facts["needs_fine_repeat"]} >= {"Vgs"}
+    assert facts["fine_repeats"] == []
+
+
+@pytest.mark.parametrize("coarse", [OVER_289, OVER_311])
+def test_a_peak_just_outside_the_band_needs_no_repeat(tmp_path, monkeypatch, coarse):
+    facts, violations, runs = near_stage(tmp_path, monkeypatch, coarse)
+    assert runs == ["coarse"]
+    assert "stress_needs_fine_repeat" not in {v["kind"] for v in violations}
+    assert facts["needs_fine_repeat"] == []
+
+
+def test_a_far_peak_with_a_fine_step_declared_runs_once(tmp_path, monkeypatch):
+    facts, violations, runs = near_stage(
+        tmp_path, monkeypatch, 0.4, deck_extra=", fine_step_s: 1.0e-11")
+    assert runs == ["coarse"] and violations == []
+    assert facts["fine_repeats"] == []
+
+
+def test_the_repeat_under_the_bound_passes_and_reports_both_peaks(
+        tmp_path, monkeypatch):
+    facts, violations, runs = near_stage(
+        tmp_path, monkeypatch, OVER_305, OVER_250,
+        deck_extra=", fine_step_s: 1.0e-11")
+    assert runs == ["coarse", "fine"]
+    assert violations == []      # judged by the repeat, not the coarse 305 mV
+    (rep,) = facts["fine_repeats"]
+    assert rep["step_s"] == 1e-11 and rep["corner"] == "tt"
+    vgs = next(d for d in rep["devices"] if d["pair"] == "Vgs")
+    assert vgs["coarse_peak_over_v"] == pytest.approx(0.305, abs=1e-6)
+    assert vgs["fine_peak_over_v"] == pytest.approx(0.250, abs=1e-6)
+    assert facts["needs_fine_repeat"] == []
+
+
+def test_the_repeat_over_the_bound_fails_as_overstress(tmp_path, monkeypatch):
+    facts, violations, runs = near_stage(
+        tmp_path, monkeypatch, OVER_295, OVER_320,
+        deck_extra=", fine_step_s: 1.0e-11")
+    assert runs == ["coarse", "fine"]
+    assert {v["kind"] for v in violations} == {"device_overstress"}
+    assert "X0" in facts["devices_failing"]
+
+
+def test_with_step_sets_print_and_largest_step_and_keeps_the_rest():
+    out = stresslib.with_step("t\n.tran 1n 3.1u 0 50p uic\n.end\n", 1e-11, "b")
+    assert ".tran 1e-11 3.1u 0 1e-11 uic\n" in out
+    out = stresslib.with_step("t\n.tran 1n 1u\n.end\n", 1e-11, "b")
+    assert ".tran 1e-11 1u 0 1e-11\n" in out
+
+
+def test_a_fine_step_no_finer_than_the_bench_is_refused():
+    with pytest.raises(CheckError, match="not finer"):
+        stresslib.with_step("t\n.tran 1n 3u 0 10p\n.end\n", 1e-11, "b")
+    # no tmax: ngspice's own largest step is min(tstep, span / 50) = 1 ns
+    with pytest.raises(CheckError, match="not finer"):
+        stresslib.with_step("t\n.tran 5n 50n\n.end\n", 1e-9, "b")
+    assert stresslib.tran_step("t\n.tran 5n 50n\n.end\n", "b") == pytest.approx(1e-9)
+
+
+def test_sidecar_refuses_a_non_positive_fine_step(tmp_path):
+    with pytest.raises(CheckError, match="positive"):
+        stresslib.load_sidecar(_sidecar(tmp_path, fine_step_s=0))
+    assert stresslib.load_sidecar(_sidecar(tmp_path, fine_step_s="1e-11")
+                                  )[0]["fine_step"] == 1e-11

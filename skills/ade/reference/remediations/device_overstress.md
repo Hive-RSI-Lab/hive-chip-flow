@@ -21,6 +21,9 @@ band still counts toward the peak and the cycle average, and every device
 that passes only because of the band is listed under `stress` as
 `share_band_only`, with its peak and both shares.
 
+A one-off peak within 10 mV of its bound, either side, needs the deck
+rerun finer before it is judged (`stress_needs_fine_repeat.md`).
+
 Less than 1 mV over is not an excursion. An excursion still over when the run
 ends fails, because nothing shows it ever ends.
 
@@ -38,6 +41,7 @@ decks:
     bench: pll_stress_lock_tb.cir  # beside the sidecar, in layout_ref/
     corners: [ff_125c_vp10]        # names from the spec's sweep
     timeout_s: 3600                # optional, else the gate's own
+    fine_step_s: 1.0e-11           # optional: the repeat for a near peak
     repeating:                     # optional: a whole number of cycles
       - {name: cycles, start_s: 2.24e-6, stop_s: 3.12e-6, period_s: 80.0e-9}
 ```

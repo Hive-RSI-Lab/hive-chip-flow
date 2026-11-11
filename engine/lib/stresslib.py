@@ -17,6 +17,12 @@ declared repeating window is held to the repeating bounds there, per cycle of
 the window; one that is not wholly inside a window is also held to the one-off
 bounds with its whole length. One still over when the run ends is a failure:
 nothing shows it ever ends.
+
+A one-off peak within `near_bound_v` of its bound, on either side, is too
+close for the bench's time step to settle: an edge resolved more finely can
+cross the bound either way. The device is listed as needing the fine-step
+repeat, and the gate fails until the deck declares `fine_step_s`, when it
+reruns that deck and corner at that step and judges the run by the repeat.
 """
 from __future__ import annotations
 
@@ -28,6 +34,7 @@ import numpy as np
 import yaml
 
 from checklib import CheckError
+from netlistlib import spice_number
 
 LIMITS_FILE = Path(__file__).resolve().parents[1] / "reference" / "stress_limits.yaml"
 INST = "xdut"
@@ -117,10 +124,16 @@ def load_sidecar(path: Path) -> list[dict]:
             raise CheckError(f"{path.name}: deck {name} lists no corners")
         windows = [_window(w, name, path.name) for w in row.get("repeating") or []]
         timeout = row.get("timeout_s")
+        fine = row.get("fine_step_s")
+        fine = None if fine is None else _number(fine, f"{name} fine_step_s")
+        if fine is not None and fine <= 0:
+            raise CheckError(f"{path.name}: deck {name} fine_step_s must be "
+                             "positive")
         out.append({"name": name, "bench": bench,
                     "corners": [str(c) for c in corners], "windows": windows,
                     "timeout": None if timeout is None
-                    else _number(timeout, f"{name} timeout_s")})
+                    else _number(timeout, f"{name} timeout_s"),
+                    "fine_step": fine})
     return out
 
 
@@ -276,6 +289,69 @@ def with_control(bench: str, raw_name: str, vectors: list[str], what: str) -> st
     if not ends:
         return bench.rstrip("\n") + "\n" + tail + ".end\n"
     return bench[:ends[-1].start()] + tail + bench[ends[-1].start():]
+
+
+TRAN = re.compile(r"^(\s*\.tran\b)([^\n]*)$", re.M | re.I)
+
+
+def _tran_args(bench: str, what: str) -> tuple[re.Match, list[str], list[str]]:
+    found = list(TRAN.finditer(bench))
+    if len(found) != 1:
+        raise CheckError(f"{what} needs exactly one .tran line, not "
+                         f"{len(found)}")
+    words = found[0].group(2).split()
+    numbers = []
+    for w in words:
+        if w.lower() == "uic":
+            break
+        numbers.append(w)
+    if len(numbers) < 2:
+        raise CheckError(f"{what}: .tran needs a step and a stop time")
+    return found[0], numbers, words[len(numbers):]
+
+
+def tran_step(bench: str, what: str) -> float:
+    """The largest internal step ngspice takes for the bench's .tran: tmax
+    when given, else the smaller of tstep and (tstop - tstart) / 50."""
+    _, numbers, _ = _tran_args(bench, what)
+    vals = [spice_number(n) for n in numbers[:4]]
+    if None in vals:
+        raise CheckError(f"{what}: .tran {' '.join(numbers)} is not plain "
+                         "numbers, so the fine-step repeat cannot be set")
+    if len(vals) == 4:
+        return vals[3]
+    start = vals[2] if len(vals) > 2 else 0.0
+    return min(vals[0], (vals[1] - start) / 50)
+
+
+def with_step(bench: str, step: float, what: str) -> str:
+    """The bench with its .tran print step and largest step both `step`,
+    stop and start times kept. Refused unless finer than the bench's own."""
+    own = tran_step(bench, what)
+    if not step < own:
+        raise CheckError(f"{what}: fine_step_s {step:g} s is not finer than "
+                         f"the bench's own largest step {own:g} s")
+    found, numbers, rest = _tran_args(bench, what)
+    start = numbers[2] if len(numbers) > 2 else "0"
+    line = " ".join([f"{step:g}", numbers[1], start, f"{step:g}", *rest])
+    return bench[:found.start(2)] + " " + line + bench[found.end(2):]
+
+
+def near_bound(rows: list[dict], limits: dict) -> list[dict]:
+    """The gate pairs of one run whose one-off peak lies within
+    near_bound_v of the one-off peak bound, either side."""
+    one_off = limits["gate_oxide"]["one_off"]
+    bound, near = one_off["peak_over_v"], one_off["near_bound_v"]
+    out = []
+    for r in rows:
+        if r.get("class") != "gate":
+            continue
+        for row in r["rows"]:
+            if row["kind"] == "one_off" and abs(row["peak_over_v"] - bound) <= near:
+                out.append({"device": r["device"], "label": r["label"],
+                            "pair": r["pair"], "peak_over_v": row["peak_over_v"],
+                            "t_peak_s": row["t_peak_s"]})
+    return out
 
 
 def read_binary_raw(path: Path) -> tuple[np.ndarray, dict]:

@@ -29,6 +29,10 @@ gate_oxide:
   one_off:
     peak_over_v: 0.300
     time_over_s: 1.0e-6
+    # a project ruling (ours): a one-off peak this close to peak_over_v,
+    # either side, needs the deck rerun at its fine_step_s before it is
+    # judged; the gate fails until the deck declares one
+    near_bound_v: 0.010
 junction:
   citation: >-
     The GF180MCU design rule manual gives no number for a drain, source or

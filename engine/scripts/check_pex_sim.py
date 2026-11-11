@@ -195,7 +195,11 @@ both lengths: time_over_s more than floor_v over the limit, which is what
 the 1 us bound reads, and time_over_rail_s over the limit at all), the ones
 that pass
 only because of the share band with their peak and both shares, and the
-junction pairs above the 3.63 V reference. A block without
+junction pairs above the 3.63 V reference. A one-off peak within
+near_bound_v (10 mV) of its bound, either side, is a
+`stress_needs_fine_repeat` finding unless the deck declares `fine_step_s`;
+then that deck and corner are rerun at that step and judged by the repeat,
+and `stress.fine_repeats` gives both peaks. A block without
 the file is not stress-checked, and its report has no `stress` key.
 """
 from __future__ import annotations
@@ -919,6 +923,8 @@ def stress_stage(ws: Path, side: Path, block: str, work_dir: Path,
     out.mkdir(parents=True, exist_ok=True)
 
     rows: list[dict] = []
+    repeats: list[dict] = []
+    needs: list[dict] = []
     for row in decks:
         template = row["bench"].read_text(encoding="utf-8")
         outer, cell = stresslib.dut_of(template, row["bench"].name)
@@ -933,28 +939,37 @@ def stress_stage(ws: Path, side: Path, block: str, work_dir: Path,
             if corner is None:
                 raise CheckError(f"{side.name}: deck {row['name']} names "
                                  f"corner {name}, which the sweep lacks")
-            stem = f"{row['name']}__{name}"
-            bench_path, raw = out / f"{stem}.cir", out / f"{stem}.raw"
-            layoutlib.fresh(bench_path)
-            bench_path.write_text(stresslib.with_control(
-                template.format(pdk=pdk, extracted=extracted.resolve(),
-                                **corner_tokens(corner, nominal_vdd)),
-                raw.name, vectors, row["bench"].name), encoding="utf-8")
+            tokens = corner_tokens(corner, nominal_vdd)
+            text = template.format(pdk=pdk, extracted=extracted.resolve(),
+                                   **tokens)
             limit = row["timeout"] if row["timeout"] is not None else timeout
-            try:
-                layoutlib.run_ngspice(bench_path, cwd=out, timeout=limit)
-            except layoutlib.LayoutError as exc:
-                if isinstance(exc.__cause__, subprocess.TimeoutExpired):
-                    raise CheckError(f"stress {stem}: " + speclib.timeout_hint(
-                        "pex_sim", limit)) from exc
-                raise CheckError(f"stress {stem}: {exc}") from exc
-            if not raw.is_file():
-                raise CheckError(f"stress {stem}: ngspice wrote no {raw.name}")
-            t, store = stresslib.read_binary_raw(raw)
-            found = stresslib.score_run(t, store, devices, row["windows"], limits)
+            stem = f"{row['name']}__{name}"
+            found = _stress_run(out, stem, text, vectors, row, devices, limits,
+                                limit)
+            near = stresslib.near_bound(found, limits)
+            if near and row["fine_step"] is not None:
+                fine_text = stresslib.with_step(text, row["fine_step"],
+                                                row["bench"].name)
+                fine = _stress_run(out, stem + "__fine", fine_text, vectors,
+                                   row, devices, limits, limit)
+                after = {(n["device"], n["pair"]): n
+                         for n in _one_off_peaks(fine)}
+                repeats.append({
+                    "deck": row["name"], "corner": name,
+                    "step_s": row["fine_step"],
+                    "devices": [{
+                        "device": n["device"], "label": n["label"],
+                        "pair": n["pair"],
+                        "coarse_peak_over_v": n["peak_over_v"],
+                        # None: the repeat found no one-off excursion there
+                        "fine_peak_over_v": after.get(
+                            (n["device"], n["pair"]), {}).get("peak_over_v")}
+                        for n in near]})
+                found = fine
+            elif near:
+                for n in near:
+                    needs.append({**n, "deck": row["name"], "corner": name})
             rows += [{**r, "corner": name, "deck": row["name"]} for r in found]
-            del store
-            raw.unlink()    # every terminal of a macro: gigabytes per run
 
     for (_dev, pair), bad in sorted(stresslib.failures_by_pair(rows).items()):
         first = bad[0]
@@ -970,8 +985,54 @@ def stress_stage(ws: Path, side: Path, block: str, work_dir: Path,
             f"{first['label']} {pair} at {first['corner']} / {first['deck']}: "
             f"{detail} (fails in {len(runs)} run(s): {', '.join(runs[:8])})",
             "check_pex_sim"))
-    return stresslib.summarise(rows, sum(len(d["corners"]) for d in decks),
-                               len(devices), limits, others)
+    near_v = limits["gate_oxide"]["one_off"]["near_bound_v"]
+    bound = limits["gate_oxide"]["one_off"]["peak_over_v"]
+    for n in needs:
+        violations.append(checklib.violation(
+            "pex_sim", "error", rel_gds, topcell, "stress_needs_fine_repeat",
+            [n["label"], n["pair"], n["corner"], n["deck"]],
+            f"{n['label']} {n['pair']} at {n['corner']} / {n['deck']}: one-off "
+            f"peak {1e3 * n['peak_over_v']:.1f} mV over at {n['t_peak_s']:.4g} s "
+            f"is within {1e3 * near_v:g} mV of the {1e3 * bound:.0f} mV bound: "
+            f"needs the fine-step repeat (fine_step_s on deck {n['deck']})",
+            "check_pex_sim"))
+    facts = stresslib.summarise(rows, sum(len(d["corners"]) for d in decks),
+                                len(devices), limits, others)
+    facts["needs_fine_repeat"] = needs
+    facts["fine_repeats"] = repeats
+    return facts
+
+
+def _one_off_peaks(found: list[dict]) -> list[dict]:
+    """(device, pair, peak_over_v) of every gate pair's one-off row."""
+    return [{"device": r["device"], "pair": r["pair"],
+             "peak_over_v": row["peak_over_v"]}
+            for r in found if r.get("class") == "gate"
+            for row in r["rows"] if row["kind"] == "one_off"]
+
+
+def _stress_run(out: Path, stem: str, text: str, vectors: list[str],
+                row: dict, devices: list[dict], limits: dict,
+                limit) -> list[dict]:
+    """One stress run of `text` in `out`: the scored rows, the raw removed."""
+    bench_path, raw = out / f"{stem}.cir", out / f"{stem}.raw"
+    layoutlib.fresh(bench_path)
+    bench_path.write_text(stresslib.with_control(
+        text, raw.name, vectors, row["bench"].name), encoding="utf-8")
+    try:
+        layoutlib.run_ngspice(bench_path, cwd=out, timeout=limit)
+    except layoutlib.LayoutError as exc:
+        if isinstance(exc.__cause__, subprocess.TimeoutExpired):
+            raise CheckError(f"stress {stem}: " + speclib.timeout_hint(
+                "pex_sim", limit)) from exc
+        raise CheckError(f"stress {stem}: {exc}") from exc
+    if not raw.is_file():
+        raise CheckError(f"stress {stem}: ngspice wrote no {raw.name}")
+    t, store = stresslib.read_binary_raw(raw)
+    found = stresslib.score_run(t, store, devices, row["windows"], limits)
+    del store
+    raw.unlink()    # every terminal of a macro: gigabytes per run
+    return found
 
 
 def fill_view(ws: Path, gds_path: Path, topcell: str, rel_gds: str,
