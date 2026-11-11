@@ -45,8 +45,9 @@ cd "$REPO_ROOT"
 # harden tests), `charlib` (cell characterisation and the real optimise
 # runs), and `rest` (every other slow file, so a new file is never left
 # out). `check-slow.sh PART` runs one part; no argument runs every part.
-# Measured there: harden ~640 s (~1320 s with the proof passing),
-# charlib ~1220 s, rest ~670 s.
+# Measured there: harden ~640 s with the proof failing early, ~555 s with
+# it passing (it now runs cdc and lec too) on a quieter box; charlib
+# ~1220 s, rest ~670 s.
 SHARDS="harden charlib rest"
 shard_files() {
   case "$1" in
