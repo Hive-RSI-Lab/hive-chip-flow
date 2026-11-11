@@ -48,6 +48,11 @@ real RTL or testbench change.
   (a harden running alongside) the job was killed for memory. Until the jobs
   cap covers the proof phase (issue #192), run `mutate` alone, not next to
   harden or another long job, and rerun it if it was killed.
+- A design change renumbers the mutants. Rulings in `spec/mutant_rulings.yaml`
+  keep their old ids, which now point at other mutants or none, and mutate
+  refuses them ("not a mutant this run generated" or "that mutant is killed
+  by the tests", each ending "remove the stale ruling"). Empty the rulings,
+  rerun mutate, and ask the owner to rule the new survivors again.
 - To check one survivor by hand, run `engine/scripts/mutate_runner.py` in a
   scratch task directory with `PRJDIR` pointing at a copy of the mcy
   database, or call `check_mutate.prove_equivalent(design_il, mutation,
