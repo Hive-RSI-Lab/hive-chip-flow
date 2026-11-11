@@ -1313,6 +1313,43 @@ def lost_couplings(ext_text: str, pex_text: str,
 _EXT_SUBSTRATE_RE = re.compile(r'^substrate\s+"([^"]+)"')
 # a sub-node extresist wrote: rnode "name" R C x y ... - C in aF
 _RNODE_RE = re.compile(r'^rnode\s+"([^"]+)"\s+\S+\s+(\S+)')
+# a resistor subckt magic extracted: device rsubckt model x y x y params
+# "substrate" "body" 0 0 "term" len attrs "term" len attrs
+_EXT_RSUBCKT_RE = re.compile(r'^device\s+rsubckt\s')
+
+
+def _ext_substrate_targets(ext_text: str, sub: str) -> dict[str, float]:
+    """{net: fF} each net's C to the substrate net `sub` as ext2spice
+    writes it from the .ext: its node C, plus any .ext coupling to `sub`,
+    plus an equal share of the C of each resistor body node it is a
+    terminal of. ext2spice never writes an rsubckt's body node (an rm1's
+    metal under the resistor marker) as a net; it splits that node's C
+    equally across the resistor's terminals, so on r2r_dac vout carries
+    1.37 fF of its two rm1 bodies against 0.14 fF of its own."""
+    target: dict[str, float] = {}
+    for n in ext_nodes(ext_text):
+        net = _ext_net(n["name"])
+        target[net] = target.get(net, 0.0) + n["cap"] / 1e3
+    for line in ext_text.splitlines():
+        m = _EXT_CAP_RE.match(line)
+        if m:
+            a, b = _ext_net(m.group(1)), _ext_net(m.group(2))
+            if sub in (a, b) and a != b:
+                net = b if a == sub else a
+                target[net] = target.get(net, 0.0) + float(m.group(3)) / 1e3
+    bodies: dict[str, list[str]] = {}
+    for line in ext_text.splitlines():
+        if not _EXT_RSUBCKT_RE.match(line):
+            continue
+        names = [_ext_net(q) for q in re.findall(r'"([^"]*)"', line)]
+        if len(names) < 3 or names[1] in names[2:]:
+            continue
+        bodies.setdefault(names[1], []).extend(names[2:])
+    for body, terms in bodies.items():
+        ff = target.pop(body, 0.0)
+        for net in terms:
+            target[net] = target.get(net, 0.0) + ff / len(terms)
+    return target
 
 
 def uncount_rnode_caps(ext_text: str, res_ext_text: str,
@@ -1327,7 +1364,8 @@ def uncount_rnode_caps(ext_text: str, res_ext_text: str,
     coupling capacitors themselves, so a split net carried its coupling C
     twice. A split net's C lines to the substrate net (its own node C plus
     the rnode shares) are scaled together to its .ext substrate C plus any
-    .ext coupling to the substrate net: the coupling stays where it is
+    .ext coupling to the substrate net, plus its share of each resistor
+    body it ends (_ext_substrate_targets): the coupling stays where it is
     real, between the nets, and the spread along the wire stays."""
     import netlistlib
 
@@ -1349,17 +1387,7 @@ def uncount_rnode_caps(ext_text: str, res_ext_text: str,
             "net's C to the substrate")
     sub = subs[0]
     split.discard(sub)
-    target: dict[str, float] = {}
-    for n in ext_nodes(ext_text):
-        net = _ext_net(n["name"])
-        target[net] = target.get(net, 0.0) + n["cap"] / 1e3
-    for line in ext_text.splitlines():
-        m = _EXT_CAP_RE.match(line)
-        if m:
-            a, b = _ext_net(m.group(1)), _ext_net(m.group(2))
-            if sub in (a, b) and a != b:
-                net = b if a == sub else a
-                target[net] = target.get(net, 0.0) + float(m.group(3)) / 1e3
+    target = _ext_substrate_targets(ext_text, sub)
     lines = pex_text.splitlines(keepends=True)
     to_sub: dict[str, list[tuple[int, float]]] = {}
     for i, line in enumerate(lines):
@@ -1405,7 +1433,8 @@ def restore_unsplit_node_caps(ext_text: str, res_ext_text: str,
     exactly what the .ext extracted: extresist changed nothing on it. So
     each unsplit net named in the netlist has its C lines to the substrate
     replaced by one capacitor of its .ext substrate C plus any .ext
-    coupling to the substrate net (none if that is 0)."""
+    coupling to the substrate net, plus its share of each resistor body it
+    ends (_ext_substrate_targets; none if all that is 0)."""
     import netlistlib
 
     split = set()
@@ -1431,13 +1460,7 @@ def restore_unsplit_node_caps(ext_text: str, res_ext_text: str,
     whole.discard(sub)
     if not whole:
         return pex_text, {}
-    for line in ext_text.splitlines():
-        m = _EXT_CAP_RE.match(line)
-        if m:
-            a, b = _ext_net(m.group(1)), _ext_net(m.group(2))
-            if sub in (a, b) and a != b:
-                net = b if a == sub else a
-                target[net] = target.get(net, 0.0) + float(m.group(3)) / 1e3
+    target = _ext_substrate_targets(ext_text, sub)
     named: set[str] = set()
     have: dict[str, float] = {}
     at: dict[str, list[int]] = {}
