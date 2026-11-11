@@ -51,7 +51,11 @@ the one it must patch at run time):
     output has settled, less the load's share V*C*(v1-v0) on a rising output
     (Liberty's convention, the shipped lib's too). The self-check re-measures
     random points with the load's charge read through a 0 V probe over a longer
-    window. Edges that leave every output alone are the inputs' hidden power.
+    window. Edges that leave every output alone are the inputs' hidden power,
+    each edge on its own run from the DC state before it, on the netlist with
+    its coupling capacitors tied to ground (ground_coupling): the charge an
+    input puts into a neighbour's capacitance is the driver's, booked as the
+    pin's capacitance, and the shipped lib leaves it off (issue #322).
     A flip-flop's Q arc holds the clock edge less CLK's hidden power, which a
     power tool adds on every edge.
   - Leakage is one DC operating point per input state at LEAKAGE_OPTIONS. A
@@ -1444,6 +1448,42 @@ def _side_states(fn, related, others):
                      eval_function(fn, {**side, related: True}))
 
 
+def ground_coupling(text: str, rails) -> str:
+    """The netlist with every coupling capacitor tied to ground (issue #322):
+    a cap between a rail and a signal net goes from the net to node 0, one
+    between two signal nets becomes one of the same value from each net to 0,
+    and one between two rails stays. A rail is a name in `rails` or "0", with
+    any ".suffix" an extractor adds (VNW.t0)."""
+    rails = {r.lower() for r in rails} | {"0", "gnd"}
+
+    def rail(node):
+        return node.split(".")[0].lower() in rails
+    out = []
+    for line in text.splitlines():
+        t = line.split()
+        if t and t[0][0] in "Cc" and len(t) >= 4:
+            a, b, rest = t[1], t[2], " ".join(t[3:])
+            if rail(a) != rail(b):
+                line = f"{t[0]} {b if rail(a) else a} 0 {rest}"
+            elif not rail(a):
+                line = f"{t[0]}_a {a} 0 {rest}\n{t[0]}_b {b} 0 {rest}"
+        out.append(line)
+    return "\n".join(out) + "\n"
+
+
+def _hidden_bench(bench):
+    """The bench for hidden power: its netlist with coupling tied to ground,
+    so an input's charge into a neighbour's capacitance, which the driver pays
+    and Liberty books as the pin's capacitance, is not read off the supply."""
+    work = bench.work / "hidden"
+    work.mkdir(parents=True, exist_ok=True)
+    netlist = work / "netlist_grounded.sp"
+    netlist.write_text(ground_coupling(
+        bench.netlist.read_text(encoding="utf-8", errors="replace"),
+        bench.pg), encoding="utf-8")
+    return dataclasses.replace(bench, netlist=netlist, work=work, runs=0)
+
+
 def _gap(ramp) -> float:
     """Time between two edges of a hidden-power run: the edge and settling."""
     return 2.0 * ramp + 3.0
@@ -1534,26 +1574,29 @@ def _measure_comb_power(bench, cell, slews, loads, jobs) -> dict:
                        "fall": rows[False]})
     out_pin = next(p.args for p in cell.sub("pin")
                    if p.attr("direction") == "output")
-    htasks = [(h, i) for h in range(len(hidden)) for i in range(len(slews))]
+    htasks = [(h, i, rises) for h in range(len(hidden))
+              for i in range(len(slews)) for rises in (True, False)]
 
     def one_hidden(b, task):
-        h, i = task
+        # each edge on its own run from the DC state before it (issue #322)
+        h, i, rises = task
         related, side = hidden[h]
         ramp = ramp_of(slews[i], b.terms)
         g, t0 = _gap(ramp), 1.0
         stim = {p: f"{b.vdd if v else 0:g}" for p, v in side.items()}
-        stim[related] = _ramp_edges(b.vdd, [(t0, ramp, True),
-                                            (t0 + g, ramp, False)], t0 + 2 * g)
-        rise, fall = _windows_energy(
-            b, stim, out_pin, loads[0],
-            [(t0 - 0.05, t0 + g - 0.05), (t0 + g - 0.05, t0 + 2 * g)],
-            max(ramp / 100.0, 0.0005))
-        return rise, fall
-    hres = _pool_map(bench, one_hidden, htasks, jobs)
+        stim[related] = _ramp_edges(b.vdd, [(t0, ramp, rises)], t0 + g)
+        return _windows_energy(b, stim, out_pin, loads[0],
+                               [(t0 - 0.05, t0 + g - 0.05)],
+                               max(ramp / 100.0, 0.0005))[0]
+    hbench = _hidden_bench(bench)
+    hres = _pool_map(hbench, one_hidden, htasks, jobs)
+    bench.runs += hbench.runs
     inputs_out = []
     for h, (related, side) in enumerate(hidden):
-        rise = [round(r[0], 6) for (k, _), r in zip(htasks, hres) if k == h]
-        fall = [round(r[1], 6) for (k, _), r in zip(htasks, hres) if k == h]
+        rise = [round(e, 6) for (k, _, r), e in zip(htasks, hres)
+                if k == h and r]
+        fall = [round(e, 6) for (k, _, r), e in zip(htasks, hres)
+                if k == h and not r]
         inputs_out.append({"pin": related, "when": when_of(side),
                            "rise": rise, "fall": fall})
     return {"arcs": groups, "hidden": inputs_out}

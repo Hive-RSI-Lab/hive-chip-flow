@@ -168,6 +168,43 @@ def test_extracted_wins_when_it_exists(tmp_path):
     assert exc.value.kind == "no_netlist"
 
 
+def test_hidden_power_ties_coupling_to_ground():
+    text = ("* x\n.subckt c A Z VDD VNW VSS\n"
+            "C0 A VNW.t0 0.2f\nC1 vdd z 1e-16\nC2 A n1 0.3f m=1\n"
+            "C3 VDD VSS 1f\nM1 Z A VDD VNW pfet\n.ends\n")
+    got = charlib.ground_coupling(text, ["VDD", "VNW", "VSS"]).splitlines()
+    assert got[2:7] == ["C0 A 0 0.2f", "C1 z 0 1e-16", "C2_a A 0 0.3f m=1",
+                        "C2_b n1 0 0.3f m=1", "C3 VDD VSS 1f"]
+    assert got[7] == "M1 Z A VDD VNW pfet"
+
+
+def test_only_hidden_power_runs_on_the_grounded_netlist(tmp_path, monkeypatch):
+    cell = charlib.parse_liberty(
+        CELL.replace("x__inv", "x__nand").replace('"(!I)"', '"(!(A&B))"')
+        .replace("pin(I)", "pin(A)").replace(
+            'related_pin : "I" ;', 'related_pin : "A" ;'))
+    pin_b = "pin(B) { capacitance : 0.0046 ; direction : input ; }"
+    cell = charlib.parse_liberty(charlib.write_liberty(cell).replace(
+        "pin(A)", pin_b + "\n pin(A)", 1))
+    real = tmp_path / "netlist.sp"
+    real.write_text(".subckt x__nand A B ZN VDD VSS\nC0 A VDD 1f\n.ends\n")
+    bench = charlib.Bench("x__nand", real, ["A", "B", "ZN", "VDD", "VSS"],
+                          {"VDD": "primary_power", "VSS": "primary_ground"},
+                          tmp_path, {}, 3.3, tmp_path / "w", TERMS)
+    seen = []
+
+    def fake_pool(b, fn, tasks, jobs):
+        seen.append((fn.__name__, b.netlist.read_text()))
+        return [0.0 if fn.__name__ == "one_hidden" else (True, 0.0)
+                for _ in tasks]
+    monkeypatch.setattr(charlib, "_pool_map", fake_pool)
+    charlib._measure_comb_power(bench, cell, [0.1], [0.01], 1)
+    got = dict(seen)
+    assert "C0 A VDD 1f" in got["one_arc"]
+    assert "C0 A 0 1f" in got["one_hidden"]
+    assert bench.netlist == real and "C0 A VDD 1f" in real.read_text()
+
+
 def test_function_evaluator():
     ev = charlib.eval_function
     assert ev('"(!I)"', {"I": False}) is True
