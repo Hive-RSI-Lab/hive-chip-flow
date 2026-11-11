@@ -275,6 +275,48 @@ def test_failed_winner_re_picks_corners(tmp_path, monkeypatch):
     assert 0.94 <= _x_on_disk(ws) <= 0.95
 
 
+def test_start_failing_typical_searches_typical_first(tmp_path, monkeypatch):
+    # x = -3 misses [0.9, 1.1] even at tt, so the typical-only stage runs
+    # first, scoring tt alone: its winner sits near 1.0, which ss
+    # (x + 0.15) fails. At -3 every corner is equally far off, so the
+    # start's one bounding corner is ff (the first name); the stage
+    # winner's failure adds ss. The corner round searches those from the
+    # stage's last population and lands in the only all-corner window,
+    # [0.9, 0.95].
+    ws = make_ws(tmp_path, start_value=-3.0)
+    optimise.run_start(["--workspace", str(ws), "--target", "sizing/sizing.yaml"])
+    monkeypatch.setattr(sim_run, "EDA_BIN",
+                        make_corner_fake_eda(tmp_path, {"ss": "x+0.15"}))
+    import scipy.optimize
+    real_de, inits = scipy.optimize.differential_evolution, []
+
+    def recording_de(objective, bounds, **kwargs):
+        inits.append(kwargs.get("init", "latinhypercube"))
+        return real_de(objective, bounds, **kwargs)
+    monkeypatch.setattr(scipy.optimize, "differential_evolution", recording_de)
+
+    payload, _ = optimise.run_numeric(
+        ["--workspace", str(ws), "--bounding", "1", "--popsize", "6",
+         "--maxiter", "15", "--seed", "1"])
+
+    stage = payload["typical_stage"]
+    assert stage["start_typical_margin"] < 0
+    assert stage["winner_pass"] is False
+    assert 0.95 < stage["winner_sizing"]["x"] <= 1.1
+    assert payload["rounds"][0]["corners"] == ["tt", "ff", "ss"]
+    assert inits[0] == "latinhypercube" and not isinstance(inits[1], str)
+    assert payload["status"] == "pass", payload
+    assert 0.9 <= _x_on_disk(ws) <= 0.95
+
+    # a start that passes typical goes straight to the corner rounds
+    ws2 = make_ws(tmp_path / "b", start_value=1.0)
+    optimise.run_start(["--workspace", str(ws2), "--target", "sizing/sizing.yaml"])
+    payload, _ = optimise.run_numeric(
+        ["--workspace", str(ws2), "--popsize", "6", "--maxiter", "15",
+         "--seed", "1"])
+    assert payload["typical_stage"] is None
+
+
 def test_no_full_corner_pass_writes_nothing(tmp_path, monkeypatch):
     # ss reads 0.2 whatever x is: no sizing passes sim_pvt, so nothing is
     # written - the file stays byte-identical - and the run says so (status
@@ -475,20 +517,7 @@ def test_real_r2r_dac_optimise_reaches_bounds_from_wrong_start(tmp_path):
 
 
 
-@pytest.mark.slow
-def test_real_ota_optimise_winner_from_wrong_start_reaches_layout(tmp_path):
-    """corpus/ade/ota from a wrong start: w_t off its even w_b ratio (gen_ota
-    refuses to draw it) and a comp cap too small for 60 degrees of phase
-    margin. The search scores only drawable sizings, so the winner it saves
-    passes sim_pvt as written and regenerates a layout that passes drc and
-    lvs, with nothing rounded in between. The rest of the sizing is the
-    corpus's passing one, held fixed (min = max) so the test spends its
-    trials on the two values the wrong start broke: w_t, which must stay an
-    even multiple of w_b, and cc_w."""
-    import yaml
-    import check_analog_drc
-    import check_analog_lvs
-    import check_sim_pvt
+def _ota_workspace(tmp_path: Path) -> Path:
     ws = tmp_path / "ws"
     ws.mkdir()
     for sub in ("layout", "netlist", "sizing", "layout_ref", "tb"):
@@ -500,6 +529,37 @@ def test_real_ota_optimise_winner_from_wrong_start_reaches_layout(tmp_path):
     shutil.copy2(CORPUS_OTA / "spec.yaml", ws / "spec" / "spec.yaml")
     (ws / "state.json").write_text(json.dumps(
         {"version": 3, "skill": "ade", "block": "ota"}), encoding="utf-8")
+    return ws
+
+
+def _assert_saved_ota_reaches_layout(ws: Path, tmp_path: Path) -> None:
+    import check_analog_drc
+    import check_analog_lvs
+    import check_sim_pvt
+    result, _ = check_sim_pvt.sweep(ws)
+    assert result["violations"] == []
+    out = tmp_path / "drc.json"
+    code = check_analog_drc.main(["--workspace", str(ws), "--out", str(out)])
+    drc = json.loads(out.read_text(encoding="utf-8"))
+    assert (code, drc["status"]) == (0, "pass"), drc
+    out = tmp_path / "lvs.json"
+    code = check_analog_lvs.main(["--workspace", str(ws), "--out", str(out)])
+    lvs = json.loads(out.read_text(encoding="utf-8"))
+    assert (code, lvs["status"]) == (0, "pass"), lvs
+
+
+@pytest.mark.slow
+def test_real_ota_optimise_winner_from_wrong_start_reaches_layout(tmp_path):
+    """corpus/ade/ota from a wrong start: w_t off its even w_b ratio (gen_ota
+    refuses to draw it) and a comp cap too small for 60 degrees of phase
+    margin. The search scores only drawable sizings, so the winner it saves
+    passes sim_pvt as written and regenerates a layout that passes drc and
+    lvs, with nothing rounded in between. The rest of the sizing is the
+    corpus's passing one, held fixed (min = max) so the test spends its
+    trials on the two values the wrong start broke: w_t, which must stay an
+    even multiple of w_b, and cc_w."""
+    import yaml
+    ws = _ota_workspace(tmp_path)
     path = ws / "sizing" / "sizing.yaml"
     start = yaml.safe_load(path.read_text(encoding="utf-8"))
     start["w_t"]["value"] = 9.0e-6    # 2.25 units of w_b: not drawable
@@ -518,16 +578,39 @@ def test_real_ota_optimise_winner_from_wrong_start_reaches_layout(tmp_path):
     saved = yaml.safe_load(path.read_text(encoding="utf-8"))
     units = saved["w_t"]["value"] / saved["w_b"]["value"]
     assert units == pytest.approx(round(units)) and round(units) % 2 == 0
-    result, _ = check_sim_pvt.sweep(ws)
-    assert result["violations"] == []
-    out = tmp_path / "drc.json"
-    code = check_analog_drc.main(["--workspace", str(ws), "--out", str(out)])
-    drc = json.loads(out.read_text(encoding="utf-8"))
-    assert (code, drc["status"]) == (0, "pass"), drc
-    out = tmp_path / "lvs.json"
-    code = check_analog_lvs.main(["--workspace", str(ws), "--out", str(out)])
-    lvs = json.loads(out.read_text(encoding="utf-8"))
-    assert (code, lvs["status"]) == (0, "pass"), lvs
+    _assert_saved_ota_reaches_layout(ws, tmp_path)
+
+@pytest.mark.slow
+def test_real_ota_optimise_converges_from_a_random_start(tmp_path):
+    """corpus/ade/ota with all 13 sizes free, from a random drawable start
+    (seeded, so the run repeats): nothing of the corpus's passing sizing
+    survives but the bounds. The start fails even at typical, so the
+    typical-only stage runs first; the winner saved must pass sim_pvt and
+    regenerate a layout that passes drc and lvs."""
+    import random
+    import yaml
+    ws = _ota_workspace(tmp_path)
+    path = ws / "sizing" / "sizing.yaml"
+    raw = yaml.safe_load(path.read_text(encoding="utf-8"))
+    rng = random.Random(11)
+    while True:
+        start = optimise.snap({n: {**s, "value": rng.uniform(s["min"], s["max"])}
+                               for n, s in optimise.load_sizing_yaml(path).items()})
+        if start:
+            break
+    for name in raw:
+        raw[name]["value"] = start[name]["value"]
+    path.write_text(yaml.safe_dump(raw), encoding="utf-8")
+
+    optimise.run_start(["--workspace", str(ws), "--target", "sizing/sizing.yaml"])
+    payload, _ = optimise.run_numeric(
+        ["--workspace", str(ws), "--popsize", "2", "--maxiter", "10",
+         "--rounds", "2", "--seed", "1"])
+    assert payload["start_full_corner_pass"] is False
+    assert payload["typical_stage"]["start_typical_margin"] < 0
+    assert payload["status"] == "pass" and payload["written"] is True, payload
+    _assert_saved_ota_reaches_layout(ws, tmp_path)
+
 
 # ------------------------------------------------------------ RTL loop (M7)
 #

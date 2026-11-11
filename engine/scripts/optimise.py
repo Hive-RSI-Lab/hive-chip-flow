@@ -403,6 +403,10 @@ def run_numeric(argv=None):
                     "with the least margin in the last full-corner run")
     ap.add_argument("--check-every", type=int, default=DEFAULT_CHECK_EVERY,
                     help="every K-th kept trial runs the full corner set")
+    ap.add_argument("--typical-maxiter", type=int, default=None,
+                    help="generations of the typical-only stage a start "
+                    "that fails at typical searches first (default: "
+                    "--maxiter; 0 skips the stage)")
     ap.add_argument("--rounds", type=int, default=DEFAULT_ROUNDS,
                     help="searches at most; a winner that fails the full "
                     "corner set adds its worst corners and searches again")
@@ -414,9 +418,12 @@ def run_numeric(argv=None):
         raise CheckError(f"--workers must be 1 to {MAX_WORKERS} (each "
                          "evaluation is a set of ngspice runs; the cap keeps "
                          "a search inside its memory share)")
+    if args.typical_maxiter is None:
+        args.typical_maxiter = args.maxiter
     for flag, v in (("--bounding", args.bounding), ("--rounds", args.rounds),
-                    ("--check-every", args.check_every)):
-        if v < (0 if flag == "--bounding" else 1):
+                    ("--check-every", args.check_every),
+                    ("--typical-maxiter", args.typical_maxiter)):
+        if v < (0 if flag in ("--bounding", "--typical-maxiter") else 1):
             raise CheckError(f"{flag} {v} is out of range")
 
     ws = Path(args.workspace)
@@ -554,6 +561,7 @@ def run_numeric(argv=None):
 
     pool = ThreadPoolExecutor(args.workers) if args.workers > 1 else None
     rounds = []
+    typical_stage = None
     message = None
     try:
         # trial 0: the starting sizing through sim_pvt's own run - whether
@@ -563,13 +571,44 @@ def run_numeric(argv=None):
             start_check["result"]["results"], benches, typical, args.bounding)
         failed_at.clear()
         start_score = evaluate(start_sizing, "starting sizing", checked=True)
-        x0 = None
-        for rnd in range(1, args.rounds + 1):
+        x0, init, done = None, "latinhypercube", False
+        start_typical = corner_margins(
+            start_check["result"]["results"], benches).get(
+                typical, MISSING_MEASURE_PENALTY)
+        if start_typical < 0 and args.typical_maxiter:
+            # a start that fails even at typical (a random one, say) is
+            # far from any design: most of the space misses typical, and
+            # every trial there would pay for the bounding corners too.
+            # Search typical alone first - a third of a trial's runs -
+            # and start the corner rounds from where that search ended
+            corner_set, search["corners"] = search["corners"], [typical]
+            search["best"], search["kept"] = None, 0
+            stage = differential_evolution(
+                objective, bounds_arr, seed=args.seed,
+                popsize=args.popsize, maxiter=args.typical_maxiter,
+                polish=False, tol=1e-3, workers=pool.map if pool else 1,
+                updating="deferred" if pool else "immediate")
+            message = stage.message
+            winner = search["best"][1]
+            already = [c for c in passed if c["sizing"] is winner]
+            check = already[0] if already else full_check(
+                winner, "typical stage winner, full corner set", 0)
+            typical_stage = {"start_typical_margin": round(start_typical, 6),
+                             "winner_trial": check["trial"],
+                             "winner_pass": check["pass"],
+                             "winner_sizing": {n: winner[n]["value"]
+                                               for n in names}}
+            search["corners"] = corner_set + [
+                c for c in dict.fromkeys(failed_at) if c not in corner_set]
+            failed_at.clear()
+            init, done = stage.population, check["pass"]
+        for rnd in range(1, 0 if done else args.rounds + 1):
             search["best"], search["kept"] = None, 0
             result = differential_evolution(
                 objective, bounds_arr, seed=args.seed + rnd - 1,
                 popsize=args.popsize, maxiter=args.maxiter, polish=False,
-                tol=1e-3, x0=x0, workers=pool.map if pool else 1,
+                tol=1e-3, x0=x0, init=init if rnd == 1 else "latinhypercube",
+                workers=pool.map if pool else 1,
                 updating="deferred" if pool else "immediate")
             message = result.message
             winner = search["best"][1]
@@ -623,7 +662,7 @@ def run_numeric(argv=None):
         "start_full_corner_pass": start_check["pass"],
         "best_score": round(chosen["margin"], 6) if chosen else None,
         "improved": improved, "written": improved, "kept_sizing": kept_final,
-        "rounds": rounds,
+        "typical_stage": typical_stage, "rounds": rounds,
         "full_corner_pass": on_disk["pass"],
         "full_corner_corners": on_disk["result"]["corners"],
         "full_corner_violations": on_disk["result"]["violations"],

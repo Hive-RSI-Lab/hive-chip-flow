@@ -4,5 +4,6 @@
   {"measure": "ugf_hz", "min": 5.0e6, "sensitivity": 0.10},
   {"measure": "a0_db", "min": 80},
   {"measure": "iq", "min": 1.5e-4, "max": 3.5e-4},
-  {"measure": "vos", "min": -1.0e-3, "max": 1.0e-3}
+  {"measure": "vos", "min": -1.0e-3, "max": 1.0e-3,
+   "sensitivity_abs": 2.0e-4, "sensitivity_unit": "V"}
 ]

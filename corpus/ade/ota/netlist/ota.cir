@@ -19,6 +19,11 @@
 * defaults below equal to that file's values (the bench's {{SIZING}} line
 * comes after this file and wins). Device lines use bare names (w=w_in, not
 * w={w_in}) so bench_strength's size mutant ("*2") is honoured.
+* xm6 and xm7 are split into parallel units (ten of w_2/10, two of w_s/2),
+* as the layout splits them: GF180's 3.3 V models are binned only up to
+* W = 100 um and sizing.yaml lets w_2 and w_s reach 200 um, where a single
+* device has no model at all. LVS combines parallel units, so it compares
+* the same total width.
 .param w_b=4e-6 w_t=8e-6 l_b=1e-6
 .param w_in=10e-6 l_in=1e-6
 .param w_ld=4e-6 l_ld=1e-6
@@ -31,8 +36,8 @@ xm1  d1    inn   tail vss nfet_03v3 w=w_in l=l_in
 xm2  d2    inp   tail vss nfet_03v3 w=w_in l=l_in
 xm3  d1    d1    vdd  vdd pfet_03v3 w=w_ld l=l_ld
 xm4  d2    d1    vdd  vdd pfet_03v3 w=w_ld l=l_ld
-xm6  out   d2    vdd  vdd pfet_03v3 w=w_2  l=l_2
-xm7  out   ibias vss  vss nfet_03v3 w=w_s  l=l_b
+xm6  out   d2    vdd  vdd pfet_03v3 w={w_2/10} l=l_2 m=10
+xm7  out   ibias vss  vss nfet_03v3 w={w_s/2} l=l_b m=2
 xrz  dz    out   vss  ppolyf_u r_width=rz_w r_length=rz_l
 xcc  d2    dz    cap_mim_2f0_m4m5_noshield c_width=cc_w c_length=cc_w
 * The layout (layout/gen_ota.py) draws each transistor as unit devices in
