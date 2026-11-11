@@ -372,12 +372,13 @@ def test_harden_job_killed_halfway_reports_dead_then_restart_finishes_and_signof
     LibreLane run, not a fake sleep), confirm jobs.py reports it `dead`
     (never stuck at `running` forever), restart the SAME gate, confirm it
     reaches `done` with the gate recorded `pass`, then run timing/drc/lvs/
-    glsim/precheck for real against that hardened output and confirm every
+    glsim/lec/precheck for real against that hardened output and confirm every
     one passes on the untouched design - gates.yaml's own criteria, checked
     against the real toolchain, not a fake subprocess."""
     import jobs as jobs_mod
     import check_drc
     import check_glsim
+    import check_lec
     import check_lvs
     import check_precheck
     import check_timing
@@ -390,7 +391,7 @@ def test_harden_job_killed_halfway_reports_dead_then_restart_finishes_and_signof
     # every digital gate before harden, in pipeline order, recorded - so the
     # release check at the end sees the whole pipeline fresh, not just M4.
     for name in ("spec_lint", "lint", "sim", "holdout", "mutate", "formal",
-                 "cover", "synth"):
+                 "cover", "synth", "cdc"):
         _gate_passes(ws, name, out_dir)
 
     rec = jobs_mod.start("harden", ws, "vde", None, None)
@@ -432,7 +433,7 @@ def test_harden_job_killed_halfway_reports_dead_then_restart_finishes_and_signof
     imap = statelib.load_map()
     for mod, name in ((check_timing, "timing"), (check_drc, "drc"),
                      (check_lvs, "lvs"), (check_glsim, "glsim"),
-                     (check_precheck, "precheck")):
+                     (check_lec, "lec"), (check_precheck, "precheck")):
         _, before = statelib.hash_kind(ws, "harden", imap)
         # through gate.py (it imports and runs `mod` and records the pass)
         # so release below sees each one recorded.
