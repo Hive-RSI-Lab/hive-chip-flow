@@ -41,6 +41,7 @@ inputs (freshness "unknown", never "fresh"), a missing file hashes to None
 """
 from __future__ import annotations
 
+import ast
 import hashlib
 import json
 import re
@@ -867,8 +868,30 @@ def _cosim_corners_owed(ws: Path) -> bool:
     return cosim_corners.owed(ws)
 
 
+def _layout_reads_sizing(ws: Path) -> bool:
+    """True when code under layout/ names the sizing file: a string outside a
+    docstring, so a generator whose comments only cite sizing.yaml beside its
+    typed-in constants answers False. Code that will not parse answers True,
+    since a wrong True only re-runs a gate and a wrong False hides a change."""
+    for path in sorted((ws / "layout").glob("*.py")):
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+        except (OSError, SyntaxError, ValueError):
+            return True
+        docs = {id(n.body[0].value) for n in ast.walk(tree)
+                if isinstance(n, (ast.Module, ast.ClassDef, ast.FunctionDef,
+                                  ast.AsyncFunctionDef))
+                and n.body and isinstance(n.body[0], ast.Expr)}
+        if any(isinstance(n, ast.Constant) and isinstance(n.value, str)
+               and "sizing" in n.value and id(n) not in docs
+               for n in ast.walk(tree)):
+            return True
+    return False
+
+
 # What a gate_inputs_when row may name: a workspace's answer, from its files.
-INPUT_PREDICATES = {"cosim_corners_owed": _cosim_corners_owed}
+INPUT_PREDICATES = {"cosim_corners_owed": _cosim_corners_owed,
+                    "layout_reads_sizing": _layout_reads_sizing}
 
 
 def gate_inputs_here(ws: Path, skill: str, gate: str, imap: dict) -> list[str]:

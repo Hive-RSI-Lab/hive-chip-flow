@@ -268,10 +268,12 @@ gate_inputs:
     # besides. spec_yaml: every gate below reads spec.yaml (top, supply,
     # corners, devices, mc, footprint_um; release via attest's mc reason).
     # sizing: sim_run.load_sizing()'s callers (sim_tt, sim_pvt,
-    # bench_strength, mc, lvs), and release, which attests the sized
-    # design (netlist + sizing + layout). pex_sim does not read sizing.yaml - the
-    # generator bakes sizes into the GDS - but reads the reference netlist
-    # for pins and its bench from tb/ or layout_ref/.
+    # bench_strength, mc, lvs), the gates that regenerate the layout (drc,
+    # erc, layout_match, pex_sim, em_ir), only where the generator reads
+    # sizing/sizing.yaml (gate_inputs_when: most type sizes in as constants),
+    # and release, which attests the sized design (netlist + sizing +
+    # layout). pex_sim also reads the reference netlist for pins and its
+    # bench from tb/ or layout_ref/.
     spec_lint:      [spec_yaml]
     netlist_lint:   [netlist, spec_yaml]
     # pdk_* (#138): the sims read the ngspice models; drc/lvs/pex_sim build
@@ -283,22 +285,23 @@ gate_inputs:
                      pdk_version, pdk_models]
     mc:             [netlist, tb, mutant_rulings, spec_yaml, sizing,
                      pdk_version, pdk_models]
-    drc:            [layout, spec_yaml, pdk_version, pdk_magic, pdk_klayout]
+    drc:            [layout, spec_yaml, sizing, pdk_version, pdk_magic,
+                     pdk_klayout]
     lvs:            [layout, netlist, spec_yaml, sizing, pdk_version,
                      pdk_magic, pdk_netgen, pdk_klayout]
     # erc reads netlist/ only to name a finding's schematic refdes
-    erc:            [layout, netlist, spec_yaml, erc_waivers, pdk_version,
-                     pdk_magic, pdk_klayout]
+    erc:            [layout, netlist, spec_yaml, sizing, erc_waivers,
+                     pdk_version, pdk_magic, pdk_klayout]
     # layout_match reads netlist/ to tell a unit's device by its nets
-    layout_match:   [layout, netlist, spec_yaml, pdk_version, pdk_magic,
-                     pdk_klayout]
-    pex_sim:        [layout, tb, layout_ref, netlist, spec_yaml, pdk_version,
-                     pdk_models, pdk_magic, pdk_klayout]
+    layout_match:   [layout, netlist, spec_yaml, sizing, pdk_version,
+                     pdk_magic, pdk_klayout]
+    pex_sim:        [layout, tb, layout_ref, netlist, spec_yaml, sizing,
+                     pdk_version, pdk_models, pdk_magic, pdk_klayout]
     # em_ir (#120): the same regenerated layout and extraction as pex_sim,
     # its own operating-point bench from tb/ or layout_ref/, the reference
     # netlist for pins, spec.yaml's sweep, ir_drop_mv and ir_rails
-    em_ir:          [layout, tb, layout_ref, netlist, spec_yaml, pdk_version,
-                     pdk_models, pdk_magic, pdk_klayout]
+    em_ir:          [layout, tb, layout_ref, netlist, spec_yaml, sizing,
+                     pdk_version, pdk_models, pdk_magic, pdk_klayout]
     release:        [netlist, layout, sizing, spec_yaml, pdk_version]
   msde:
     # #113: every file each gate opens (tests/test_msde_freshness.py plants
@@ -372,6 +375,12 @@ gate_inputs:
 # a record whose run never opened those files is not staled by them. A
 # workspace that starts owing them reads stale: the kind is new to its record.
 gate_inputs_when:
+  ade:
+    drc:          {layout_reads_sizing: [sizing]}
+    erc:          {layout_reads_sizing: [sizing]}
+    layout_match: {layout_reads_sizing: [sizing]}
+    pex_sim:      {layout_reads_sizing: [sizing]}
+    em_ir:        {layout_reads_sizing: [sizing]}
   msde:
     cosim:
       cosim_corners_owed: [analog_pex_netlists, analog_pex_pvt, analog_pex_sim,
@@ -489,7 +498,8 @@ edit_classes:
     sizing_edit:
       mutates: [sizing]
       stale_artifacts: []
-      gates: [sim_tt, sim_pvt, bench_strength, mc, lvs, pex_sim, release]
+      gates: [sim_tt, sim_pvt, bench_strength, mc, drc, lvs, erc,
+              layout_match, pex_sim, em_ir, release]
       human_hold: 1
     layout_code_edit:
       # layout_ref (the post-layout benches) rides here: pex_sim and em_ir

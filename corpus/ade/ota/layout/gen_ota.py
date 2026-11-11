@@ -2,8 +2,10 @@
 two_stage_miller_ota of netlist/ota.cir, through layoutlib.
 
 Every transistor is drawn as equal unit devices (GF180's draw_nfet()/
-draw_pfet(), one finger, L = 1um), in four rows stacked bottom to top, each
-row centred on the same x:
+draw_pfet(), one finger), in four rows stacked bottom to top, each row
+centred on the same x. Every W, L and passive size comes from
+sizing/sizing.yaml (row_plan()), so a tuned sizing reaches the layout; at this
+rung's own sizing the rows are:
 
   N1  nfet 4u  the bias mirror, one matched_row (spec.yaml `matching:`,
                common_centroid): xmb 1 unit, xmt 2, xm7 20, the odd xmb in
@@ -39,7 +41,15 @@ Substrate taps (P+) sit below N1 every 10um or less and at both ends of
 N2; nwell taps (N+) at both ends of P1 and along the top of P2; one nwell
 rectangle covers P1, P2 and their taps. Each row has one pplus/nplus
 across all its units: at a 3um pitch neighbouring units' implants would sit
-0.36um apart, under PP.2/NP.2's 0.4.
+0.36um apart, under PP.2/NP.2's 0.4. The pitch grows with the longest
+channel past 1um, so units never close up.
+
+A matched row takes one unit size (layout_match's match_unit_size), so the
+bias row's unit is w_b and w_t and w_s must be even multiples of it; a
+sizing that is not is refused, naming the value. So is one that puts a drawn
+size off the 5 nm grid: rounding it would draw what the sized netlist does
+not say. A channel shorter than L_CLEAR steps its source and drain stubs
+out, clear of the gate pad.
 
 xcc, the Miller cap, is a 26um MIM-B (metal4 bottom, metal5 top) left of
 the spines: its top plate is d2 (the netlist's first terminal) and comes
@@ -65,6 +75,8 @@ import math
 import sys
 from pathlib import Path
 
+import yaml
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[4] / "engine" / "lib"))
 import layoutlib  # noqa: E402
 
@@ -77,8 +89,11 @@ M4, M5 = LY["metal4"], LY["metal5"]
 CELL = "two_stage_miller_ota"
 PINS = ["inp", "inn", "out", "vdd", "vss", "ibias"]
 
-L_GATE = 1.0
-PITCH = 3.0       # every row's unit pitch
+PITCH = 3.0       # every row's unit pitch, at L up to L_PITCH
+L_PITCH = 1.0     # past this channel length the pitch grows with it
+L_CLEAR = 0.8     # below this a source/drain stub would pass within metal1's
+                  # spacing of the gate pad, so it steps out (stub_x)
+GATE_STUB = 0.38  # a gate stub's width: the pad's own at a short channel
 TAP = 1.0         # tap comp side
 GAP = 1.2         # a row-end tap's comp to the row's end comp
 TAP_STEP = 10.0   # substrate/nwell taps no further apart than this
@@ -94,8 +109,6 @@ NW_ENC = 0.8      # nwell margin round the nwell taps
 CUT, CUT_SP, CUT_ENC = 0.26, 0.26, 0.07
 VIA_GAP = 0.8     # same-net stub ends closer than this share one via1
 
-CC_SIDE = 26.0    # xcc: c_width = c_length = cc_w
-RZ_W, RZ_L = 2.0, 25.5  # xrz: r_width = rz_w, r_length = rz_l
 RZ_SP = 1.0       # xrz's cell edge to the d2 spine's metal3
 RZ_DROP = 1.5     # xrz's cell top below the cap's bottom plate (its metal2
                   # to out then clears the out track's at the spine)
@@ -105,13 +118,10 @@ BOT_EXT = 2.0     # bottom plate widened right of the top plate, for via4
 M4_KEEP = 2.0     # other metal4 kept this far off the cap's bottom plate
 STRAP_SEP = 4.0   # the two plate straps' y apart
 
-# unit width (um), the matched groups or the plain unit list per row
-ROWS = [
-    ("N1", "n", 4.0, {"xmb": 1, "xmt": 2, "xm7": 20}, "common_centroid"),
-    ("N2", "n", 5.0, {"xm1": 2, "xm2": 2}, "ABBA"),
-    ("P1", "p", 2.0, {"xm3": 2, "xm4": 2}, "ABBA"),
-    ("P2", "p", 8.0, {"xm6": 10}, None),
-]
+SIZES = ("w_b", "w_t", "l_b", "w_in", "l_in", "w_ld", "l_ld", "w_2", "w_s",
+         "l_2", "cc_w", "rz_w", "rz_l")
+P2_UNITS = 10     # xm6's unit count: w_2 / 10 is its unit width
+GRID_EPS = 1e-4   # um: float noise in a size read from sizing.yaml, not a size
 # device: (drain, gate, source) nets
 DEV = {"xmb": ("ibias", "ibias", "vss"), "xmt": ("tail", "ibias", "vss"),
        "xm7": ("out", "ibias", "vss"), "xm1": ("d1", "inn", "tail"),
@@ -139,6 +149,80 @@ def r5(v):
 def rect(top, x0, y0, x1, y1, layer):
     layoutlib.rect(top, r5(min(x0, x1)), r5(min(y0, y1)),
                    r5(max(x0, x1)), r5(max(y0, y1)), layer)
+
+
+def read_sizing():
+    """sizing/sizing.yaml beside this generator's layout/, as {name: um}.
+    A missing file or name is a refusal: a default here would draw a layout
+    the netlist's sized values no longer describe."""
+    path = Path(__file__).resolve().parents[1] / "sizing" / "sizing.yaml"
+    if not path.is_file():
+        raise layoutlib.LayoutError(f"no sizing file at {path}")
+    data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    out = {}
+    for name in SIZES:
+        if name not in data:
+            raise layoutlib.LayoutError(f"{path} has no {name}")
+        spec = data[name]
+        val = spec["value"] if isinstance(spec, dict) else spec
+        try:
+            out[name] = float(val) * 1e6
+        except (TypeError, ValueError):
+            raise layoutlib.LayoutError(
+                f"{path}: {name} is {val!r}, not a number") from None
+    return out
+
+
+def on_grid(size, name, units=1):
+    """`name`'s size split over `units` drawn units, on the 5 nm grid, or a
+    refusal: LVS compares the drawn size with the sizing's exact value."""
+    val = size[name] / units
+    if abs(val - r5(val)) > GRID_EPS:
+        raise layoutlib.LayoutError(
+            f"{name} = {size[name]:.6g}um"
+            + (f" over {units} units is {val:.6g}um each," if units > 1 else "")
+            + " is off the 5 nm grid, so it cannot be drawn as sized: "
+            f"set it to a multiple of {0.005 * units:.3g}um")
+    return r5(val)
+
+
+def even_units(size, name, unit):
+    """How many `unit`-wide units make `name`'s width: an even whole number,
+    or a refusal."""
+    n = 2 * max(1, round(size[name] / unit / 2))
+    if abs(n * unit - size[name]) > GRID_EPS:
+        raise layoutlib.LayoutError(
+            f"{name} = {size[name]:.4g}um is not an even multiple of w_b = "
+            f"{unit:.4g}um: the bias row is one matched row of one unit "
+            "size, with xmb's odd unit in the middle, so set it to one")
+    return n
+
+
+def row_plan(size):
+    """Each row: (name, kind, L, unit W, units, pattern), all from `size`."""
+    w_b = on_grid(size, "w_b")
+    return [
+        ("N1", "n", on_grid(size, "l_b"), w_b,
+         {"xmb": 1, "xmt": even_units(size, "w_t", w_b),
+          "xm7": even_units(size, "w_s", w_b)}, "common_centroid"),
+        ("N2", "n", on_grid(size, "l_in"), on_grid(size, "w_in", 2),
+         {"xm1": 2, "xm2": 2}, "ABBA"),
+        ("P1", "p", on_grid(size, "l_ld"), on_grid(size, "w_ld", 2),
+         {"xm3": 2, "xm4": 2}, "ABBA"),
+        ("P2", "p", on_grid(size, "l_2"), on_grid(size, "w_2", P2_UNITS),
+         {"xm6": P2_UNITS}, None),
+    ]
+
+
+def stub_x(pad, box, length):
+    """A stub's (x0, x1) off `box`, one of a unit's pads. A gate stub is
+    GATE_STUB wide at the pad's centre, whatever the channel; a source or
+    drain stub of a channel under L_CLEAR steps out by what it is short."""
+    if pad.startswith("gate"):
+        c = (box[0] + box[2]) / 2
+        return r5(c - GATE_STUB / 2), r5(c + GATE_STUB / 2)
+    step = max(0.0, (L_CLEAR - length) / 2) * (-1 if pad == "s" else 1)
+    return r5(box[0] + step), r5(box[2] + step)
 
 
 def via(top, x, y, cut, lower, upper, land=TRK_W):
@@ -173,14 +257,14 @@ def cx_of(b):
     return (b[0] + b[2]) / 2
 
 
-def res_cell(draw_res):
-    """xrz: a flat ppolyf_u (RZ_W x RZ_L), drawn as r2r_dac's units are.
+def res_cell(draw_res, rz_w, rz_l):
+    """xrz: a flat ppolyf_u (rz_w x rz_l), drawn as r2r_dac's units are.
     Returns (cell, pads): pads 'sub', 'a' (left terminal), 'b' (right),
     each a metal1 box in the cell's frame."""
     import gdsfactory as gf
 
     cell = gf.Component()
-    cell.add_ref(draw_res.draw_ppolyf_res(l_res=RZ_L, w_res=RZ_W,
+    cell.add_ref(draw_res.draw_ppolyf_res(l_res=rz_l, w_res=rz_w,
                                           res_type="ppolyf_u"))
     cell.flatten()
     boxes = layoutlib.layer_boxes(cell, M1)
@@ -197,21 +281,26 @@ def generate():
     draw_fet, draw_res = layoutlib.gf180_cells()
     from cells.draw_cap_mim import draw_cap_mim
 
+    size = read_sizing()
+    rows_plan = row_plan(size)
+    cc_side = on_grid(size, "cc_w")
+    pitch = r5(PITCH + max(0.0, max(r[2] for r in rows_plan) - L_PITCH))
     top = gf.Component()
-    cells, local = {}, {}
-    for name, kind, w, _u, _p in ROWS:
+    cells, local, length = {}, {}, {}
+    for name, kind, ln, w, _u, _p in rows_plan:
         f = draw_fet.draw_nfet if kind == "n" else draw_fet.draw_pfet
-        cells[name] = f(l_gate=L_GATE, w_gate=w)
+        cells[name] = f(l_gate=ln, w_gate=w)
         local[name] = layoutlib.fet_pads(cells[name])
+        length[name] = ln
     nslots = {name: (sum(u.values()) + (2 if pat else 0))
-              for name, _k, _w, u, pat in ROWS}
+              for name, _k, _l, _w, u, pat in rows_plan}
     # the cell's own comp centre: rows are centred on N1's centre comp
     comp_cx = {n: cx_of(layoutlib.layer_boxes(c, LY["comp"])[0])
                for n, c in cells.items()}
-    row_cx = (nslots["N1"] - 1) / 2 * PITCH + comp_cx["N1"]
+    row_cx = (nslots["N1"] - 1) / 2 * pitch + comp_cx["N1"]
 
     def row_x0(name):
-        return r5(row_cx - (nslots[name] - 1) / 2 * PITCH - comp_cx[name])
+        return r5(row_cx - (nslots[name] - 1) / 2 * pitch - comp_cx[name])
 
     stubs = []   # (net, x0, x1, y_pad_edge, "up"|"down", channel)
     labels = []
@@ -233,7 +322,7 @@ def generate():
     n1_x0 = row_x0("N1")
     n1_comp = layoutlib.layer_boxes(cells["N1"], LY["comp"])[0]
     span0 = n1_x0 + n1_comp[0]
-    span1 = n1_x0 + (nslots["N1"] - 1) * PITCH + n1_comp[2]
+    span1 = n1_x0 + (nslots["N1"] - 1) * pitch + n1_comp[2]
     nt = int(math.ceil((span1 - span0 - TAP) / TAP_STEP)) + 1
     for i in range(nt):
         tx = r5(span0 + i * (span1 - span0 - TAP) / (nt - 1))
@@ -244,19 +333,19 @@ def generate():
 
     rows = {}
     y_edge = chan_top(0) + CH_IN
-    for ri, (name, kind, w, units, pat) in enumerate(ROWS):
+    for name, kind, _ln, _w, units, pat in rows_plan:
         lp = local[name]
         oy = r5(y_edge - lp["gate_bot"][1])
         ox = row_x0(name)
         if pat:
-            mr = layoutlib.matched_row(top, cells[name], units, pitch=PITCH,
+            mr = layoutlib.matched_row(top, cells[name], units, pitch=pitch,
                                        pattern=pat, origin=(ox, oy))
             slots = [(p["device"], p["origin"]) for p in mr["pads"]]
         else:
             (dev, n), = units.items()
             slots = []
             for i in range(n):
-                at = (r5(ox + i * PITCH), oy)
+                at = (r5(ox + i * pitch), oy)
                 top.add_ref(cells[name]).move(at)
                 slots.append((dev, at))
         dn, up = ROW_CH[name]
@@ -267,8 +356,11 @@ def generate():
                 # a dummy: every terminal on the rail, on the rail's side
                 ch, d = (dn, "down") if kind == "n" else (up, "up")
                 g = p["gate_bot"] if kind == "n" else p["gate_top"]
-                for b in (p["s"], p["d"], g):
-                    stubs.append((rail, b[0], b[2],
+                for pad, b in (("s", p["s"]), ("d", p["d"]), ("gate", g)):
+                    x0, x1 = stub_x(pad, b, length[name])
+                    if (x0, x1) != (b[0], b[2]) and pad != "gate":
+                        rect(top, min(x0, b[0]), b[1], max(x1, b[2]), b[3], M1)
+                    stubs.append((rail, x0, x1,
                                   b[1] if d == "down" else b[3], d, ch))
                 continue
             dnet, gnet, snet = DEV[dev]
@@ -284,7 +376,10 @@ def generate():
             }[name]
             for pad, net, d in plan:
                 b = p[pad]
-                stubs.append((net, b[0], b[2], b[1] if d == "down" else b[3],
+                x0, x1 = stub_x(pad, b, length[name])
+                if (x0, x1) != (b[0], b[2]) and pad in ("s", "d"):
+                    rect(top, min(x0, b[0]), b[1], max(x1, b[2]), b[3], M1)
+                stubs.append((net, x0, x1, b[1] if d == "down" else b[3],
                               d, dn if d == "down" else up))
         # one implant across the row: neighbouring units' pplus/nplus sit
         # 0.36 apart at this pitch, under PP.2/NP.2's 0.4, so bridge them
@@ -433,15 +528,16 @@ def generate():
     # ---- xcc then xrz: the MIM-B left of the spines, the resistor below it
     d2_ys = [tracks[k][0] for k in tracks if k[1] == "d2"]
     y_d2s = r5(sum(d2_ys) / len(d2_ys))
-    y_outs = r5(y_d2s - STRAP_SEP)
+    # the d2 strap lands 1um or more inside the plate, however small it is
+    y_outs = r5(y_d2s - min(STRAP_SEP, cc_side - 2.0))
     px = {"d2": spine_x["d2"], "out": spine_x["out"]}
     cap_xr = min(px.values()) - 0.2 - M4_KEEP
     fx1 = r5(cap_xr - MIM_ENC - BOT_EXT)
-    fx0 = r5(fx1 - CC_SIDE)
-    fy0 = r5((y_d2s + y_outs) / 2 - CC_SIDE / 2)
-    fy1 = fy0 + CC_SIDE
+    fx0 = r5(fx1 - cc_side)
+    fy0 = r5((y_d2s + y_outs) / 2 - cc_side / 2)
+    fy1 = fy0 + cc_side
     top.add_ref(draw_cap_mim(mim_option="MIM-B", metal_level="M5",
-                             lc=CC_SIDE, wc=CC_SIDE)).move((fx0, fy0))
+                             lc=cc_side, wc=cc_side)).move((fx0, fy0))
     rect(top, fx1, fy0 - MIM_ENC, fx1 + MIM_ENC + BOT_EXT, fy1 + MIM_ENC, M4)
     if not fy0 + 1.0 <= y_d2s <= fy1 - 1.0:
         raise layoutlib.LayoutError(
@@ -453,13 +549,21 @@ def generate():
     spine_y["d2"] += [y_d2s - 0.5, y_d2s + 0.5]
     # xrz below the bottom plate: its left terminal (a) RZ_A_IN inside the
     # plate's left edge, its cell's top RZ_DROP below the plate
-    rz, rp = res_cell(draw_res)
+    rz, rp = res_cell(draw_res, on_grid(size, "rz_w"),
+                      on_grid(size, "rz_l"))
     rbb = rz.dbbox()
+    plate_x0 = fx0 - MIM_ENC
     plate_y0 = fy0 - MIM_ENC
-    rx = r5(fx0 - MIM_ENC + RZ_A_IN - cx_of(rp["a"]))
+    # a resistor longer than the plate slides left, off the d2 spine
+    rx = r5(min(plate_x0 + RZ_A_IN - cx_of(rp["a"]),
+                px["d2"] - 0.2 - RZ_SP - rbb.right))
     ry = r5(plate_y0 - RZ_DROP - rbb.top)
-    if rx + rbb.right > px["d2"] - 0.2 - RZ_SP:
-        raise layoutlib.LayoutError("xrz runs into the d2 spine")
+    # its metal2 to out passes under the d2 and out tracks at the spines:
+    # a small plate or tall rows would put it among them, so it drops
+    strap_top = min(tracks[k][0] - tracks[k][1] / 2 for k in tracks
+                    if k[1] in ("d2", "out")) - TRK_SP
+    pad_mid = (rp["a"][1] + rp["a"][3]) / 2
+    ry = r5(min(ry, strap_top - 0.2 - pad_mid))
     top.add_ref(rz).move((rx, ry))
     pa = shift(rp["a"], rx, ry)
     pb = shift(rp["b"], rx, ry)
@@ -469,7 +573,10 @@ def generate():
     for cut, lo, hi in (("via1", M1, M2), ("via2", M2, LY["metal3"]),
                         ("via3", M3, M4)):
         via(top, ax, y_rz, cut, lo, hi)
-    rect(top, ax - 0.5, y_rz - 0.5, ax + 0.5, plate_y0 + 0.5, M4)
+    sx4 = r5(max(ax, plate_x0 + 0.5))   # the strip rises under the plate
+    if sx4 != ax:
+        rect(top, ax - 0.5, y_rz - 0.5, sx4 + 0.5, y_rz + 0.5, M4)
+    rect(top, sx4 - 0.5, y_rz - 0.5, sx4 + 0.5, plate_y0 + 0.5, M4)
     # b (out): via1 on its pad, metal2 right to a via2 on the out spine
     bx = r5(cx_of(pb))
     via(top, bx, y_rz, "via1", M1, M2)
