@@ -1,7 +1,7 @@
 {
  "skill": "msde",
  "block": "r2r_dac",
- "ts": "2026-11-10T22:50:53",
+ "ts": "2026-11-10T23:15:56",
  "pdk": {
   "name": "gf180mcuD",
   "open_pdks": "1689ac3f2dc763876eaf967227c7dfe831b031ae",
@@ -16,8 +16,8 @@
    "tool": "cosim",
    "version": 1,
    "status": "pass",
-   "attempts": 24,
-   "ts": "2026-11-10T22:48:37",
+   "attempts": 25,
+   "ts": "2026-11-10T23:02:28",
    "inputs": {
     "interface": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
     "tb": "dir_text:45289ff06ca425ad4d0082caa18b388c4544c45857d0388fdcdefaf08dff1c4e",
@@ -207,7 +207,7 @@
    }
   ],
   "manifest": "release/manifest.json",
-  "manifest_sha256": "029543ada7815bba3088b89a45c4a6438b883f377679a712bca202a71a1a9b68"
+  "manifest_sha256": "ed2260b97ef53a65f2d0af685134493ca71574f270fda1e568ce29a2afbac532"
  },
- "attestation_sha256": "76e134aa79679a963214f0d100f3b322f4d4c3448053b977ac4a80ec0a14c2d4"
+ "attestation_sha256": "51380a59c8836a9686ccac9b8ca2bbae400ec99a472cbb07a89a79e9f6758eb9"
 }
