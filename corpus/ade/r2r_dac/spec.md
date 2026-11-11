@@ -28,6 +28,15 @@ identically at every corner - a real, corner-dependent device whose
 ratio-based design is meant to reject that dependence, not a claim with
 nothing behind it.
 
+## Reference
+
+The bits switch between 0 V and a fixed 3.3 V reference, which does not
+follow VDD. The ladder's output is a fixed fraction of that reference and
+the bounds are absolute volts, so with bits driven from VDD no sizing could
+pass the +/-10% supply corners (0.54 V against the 0.55 V floor on
+`vout_lsb` at -10%). The bench models the reference as an ideal source. A
+real design has to build it, and its error adds directly to these bounds.
+
 ## Requirement, and this rung's own twist
 
 `vout_lsb`/`vout_msb`/`vout_both` (docs/design.md 4's per-measure bounds)
