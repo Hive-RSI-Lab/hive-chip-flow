@@ -25,6 +25,12 @@ close for the bench's time step to settle: an edge resolved more finely can
 cross the bound either way. The device is listed as needing the fine-step
 repeat, and the gate fails until the deck declares `fine_step_s`, when it
 reruns that deck and corner at that step and judges the run by the repeat.
+
+A deck may also `watch` named schematic devices: each entry holds one
+terminal pair of one device (every extracted piece with that label) to its
+own `max_v` at the listed corners. A design fix that leaves a device with a
+known margin uses it, so a later layout change that eats the margin fails
+the gate by name instead of passing quietly inside the general allowance.
 """
 from __future__ import annotations
 
@@ -135,7 +141,64 @@ def load_sidecar(path: Path) -> list[dict]:
                     "corners": [str(c) for c in corners], "windows": windows,
                     "timeout": None if timeout is None
                     else _number(timeout, f"{name} timeout_s"),
-                    "fine_step": fine})
+                    "fine_step": fine,
+                    "watch": _watches(row.get("watch"), name,
+                                      [str(c) for c in corners], path.name)})
+    return out
+
+
+PAIR_NAMES = {p for p, _a, _b in MOS_PAIRS + JUNCTION_PAIRS}
+
+
+def _watches(raw, deck: str, corners: list[str], file: str) -> list[dict]:
+    """A deck's `watch` entries: {label, pair, max_v, corners, why}."""
+    if raw is None:
+        return []
+    if not isinstance(raw, list):
+        raise CheckError(f"{file}: deck {deck} watch must be a list")
+    out = []
+    for w in raw:
+        what = f"{file}: deck {deck} watch {w!r}"
+        if not isinstance(w, dict) or not w.get("label") or not w.get("why"):
+            raise CheckError(f"{what} needs a label, a pair, max_v and why")
+        pair = str(w.get("pair"))
+        if pair not in PAIR_NAMES:
+            raise CheckError(f"{what}: pair must be one of "
+                             f"{sorted(PAIR_NAMES)}")
+        at = [str(c) for c in (w.get("corners") or corners)]
+        if not set(at) <= set(corners):
+            raise CheckError(f"{what}: corners {at} are not all deck corners")
+        out.append({"label": str(w["label"]), "pair": pair,
+                    "max_v": _number(w.get("max_v"), f"{deck} watch max_v"),
+                    "corners": at, "why": str(w["why"]).strip()})
+    return out
+
+
+def _label_key(label: str) -> str:
+    return re.sub(r"^x", "", label.strip().lower())
+
+
+def watch_peaks(t: np.ndarray, store: dict, devices: list[dict],
+                watches: list[dict]) -> list[dict]:
+    """Peak |V| and its time of each watched pair over every extracted piece
+    of its device; peak_v None when no extracted device carries the label."""
+    data, columns = store["data"], store["columns"]
+    pairs = dict((p, (a, b)) for p, a, b in MOS_PAIRS + JUNCTION_PAIRS)
+    out = []
+    for w in watches:
+        a, b = pairs[w["pair"]]
+        pieces = [d for d in devices if len(d.get("vectors") or []) == 4
+                  and _label_key(d.get("label", "")) == _label_key(w["label"])]
+        peak, at = None, None
+        for d in pieces:
+            p, q = d["vectors"][a], d["vectors"][b]
+            vp = np.asarray(data[:, columns[p]]) if p else 0.0
+            vq = np.asarray(data[:, columns[q]]) if q else 0.0
+            mag = np.abs(vp - vq) * np.ones(len(t))
+            k = int(np.argmax(mag))
+            if peak is None or mag[k] > peak:
+                peak, at = float(mag[k]), float(t[k])
+        out.append({**w, "pieces": len(pieces), "peak_v": peak, "t_peak_s": at})
     return out
 
 

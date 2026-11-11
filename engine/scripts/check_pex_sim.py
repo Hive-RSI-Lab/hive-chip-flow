@@ -925,6 +925,7 @@ def stress_stage(ws: Path, side: Path, block: str, work_dir: Path,
     rows: list[dict] = []
     repeats: list[dict] = []
     needs: list[dict] = []
+    watched: list[dict] = []
     for row in decks:
         template = row["bench"].read_text(encoding="utf-8")
         outer, cell = stresslib.dut_of(template, row["bench"].name)
@@ -944,14 +945,16 @@ def stress_stage(ws: Path, side: Path, block: str, work_dir: Path,
                                    **tokens)
             limit = row["timeout"] if row["timeout"] is not None else timeout
             stem = f"{row['name']}__{name}"
-            found = _stress_run(out, stem, text, vectors, row, devices, limits,
-                                limit)
+            watches = [w for w in row["watch"] if name in w["corners"]]
+            found, seen = _stress_run(out, stem, text, vectors, row, devices,
+                                      limits, limit, watches)
             near = stresslib.near_bound(found, limits)
             if near and row["fine_step"] is not None:
                 fine_text = stresslib.with_step(text, row["fine_step"],
                                                 row["bench"].name)
-                fine = _stress_run(out, stem + "__fine", fine_text, vectors,
-                                   row, devices, limits, limit)
+                fine, seen = _stress_run(out, stem + "__fine", fine_text,
+                                         vectors, row, devices, limits, limit,
+                                         watches)
                 after = {(n["device"], n["pair"]): n
                          for n in _one_off_peaks(fine)}
                 repeats.append({
@@ -970,6 +973,7 @@ def stress_stage(ws: Path, side: Path, block: str, work_dir: Path,
                 for n in near:
                     needs.append({**n, "deck": row["name"], "corner": name})
             rows += [{**r, "corner": name, "deck": row["name"]} for r in found]
+            watched += [{**w, "corner": name, "deck": row["name"]} for w in seen]
 
     for (_dev, pair), bad in sorted(stresslib.failures_by_pair(rows).items()):
         first = bad[0]
@@ -996,10 +1000,26 @@ def stress_stage(ws: Path, side: Path, block: str, work_dir: Path,
             f"is within {1e3 * near_v:g} mV of the {1e3 * bound:.0f} mV bound: "
             f"needs the fine-step repeat (fine_step_s on deck {n['deck']})",
             "check_pex_sim"))
+    for w in watched:
+        where = [w["label"], w["pair"], w["corner"], w["deck"]]
+        if w["peak_v"] is None:
+            violations.append(checklib.violation(
+                "pex_sim", "error", rel_gds, topcell, "stress_watch_missing",
+                where, f"watched device {w['label']} matches no extracted "
+                f"device: the watch can't hold its {w['pair']} bound",
+                "check_pex_sim"))
+        elif w["peak_v"] > w["max_v"]:
+            violations.append(checklib.violation(
+                "pex_sim", "error", rel_gds, topcell, "stress_watch_over",
+                where, f"{w['label']} {w['pair']} at {w['corner']} / "
+                f"{w['deck']}: peak {w['peak_v']:.3f} V at {w['t_peak_s']:.4g} s "
+                f"is over its watched bound {w['max_v']:.3f} V ({w['why']})",
+                "check_pex_sim"))
     facts = stresslib.summarise(rows, sum(len(d["corners"]) for d in decks),
                                 len(devices), limits, others)
     facts["needs_fine_repeat"] = needs
     facts["fine_repeats"] = repeats
+    facts["watched"] = watched
     return facts
 
 
@@ -1013,8 +1033,10 @@ def _one_off_peaks(found: list[dict]) -> list[dict]:
 
 def _stress_run(out: Path, stem: str, text: str, vectors: list[str],
                 row: dict, devices: list[dict], limits: dict,
-                limit) -> list[dict]:
-    """One stress run of `text` in `out`: the scored rows, the raw removed."""
+                limit, watches: list[dict] | None = None
+                ) -> tuple[list[dict], list[dict]]:
+    """One stress run of `text` in `out`: the scored rows and the watched
+    peaks, the raw removed."""
     bench_path, raw = out / f"{stem}.cir", out / f"{stem}.raw"
     layoutlib.fresh(bench_path)
     bench_path.write_text(stresslib.with_control(
@@ -1030,9 +1052,10 @@ def _stress_run(out: Path, stem: str, text: str, vectors: list[str],
         raise CheckError(f"stress {stem}: ngspice wrote no {raw.name}")
     t, store = stresslib.read_binary_raw(raw)
     found = stresslib.score_run(t, store, devices, row["windows"], limits)
+    seen = stresslib.watch_peaks(t, store, devices, watches or [])
     del store
     raw.unlink()    # every terminal of a macro: gigabytes per run
-    return found
+    return found, seen
 
 
 def fill_view(ws: Path, gds_path: Path, topcell: str, rel_gds: str,

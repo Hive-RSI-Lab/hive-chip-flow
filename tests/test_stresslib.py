@@ -620,3 +620,53 @@ def test_sidecar_refuses_a_non_positive_fine_step(tmp_path):
         stresslib.load_sidecar(_sidecar(tmp_path, fine_step_s=0))
     assert stresslib.load_sidecar(_sidecar(tmp_path, fine_step_s="1e-11")
                                   )[0]["fine_step"] == 1e-11
+
+
+def test_sidecar_watch_entries_are_checked(tmp_path):
+    good = {"label": "MN_ST", "pair": "Vgd", "max_v": 3.835, "why": "w",
+            "corners": ["tt"]}
+    deck = stresslib.load_sidecar(_sidecar(tmp_path, watch=[good]))[0]
+    assert deck["watch"] == [{**good, "why": "w"}]
+    assert stresslib.load_sidecar(_sidecar(tmp_path))[0]["watch"] == []
+    for bad, msg in (({**good, "pair": "Vxy"}, "pair must be"),
+                     ({**good, "corners": ["ff"]}, "not all deck corners"),
+                     ({k: v for k, v in good.items() if k != "why"}, "needs")):
+        with pytest.raises(CheckError, match=msg):
+            stresslib.load_sidecar(_sidecar(tmp_path, watch=[bad]))
+
+
+def test_watch_peaks_take_the_worst_piece_of_a_label():
+    t = np.array([0.0, 1e-9, 2e-9])
+    # columns: g, d1, d2 ; source/bulk at ground
+    data = np.array([[0.0, 0.0, 0.0], [3.0, -0.5, 0.2], [1.0, 0.0, -0.9]])
+    store = {"data": data, "columns": {"g": 0, "d1": 1, "d2": 2}}
+    devices = [{"label": "XMN_ST", "vectors": ["d1", "g", None, None]},
+               {"label": "MN_ST", "vectors": ["d2", "g", None, None]},
+               {"label": "MN_OTHER", "vectors": ["d2", "g", None, None]}]
+    w = {"label": "mn_st", "pair": "Vgd", "max_v": 3.4, "why": "w",
+         "corners": ["tt"]}
+    gone = {**w, "label": "MN_GONE"}
+    seen, missing = stresslib.watch_peaks(t, store, devices, [w, gone])
+    assert seen["pieces"] == 2 and seen["peak_v"] == pytest.approx(3.5)
+    assert seen["t_peak_s"] == pytest.approx(1e-9)
+    assert missing["pieces"] == 0 and missing["peak_v"] is None
+
+
+@pytest.mark.parametrize("max_v,label,kind", [
+    (3.80, "X0", "stress_watch_over"),
+    (4.00, "X0", None),
+    (4.00, "XGONE", "stress_watch_missing")])
+def test_a_watched_device_is_held_to_its_own_bound(tmp_path, monkeypatch,
+                                                   max_v, label, kind):
+    # the gate peaks 3.3 + 0.58 = 3.88 V: inside the allowance, so only the
+    # watch can fail it
+    facts, violations, _ = near_stage(
+        tmp_path, monkeypatch, OVER_250,
+        deck_extra=f", watch: [{{label: {label}, pair: Vgs, max_v: {max_v}, "
+                   "why: margin}]")
+    kinds = {v["kind"] for v in violations}
+    assert kinds == ({kind} if kind else set())
+    (w,) = facts["watched"]
+    assert w["corner"] == "tt" and w["deck"] == "d"
+    if label == "X0":
+        assert w["peak_v"] == pytest.approx(3.88)

@@ -44,7 +44,19 @@ decks:
     fine_step_s: 1.0e-11           # optional: the repeat for a near peak
     repeating:                     # optional: a whole number of cycles
       - {name: cycles, start_s: 2.24e-6, stop_s: 3.12e-6, period_s: 80.0e-9}
+    watch:                         # optional: a device held to its own bound
+      - {label: MN_ST, pair: Vgd, max_v: 3.835, corners: [ff_pss],
+         why: "start-up fix leaves 190 mV; fail if layout eats half"}
 ```
+
+A `watch` entry holds one pair (`Vgs`, `Vgd`, `Vgb`, `Vds`, `Vsb`, `Vdb`)
+of a schematic device, every extracted piece of it, to `max_v` at the listed
+corners (default: the deck's). Use it when a circuit fix leaves a device a
+known margin: a later layout change that eats the margin then fails as
+`stress_watch_over` by name, instead of passing inside the general
+allowance. A label that matches no extracted device fails as
+`stress_watch_missing`. Every watched peak is listed under `stress.watched`.
+A watch is a tighter bound than the allowance, never a looser one.
 
 A bench is the post-layout bench form: the tokens `{pdk}`, `{extracted}`,
 `{corner}`, `{res_corner}`, `{mim_corner}`, `{temp_c}` and `{vdd}`, an `xdut`
