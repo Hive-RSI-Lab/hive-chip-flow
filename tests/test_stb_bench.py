@@ -127,7 +127,8 @@ def _run(args, cwd):
 
 @pytest.fixture(scope="module")
 def tian(tmp_path_factory):
-    """ugf_hz/pm_deg from the rung's own Tian bench, through sim_run at tt."""
+    """ugf_hz/pm_deg from the rung's own Tian bench, through sim_run at tt,
+    in the no_pad condition: the LC deck's DUT drives cl alone, no pad."""
     ws = tmp_path_factory.mktemp("ota")
     (ws / "spec").mkdir()
     (ws / "spec" / "spec.yaml").write_bytes((OTA / "spec.yaml").read_bytes())
@@ -138,7 +139,8 @@ def tian(tmp_path_factory):
     out = _run(["python", str(REPO / "engine" / "scripts" / "sim_run.py"),
                 "--workspace", str(ws), "--corners", "tt"], ws)
     res = [r for r in json.loads(out)["results"]
-           if r["bench"] == "ota_stb_tb.cir"]
+           if r["bench"] == "ota_stb_tb.cir"
+           and r.get("condition") in (None, "no_pad")]
     assert len(res) == 1
     return res[0]["measures"]
 
