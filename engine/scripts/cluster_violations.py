@@ -298,6 +298,10 @@ FIXER_HINTS: dict[str, str] = {
     "measure_out_of_bounds": "layout",
     "measure_missing": "testbench",
     "pex_bench_not_corner_aware": "testbench",
+    # cosim's corner runs (check_cosim.py): the bench did not apply the
+    # setup it was given. cosim_corner_no_result stays unmapped ("review"):
+    # a build, a timeout or an extraction with no netlist are different fixes
+    "cosim_corner_not_applied": "testbench",
 }
 
 # Kinds built at run time from a prefix (simlib.engine_error_violations:

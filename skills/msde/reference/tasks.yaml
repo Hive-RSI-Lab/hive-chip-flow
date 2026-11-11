@@ -249,7 +249,8 @@ verbs:
   cosim:
     summary: Run the co-simulation bench - the Icarus-compiled digital side
       and the ngspice analog side in one cocotbext-ams bench - and check
-      every top-level measure against its bound.
+      every top-level measure against its bound, at typical and on the
+      post-layout views at the corners that bound the analog side.
     doc: skills/msde/reference/recipes/cosim.md
     workspace: required
     gates: [cosim]

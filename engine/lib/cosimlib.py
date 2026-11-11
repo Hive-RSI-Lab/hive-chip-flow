@@ -36,10 +36,27 @@ Set it on the bridge before `start()`.
 """
 from __future__ import annotations
 
+import json
 import math
+import os
 
 from cocotbext.ams import MixedSignalBridge
 from cocotbext.ams._ngspice import NgspiceInterface
+
+
+def corner_setup() -> dict | None:
+    """What a corner run of the cosim gate asks this bench to apply
+    (check_cosim.py, "Corners"), None on its typical runs."""
+    raw = os.environ.get("COSIM_SETUP")
+    return json.loads(raw) if raw else None
+
+
+def corner_evidence(setup: dict | None) -> dict:
+    """The measures that show the bench applied `setup`; the gate fails a
+    corner run whose measures do not carry them."""
+    if setup is None:
+        return {}
+    return {"cosim_corner": setup["corner"], "cosim_netlist": setup["netlist"]}
 
 
 class SyncSafeNgspice(NgspiceInterface):

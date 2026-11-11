@@ -25,6 +25,11 @@
 * Four codes swept over one transient: LSB=1 alone at t=15n, MSB=1 alone
 * at t=25n, both at t=35n (both-zero at t=5n is not separately measured -
 * an unloaded R2R ladder at code 00 is trivially 0V either way).
+*
+* The bit drive is a fixed 3.3 V, not {{VDD}}: the ladder's output is a
+* fixed fraction of its reference, and the bounds are absolute volts, so
+* the design needs a reference that does not follow the supply. This ideal
+* source stands in for that reference; see spec.md "Reference".
 .include '{{PDK}}/libs.tech/ngspice/design.spice'
 .lib '{{PDK}}/libs.tech/ngspice/sm141064.spice' {{CORNER}}
 .lib '{{PDK}}/libs.tech/ngspice/sm141064.spice' {{RES_CORNER}}
@@ -33,11 +38,13 @@
 .include '{{NETLIST}}'
 
 vdd_src vdd 0 {{VDD}}
-vbmsb bmsb 0 PWL(0 0 19.9n 0 20n {{VDD}} 40n {{VDD}})
-vblsb blsb 0 PWL(0 0 9.9n 0 10n {{VDD}} 19.9n {{VDD}} 20n 0 29.9n 0 30n {{VDD}} 40n {{VDD}})
+vbmsb bmsb 0 PWL(0 0 19.9n 0 20n 3.3 40n 3.3)
+vblsb blsb 0 PWL(0 0 9.9n 0 10n 3.3 19.9n 3.3 20n 0 29.9n 0 30n 3.3 40n 3.3)
 xdac bmsb blsb vout r2r_dac r_length={r_length} r2_length={r2_length}
 
-.tran 0.1n 40n
+* tmax 4p: the fastest source edge is 0.1n, and sim_run holds a bench to
+* 25 steps per edge (netlistlib.EDGE_STEPS).
+.tran 0.1n 40n 0 4p
 .measure tran vout_lsb  FIND v(vout) AT=15n
 .measure tran vout_msb  FIND v(vout) AT=25n
 .measure tran vout_both FIND v(vout) AT=35n

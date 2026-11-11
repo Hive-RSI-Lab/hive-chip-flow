@@ -8,6 +8,7 @@ import json
 import re
 import subprocess
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pytest
@@ -829,6 +830,175 @@ def test_planted_constraint_fault_is_caught(tmp_path, table_type, attr, shift,
     assert not check["ok"]
     assert any(p["table"].startswith(name) and p["check"] == caught
                for p in check["failed"]), check["failed"]
+
+
+# An independent bench for setup, hold and min_pulse_width (issue #172): its own
+# decks, waveforms, measures and bisection, no charlib bench helper, and the
+# criterion stated here, so a change to charlib's cannot follow itself.
+HAND_PUSHOUT = 1.03
+HAND_RESOLUTION = 0.001
+HAND_BAND = 0.20
+HAND_VDD = 3.3
+
+
+def _hand_pulse(start, width, ramp, rest, other):
+    """PWL points of a pulse off `rest`, its 50% crossings `width` apart. One
+    narrower than its ramp is a triangle that stops short of `other`."""
+    if width >= ramp:
+        return [(start, rest), (start + ramp, other), (start + width, other),
+                (start + width + ramp, rest)]
+    peak = rest + (other - rest) * (width + ramp) / (2 * ramp)
+    return [(start, rest), (start + (width + ramp) / 2, peak),
+            (start + width + ramp, rest)]
+
+
+def _hand_pwl(points, first, last, stop):
+    pairs = [(0, first)] + points + [(stop, last)]
+    return "PWL(" + " ".join(f"{t:.6f}n {v:.6f}" for t, v in pairs) + ")"
+
+
+def _hand_q_delay(work, subckt, clk, d, t_clk, t_from, stop, new_high):
+    """Clock's 50% to Q's first 50% crossing the right way after t_from. None
+    if Q never crossed or does not end at the new value."""
+    m = _pdk() / "libs.tech" / "ngspice"
+    edge = "RISE" if new_high else "FALL"
+    deck = work / "hand.cir"
+    deck.write_text(f"""* hand flop bench
+.lib {m}/sm141064.ngspice typical
+.include {m}/design.ngspice
+.temp 25
+{subckt}
+Xd d clk q vdd vdd 0 0 {LIB}__dffq_1
+Vdd vdd 0 {HAND_VDD}
+Vc clk 0 {clk}
+Vd d 0 {d}
+.tran 1p {stop:.6f}n 0 1p
+.meas tran tq WHEN v(q)={HAND_VDD / 2} {edge}=1 TD={t_from:.6f}n
+.meas tran vend FIND v(q) AT={stop - 0.5:.6f}n
+.end
+""")
+    run = subprocess.run([str(REPO / "bin" / "eda"), "ngspice", "-b", str(deck)],
+                         cwd=work, capture_output=True, text=True, timeout=300)
+    assert run.returncode == 0, run.stdout + run.stderr
+    got = {k: float(v) for k, v in re.findall(
+        r"^\s*(tq|vend)\s*=\s*([-+.\deE]+)", run.stdout, re.M)}
+    assert "vend" in got, run.stdout + run.stderr
+    if "tq" not in got or (got["vend"] > HAND_VDD / 2) != new_high:
+        return None
+    return got["tq"] * 1e9 - t_clk
+
+
+def _hand_window_delay(work, subckt, new_high, setup, hold, cr, dr):
+    """D holds the new value only from `setup` before the measured clock edge
+    to `hold` after it, each between 50% crossings; an earlier edge loads the
+    old value."""
+    old, new = (0.0, HAND_VDD) if new_high else (HAND_VDD, 0.0)
+    t_clk = 20 + cr / 2
+    stop = t_clk + max(hold, 0) + dr + 8
+    clk = _hand_pwl(_hand_pulse(6, 4, cr, 0.0, HAND_VDD) +
+                    [(20, 0.0), (20 + cr, HAND_VDD)], 0.0, HAND_VDD, stop)
+    d = _hand_pwl(_hand_pulse(t_clk - setup - dr / 2, setup + hold, dr, old, new),
+                  old, old, stop)
+    return _hand_q_delay(work, subckt, clk, d, t_clk, 20 - cr, stop, new_high)
+
+
+def _hand_width_delay(work, subckt, high, new_high, width, cr, dr):
+    """The rising edge that loads the new value over the old, its own high
+    phase (`high`) or the low phase before it `width` wide."""
+    old, new = (0.0, HAND_VDD) if new_high else (HAND_VDD, 0.0)
+    if high:
+        t_clk, d_at = 20 + cr / 2, 14
+        stop = t_clk + width + cr + 10
+        points = (_hand_pulse(4, 3, cr, 0.0, HAND_VDD) +
+                  _hand_pulse(20, width, cr, 0.0, HAND_VDD))
+        clk = _hand_pwl(points, 0.0, 0.0, stop)
+    else:
+        t_clk, d_at = 20 + cr / 2 + width, 10
+        stop = t_clk + cr + 10
+        points = ([(4, 0.0), (4 + cr, HAND_VDD)] +
+                  _hand_pulse(20, width, cr, HAND_VDD, 0.0))
+        clk = _hand_pwl(points, 0.0, HAND_VDD, stop)
+    d = _hand_pwl([(d_at, old), (d_at + dr, new)], old, new, stop)
+    return _hand_q_delay(work, subckt, clk, d, t_clk, 20, stop, new_high)
+
+
+def _hand_bisect(delay, lo, hi, wide):
+    """The smallest value in [lo, hi] at which Q captures within HAND_PUSHOUT
+    of its delay at `wide`."""
+    ref = delay(wide)
+    assert ref is not None, "Q never moved with a wide-open window"
+
+    def good(v):
+        got = delay(v)
+        return got is not None and got <= HAND_PUSHOUT * ref
+    assert good(hi) and not good(lo), (lo, hi)
+    while hi - lo > HAND_RESOLUTION:
+        mid = (lo + hi) / 2
+        lo, hi = (lo, mid) if good(mid) else (mid, hi)
+    return hi
+
+
+@pytest.mark.slow
+def test_setup_hold_and_pulse_width_match_an_independent_bisection(tmp_path):
+    """dffq_1, tt, 25 C, one slew point: every setup, hold and min_pulse_width
+    charlib wrote is within HAND_BAND of the same search run on a separate
+    bench. charlib's own self-check shares its stimulus and measure with the
+    code it checks; this one shares neither."""
+    full = f"{LIB}__dffq_1"
+    report = _run("dffq_1", tmp_path / "out", slews=(2,), loads=(3,))
+    assert report["ok"], report["corners"]["tt_025C"]["check"]["failed"]
+    cell = charlib.parse_liberty(
+        Path(report["corners"]["tt_025C"]["lib"]).read_text()).sub("cell")[0]
+    tables = {}
+    data = [p for p in cell.sub("pin") if p.args == "D"][0]
+    for timing in data.sub("timing"):
+        kind = timing.attr("timing_type").strip('"').split("_")[0]
+        for g in timing.groups:
+            tables[f"{kind}_{g.name.split('_')[0]}"] = charlib.table(g)[0][0]
+    clock = [p for p in cell.sub("pin") if p.args == "CLK"][0]
+    (slew,), (clock_slew,) = report["slews"], report["constraint_slews"]
+    dr, cr = slew * 0.5 / 0.4, clock_slew * 0.5 / 0.4
+    spice = (_ref() / "spice" / f"{LIB}.spice").read_text()
+    subckt = re.search(rf"^\.SUBCKT {full} .*?^\.ENDS", spice,
+                       re.M | re.S | re.I).group(0)
+    wide = 4.0
+    low = -(dr + cr) - 0.5
+
+    def window(name, new_high, setup_side):
+        def run(work):
+            def delay(v):
+                s, h = (v, wide) if setup_side else (wide, v)
+                return _hand_window_delay(work, subckt, new_high, s, h, cr, dr)
+            return name, _hand_bisect(delay, low, wide, wide)
+        return run
+
+    def width(name, high, new_high):
+        def run(work):
+            def delay(w):
+                return _hand_width_delay(work, subckt, high, new_high, w, cr, dr)
+            return name, _hand_bisect(delay, 0.0, wide, wide)
+        return run
+    # a rising setup is D arriving high; a rising hold is D leaving low
+    tasks = [window("setup_rise", True, True), window("setup_fall", False, True),
+             window("hold_rise", False, False), window("hold_fall", True, False)]
+    tasks += [width(f"min_pulse_width_{'high' if h else 'low'}", h, n)
+              for h in (True, False) for n in (True, False)]
+
+    def run(item):
+        k, task = item
+        work = tmp_path / f"hand{k}"
+        work.mkdir()
+        return task(work)
+    with ThreadPoolExecutor(len(tasks)) as pool:
+        found = list(pool.map(run, enumerate(tasks)))
+    bench = {k: v for k, v in found if k.startswith(("setup", "hold"))}
+    for name in ("min_pulse_width_high", "min_pulse_width_low"):
+        bench[name] = max(v for k, v in found if k == name)
+        tables[name] = float(clock.attr(name))
+    assert set(bench) == set(tables)
+    off = {k: (tables[k], bench[k]) for k in bench
+           if abs(tables[k] - bench[k]) > HAND_BAND * abs(bench[k])}
+    assert not off, off
 
 
 @pytest.mark.slow

@@ -435,7 +435,7 @@ def test_vde_non_mapping_spec_still_stales_every_spec_reader(tmp_path):
     assert _not_fresh(ws) == set(VDE_GATES)    # release after harden (#147)
 
 
-def _ade_ws_with_passes(tmp_path, gates):
+def _ade_ws_with_passes(tmp_path, gates, generator="# gen\n"):
     """An /ade workspace with every input kind present and a recorded pass
     on each of `gates`."""
     ws = ws_empty(tmp_path)
@@ -445,7 +445,7 @@ def _ade_ws_with_passes(tmp_path, gates):
              "netlist/mirror.cir": ".subckt mirror a b\n.ends\n",
              "tb/mirror_tb.cir": "* tb\n",
              "sizing/sizing.yaml": "w: {value: 1.0}\n",
-             "layout/gen_mirror.py": "# gen\n",
+             "layout/gen_mirror.py": generator,
              "layout_ref/mirror_pex_tb.cir": "* pex tb\n",
              "layout_ref/mirror_pex_tb.bounds.json": "{}\n"}
     for rel, text in files.items():
@@ -476,9 +476,8 @@ ADE_GATES = ["netlist_lint", "sim_tt", "sim_pvt", "bench_strength", "mc",
 
 def test_ade_sizing_edit_stales_every_gate_that_loads_sizing(tmp_path):
     """sim_run.load_sizing() feeds sim_tt, sim_pvt, bench_strength, mc and
-    lvs; a sizing-only edit must stale their recorded passes by hash.
-    pex_sim reads no sizing.yaml (the generator bakes sizes into the GDS),
-    so the sizing_edit class's mark is what re-runs it."""
+    lvs; a sizing-only edit must stale them by hash. A generator with its
+    sizes typed in draws the same layout, so the other layout gates stay."""
     ws = _ade_ws_with_passes(tmp_path, ADE_GATES)
     (ws / "sizing" / "sizing.yaml").write_text("w: {value: 2.0}\n",
                                                encoding="utf-8")
@@ -487,6 +486,33 @@ def test_ade_sizing_edit_stales_every_gate_that_loads_sizing(tmp_path):
     state_mod.run(["edit", "--workspace", str(ws), "--class", "sizing_edit"])
     fresh, _ = state_mod.run(["freshness", "--workspace", str(ws)])
     assert fresh["gates"]["pex_sim"]["fresh"] is False
+
+
+READS_SIZING = 'SIZING = Path("sizing") / "sizing.yaml"\n'
+CITES_SIZING = '"""Sizes from sizing/sizing.yaml."""\n# sizing.yaml values\nW = 1\n'
+
+
+def test_ade_generator_reading_sizing_stales_every_layout_gate(tmp_path):
+    """A generator that reads sizing.yaml draws a different layout from a
+    different sizing, so each gate that regenerates it must re-run."""
+    ws = _ade_ws_with_passes(tmp_path, ADE_GATES, generator=READS_SIZING)
+    (ws / "sizing" / "sizing.yaml").write_text("w: {value: 2.0}\n",
+                                               encoding="utf-8")
+    assert _stale_by_hash(ws, "sizing") == {
+        "sim_tt", "sim_pvt", "bench_strength", "mc", "drc", "lvs", "pex_sim",
+        "em_ir", "release"}
+
+
+@pytest.mark.parametrize("source,reads", [
+    (READS_SIZING, True),
+    (CITES_SIZING, False),
+    ("def broken(:\n", True),
+])
+def test_layout_reads_sizing_looks_past_comments_and_docstrings(
+        tmp_path, source, reads):
+    (tmp_path / "layout").mkdir()
+    (tmp_path / "layout" / "gen_x.py").write_text(source, encoding="utf-8")
+    assert statelib.INPUT_PREDICATES["layout_reads_sizing"](tmp_path) is reads
 
 
 def test_ade_layout_ref_edit_stales_pex_sim(tmp_path):
@@ -950,7 +976,8 @@ def test_apply_edit_analog_skill_uses_ade_classes(tmp_path):
     st = state_mod.State.load(ws / "state.json")
     rec = st.apply_edit("sizing_edit")
     assert set(rec["gates"]) == {"sim_tt", "sim_pvt", "bench_strength", "mc",
-                                 "lvs", "pex_sim", "release"}
+                                 "drc", "lvs", "erc", "layout_match",
+                                 "pex_sim", "em_ir", "release"}
 
 
 # --------------------------------------------------------------- snapshot
