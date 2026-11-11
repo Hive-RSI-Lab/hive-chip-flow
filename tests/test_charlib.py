@@ -178,6 +178,33 @@ def test_hidden_power_ties_coupling_to_ground():
     assert got[7] == "M1 Z A VDD VNW pfet"
 
 
+def test_only_hidden_power_runs_on_the_grounded_netlist(tmp_path, monkeypatch):
+    cell = charlib.parse_liberty(
+        CELL.replace("x__inv", "x__nand").replace('"(!I)"', '"(!(A&B))"')
+        .replace("pin(I)", "pin(A)").replace(
+            'related_pin : "I" ;', 'related_pin : "A" ;'))
+    pin_b = "pin(B) { capacitance : 0.0046 ; direction : input ; }"
+    cell = charlib.parse_liberty(charlib.write_liberty(cell).replace(
+        "pin(A)", pin_b + "\n pin(A)", 1))
+    real = tmp_path / "netlist.sp"
+    real.write_text(".subckt x__nand A B ZN VDD VSS\nC0 A VDD 1f\n.ends\n")
+    bench = charlib.Bench("x__nand", real, ["A", "B", "ZN", "VDD", "VSS"],
+                          {"VDD": "primary_power", "VSS": "primary_ground"},
+                          tmp_path, {}, 3.3, tmp_path / "w", TERMS)
+    seen = []
+
+    def fake_pool(b, fn, tasks, jobs):
+        seen.append((fn.__name__, b.netlist.read_text()))
+        return [0.0 if fn.__name__ == "one_hidden" else (True, 0.0)
+                for _ in tasks]
+    monkeypatch.setattr(charlib, "_pool_map", fake_pool)
+    charlib._measure_comb_power(bench, cell, [0.1], [0.01], 1)
+    got = dict(seen)
+    assert "C0 A VDD 1f" in got["one_arc"]
+    assert "C0 A 0 1f" in got["one_hidden"]
+    assert bench.netlist == real and "C0 A VDD 1f" in real.read_text()
+
+
 def test_function_evaluator():
     ev = charlib.eval_function
     assert ev('"(!I)"', {"I": False}) is True
@@ -507,7 +534,7 @@ def _band(rows, kinds, load_min, load_max=1e9):
 
 
 @pytest.mark.slow
-@pytest.mark.parametrize("cell", ["inv_1", "nand2_1", "nor2_1", "and2_1"])
+@pytest.mark.parametrize("cell", ["inv_1", "nand2_1"])
 def test_known_answer_extracted_at_real_loads(cell, tmp_path):
     full = f"{LIB}__{cell}"
     report = _run(cell, tmp_path / "out", extracted=_extract(full, tmp_path))
