@@ -468,6 +468,30 @@ def test_ota_generator_refuses_a_sizing_it_cannot_draw(tmp_path, sizes, needle):
         gen.row_plan(gen.read_sizing())
 
 
+
+def test_every_snapped_ota_sizing_is_one_the_generator_draws(tmp_path):
+    """sizing.yaml's grid and ratio_of rules are what gen_ota can draw:
+    any point in the ranges, snapped as optimise snaps a candidate, passes
+    every on_grid and even_units refusal above."""
+    import random
+    import optimise
+    ws = make_ws(tmp_path, "ota")
+    path = ws / "sizing" / "sizing.yaml"
+    sizing = optimise.load_sizing_yaml(path)
+    gen = load_gen_ota(ws)
+    rng = random.Random(1)
+    for _ in range(300):
+        point = {n: {**spec, "value": rng.uniform(spec["min"], spec["max"])}
+                 for n, spec in sizing.items()}
+        # every w_b in range leaves an even w_t and w_s in theirs
+        snapped = optimise.snap(point)
+        assert snapped is not None, point
+        path.write_text(_yaml.safe_dump(snapped), encoding="utf-8")
+        size = gen.read_sizing()
+        gen.row_plan(size)
+        for name in ("cc_w", "rz_w", "rz_l"):
+            gen.on_grid(size, name)
+
 def test_ota_generator_refuses_an_off_grid_passive(tmp_path):
     gen = load_gen_ota(make_ws(tmp_path, "ota"))
     with pytest.raises(gen.layoutlib.LayoutError, match="cc_w"):
