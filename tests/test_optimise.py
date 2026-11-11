@@ -22,6 +22,7 @@ REPO = Path(__file__).resolve().parents[1]
 ENGINE = REPO / "engine"
 SCRIPTS = ENGINE / "scripts"
 CORPUS_R2R = REPO / "corpus" / "ade" / "r2r_dac"
+CORPUS_OTA = REPO / "corpus" / "ade" / "ota"
 sys.path.insert(0, str(SCRIPTS))
 sys.path.insert(0, str(ENGINE / "lib"))
 
@@ -345,6 +346,99 @@ def test_workers_two_runs_and_three_is_refused(tmp_path, monkeypatch):
             if p.is_dir()} >= {"w0", "w1"}
 
 
+
+# ------------------------------------------------- drawable sizes (snap)
+
+def _spec(value, lo, hi, **rules):
+    return {"value": value, "min": lo, "max": hi, **rules}
+
+
+def test_snap_moves_each_value_to_its_grid_inside_its_range():
+    out = optimise.snap({"a": _spec(1.234e-6, 1e-6, 2e-6, grid=5e-9),
+                         "b": _spec(0.3, 0.0, 1.0),        # no rule: as is
+                         "c": _spec(9.0, 0.0, 1.0, grid=0.3)})  # clamped
+    assert out["a"]["value"] == 1.235e-6
+    assert out["b"]["value"] == 0.3
+    assert out["c"]["value"] == 0.9
+    assert out["a"]["grid"] == 5e-9  # the rule rides along to the file
+
+
+def test_snap_ties_a_ratio_to_the_snapped_base():
+    # base 4.0012 snaps to 4.0; 9 is nearest 2 x (2 x 4.0); 3 is under one
+    # step, so it takes the least whole multiple, 1 x (2 x 4.0)
+    sizing = {"wb": _spec(4.0012, 1.0, 20.0, grid=0.005),
+              "wt": _spec(9.0, 2.0, 40.0, ratio_of="wb", ratio_step=2),
+              "ws": _spec(3.0, 2.0, 40.0, ratio_of="wb", ratio_step=2)}
+    out = optimise.snap(sizing)
+    assert out["wb"]["value"] == 4.0
+    assert out["wt"]["value"] == 8.0 and out["ws"]["value"] == 8.0
+    # a range holding no multiple of the base: nothing drawable here
+    sizing["wt"]["max"] = 7.0
+    assert optimise.snap(sizing) is None
+
+
+@pytest.mark.parametrize("rules, words", [
+    ({"grid": 0}, "positive number"),
+    ({"grid": True}, "positive number"),
+    ({"ratio_step": 2}, "no ratio_of"),
+    ({"ratio_of": "nope"}, "not another parameter"),
+    ({"ratio_of": "y", "grid": 0.1}, "both grid and ratio_of"),
+    ({"ratio_of": "y", "ratio_step": 0}, "whole number"),
+    ({"ratio_of": "z"}, "itself a ratio_of"),
+])
+def test_malformed_drawable_rule_is_refused(tmp_path, rules, words):
+    import yaml
+    path = tmp_path / "sizing.yaml"
+    path.write_text(yaml.safe_dump({
+        "x": _spec(1.0, 0.0, 2.0, **rules), "y": _spec(1.0, 0.0, 2.0),
+        "z": _spec(1.0, 0.0, 2.0, ratio_of="y")}), encoding="utf-8")
+    with pytest.raises(CheckError, match=words):
+        optimise.load_sizing_yaml(path)
+
+
+def test_numeric_scores_only_drawable_sizings(tmp_path, monkeypatch):
+    """x on a 0.07 grid, w tied to whole multiples of 2x: every sizing
+    the search hands the bench is drawable, so the winner is saved exactly
+    as scored - x in [0.9, 1.1] on the grid, w an even multiple of it -
+    with no rounding after the gate."""
+    import yaml
+    ws = make_ws(tmp_path, start_value=-3.0)
+    (ws / "sizing" / "sizing.yaml").write_text(yaml.safe_dump({
+        "x": _spec(-3.0, -5.0, 5.0, grid=0.07),
+        "w": _spec(3.3, 0.0, 10.0, ratio_of="x", ratio_step=2)}),
+        encoding="utf-8")
+    optimise.run_start(["--workspace", str(ws), "--target", "sizing/sizing.yaml"])
+    eda = make_identity_fake_eda(tmp_path)
+    seen = tmp_path / "seen.txt"
+    # x read anywhere on the .param line (w sorts before it)
+    text = eda.read_text().replace("'\\.param x=", "' x=").replace(
+        "echo\n", f"grep -oE '\\.param .*' \"$deck\" >> '{seen}'\necho\n", 1)
+    eda.write_text(text)
+    monkeypatch.setattr(sim_run, "EDA_BIN", eda)
+    payload, _ = optimise.run_numeric(
+        ["--workspace", str(ws), "--popsize", "4", "--maxiter", "6", "--seed", "1"])
+    assert payload["status"] == "pass", payload
+
+    def drawable(x, b):
+        return (abs(x / 0.07 - round(x / 0.07)) < 1e-6
+                and round(b / (2 * x)) >= 1
+                and abs(b / (2 * x) - round(b / (2 * x))) < 1e-6)
+
+    import re as _re
+    scored = []
+    for line in seen.read_text().splitlines():
+        vals = dict(_re.findall(r"(\w+)=([-0-9.eE+]+)", line))
+        scored.append((float(vals["x"]), float(vals["w"])))
+    searched = [(x, b) for x, b in scored if (x, b) != (-3.0, 3.3)]
+    assert searched and all(drawable(x, b) for x, b in searched), searched
+    final = yaml.safe_load((ws / "sizing" / "sizing.yaml").read_text())
+    x, b = final["x"]["value"], final["w"]["value"]
+    assert 0.9 <= x <= 1.1 and drawable(x, b)
+    assert final["x"]["grid"] == 0.07 and final["w"]["ratio_of"] == "x"
+    # some candidates (x <= 0) had no drawable w: logged, never simulated
+    rows = (ws / optimise.TSV_PATH).read_text()
+    assert "differential_evolution, not drawable" in rows
+
 @pytest.mark.slow
 def test_real_r2r_dac_optimise_reaches_bounds_from_wrong_start(tmp_path):
     """corpus/ade/r2r_dac ships with a deliberately wrong 1:1 R:2R ratio.
@@ -379,6 +473,61 @@ def test_real_r2r_dac_optimise_reaches_bounds_from_wrong_start(tmp_path):
     saved = yaml.safe_load((ws / "sizing" / "sizing.yaml").read_text())
     assert saved["r2_length"]["value"] / saved["r_length"]["value"] == pytest.approx(2.0, rel=0.05)
 
+
+
+@pytest.mark.slow
+def test_real_ota_optimise_winner_from_wrong_start_reaches_layout(tmp_path):
+    """corpus/ade/ota from a wrong start: w_t off its even w_b ratio (gen_ota
+    refuses to draw it) and a comp cap too small for 60 degrees of phase
+    margin. The search scores only drawable sizings, so the winner it saves
+    passes sim_pvt as written and regenerates a layout that passes drc and
+    lvs, with nothing rounded in between. The rest of the sizing is the
+    corpus's passing one, held fixed (min = max) so the test spends its
+    trials on the two values the wrong start broke: w_t, which must stay an
+    even multiple of w_b, and cc_w."""
+    import yaml
+    import check_analog_drc
+    import check_analog_lvs
+    import check_sim_pvt
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    for sub in ("layout", "netlist", "sizing", "layout_ref", "tb"):
+        (ws / sub).mkdir()
+        for f in (CORPUS_OTA / sub).iterdir():
+            if f.is_file() and f.suffix != ".gds":
+                shutil.copy2(f, ws / sub / f.name)
+    (ws / "spec").mkdir()
+    shutil.copy2(CORPUS_OTA / "spec.yaml", ws / "spec" / "spec.yaml")
+    (ws / "state.json").write_text(json.dumps(
+        {"version": 3, "skill": "ade", "block": "ota"}), encoding="utf-8")
+    path = ws / "sizing" / "sizing.yaml"
+    start = yaml.safe_load(path.read_text(encoding="utf-8"))
+    start["w_t"]["value"] = 9.0e-6    # 2.25 units of w_b: not drawable
+    start["cc_w"]["value"] = 12.0e-6  # 0.29 pF: phase margin under 60
+    for name, spec in start.items():
+        if name not in ("w_t", "cc_w"):
+            spec["min"] = spec["max"] = spec["value"]
+    path.write_text(yaml.safe_dump(start), encoding="utf-8")
+
+    optimise.run_start(["--workspace", str(ws), "--target", "sizing/sizing.yaml"])
+    payload, _ = optimise.run_numeric(
+        ["--workspace", str(ws), "--popsize", "1", "--maxiter", "5", "--seed", "1"])
+    assert payload["start_full_corner_pass"] is False
+    assert payload["status"] == "pass" and payload["written"] is True, payload
+
+    saved = yaml.safe_load(path.read_text(encoding="utf-8"))
+    units = saved["w_t"]["value"] / saved["w_b"]["value"]
+    assert units == pytest.approx(round(units)) and round(units) % 2 == 0
+    result, _ = check_sim_pvt.sweep(ws)
+    assert result["violations"] == []
+    out = tmp_path / "drc.json"
+    code = check_analog_drc.main(["--workspace", str(ws), "--out", str(out)])
+    drc = json.loads(out.read_text(encoding="utf-8"))
+    assert (code, drc["status"]) == (0, "pass"), drc
+    out = tmp_path / "lvs.json"
+    code = check_analog_lvs.main(["--workspace", str(ws), "--out", str(out)])
+    lvs = json.loads(out.read_text(encoding="utf-8"))
+    assert (code, lvs["status"]) == (0, "pass"), lvs
 
 # ------------------------------------------------------------ RTL loop (M7)
 #

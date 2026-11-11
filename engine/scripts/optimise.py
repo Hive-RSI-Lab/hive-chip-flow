@@ -113,6 +113,19 @@ same pad conditions, same pass rule (no violation at any severity).
    verdict, so pass means sim_pvt passes the file as it now stands, with
    no fix-up step; violations means no sizing found passes every corner
    and the file is as it was.
+DRAWABLE SIZES. scipy searches each parameter continuously, but a layout
+generator draws only some sizes: on the manufacturing grid, a mirror whose
+width is a whole number of its unit device. sizing.yaml may say so per
+parameter: `grid: G` (the value is a whole multiple of G), or `ratio_of:
+BASE` with `ratio_step: S` (the value is BASE's value times a whole
+multiple of S, at least S). Each candidate is snapped to the nearest such
+value inside its [min, max] BEFORE it is scored (`snap`), so every trial,
+every full-corner check and so the winner are drawable sizings, and the
+file written is exactly the sizing the corner gate passed - nothing is
+rounded afterwards. A candidate with no drawable value in range (a tied
+parameter's range holds no multiple of its base) scores
+MISSING_MEASURE_PENALTY with no simulation. The starting sizing is scored
+as written.
 --workers 2 scores two candidates at once (scipy's deferred updating),
 each in its own log/optimise/w<N>/ directory; more is refused (the memory
 cap).
@@ -123,6 +136,7 @@ import argparse
 import csv
 import hashlib
 import json
+import math
 import sys
 import time
 from pathlib import Path
@@ -188,7 +202,81 @@ def load_sizing_yaml(path: Path) -> dict:
         if not isinstance(spec, dict) or not all(
                 k in spec for k in ("value", "min", "max")):
             raise CheckError(f"{path}: {name!r} needs value/min/max")
+    drawable_rules(data, path)
     return data
+
+
+def drawable_rules(sizing: dict, path) -> None:
+    """Refuse a malformed drawable rule (`grid`, `ratio_of`, `ratio_step`;
+    see snap) before a search spends a trial on it."""
+    for name, spec in sizing.items():
+        grid, of = spec.get("grid"), spec.get("ratio_of")
+        if grid is not None and (isinstance(grid, bool) or not isinstance(
+                grid, (int, float)) or grid <= 0):
+            raise CheckError(f"{path}: {name!r} grid {grid!r} must be a "
+                             "positive number (the step its value is a "
+                             "whole multiple of)")
+        if "ratio_step" in spec and of is None:
+            raise CheckError(f"{path}: {name!r} has ratio_step but no ratio_of")
+        if of is None:
+            continue
+        if grid is not None:
+            raise CheckError(f"{path}: {name!r} declares both grid and "
+                             f"ratio_of - a whole multiple of {of!r} is on "
+                             f"{of!r}'s grid already, so give it ratio_of only")
+        if of not in sizing or of == name:
+            raise CheckError(f"{path}: {name!r} ratio_of {of!r} is not "
+                             "another parameter in this file")
+        if "ratio_of" in sizing[of]:
+            raise CheckError(f"{path}: {name!r} ratio_of {of!r}, which is "
+                             "itself a ratio_of another - tie both to the "
+                             "same base parameter")
+        step = spec.get("ratio_step", 1)
+        if isinstance(step, bool) or not isinstance(step, int) or step < 1:
+            raise CheckError(f"{path}: {name!r} ratio_step {step!r} must "
+                             "be a whole number from 1")
+
+
+def _whole(lo: float, hi: float, unit: float, want: float,
+           least: int | None = None) -> int | None:
+    """The whole number k nearest `want` with k*unit inside [lo, hi] (and
+    k >= least); None when no such k exists."""
+    kmin = math.ceil(lo / unit - 1e-9)
+    kmax = math.floor(hi / unit + 1e-9)
+    if least is not None:
+        kmin = max(kmin, least)
+    if kmin > kmax:
+        return None
+    return min(max(round(want), kmin), kmax)
+
+
+def snap(sizing: dict) -> dict | None:
+    """`sizing` with each value moved to the nearest one the layout can
+    draw inside its [min, max]: a multiple of its `grid`, or, with
+    `ratio_of: base` (and `ratio_step: s`, default 1), base's snapped value
+    times a whole multiple of s (at least s). A parameter with neither is
+    left as it is. None when some tied parameter has no such multiple
+    inside its range at this base value. Pure."""
+    out = {n: dict(spec) for n, spec in sizing.items()}
+    for name, spec in out.items():
+        grid = spec.get("grid")
+        if grid is None or "ratio_of" in spec:
+            continue
+        k = _whole(spec["min"], spec["max"], grid, spec["value"] / grid)
+        if k is None:
+            return None
+        spec["value"] = float(f"{k * grid:.12g}")
+    for name, spec in out.items():
+        if "ratio_of" not in spec:
+            continue
+        unit = out[spec["ratio_of"]]["value"] * spec.get("ratio_step", 1)
+        if unit <= 0:
+            return None
+        k = _whole(spec["min"], spec["max"], unit, spec["value"] / unit, 1)
+        if k is None:
+            return None
+        spec["value"] = float(f"{k * unit:.12g}")
+    return out
 
 
 def write_sizing_yaml(path: Path, sizing: dict) -> None:
@@ -385,9 +473,12 @@ def run_numeric(argv=None):
     passed: list[dict] = []    # sizings that passed the full corner set
     failed_at: list[str] = []  # worst corners of full-corner failures
 
-    def sizing_from_x(x) -> dict:
-        return {n: {"value": float(v), "min": start_sizing[n]["min"],
-                   "max": start_sizing[n]["max"]} for n, v in zip(names, x)}
+    def sizing_from_x(x) -> dict | None:
+        # snapped HERE, before scoring: every sizing the search scores, and
+        # so every winner, is one the layout can draw (sizing.yaml's grid
+        # and ratio_of rules) - never rounded after the corner gate passed
+        return snap({n: {**start_sizing[n], "value": float(v)}
+                     for n, v in zip(names, x)})
 
     def write_row(sizing: dict, score: float, kept: bool, note: str) -> int:
         with lock:
@@ -451,7 +542,15 @@ def run_numeric(argv=None):
             slots.put(slot)
 
     def objective(x) -> float:
-        return -evaluate(sizing_from_x(x), "differential_evolution")
+        sizing = sizing_from_x(x)
+        if sizing is None:
+            # no drawable sizing near this point: scored as a failed bench
+            # would be, with no simulation spent on it
+            write_row({n: float(v) for n, v in zip(names, x)},
+                      MISSING_MEASURE_PENALTY, False,
+                      "differential_evolution, not drawable")
+            return -MISSING_MEASURE_PENALTY
+        return -evaluate(sizing, "differential_evolution")
 
     pool = ThreadPoolExecutor(args.workers) if args.workers > 1 else None
     rounds = []
