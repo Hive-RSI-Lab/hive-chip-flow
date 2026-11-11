@@ -41,6 +41,19 @@ JSON out, exit 0/1/2. Keep output ASCII. **No web tools.**
    plain wrapper only PROCEDURAL ("immediate") `assert (...)`/`cover
    (...)` inside an `always` block work.
 
+Two more traps, seen on a small tile:
+
+3. **No `$global_clock` once slang is chosen.** A property that reaches an
+   internal signal by hierarchy (`dut.lfsr`) makes the gate use yosys-slang,
+   which rejects `$global_clock` ("no global clocking is available in this
+   scope"), so a past-value style built on it fails. Keep your own sample
+   flops on `clk`/`rst_n` and an `armed` flag set at the first edge after
+   reset.
+4. **One broken assert can blame all of them.** When one assert fails,
+   smtbmc may say UNKNOWN while pdr says FAIL, and the gate reports
+   `engine_disagreement` against every property, so the work order does not
+   name the failing assert. Bisect the properties yourself.
+
 For the exact shape, read a corpus rung's own `formal/*.sv` OTHER than the
 block you are currently writing (never the rung you are being asked to
 build right now - its `formal/`/`rtl/` are the reference solution and

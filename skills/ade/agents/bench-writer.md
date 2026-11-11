@@ -70,6 +70,23 @@ broken: `pm_deg`, `gm_db`, `ugf_hz`), `templates/psrr_tb.cir` (AC on vdd:
 integrated over the stated band: `onoise_rms_v`, per-device lines
 unscored). A comp cap must be seen: bench_strength halves and removes it.
 
+A jitter or phase-noise bench built on ngspice `trnoise`:
+
+- Scaling, checked by periodogram at NT = 1 ns and 20 ps: one-sided white
+  noise S = 2 NA^2 NT; 1/f noise S = NAMP^2 / (2 f).
+- Get a device's noise level from `.noise` on a copy of the instance with
+  ideal sources at its bias, the output read through an H source on the drain
+  source. After `noise`, the current plot is the integrated one: `setplot
+  noise1`, then `noise3`, ... for the spectra.
+- Before calling a noiseless spread numerical, check the periods for a
+  period-2 pattern. In an extracted ring-oscillator PLL it read +-6 ps while
+  the true floor was 0.05 ps.
+- Always run a noise-free floor run, and test more than one corner for the
+  worst case: reasoning about which corner is worst picked the wrong one.
+- A long run detached with `setsid`/`nohup` survives its waiter being killed
+  as idle; re-check it after a restart, or wait in the foreground in steps of
+  up to 10 minutes.
+
 A bench that sweeps many points (a 256-code DAC) carries a
 `* sim_timeout_s: <seconds>` comment line, up to 3600, sized for a loaded
 host; without it each corner's run is cut off at 60 s, and that is a
