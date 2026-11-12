@@ -1,8 +1,11 @@
 # Per-device transient stress limits, read by engine/lib/stresslib.py for the
 # opt-in stage of the pex_sim gate. A block opts in with
 # layout_ref/<block>_stress.yaml (see the remediation device_overstress.md).
-# 3.3 V thin-oxide devices only: a block with another MOS class is refused
-# until its class is added here with its own citation.
+# gate_oxide and junction hold the 3.3 V thin-oxide devices. A model naming a
+# `class` is held to that class's DC limit and junction reference instead,
+# under the same allowance rules (floor, repeating, one_off). A block with a
+# MOS model not listed here is refused until its class is added here with its
+# own citation.
 gate_oxide:
   citation: >-
     GF180MCU design rule manual 14.1.4.2: 3.63 V maximum DC between the gate
@@ -43,6 +46,25 @@ junction:
     the PDK electrical specification, 3.3 V devices, W/L 10/0.28.
   # junction pairs above this are listed with peak and time, not failed
   dc_reference_v: 3.63
+classes:
+  # The 5 V (thick gate) devices the gf180mcu 5 V standard cells are built of.
+  05v0:
+    gate_oxide:
+      citation: >-
+        GF180MCU design rule manual 14.1.2: for the high-voltage (5 V/6 V)
+        devices, drain and gate voltages shall not exceed the maximum
+        operating voltage (5 V) by more than 10%, so 5.5 V. 14.1.4.2 gives
+        the DC gate-node maximum for the thick gate as "6.5V/6V for 5V/6V
+        process"; the lower of the two figures is the limit.
+      dc_limit_v: 5.5
+    junction:
+      citation: >-
+        GF180MCU design rule manual 14.1.2 (drain voltage within 10% over the
+        5 V maximum operating voltage) and 14.1.4.1 (hot carriers, supply
+        within 10% over Vdd). Breakdown: the minimum BVDSS of the PDK
+        electrical specification 3.0, 5 V devices (NE2 W/L 10/0.6, PE2 W/L
+        10/0.5), 8.5 V for both.
+      dc_reference_v: 5.5
 models:
   nfet_03v3: {kind: mos, breakdown_v: 7.0}
   pfet_03v3: {kind: mos, breakdown_v: 6.5}
@@ -50,3 +72,5 @@ models:
   cap_nmos_03v3_b: {kind: cap}
   cap_pmos_03v3: {kind: cap}
   cap_pmos_03v3_b: {kind: cap}
+  nfet_05v0: {kind: mos, breakdown_v: 8.5, class: 05v0}
+  pfet_05v0: {kind: mos, breakdown_v: 8.5, class: 05v0}

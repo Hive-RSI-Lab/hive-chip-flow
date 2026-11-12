@@ -6,7 +6,8 @@ netlist. The finding names the device, the pair, the corner, the deck and the
 bound broken. The allowance is in `engine/reference/stress_limits.yaml`.
 
 GF180MCU DRM 14.1.4.2 sets 3.63 V as the DC maximum between the gate and any
-other FET node, and allows the gate node to exceed it periodically, depending
+other FET node of a 3.3 V device (5.5 V for a 5 V device, from DRM 14.1.2:
+the `05v0` class in that file), and allows the gate node to exceed it periodically, depending
 on duty cycle, without publishing a number. The flow's numbers are its own,
 chosen on principle and not fitted to any macro:
 
