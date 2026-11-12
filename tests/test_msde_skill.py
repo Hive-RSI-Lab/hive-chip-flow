@@ -164,7 +164,8 @@ TOP_KIND_RE = re.compile(r'violation\(\s*"[a-z_]+",\s*"error",\s*[^,]+,\s*'
                          r'[^,]+,\s*"([a-z_]+)"', re.S)
 # top_harden passes on check_harden's findings, top_drc check_drc's
 TOP_GATE_SCRIPTS = ("check_top_harden", "check_harden", "check_top_drc",
-                    "check_drc", "check_top_lvs", "check_precheck")
+                    "check_drc", "check_top_lvs", "check_precheck",
+                    "check_top_stress")
 
 
 def _top_kinds() -> set[str]:
