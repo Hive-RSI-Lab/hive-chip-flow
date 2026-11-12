@@ -2,7 +2,8 @@
 
 Every MOS device and MOS capacitor of the extracted netlist is read from a
 transient run: the gate pairs (Vgs, Vgd, Vgb, a MOS capacitor's Vcap) against
-the DRM's DC limit and the allowance in engine/reference/stress_limits.yaml,
+the DRM's DC limit for the device's class (3.3 V thin oxide unless its model
+names another class) and the allowance in engine/reference/stress_limits.yaml,
 and the junction pairs (Vds, Vsb, Vdb) against breakdown.
 
 A gate-pair excursion is the contiguous time |V| is over the limit. One that
@@ -79,7 +80,27 @@ class Excursion:
 
 
 def load_limits(path: Path = LIMITS_FILE) -> dict:
-    return yaml.safe_load(Path(path).read_text(encoding="utf-8"))
+    limits = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
+    classes = limits.get("classes") or {}
+    for model, info in limits["models"].items():
+        cls = info.get("class")
+        if cls is not None and cls not in classes:
+            raise CheckError(f"stress_limits.yaml: {model} names class {cls}, "
+                             "which has no limits there")
+    return limits
+
+
+def device_limits(model: str, limits: dict) -> dict:
+    """The limits a device of `model` is held to: its class's gate-oxide DC
+    limit and junction reference when it names one, the 3.3 V ones when not,
+    and the shared allowance rules either way."""
+    cls = limits["models"][model].get("class")
+    if cls is None:
+        return limits
+    own = limits["classes"][cls]
+    return {**limits,
+            "gate_oxide": {**limits["gate_oxide"], **own["gate_oxide"]},
+            "junction": {**limits["junction"], **own["junction"]}}
 
 
 def find_sidecar(ws: Path, block: str) -> Path | None:
@@ -617,11 +638,12 @@ def score_junction(t: np.ndarray, wave: np.ndarray, breakdown: float,
 def _pair_list(devices: list[dict], limits: dict) -> list[dict]:
     """Every terminal pair to score, with its vectors and the level it must
     pass before its waveform is worth reading."""
-    dc = limits["gate_oxide"]["dc_limit_v"]
-    reference = limits["junction"]["dc_reference_v"]
     out = []
     for dev in devices:
         info = limits["models"][dev["model"]]
+        own = device_limits(dev["model"], limits)
+        dc = own["gate_oxide"]["dc_limit_v"]
+        reference = own["junction"]["dc_reference_v"]
         vecs = dev["vectors"]
         if info["kind"] == "cap":
             sets = [("gate", (("Vcap", 0, 1),), dc)]
@@ -681,21 +703,28 @@ def score_run(t: np.ndarray, store: dict, devices: list[dict],
     found_pairs = _candidates(data, columns, _pair_list(devices, limits))
     waves = _load_columns(data, columns, {v for r in found_pairs
                                           for v in (r["p"], r["q"]) if v})
-    reference = limits["junction"]["dc_reference_v"]
     rows = []
     for r in found_pairs:
         wave = (waves[r["p"]] if r["p"] else 0.0) - (waves[r["q"]] if r["q"] else 0.0)
         wave = wave if isinstance(wave, np.ndarray) else np.zeros(len(t))
         dev = r["dev"]
+        own = device_limits(dev["model"], limits)
         common = {"device": dev["name"], "label": dev["label"],
-                  "model": dev["model"], "pair": r["pair"], "class": r["class"]}
+                  "model": dev["model"], "pair": r["pair"], "class": r["class"],
+                  "limit_v": r["level"]}
         if r["class"] == "gate":
-            found = score_gate(t, wave, windows, limits)
+            found = score_gate(t, wave, windows, own)
         else:
-            found = score_junction(t, wave, r["breakdown"], reference)
+            found = score_junction(t, wave, r["breakdown"],
+                                   own["junction"]["dc_reference_v"])
         if found:
             rows.append({**common, **found})
     return rows
+
+
+def _limit_of(row: dict) -> dict:
+    """The model and the level a finding row was held to, when it has them."""
+    return {k: row[k] for k in ("model", "limit_v") if k in row}
 
 
 def summarise(rows: list[dict], decks_run: int, devices: int,
@@ -716,22 +745,29 @@ def summarise(rows: list[dict], decks_run: int, devices: int,
             if have is None or row["peak_over_v"] > have["peak_over_v"]:
                 allowance[key] = {"device": r["device"], "label": r["label"],
                                   "pair": r["pair"], "corner": r["corner"],
-                                  "deck": r["deck"], **row}
+                                  "deck": r["deck"], **_limit_of(r), **row}
     junctions: dict = {}
     for r in rows:
         if r["class"] != "junction":
             continue
         key = (r["device"], r["pair"])
         if key not in junctions or r["peak_v"] > junctions[key]["peak_v"]:
-            junctions[key] = {k: r[k] for k in (
+            junctions[key] = {**{k: r[k] for k in (
                 "device", "label", "pair", "corner", "deck", "peak_v",
-                "t_peak_s", "time_over_s", "breakdown_v", "over_breakdown")}
+                "t_peak_s", "time_over_s", "breakdown_v", "over_breakdown")},
+                **_limit_of(r)}
     order = lambda d: (-d["peak_v"], d["device"], d["pair"])
     return {"gate_oxide_citation": limits["gate_oxide"]["citation"].strip(),
             "allowance_is_ours": limits["gate_oxide"]["own_numbers"].strip(),
             "junction_citation": limits["junction"]["citation"].strip(),
             "bounds": {k: limits["gate_oxide"][k] for k in (
                 "dc_limit_v", "floor_v", "repeating", "one_off")},
+            "classes": {name: {
+                "dc_limit_v": c["gate_oxide"]["dc_limit_v"],
+                "gate_oxide_citation": c["gate_oxide"]["citation"].strip(),
+                "junction_reference_v": c["junction"]["dc_reference_v"],
+                "junction_citation": c["junction"]["citation"].strip()}
+                for name, c in (limits.get("classes") or {}).items()},
             "runs": decks_run, "devices": devices,
             "other_models_not_scored": others,
             "devices_failing": sorted(failed_devices),

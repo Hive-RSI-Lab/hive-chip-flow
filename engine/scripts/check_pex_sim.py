@@ -182,7 +182,8 @@ file's transient benches on the extracted netlist and scores every MOS
 device's own terminal voltages over each whole run, at the corners the
 sidecar names (stresslib; limits and their citations in
 engine/reference/stress_limits.yaml). Gate-oxide pairs (gate to source,
-drain or bulk) are held to the 3.63 V DC limit of DRM 14.1.4.2 with two
+drain or bulk) are held to the 3.63 V DC limit of DRM 14.1.4.2 (5.5 V for
+a 5 V device, its class in that file) with two
 allowances for true transients, which are this flow's own numbers: a
 repeating excess inside a declared window, and a one-off edge. Past either
 it is a `device_overstress` finding. Junction pairs (drain or source to

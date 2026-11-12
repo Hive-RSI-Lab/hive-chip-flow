@@ -308,6 +308,72 @@ def test_score_run_reads_gate_to_ground_and_every_pair(tmp_path):
     assert gate[("X0", "Vgb")]["status"] == "fail"       # 370 mV over, past the one-off peak
 
 
+THICK = NETLIST.replace("nfet_03v3", "nfet_05v0").replace("pfet_03v3", "pfet_05v0")
+
+
+def test_the_5v_class_cites_the_manual_and_keeps_3v3_at_3p63():
+    assert LIMITS["gate_oxide"]["dc_limit_v"] == 3.63
+    assert LIMITS["junction"]["dc_reference_v"] == 3.63
+    thick = LIMITS["classes"]["05v0"]
+    assert thick["gate_oxide"]["dc_limit_v"] == 5.5
+    assert thick["junction"]["dc_reference_v"] == 5.5
+    cite = " ".join(thick["gate_oxide"]["citation"].split())
+    assert "14.1.2" in cite and "14.1.4.2" in cite
+    for model in ("nfet_05v0", "pfet_05v0"):
+        assert LIMITS["models"][model] == {"kind": "mos", "breakdown_v": 8.5,
+                                           "class": "05v0"}
+    own = stresslib.device_limits("nfet_05v0", LIMITS)
+    # the allowance rules are the shared ones, only the levels move
+    assert own["gate_oxide"]["repeating"] == LIMITS["gate_oxide"]["repeating"]
+    assert own["gate_oxide"]["one_off"] == LIMITS["gate_oxide"]["one_off"]
+    assert own["gate_oxide"]["floor_v"] == LIMITS["gate_oxide"]["floor_v"]
+    assert stresslib.device_limits("nfet_03v3", LIMITS) is LIMITS
+
+
+def test_a_model_naming_an_unknown_class_is_refused(tmp_path):
+    import yaml
+    data = yaml.safe_load(stresslib.LIMITS_FILE.read_text(encoding="utf-8"))
+    data["models"]["nfet_05v0"]["class"] = "nope"
+    bad = tmp_path / "limits.yaml"
+    bad.write_text(yaml.safe_dump(data))
+    with pytest.raises(CheckError, match="names class nope"):
+        stresslib.load_limits(bad)
+
+
+def _gate_bump(tmp_path, netlist, level):
+    devices, _ = stresslib.parse_devices(netlist, "top")
+    stresslib.label_devices(devices, REF, "top")
+    stresslib.vectors_of(devices, ["a", "g", "vdd", "vss"], ["out", "in", "vdd", "0"])
+    raw = tmp_path / "a.raw"
+    t = np.array([0.0, 1e-7, 1e-7 + 1e-15, 2e-7, 2e-7 + 1e-15, 1e-6])
+    waves = {v: np.full(6, 0.0) for d in devices for v in d["vectors"] if v}
+    waves["xdut.g.t1"] = np.array([0, 0, level, level, 0, 0])
+    write_raw(raw, t, waves)
+    tt, store = stresslib.read_binary_raw(raw)
+    rows = stresslib.score_run(tt, store, devices, [], LIMITS)
+    return {(r["device"], r["pair"]): r for r in rows if r["class"] == "gate"}
+
+
+def test_a_5v_device_is_held_to_its_own_limit(tmp_path):
+    # 4.4 V on the gate: a 3.3 V device fails, a 5 V device is inside 5.5 V
+    thin = _gate_bump(tmp_path, NETLIST, 4.4)
+    assert thin[("X0", "Vgb")]["status"] == "fail"
+    assert thin[("X0", "Vgb")]["limit_v"] == 3.63
+    assert ("X0", "Vgb") not in _gate_bump(tmp_path, THICK, 4.4)
+    # 5.9 V is 400 mV over 5.5 V, past the shared one-off peak bound
+    thick = _gate_bump(tmp_path, THICK, 5.9)[("X0", "Vgb")]
+    assert thick["status"] == "fail" and thick["limit_v"] == 5.5
+    assert thick["rows"][0]["peak_over_v"] == pytest.approx(0.4)
+    # 5.7 V is 200 mV over: inside the one-off bound, listed as allowance
+    near = _gate_bump(tmp_path, THICK, 5.7)[("X0", "Vgb")]
+    assert near["status"] == "allowance"
+    rep = stresslib.summarise([{**near, "corner": "ff", "deck": "d"}], 1, 2,
+                              LIMITS, {})
+    assert rep["allowance_only"][0]["limit_v"] == 5.5
+    assert rep["allowance_only"][0]["model"] == "nfet_05v0"
+    assert rep["classes"]["05v0"]["dc_limit_v"] == 5.5
+
+
 def test_score_run_stopping_before_its_window_ends_is_a_refusal():
     devices, _ = parsed()
     data = np.zeros((2, 6))
