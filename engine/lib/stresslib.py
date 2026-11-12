@@ -635,7 +635,7 @@ def score_junction(t: np.ndarray, wave: np.ndarray, breakdown: float,
             "breakdown_v": breakdown, "over_breakdown": float(mag[k]) > breakdown}
 
 
-def _pair_list(devices: list[dict], limits: dict) -> list[dict]:
+def pair_list(devices: list[dict], limits: dict) -> list[dict]:
     """Every terminal pair to score, with its vectors and the level it must
     pass before its waveform is worth reading."""
     out = []
@@ -665,18 +665,24 @@ def _column(columns: dict, vector: str | None, ground: int) -> int:
     return columns[vector]
 
 
-def _candidates(data, columns: dict, pairs: list[dict]) -> list[dict]:
-    """The pairs that pass their level anywhere in the run. One pass over
-    the file in row blocks: a column read per pair would rescan it thousands
-    of times."""
+def pair_peaks(data, columns: dict, pairs: list[dict]) -> np.ndarray:
+    """The peak |V| of each pair of `pair_list` over the whole run. One pass
+    over the file in row blocks: a column read per pair would rescan it
+    thousands of times."""
     n_pts, n_var = data.shape
-    p_col = np.array([_column(columns, r["p"], n_var) for r in pairs])
-    q_col = np.array([_column(columns, r["q"], n_var) for r in pairs])
+    p_col = np.array([_column(columns, r["p"], n_var) for r in pairs], dtype=int)
+    q_col = np.array([_column(columns, r["q"], n_var) for r in pairs], dtype=int)
     peak = np.zeros(len(pairs))
     for i in range(0, n_pts, CHUNK_ROWS):
         rows = np.asarray(data[i:i + CHUNK_ROWS])
         block = np.column_stack((rows, np.zeros(len(rows))))
         peak = np.maximum(peak, np.abs(block[:, p_col] - block[:, q_col]).max(axis=0))
+    return peak
+
+
+def _candidates(data, columns: dict, pairs: list[dict]) -> list[dict]:
+    """The pairs that pass their level anywhere in the run."""
+    peak = pair_peaks(data, columns, pairs)
     return [r for r, top in zip(pairs, peak) if top > r["level"]]
 
 
@@ -700,7 +706,7 @@ def score_run(t: np.ndarray, store: dict, devices: list[dict],
     if windows and float(t[-1]) < max(w.stop for w in windows) * (1 - 1e-9):
         raise CheckError(f"the stress run stopped at {t[-1]:.4g} s, before its "
                          "last repeating window ends")
-    found_pairs = _candidates(data, columns, _pair_list(devices, limits))
+    found_pairs = _candidates(data, columns, pair_list(devices, limits))
     waves = _load_columns(data, columns, {v for r in found_pairs
                                           for v in (r["p"], r["q"]) if v})
     rows = []
