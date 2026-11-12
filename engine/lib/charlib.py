@@ -52,10 +52,12 @@ the one it must patch at run time):
     (Liberty's convention, the shipped lib's too). The self-check re-measures
     random points with the load's charge read through a 0 V probe over a longer
     window. Edges that leave every output alone are the inputs' hidden power,
-    each edge on its own run from the DC state before it, on the netlist with
-    its coupling capacitors tied to ground (ground_coupling): the charge an
-    input puts into a neighbour's capacitance is the driver's, booked as the
-    pin's capacitance, and the shipped lib leaves it off (issue #322).
+    each edge on its own run from the DC state before it. Hidden power and a
+    combinational cell's arcs run on a copy of the netlist with its coupling
+    capacitors tied to ground (ground_coupling): the charge an input puts into
+    a neighbour's capacitance is the driver's, booked as the pin's
+    capacitance, and the shipped lib leaves it off (issue #322). Timing,
+    transition and pin capacitance keep the real coupling.
     A flip-flop's Q arc holds the clock edge less CLK's hidden power, which a
     power tool adds on every edge.
   - Leakage is one DC operating point per input state at LEAKAGE_OPTIONS. A
@@ -1471,11 +1473,13 @@ def ground_coupling(text: str, rails) -> str:
     return "\n".join(out) + "\n"
 
 
-def _hidden_bench(bench):
-    """The bench for hidden power: its netlist with coupling tied to ground,
-    so an input's charge into a neighbour's capacitance, which the driver pays
-    and Liberty books as the pin's capacitance, is not read off the supply."""
-    work = bench.work / "hidden"
+def _hidden_bench(bench, sub="hidden"):
+    """A power bench (hidden power, or a combinational arc's energy in its own
+    sub-folder): its netlist with coupling tied to ground, so an input's charge
+    into a neighbour's capacitance, which the driver pays and Liberty books as
+    the pin's capacitance, is not read off the supply. Timing, transition and
+    input capacitance stay on the bench's own netlist, coupling and all."""
+    work = bench.work / sub
     work.mkdir(parents=True, exist_ok=True)
     netlist = work / "netlist_grounded.sp"
     netlist.write_text(ground_coupling(
@@ -1561,7 +1565,9 @@ def _measure_comb_power(bench, cell, slews, loads, jobs) -> dict:
         stim, ramp, span, t0, out_rises = stim_and_span(
             b, out, related, side, in_rises, i, j, slews)
         return out_rises, _arc_energy(b, stim, out, loads[j], t0, ramp, span)
-    results = _pool_map(bench, one_arc, tasks, jobs)
+    abench = _hidden_bench(bench, "arcs")
+    results = _pool_map(abench, one_arc, tasks, jobs)
+    bench.runs += abench.runs
     groups = []
     for a, (out, related, side) in enumerate(arcs):
         rows = {True: [[None] * len(loads) for _ in slews],

@@ -178,7 +178,7 @@ def test_hidden_power_ties_coupling_to_ground():
     assert got[7] == "M1 Z A VDD VNW pfet"
 
 
-def test_only_hidden_power_runs_on_the_grounded_netlist(tmp_path, monkeypatch):
+def test_comb_power_runs_on_its_own_grounded_copy(tmp_path, monkeypatch):
     cell = charlib.parse_liberty(
         CELL.replace("x__inv", "x__nand").replace('"(!I)"', '"(!(A&B))"')
         .replace("pin(I)", "pin(A)").replace(
@@ -191,17 +191,21 @@ def test_only_hidden_power_runs_on_the_grounded_netlist(tmp_path, monkeypatch):
     bench = charlib.Bench("x__nand", real, ["A", "B", "ZN", "VDD", "VSS"],
                           {"VDD": "primary_power", "VSS": "primary_ground"},
                           tmp_path, {}, 3.3, tmp_path / "w", TERMS)
-    seen = []
+    seen, seen_paths = [], []
 
     def fake_pool(b, fn, tasks, jobs):
         seen.append((fn.__name__, b.netlist.read_text()))
+        seen_paths.append((fn.__name__, b.netlist))
         return [0.0 if fn.__name__ == "one_hidden" else (True, 0.0)
                 for _ in tasks]
     monkeypatch.setattr(charlib, "_pool_map", fake_pool)
     charlib._measure_comb_power(bench, cell, [0.1], [0.01], 1)
     got = dict(seen)
-    assert "C0 A VDD 1f" in got["one_arc"]
-    assert "C0 A 0 1f" in got["one_hidden"]
+    paths = dict(seen_paths)
+    assert "C0 A 0 1f" in got["one_arc"] and "C0 A 0 1f" in got["one_hidden"]
+    assert real not in paths.values()
+    assert paths["one_arc"] != paths["one_hidden"]
+    # timing, transition and pin capacitance read the real netlist
     assert bench.netlist == real and "C0 A VDD 1f" in real.read_text()
 
 
