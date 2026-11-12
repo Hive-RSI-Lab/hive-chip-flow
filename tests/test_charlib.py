@@ -533,11 +533,18 @@ def _band(rows, kinds, load_min, load_max=1e9):
     return min(picked), max(picked)
 
 
+# nand2_1 adds slew index 4 and load index 0 so the grid holds a point where
+# the A2-related fall energy (when A1) is out of band (+10% on the full grid),
+# an open bug that the default points miss (#322).
 @pytest.mark.slow
-@pytest.mark.parametrize("cell", ["inv_1", "nand2_1"])
-def test_known_answer_extracted_at_real_loads(cell, tmp_path):
+@pytest.mark.parametrize("cell,slews,loads", [
+    ("inv_1", (1, 3), (3, 4)),
+    ("nand2_1", (1, 3, 4), (0, 3, 4)),
+])
+def test_known_answer_extracted_at_real_loads(cell, slews, loads, tmp_path):
     full = f"{LIB}__{cell}"
-    report = _run(cell, tmp_path / "out", extracted=_extract(full, tmp_path))
+    report = _run(cell, tmp_path / "out", extracted=_extract(full, tmp_path),
+                  slews=slews, loads=loads)
     assert report["netlist_kind"] == "extracted"
     assert report["ok"], report["corners"]["tt_025C"]["check"]["failed"]
     _, rows, _ = _compare(report, cell)
@@ -564,21 +571,25 @@ def _assert_power_band(report, cell):
     band = charlib.POWER_BAND_SHIPPED
     ours, theirs = _power_groups(got), _power_groups(ship)
     assert ours and set(ours) <= set(theirs), set(ours) - set(theirs)
+    out = []
     for key, g in ours.items():
         s = theirs[key]
         tol = band["hidden" if g.attr("index_2") is None else "output"]
         slews = charlib.numbers(g.attr("index_1"))
         if g.attr("index_2") is None:
             ship_idx = charlib.numbers(s.attr("index_1"))
-            pairs = [(v, charlib.table(s)[0][charlib._nearest(ship_idx, sl)])
+            pairs = [(sl, None, v,
+                      charlib.table(s)[0][charlib._nearest(ship_idx, sl)])
                      for sl, v in zip(slews, charlib.table(g)[0])]
         else:
             loads = charlib.numbers(g.attr("index_2"))
-            pairs = [(charlib.table(g)[i][j], charlib._lookup(s, sl, ld))
+            pairs = [(sl, ld, charlib.table(g)[i][j], charlib._lookup(s, sl, ld))
                      for i, sl in enumerate(slews) for j, ld in enumerate(loads)]
-        for v, sv in pairs:
-            assert abs(v - sv) <= max(tol["rel"] * abs(sv), tol["abs_pj"]), (
-                key, v, sv)
+        out += [f"{' '.join(map(str, key))} slew {sl} load {ld}: {v:.6g} vs "
+                f"{sv:.6g} ({100 * (v - sv) / sv:+.1f}%)"
+                for sl, ld, v, sv in pairs
+                if abs(v - sv) > max(tol["rel"] * abs(sv), tol["abs_pj"])]
+    assert not out, "out of band:\n" + "\n".join(out)
     low, high = band["leakage_ratio"]
     shipped = {(g.attr("when") or "").strip('"'): float(g.attr("value").strip('"'))
                for g in ship.sub("leakage_power")}
