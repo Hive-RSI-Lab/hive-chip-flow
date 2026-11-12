@@ -781,14 +781,16 @@ def _margin_sigma(value, bound: dict, sigma: float | None) -> float:
 
 
 def worst_corner(bench: str, bounds: list[dict], nominal: list[dict],
-                 tt_stats: dict, tt_names) -> dict | None:
+                 tt_stats: dict, tt_names,
+                 condition: str | None = None) -> dict | None:
     """The corner of the sim_pvt sweep (bar tt) where this bench's nominal
     run sits closest to a bound - or past one - counted in the measure's tt
     MC sigmas: the corner mismatch is likeliest to push out. None when the
     sweep scores the bench nowhere but tt."""
     worst = None
     for r in nominal:
-        if r["bench"] != bench or set(r["names"]) & set(tt_names):
+        if r["bench"] != bench or set(r["names"]) & set(tt_names) \
+                or r.get("condition") != condition:
             continue
         names = r["names"]
         for b in bounds:
@@ -867,6 +869,18 @@ def run(argv=None):
     # Carlo does not judge it: a comparator's 1 mV decision would flip on
     # the mismatch its offset measure already bounds.
     nominal_only = sorted(speclib.nominal_only_measures(spec))
+    # ua pins (padlib): sim_pvt runs every bench bare and through the pad
+    # model and scores each bound only in its `pad` condition, so Monte
+    # Carlo samples each (bench, condition) the same way. Scoring a
+    # pad-only bound (a glitch read at the pin, through 500 ohm + 5 pF) on
+    # the bare deck failed every sample of a design sim_pvt passes. A pad
+    # the netlist or a bench refuses is sim_pvt's error to report: here
+    # that bench runs bare only.
+    try:
+        pad = sim_run.pad_setup(spec, netlist_text)
+    except padlib.PadRefused:
+        pad = None
+    conditions = padlib.conditions_of(spec) if pad else [None]
     benches = []
     for bench_path, bounds_path in bench_list:
         template_text, bench_par, bench_res = mc_rewrite(
@@ -875,11 +889,24 @@ def run(argv=None):
                              if b != bench_path)])
         par_added += [dict(d, bench=bench_path.name) for d in bench_par]
         res_mismatch += [dict(d, bench=bench_path.name) for d in bench_res]
-        benches.append({"name": bench_path.name, "stem": bench_path.stem,
-                        "bounds": [x for x in simlib.load_bounds(bounds_path)
-                                   if x["measure"].lower()
-                                   not in nominal_only],
-                        "text": template_text})
+        bounds = [x for x in simlib.load_bounds(bounds_path)
+                  if x["measure"].lower() not in nominal_only]
+        for condition in conditions:
+            if condition == "pad":
+                try:
+                    sim_run.pad_bench(template_text, str(top), pad,
+                                      tt_corner, "0")
+                except padlib.PadRefused:
+                    continue
+            mine = [x for x in bounds if padlib.scored_in(x, condition)]
+            if not mine and condition == "pad":
+                continue    # the bare entry, bound-less, names it not_scored
+            benches.append({
+                "name": (f"{bench_path.name}[pad]" if condition == "pad"
+                         else bench_path.name),
+                "file": bench_path.name, "stem": bench_path.stem,
+                "condition": condition, "bounds": mine,
+                "text": template_text})
 
     # The worst PVT corner: sim_pvt's own sweep (spec_sweep, the same
     # corner set, scope-outs pinned), run nominal - mismatch off - here,
@@ -907,9 +934,14 @@ def run(argv=None):
         # global (process) variation only at tt: at ss/ff the corner IS
         # the process shift, and drawing it again would count it twice
         text = inject_mc_params(b["text"], seed, cfg["global"] and at_tt)
+        subs = subs_for(corner)
+        if b["condition"] == "pad":
+            text = sim_run.pad_bench(text, str(top), pad, corner,
+                                     subs["VDD"])
         r = sim_run.run_bench_at_corner(
             eda_bin, f"{b['stem']}__mc{i}", text, b["bounds"],
-            subs_for(corner), corner, out_dir, timeout, check="mc")
+            subs, corner, out_dir, timeout, check="mc",
+            condition=b["condition"])
         r["bench"] = b["name"]
         return {"bench": b["name"], "corner": corner["name"], "run": i,
                 "seed": seed, "passed": not r["violations"],
@@ -946,8 +978,9 @@ def run(argv=None):
     worst = {}
     worst_groups = []
     for b in other:
-        w = worst_corner(b["name"], b["bounds"], nominal["results"],
-                         tt_stats.get(b["name"], {}), tt_names)
+        w = worst_corner(b["file"], b["bounds"], nominal["results"],
+                         tt_stats.get(b["name"], {}), tt_names,
+                         condition=b["condition"])
         if w is not None:
             worst[b["name"]] = w
             worst_groups.append((b, sweep_by_name[w["corner"]]))

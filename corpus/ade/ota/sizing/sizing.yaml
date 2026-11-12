@@ -4,55 +4,74 @@
 # rz_w/rz_l the nulling resistor's ppolyf_u body (about 350 ohm/sq: 4.6 kohm
 # at 2 x 25.5 um, typical).
 # Ranges are two_stage_miller_ota.sp's SIZING BOUNDS.
+# grid / ratio_of are what layout/gen_ota.py can draw (optimise snaps every
+# candidate to them): every size on the 5 nm grid, w_in and w_ld as two
+# units and w_2 as ten, and w_t and w_s an even number of w_b-wide units in
+# the bias row's one matched row.
 w_b:
   value: 4.0e-6
   min: 1.0e-6
   max: 2.0e-5
+  grid: 5.0e-9
 w_t:
   value: 8.0e-6
   min: 2.0e-6
   max: 4.0e-5
+  ratio_of: w_b
+  ratio_step: 2
 l_b:
   value: 1.0e-6
   min: 5.0e-7
   max: 4.0e-6
+  grid: 5.0e-9
 w_in:
   value: 10.0e-6
   min: 2.0e-6
   max: 5.0e-5
+  grid: 1.0e-8
 l_in:
   value: 1.0e-6
   min: 2.8e-7
   max: 4.0e-6
+  grid: 5.0e-9
 w_ld:
   value: 4.0e-6
   min: 1.0e-6
   max: 2.0e-5
+  grid: 1.0e-8
 l_ld:
   value: 1.0e-6
   min: 5.0e-7
   max: 4.0e-6
+  grid: 5.0e-9
 w_2:
   value: 80.0e-6
   min: 1.0e-5
   max: 2.0e-4
+  grid: 5.0e-8
 w_s:
   value: 80.0e-6
   min: 1.0e-5
   max: 2.0e-4
+  ratio_of: w_b
+  ratio_step: 2
 l_2:
   value: 1.0e-6
   min: 2.8e-7
   max: 4.0e-6
+  grid: 5.0e-9
 cc_w:
   value: 26.0e-6
   min: 5.0e-6
   max: 5.0e-5
+  grid: 5.0e-9
 rz_w:
   value: 2.0e-6
   min: 1.0e-6
   max: 1.0e-5
+  grid: 5.0e-9
 rz_l:
   value: 25.5e-6
   min: 2.0e-6
   max: 5.0e-5
+  grid: 5.0e-9

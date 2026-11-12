@@ -22,3 +22,10 @@ missing, name the lines it needs in OPEN for the netlist's author.
 **Trap:** a dummy of a different size, or one left floating, is not a
 dummy: the check counts only equal devices, and a floating gate fails
 `erc`. Never shrink the group in `matching` to leave the end unit out.
+
+**Also:** don't expect a sim to show this. The gf180mcuD MOS model cards
+have the layout-dependent terms switched off (`kvth0=0`, `ku0=0`,
+`kvsat=0` on every card; the well-proximity terms `web`/`wec` are 0 or
+unset), so sim_tt, sim_pvt, mc and pex_sim give an end unit the same Vth
+and mobility as a middle one. Only the layout checks (dummies, equal
+neighbourhood, centroid) catch it.

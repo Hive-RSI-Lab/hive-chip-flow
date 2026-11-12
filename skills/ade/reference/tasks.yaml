@@ -337,9 +337,9 @@ verbs:
   optimise:
     summary: Run the sizing optimise loop (docs/design.md section 4) against
       sizing/sizing.yaml - a fixed-budget evaluator (the spec bench at
-      typical, every K-th trial and the winner at the full corner set) an
-      agent or `optimise.py numeric` cannot edit, kept only if the score
-      improved.
+      typical and the bounding corners, every K-th kept trial and the winner
+      at the full corner set) an agent or `optimise.py numeric` cannot
+      edit; `numeric` writes only a sizing that passes sim_pvt's corner set.
     doc: skills/ade/reference/recipes/optimise.md
     workspace: required
     edit_class: sizing_edit

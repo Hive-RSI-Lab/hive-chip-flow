@@ -22,7 +22,8 @@ not Forced at every sync (which crashed vvp after a few hundred forces).
 `tb/cosim_bench.json` names the top module, its bounds sidecar, and the
 analog netlist it actually simulated:
     {"top": "<hdl_toplevel>", "bounds": "<name>.bounds.json",
-     "analog_netlist": "<name>.sp", "analog_kind": "ideal"|"transistor"}
+     "analog_netlist": "<name>.sp", "analog_kind": "ideal"|"transistor",
+     "corners": {...}}          (optional, see "Corners" below)
 The bench itself is the authority on what it measured: it writes
 `reports/cosim_measures.json` (a plain dict of measure name -> value, plus
 `digital_toggles` - the count of digital edges it actually observed, backed
@@ -76,6 +77,40 @@ bench whose digital top sits anywhere but inside that wrapper is refused,
 before the sim runs (`cosim_top_unframed`): it would not see the pad
 reset latency the tile ships with.
 
+Corners. The runs above are one point: the schematic netlist and the RTL at
+typical. A transistor-level top signs off on its post-layout views at the
+corners that bound the analog side, so after those runs pass the gate runs
+the same bench again at each corner, one process per corner and digital
+view, from a copy of tb/ under log/cosim_corners/<view>/<corner>/ (`jobs` at
+a time, each limited by `timeout_s`):
+  - which corners: `corners.list`, or the corners at the ends `corners.bound_by`
+    names ([[measure, "min"|"max"], ...]) in the analog side's recorded pex
+    sweep (gate-pex_sim.json or pex_pvt.json, whichever covers more corners),
+    or, with neither, the min and max corner of every measure that sweep holds
+  - the analog view: the extracted netlist the sweep ran on when there is a
+    sweep, else the schematic
+  - the digital view: `corners.digital`, a list of "rtl" and "gl". By default
+    gl when digital/harden/runs/run/final has the netlist, else rtl. gl is
+    glsim's harness on the digital side's netlist with the SDF of the corner's
+    process and nearest temperature (cosim_corners.sdf_corner_for), generated
+    with OpenSTA when the harden did not write that corner. It is the digital
+    side's harden and not top/harden's, which runs after this gate
+A bench with no `corners` key is held to this when its analog_kind is
+transistor, it has a pex record and it is not a released v1 block; the facts
+say why a bench was not. A corner run is the bare cell: the pad condition
+stays at typical.
+
+The bench reads what to apply from cosimlib.corner_setup() (the COSIM_SETUP
+environment variable, None on the typical runs): `corner`, `process`,
+`res_corner`, `mim_corner`, `temp_c`, `vdd`, `netlist`, `netlist_path`,
+`sizing`, `lines` (the SPICE lines that apply it, the netlist's `.include`
+among them, so tb/'s analog_netlist must be a wrapper that instantiates the
+cell, not hold it) and `out`. It adds `cosimlib.corner_evidence(setup)` to its
+measures, or the run is `cosim_corner_not_applied`: a bench that ignored the
+setup would score its typical run at every corner. Every finding carries its
+`<corner>/<view>` label, and a run that gave no result is
+`cosim_corner_no_result`; the other corners keep their data.
+
 CLI/exit contract: checklib's (argparse, JSON to stdout or --out, exit 0
 pass, 1 violations, 2 error with a remediation string).
 """
@@ -88,16 +123,24 @@ import re
 import shutil
 import subprocess
 import sys
+import time
+from multiprocessing.pool import ThreadPool
 from pathlib import Path
 
 SCRIPTS = Path(__file__).resolve().parent
 ENGINE = SCRIPTS.parent
 REPO = ENGINE.parent
 sys.path.insert(0, str(ENGINE / "lib"))
+sys.path.insert(0, str(SCRIPTS))
+import boundary  # noqa: E402
+import check_glsim  # noqa: E402
 import checklib  # noqa: E402
+import corners as corners_mod  # noqa: E402
 import cocotblib  # noqa: E402
+import cosim_corners  # noqa: E402
 import layoutlib  # noqa: E402
 import padlib  # noqa: E402
+import sim_run  # noqa: E402
 import simlib  # noqa: E402
 import speclib  # noqa: E402
 import ttlib  # noqa: E402
@@ -106,6 +149,9 @@ from checklib import CheckError  # noqa: E402
 SCRIPT = "check_cosim"
 EDA_BIN = REPO / "bin" / "eda"
 BUILD_SUBDIR = "log/cosim_build"
+GL_BUILD_FLAGS = ("-gspecify", "-ginterconnect")
+GL_BUILD_LOG = "build.log"
+CORNER_LINKED_SOURCES = ("analog", "digital", "interface.yaml")
 RESULTS_NAME = "cosim_results.xml"
 MEASURES_REL = "reports/cosim_measures.json"
 BENCH_META_NAME = "cosim_bench.json"
@@ -221,7 +267,9 @@ def load_bench_meta(tb_dir: Path) -> dict:
         raise CheckError(f"{path}: 'analog_kind' must be one of "
                          f"{ANALOG_KINDS}, got {analog_kind!r}")
     return {"top": top, "bounds": bounds, "bounds_path": bounds_path,
-           "analog_netlist": netlist_name, "analog_kind": analog_kind}
+           "analog_netlist": netlist_name, "analog_kind": analog_kind,
+           "corners": cosim_corners.validate_config(data.get("corners"),
+                                                    str(path))}
 
 
 def collect_sources(tb_dir: Path) -> list[Path]:
@@ -295,15 +343,20 @@ def unframed(scopes: list[tuple[str, str, str | None]], block: str,
             f"{wrapper}" for inst, parent in hosts if parent != wrapper]
 
 
-def elaborate(sources: list[Path], top: str, out: Path) -> str | None:
+def elaborate(sources: list[Path], top: str, out: Path,
+              flags: tuple[str, ...] = (),
+              log: Path | None = None) -> str | None:
     """The bench's vvp text from a plain Icarus compile (no sim), or None
-    when it does not compile - the cocotb build then reports why."""
+    when it does not compile - the cocotb build then reports why. `log`
+    keeps what Icarus said."""
     exe = shutil.which("iverilog")
     cmd = [exe] if exe else [str(EDA_BIN), "iverilog"]
     out.parent.mkdir(parents=True, exist_ok=True)
-    proc = subprocess.run([*cmd, "-g2012", "-o", str(out), "-s", top,
+    proc = subprocess.run([*cmd, "-g2012", *flags, "-o", str(out), "-s", top,
                            *map(str, sources)], capture_output=True,
                           text=True, timeout=300)
+    if log is not None:
+        log.write_text(proc.stdout + proc.stderr, encoding="utf-8")
     if proc.returncode != 0 or not out.is_file():
         return None
     return out.read_text(encoding="utf-8", errors="replace")
@@ -349,7 +402,8 @@ def scan_ic_ignored(log_text: str) -> list[str]:
 
 def evaluate_measures(measures: dict | None, bounds: dict,
                       condition: str | None = None,
-                      measures_rel: str = MEASURES_REL) -> list[dict]:
+                      measures_rel: str = MEASURES_REL,
+                      label: str | None = None) -> list[dict]:
     """The pure, unit-testable half of this gate: given what the bench
     measured (or None - the file never appeared) and the bounds sidecar,
     return the violations. No workspace, no subprocess, no ngspice -
@@ -359,15 +413,17 @@ def evaluate_measures(measures: dict | None, bounds: dict,
     could otherwise write `digital_toggles: 8` as a bare literal (no
     analog side needed to produce it), or drive a purely digital counter
     with the analog bridge never actually running - `digital_toggles_unbacked`
-    and `spice_time_missing`/`spice_time_behind_last_edge` close those."""
+    and `spice_time_missing`/`spice_time_behind_last_edge` close those.
+    `condition` says which pad-scoped bounds are scored; `label` names a
+    corner run in every finding."""
     out = []
-    tag = "[pad] " if condition == "pad" else ""
+    mark = label or ("pad" if condition == "pad" else None)
+    tag = f"[{mark}] " if mark else ""
 
     def bad(kind, refs, msg):
         out.append(checklib.violation(
             "cosim", "error", measures_rel, None, kind,
-            refs + (["pad"] if condition == "pad" else []), tag + msg,
-            "check_cosim"))
+            refs + ([mark] if mark else []), tag + msg, "check_cosim"))
 
     if measures is None:
         bad("measures_missing", [], f"{measures_rel} was never written - "
@@ -493,12 +549,16 @@ def pad_setup(ws: Path, tb_dir: Path, meta: dict) -> dict | None:
 def run_condition(ws: Path, test_dir: Path, report_root: Path,
                   build_dir: Path, sources: list[Path], modules: list[str],
                   meta: dict, condition: str | None, results_xml: Path,
-                  violations: list[dict]) -> dict:
+                  violations: list[dict], label: str | None = None,
+                  build_args: list[str] | None = None,
+                  timeout_s: float = COCOTB_TIMEOUT_S) -> dict:
     """One cocotb run of the bench from test_dir (its measures land under
     report_root, as the bench writes them beside its tb/), its findings
-    appended to violations, tagged with the condition when it is "pad"."""
-    tag = "[pad] " if condition == "pad" else ""
-    refs = ["pad"] if condition == "pad" else []
+    appended to violations, tagged with the corner run's label or with the
+    condition when it is "pad"."""
+    mark = label or ("pad" if condition == "pad" else None)
+    tag = f"[{mark}] " if mark else ""
+    refs = [mark] if mark else []
     # A stale measures.json from a previous run must never be mistaken for
     # this run's result - if this run crashes before the bench's own
     # finally-block writes one, that must read as "missing", not "old".
@@ -506,8 +566,9 @@ def run_condition(ws: Path, test_dir: Path, report_root: Path,
     measures_path.unlink(missing_ok=True)
     xml_path = cocotblib.run_cocotb(build_dir, test_dir, sources, meta["top"],
                                     modules, results_xml,
-                                    timeout_s=COCOTB_TIMEOUT_S,
-                                    stall_s=checklib.stall_s())
+                                    timeout_s=timeout_s,
+                                    stall_s=checklib.stall_s(),
+                                    build_args=build_args)
     results = cocotblib.parse_results_xml(xml_path)
     if not results:
         raise CheckError(f"cocotb produced no test cases in {xml_path}")
@@ -515,8 +576,7 @@ def run_condition(ws: Path, test_dir: Path, report_root: Path,
     log_path = build_dir / "sim.log"
     log_text = log_path.read_text(encoding="utf-8", errors="replace") \
         if log_path.is_file() else ""
-    log_rel = str(log_path.relative_to(ws)) if condition == "pad" \
-        else "log/sim.log"
+    log_rel = str(log_path.relative_to(ws)) if mark else "log/sim.log"
     nonconv = scan_nonconvergence(log_text)
     ic_ignored = scan_ic_ignored(log_text)
     if nonconv:
@@ -540,7 +600,7 @@ def run_condition(ws: Path, test_dir: Path, report_root: Path,
             raise CheckError(f"{measures_path} is not valid JSON: {exc}") from exc
     violations.extend(evaluate_measures(
         measures, meta["bounds"], condition,
-        str(measures_path.relative_to(ws))))
+        str(measures_path.relative_to(ws)), label))
 
     for name, res in sorted(results.items()):
         if res["passed"]:
@@ -557,6 +617,353 @@ def run_condition(ws: Path, test_dir: Path, report_root: Path,
     return {"measures": measures, "tests_run": sorted(results),
             "signatures": sorted(set(nonconv)),
             "ic_ignored": sorted(set(ic_ignored))}
+
+
+CORNER_SUBDIR = "log/cosim_corners"
+WORKER_GRACE_S = 300.0
+HARDEN_FINAL = "digital/harden/runs/run/final"
+RUN_FACT_KEYS = ("source", "bounding", "views", "view_reason", "netlist",
+                 "netlist_kind")
+
+
+def not_owed(reason: str) -> dict:
+    return {"owed": False, "reason": reason}
+
+
+def pex_netlist(analog: Path, top: str, record: dict) -> Path:
+    """The extracted netlist the recorded sweep ran on."""
+    dirs = [record["log_dir"]] + [d for _r, _k, d in cosim_corners.PEX_RECORDS
+                                  if d != record["log_dir"]]
+    for folder in dirs:
+        path = analog / folder / f"{top}.pex.ordered.spice"
+        if path.is_file():
+            return path
+    raise CheckError(f"analog/{record['path']} records a post-layout sweep "
+                     f"but no {top}.pex.ordered.spice is under analog/log/"
+                     f"{{pex_sim,pex_pvt}} - run pex_sim, then cosim")
+
+
+def plan_views(ws: Path, cfg: dict | None) -> tuple[list[str], str]:
+    """The digital views to run and why those."""
+    dpath = ws / "digital" / "spec" / "spec.yaml"
+    netlist = None
+    if dpath.is_file():
+        dspec = speclib.load_spec(dpath)
+        netlist = ws / HARDEN_FINAL / "nl" / \
+            f"{ttlib.wrapper_name(dspec)}.nl.v"
+    have_gl = netlist is not None and netlist.is_file()
+    asked = cfg["digital"] if cfg else None
+    if asked:
+        if "gl" in asked and not have_gl:
+            raise CheckError(f"corners.digital asks for gl but {HARDEN_FINAL}"
+                             "/nl holds no netlist of the digital side - "
+                             "harden the digital side first")
+        return asked, "cosim_bench.json corners.digital"
+    if have_gl:
+        return ["gl"], "the digital side has a hardened netlist"
+    return ["rtl"], "the digital side has no hardened netlist yet"
+
+
+def plan_corners(ws: Path, meta: dict) -> dict:
+    """What the corner runs owe for this bench: {owed: False, reason} or the
+    corners, netlist and views. Refuses when the bench asks for a run its
+    workspace cannot give, before any simulation time is spent."""
+    cfg = meta["corners"]
+    analog = ws / "analog"
+    apath = analog / "spec" / "spec.yaml"
+    if cfg is None:
+        reason = cosim_corners.not_owed_reason(ws, meta["analog_kind"])
+        if reason:
+            return not_owed(reason)
+    elif not apath.is_file():
+        raise CheckError(f"{BENCH_META_NAME} declares corners but "
+                         f"{apath} does not exist - a corner is defined "
+                         "by the analog side's spec")
+    record = cosim_corners.pex_record(analog)
+    if cfg is not None and record is None and not cfg["list"]:
+        raise CheckError(f"{BENCH_META_NAME} picks corners from the "
+                         "analog side's recorded pex sweep and it has "
+                         "none - run pex_sim, or name them in "
+                         "corners.list")
+    aspec = speclib.load_spec(apath)
+    vdd = (aspec.get("supply") or {}).get("vdd") \
+        if isinstance(aspec.get("supply"), dict) else None
+    if isinstance(vdd, bool) or not isinstance(vdd, (int, float)):
+        raise CheckError(f"{apath} has no numeric 'supply.vdd' to scale "
+                         "each corner's supply from")
+    if record is not None:
+        netlist, kind = pex_netlist(analog, aspec["top"], record), "pex"
+    else:
+        netlist, kind = sim_run.find_netlist(analog), "schematic"
+    if cfg and cfg["list"]:
+        bounding = {n: ["named in corners.list"] for n in cfg["list"]}
+        source = "corners.list"
+    else:
+        bounding = cosim_corners.bounding_corners(
+            record["measured"], cfg["bound_by"] if cfg else None)
+        source = f"analog/{record['path']}"
+    sweep = {n: c for c in sim_run.spec_sweep(analog)[0]
+             for n in corners_mod.names_of(c)}
+    unknown = sorted(set(bounding) - set(sweep))
+    if unknown:
+        raise CheckError(f"corners {unknown} are not in the analog spec's "
+                         f"sweep ({sorted(sweep)})")
+    views, why = plan_views(ws, cfg)
+    defaults = {"env": {}, "timeout_s": cosim_corners.DEFAULT_TIMEOUT_S,
+                "jobs": cosim_corners.DEFAULT_JOBS}
+    return {"owed": True, "source": source, "bounding": bounding,
+            "views": views, "view_reason": why,
+            "netlist": str(netlist.relative_to(ws)), "netlist_kind": kind,
+            "corners": {n: sweep[n] for n in bounding},
+            "nominal_vdd": float(vdd),
+            "sizing": simlib.sizing_param_line(sim_run.load_sizing(analog)),
+            **{k: (cfg or defaults)[k] for k in defaults}}
+
+
+def corner_setup(pdk: Path, corner: dict, nominal_vdd: float, netlist_rel: str,
+                 netlist: Path, sizing: str, out: Path) -> dict:
+    """COSIM_SETUP for one corner: what to apply, and the lines that apply
+    it (a bench that needs its own lines builds them from the fields)."""
+    process = corner["process"]
+    res = f"res_{corners_mod.passive_of(corner, 'resistor')}"
+    mim = f"mimcap_{corners_mod.passive_of(corner, 'mim_cap')}"
+    models = f"{pdk}/libs.tech/ngspice"
+    lines = [f".include '{models}/design.spice'",
+             f".lib '{models}/sm141064.spice' {process}",
+             f".lib '{models}/sm141064.spice' {mim}",
+             f".lib '{models}/sm141064.spice' {res}",
+             f".include '{netlist}'", sizing, f".temp {corner['temp_c']}"]
+    return {"corner": corner["name"], "process": process, "res_corner": res,
+            "mim_corner": mim, "temp_c": corner["temp_c"],
+            "vdd": corners_mod.resolve_vdd(corner, nominal_vdd),
+            "netlist": netlist_rel, "netlist_path": str(netlist),
+            "sizing": sizing, "lines": lines, "out": str(out)}
+
+
+def generate_sdf(ws: Path, final: Path, dut: str, sdf_corner: str) -> Path:
+    """An SDF for a corner the harden does not write: OpenSTA on the
+    harden's own netlist, nominal SPEF and SDC with that corner's Liberty."""
+    out = ws / CORNER_SUBDIR / "sdf" / sdf_corner / f"{dut}__{sdf_corner}.gen.sdf"
+    lib = (layoutlib.pdk_root() / "libs.ref" / "gf180mcu_fd_sc_mcu7t5v0" /
+           "lib" / ("gf180mcu_fd_sc_mcu7t5v0__"
+                    f"{sdf_corner.removeprefix('nom_')}.lib"))
+    netlist = final / "nl" / f"{dut}.nl.v"
+    spef = final / "spef" / "nom" / f"{dut}.nom.spef"
+    sdc = final / "sdc" / f"{dut}.sdc"
+    missing = [str(p) for p in (lib, netlist, spef, sdc) if not p.is_file()]
+    if missing:
+        raise CheckError(f"no SDF for {sdf_corner} under {final}/sdf, and "
+                         f"cannot generate one: missing {missing} - re-run "
+                         "the digital harden")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    tcl = out.with_suffix(".tcl")
+    tcl.write_text(cosim_corners.GEN_SDF_TCL.format(
+        lib=lib, netlist=netlist, top=dut, spef=spef, sdc=sdc, out=out),
+        encoding="utf-8")
+    proc = checklib.run_tool([str(EDA_BIN), "sta", "-no_init", "-exit",
+                              str(tcl)], 600.0, capture_output=True, text=True,
+                             stdin=subprocess.DEVNULL)
+    if proc.returncode != 0 or not out.is_file():
+        raise CheckError(f"OpenSTA did not write {out}: "
+                         f"{(proc.stderr or proc.stdout).strip()[-400:]}")
+    return out
+
+
+def gl_view(ws: Path, tb_dir: Path, framed) -> dict:
+    """What every gl job shares: the bench's own Verilog (not the RTL
+    tb/ links or copies in), the netlist, the cell models."""
+    spec = speclib.load_spec(ws / "digital" / "spec" / "spec.yaml")
+    dut = ttlib.wrapper_name(spec)
+    final = ws / HARDEN_FINAL
+    rtl = {p.name for p in (ws / "digital" / "rtl").glob("*")}
+    bench = [f for f in collect_sources(tb_dir)
+             if not f.is_symlink() and f.name not in rtl]
+    cells = check_glsim._cell_sources(check_glsim._pdk_root())
+    return {"dut": dut, "final": final,
+            "netlist": str(final / "nl" / f"{dut}.nl.v"),
+            "bench": [str(f.resolve()) for f in bench],
+            "cells": [str(f) for f in cells],
+            "module": f"{ttlib.SIM_FRAME_PREFIX}{spec['top']}" if framed
+                      else None}
+
+
+def gl_sources(ws: Path, root: Path, gl: dict, top: str) -> tuple[list[Path], Path]:
+    """A gl job's sources, and the SDF as Icarus reads it. The harness takes
+    the name the bench instantiates; a bench that still builds the RTL
+    would simulate that and never the netlist, so that is a refusal."""
+    work = root / "gl"
+    work.mkdir(parents=True, exist_ok=True)
+    netlist, sdf = Path(gl["netlist"]), Path(gl["sdf"])
+    renames = check_glsim.escaped_dot_renames(
+        sdf.read_text(encoding="utf-8", errors="replace"),
+        netlist.read_text(encoding="utf-8", errors="replace"))
+    isdf, inl = work / "icarus.sdf", work / "icarus.nl.v"
+    check_glsim.sdf_for_icarus(sdf, isdf, renames)
+    check_glsim.netlist_for_icarus(netlist, inl, renames)
+    spec = speclib.load_spec(ws / "digital" / "spec" / "spec.yaml")
+    harness = work / "harness.v"
+    harness.write_text(ttlib.generate_glsim_harness(
+        spec, sdf_path=isdf, module_name=gl["module"]), encoding="utf-8")
+    sources = [*map(Path, gl["bench"]), harness, inl, *map(Path, gl["cells"])]
+    # the cocotb test step overwrites sim.log, so this compile, with the
+    # run's own flags, is what records the specify paths Icarus refused
+    text = elaborate(sources, top, work / "check.vvp", GL_BUILD_FLAGS,
+                     work / GL_BUILD_LOG)
+    if text is not None and not any(
+            mod == gl["dut"] for _i, mod, _p in scope_parents(text)):
+        raise CheckError(f"cosim_gl_netlist_not_instantiated: {top} does not "
+                         f"reach {gl['dut']}, so this run would not simulate "
+                         "the netlist")
+    return sources, isdf
+
+
+def run_corner_job(job: dict) -> dict:
+    """One corner and view, in the worker process that holds the bench's
+    cocotb, Icarus and ngspice."""
+    ws, root = Path(job["ws"]), Path(job["root"])
+    tb = root / "tb"
+    meta = load_bench_meta(tb)
+    os.environ.update(job["env"])
+    os.environ["COSIM_SETUP"] = json.dumps(job["setup"])
+    gl = job.get("gl")
+    sources, build_args, isdf = [Path(s) for s in job.get("sources", [])], None, None
+    if gl:
+        sources, isdf = gl_sources(ws, root, gl, meta["top"])
+        build_args = list(GL_BUILD_FLAGS)
+    violations: list[dict] = []
+    start = time.monotonic()
+    out = run_condition(ws, tb, root, root / "build", sources,
+                        cocotblib.test_modules(tb), meta, job["condition"],
+                        root / RESULTS_NAME, violations, job["label"],
+                        build_args, job["timeout_s"])
+    waived = []
+    if gl:
+        log = root / "build" / "sim.log"
+        waived = check_glsim.check_sdf_logs(
+            job["label"], isdf, root / "gl" / GL_BUILD_LOG, log)
+    why = cosim_corners.corner_not_applied(out["measures"], job["setup"])
+    if why:
+        violations.append(checklib.violation(
+            "cosim", "error", str(root.relative_to(ws)), None,
+            "cosim_corner_not_applied", [job["label"]],
+            f"[{job['label']}] the bench did not show it ran this corner: "
+            f"{'; '.join(why)}. Read cosimlib.corner_setup() and add "
+            "cosimlib.corner_evidence(setup) to the measures", "check_cosim"))
+    return {**out, "violations": violations, "sdf_waived": waived,
+            "wall_s": round(time.monotonic() - start, 1)}
+
+
+def corner_worker(job_path: str) -> int:
+    """Run one job and write its result.json; exit 0 once that is written,
+    whatever the run found. No result.json at all means the worker died."""
+    job = json.loads(Path(job_path).read_text(encoding="utf-8"))
+    try:
+        result = run_corner_job(job)
+    except Exception as exc:  # noqa: BLE001  (each corner reports its own)
+        result = {"refused": f"{type(exc).__name__}: {exc}"}
+    (Path(job["root"]) / "result.json").write_text(
+        json.dumps(result), encoding="utf-8")
+    return 0
+
+
+def launch_corner_job(job: dict) -> dict:
+    """The parent's side of a job: its result, or {refused: why} when the
+    worker left none."""
+    root = Path(job["root"])
+    try:
+        proc = checklib.run_tool(
+            [sys.executable, str(Path(__file__).resolve()), "--corner-job",
+             str(root / "job.json")], job["timeout_s"] + WORKER_GRACE_S,
+            capture_output=True, text=True, encoding="utf-8", errors="replace")
+    except subprocess.TimeoutExpired as exc:
+        return {"refused": f"worker {checklib.timeout_why(exc)}"}
+    path = root / "result.json"
+    if not path.is_file():
+        return {"refused": f"worker exited {proc.returncode} with no result: "
+                           f"{(proc.stderr or proc.stdout).strip()[-400:]}"}
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def scalar_measures(measures: dict | None) -> dict | None:
+    """The numbers of a run for the facts; edge lists stay in its log dir."""
+    if measures is None:
+        return None
+    return {k: v for k, v in measures.items()
+            if not isinstance(v, (list, dict))}
+
+
+def aggregate_corner(label: str, root_rel: str, result: dict, sdf: str | None,
+                     violations: list[dict]) -> dict:
+    """One job's entry in the facts, its findings added to violations."""
+    if "refused" in result:
+        violations.append(checklib.violation(
+            "cosim", "error", root_rel, None, "cosim_corner_no_result",
+            [label], f"[{label}] gave no result: {result['refused']}",
+            "check_cosim"))
+        return {"status": "no_result", "reason": result["refused"], "sdf": sdf}
+    found = result["violations"]
+    violations.extend(found)
+    return {"status": "fail" if found else "pass", "sdf": sdf,
+            "wall_s": result["wall_s"],
+            "measures": scalar_measures(result["measures"]),
+            "tests_run": result["tests_run"],
+            "signatures": result["signatures"],
+            "sdf_waived": result["sdf_waived"],
+            "violations": [v["kind"] for v in found]}
+
+
+def stage_corner_bench(ws: Path, tb_dir: Path, root: Path) -> None:
+    """Give one corner its own copy of the bench, with the block's design
+    sources linked beside it: a bench that finds `../analog` from its own
+    file reads the same block as it does from `tb/`. Only sources are
+    linked, so `reports/` and the build stay this corner's own."""
+    shutil.copytree(tb_dir, root / "tb",
+                    ignore=shutil.ignore_patterns("__pycache__"))
+    for name in CORNER_LINKED_SOURCES:
+        if (ws / name).exists():
+            (root / name).symlink_to((ws / name).resolve())
+
+
+def run_corners(ws: Path, tb_dir: Path, plan: dict, sources: list[Path],
+                condition: str | None, framed, violations: list[dict]) -> dict:
+    """Every corner and view the plan owes, `jobs` at a time."""
+    ws = ws.resolve()
+    base = ws / CORNER_SUBDIR
+    shutil.rmtree(base, ignore_errors=True)
+    gl = gl_view(ws, tb_dir, framed) if "gl" in plan["views"] else None
+    sdf_by_corner: dict[str, Path] = {}
+    jobs = []
+    for name, corner in plan["corners"].items():
+        for view in plan["views"]:
+            label, root = f"{name}/{view}", base / view / name
+            stage_corner_bench(ws, tb_dir, root)
+            job = {"ws": str(ws), "root": str(root), "label": label,
+                   "condition": condition, "env": plan["env"],
+                   "timeout_s": plan["timeout_s"],
+                   "setup": corner_setup(
+                       layoutlib.pdk_root(), corner, plan["nominal_vdd"],
+                       plan["netlist"], ws / plan["netlist"], plan["sizing"],
+                       root / MEASURES_REL)}
+            if view == "gl":
+                sdf_corner = cosim_corners.sdf_corner_for(corner)
+                if sdf_corner not in sdf_by_corner:
+                    sdf_by_corner[sdf_corner] = (
+                        cosim_corners.sdf_file(gl["final"], gl["dut"], sdf_corner)
+                        or generate_sdf(ws, gl["final"], gl["dut"], sdf_corner))
+                job["gl"] = {**{k: v for k, v in gl.items() if k != "final"},
+                             "sdf": str(sdf_by_corner[sdf_corner])}
+                job["sdf_corner"] = sdf_corner
+            else:
+                job["sources"] = [str(s.resolve()) for s in sources]
+            (root / "job.json").write_text(json.dumps(job), encoding="utf-8")
+            jobs.append(job)
+    with ThreadPool(plan["jobs"]) as pool:
+        results = pool.map(launch_corner_job, jobs)
+    runs = {job["label"]: aggregate_corner(
+                job["label"], str(Path(job["root"]).relative_to(ws)), result,
+                job.get("sdf_corner"), violations)
+            for job, result in zip(jobs, results)}
+    return {"owed": True, **{k: plan[k] for k in RUN_FACT_KEYS}, "runs": runs}
 
 
 def run(argv=None):
@@ -592,6 +999,7 @@ def run(argv=None):
                                   analog_kind=meta["analog_kind"])
         return payload, args.out
 
+    plan = plan_corners(ws, meta)
     ensure_ngspice_env(toolchain_root())
 
     build_dir = ws / BUILD_SUBDIR
@@ -607,8 +1015,9 @@ def run(argv=None):
     # no_pad: the bench as written. pad (interface.yaml ua_pins): the same
     # bench from a copy of tb/ whose analog netlist has the block behind
     # the TT ua pad model (padlib.wrap_subckt_pads)
+    bare_condition = None if pads is None else "no_pad"
     bare = run_condition(ws, tb_dir, ws, build_dir, sources, modules,
-                         meta, None if pads is None else "no_pad",
+                         meta, bare_condition,
                          ws / "log" / RESULTS_NAME, violations)
     extra = {}
     if pads is not None:
@@ -627,6 +1036,16 @@ def run(argv=None):
                          "source": padlib.SOURCE,
                          "measures": padded["measures"],
                          "tests_run": padded["tests_run"]}}
+    if not plan["owed"]:
+        extra["corners"] = plan
+    elif violations:
+        extra["corners"] = {
+            "owed": True, "skipped": "the typical run already fails, so this "
+            "gate is failing; fix that first and the corners run then",
+            **{k: plan[k] for k in RUN_FACT_KEYS}}
+    else:
+        extra["corners"] = run_corners(ws, tb_dir, plan, sources,
+                                       bare_condition, framed, violations)
 
     payload = checklib.report(SCRIPT, interface_path, violations, top=meta["top"],
                               analog_netlist=meta["analog_netlist"],
@@ -640,6 +1059,9 @@ def run(argv=None):
 
 
 def main(argv=None) -> int:
+    args = sys.argv[1:] if argv is None else argv
+    if len(args) == 2 and args[0] == "--corner-job":
+        return corner_worker(args[1])
     return checklib.cli_wrap(SCRIPT, lambda: run(argv))
 
 

@@ -55,6 +55,35 @@ JSON out, exit 0/1/2. Keep output ASCII. **No web tools.**
    the gate fails a bench that does (`tb_ignores_pad_latency`,
    `holdout_ignores_pad_latency`). Tests and helpers in `holdout/` do the
    same.
+   More traps, from a bench built on cocotb 2.1:
+   - cocotb 2.1 advances simulation time by 1 ps between tests in one run.
+     A bench that re-aligns with `Timer(PERIOD - now % PERIOD)` then asks for
+     a fractional time such as 49.999 ns and raises "Unable to accurately
+     represent ... with the simulator precision of 1e-12"; every test after
+     the first errors at once, and the first passing makes it look like an
+     RTL bug. Align with `RisingEdge`/`FallingEdge` of the clock, not a float
+     `Timer`.
+   - The `sim` gate passes no parameters, defines or plusargs to the design:
+     the bench always runs the top at its parameter defaults. A shrunk-
+     parameter check belongs in the formal wrapper (which instantiates the
+     design with overrides) or in a wrapper module.
+   - Start a monitor for anything the design sends right after reset (a
+     UART banner, a first status word) before you release reset. A monitor
+     started after `pad_reset` returns can miss the first start bit and
+     then decodes garbage or times out, which looks like an RTL bug.
+   - An async-reset check that spans the cycle where reset asserts
+     mid-cycle sees the reset values for that cycle; end display or LED range
+     checks at the cycle before.
+   - A requirement that says "equally likely" (a dice roll, a random pick) is
+     not checked by "every value appears". Gates can all pass on a biased
+     source. Compute the histogram over every phase of the generator on the
+     reference model and assert it is as flat as the period allows, and let
+     formal tie the RTL to the model. Example: a roll that took the low 3 bits
+     of a shifting 8-bit LFSR and rejected 0 and 7 was biased, because a right
+     shift moves old bits 3:1 into 2:0, so a rejected 7 always became 3 and a
+     rejected 0 always became 4 (faces 32/32/64/63/32/32 over the 255 phases).
+     Take the value from bits the shift and taps mix, or step two clocks per
+     rejection, and brute-force the bit choices in a few lines of Python.
 4. Write `holdout/test_<block>_holdout.py`: tests that exercise a case the
    VISIBLE suite deliberately does not - the corner the spec implies but a
    surface reading of the requirements might skip (a one-clock reset

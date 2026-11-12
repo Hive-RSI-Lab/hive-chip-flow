@@ -42,7 +42,7 @@ VDD = 3.3
 LSB = VDD / 256.0
 CLK_NS = 20
 RESET_CYCLES = 5
-CODE_HOLD_NS = 1000      # 1-LSB step: ~5 tau of the 190 ns pad pole
+CODE_HOLD_NS = 1000      # 1-LSB step: several tau of the ~150 ns ladder + ua pad pole
 STEP_HOLD_NS = 2500      # full-scale step: > the 1.5 us bound
 STEP_REPEATS = 3
 POLL_NS = 10
@@ -173,7 +173,7 @@ async def test_r2r_dac_cosim(dut):
             "digital_toggles": len(edges_ns),
             "edge_times_ns": list(edges_ns),
             "spice_time_reached_ns": bridge._last_sync_spice_time * 1e9,
-            "analog_model": "r2r_ideal.sp (ideal drivers, nominal 27k ladder, 100 ohm + 7 pF pad)",
+            "analog_model": "r2r_ideal.sp (ideal drivers, nominal 27k ladder; the pad run adds TT's ua pad model)",
         })
         reports_dir = HERE.parent / "reports"
         reports_dir.mkdir(parents=True, exist_ok=True)

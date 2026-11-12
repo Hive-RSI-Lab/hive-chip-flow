@@ -47,7 +47,10 @@ what's different when an agent runs them inside the Hive.
   from `chip-flow task_router --skill <skill> --task "<the ask>" --workspace blocks/<name>`
   and follow its recipe (`skills/<skill>/reference/recipes/<verb>.md`).
 - A gate: `chip-flow gate --gate <name> --skill <skill> --workspace blocks/<name>`.
-  It records itself into the block's `state.json`. Hardening runs long: the
+  It records itself into the block's `state.json` (`.gates.<name>.status`) and
+  `reports/recorded/gate-<name>.json`: read a gate's result from those.
+  `reports/gate-<name>.json` is only where an earlier run wrote its output and
+  can be stale. Hardening runs long: the
   skills run it as a job (`jobs.py`), so don't wait on it in the foreground.
 - The skill's subagents are the Agent tool: give each its role prompt
   (`skills/<skill>/agents/<role>.md`), the workspace path and the commands

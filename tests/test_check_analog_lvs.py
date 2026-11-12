@@ -21,6 +21,7 @@ sys.path.insert(0, str(ENGINE / "lib"))
 
 import check_analog_lvs  # noqa: E402
 import gate  # noqa: E402
+import layout_gen  # noqa: E402
 import yaml as _yaml  # noqa: E402
 
 CORPUS = REPO / "corpus" / "ade"
@@ -432,3 +433,120 @@ def test_device_sized_differently_is_located_by_klayout(tmp_path):
         (f.get("reference_params") or {}).get("W") for f in devs}
     assert {6.0, 8.0} <= widths, devs
     assert any(f.get("position") for f in devs)
+
+
+# ---- a tuned sizing reaches ade/ota's layout ---------------------------------
+
+OTA_RESIZED = {"w_b": 5, "w_t": 10, "w_s": 100, "l_b": 1.2, "w_in": 12,
+               "l_in": 0.8, "w_ld": 6, "l_ld": 1.5, "w_2": 100, "l_2": 0.8,
+               "cc_w": 30, "rz_w": 3, "rz_l": 20}
+
+
+def resize(ws: Path, sizes_um: dict) -> None:
+    path = ws / "sizing" / "sizing.yaml"
+    data = _yaml.safe_load(path.read_text(encoding="utf-8"))
+    for name, um in sizes_um.items():
+        data[name]["value"] = um * 1e-6
+    path.write_text(_yaml.safe_dump(data), encoding="utf-8")
+
+
+def load_gen_ota(ws: Path):
+    return layout_gen.load_generator(ws, "ota")
+
+
+@pytest.mark.parametrize("sizes, needle", [
+    ({"w_t": 9}, "w_t"),                # 2.25 units of w_b
+    ({"w_s": 84}, "w_s"),               # 21 units: odd
+    ({"w_in": 10.123}, "w_in"),         # 5.0615um units, off the grid
+    ({"l_2": 0.777}, "l_2"),
+])
+def test_ota_generator_refuses_a_sizing_it_cannot_draw(tmp_path, sizes, needle):
+    ws = make_ws(tmp_path, "ota")
+    resize(ws, sizes)
+    gen = load_gen_ota(ws)
+    with pytest.raises(gen.layoutlib.LayoutError, match=needle):
+        gen.row_plan(gen.read_sizing())
+
+
+
+def test_every_snapped_ota_sizing_is_one_the_generator_draws(tmp_path):
+    """sizing.yaml's grid and ratio_of rules are what gen_ota can draw:
+    any point in the ranges, snapped as optimise snaps a candidate, passes
+    every on_grid and even_units refusal above."""
+    import random
+    import optimise
+    ws = make_ws(tmp_path, "ota")
+    path = ws / "sizing" / "sizing.yaml"
+    sizing = optimise.load_sizing_yaml(path)
+    gen = load_gen_ota(ws)
+    rng = random.Random(1)
+    for _ in range(300):
+        point = {n: {**spec, "value": rng.uniform(spec["min"], spec["max"])}
+                 for n, spec in sizing.items()}
+        # every w_b in range leaves an even w_t and w_s in theirs
+        snapped = optimise.snap(point)
+        assert snapped is not None, point
+        path.write_text(_yaml.safe_dump(snapped), encoding="utf-8")
+        size = gen.read_sizing()
+        gen.row_plan(size)
+        for name in ("cc_w", "rz_w", "rz_l"):
+            gen.on_grid(size, name)
+
+def test_ota_generator_refuses_an_off_grid_passive(tmp_path):
+    gen = load_gen_ota(make_ws(tmp_path, "ota"))
+    with pytest.raises(gen.layoutlib.LayoutError, match="cc_w"):
+        gen.on_grid({"cc_w": 27.333}, "cc_w")
+
+
+def test_ota_generator_refuses_a_missing_sizing(tmp_path):
+    ws = make_ws(tmp_path, "ota")
+    gen = load_gen_ota(ws)
+    (ws / "sizing" / "sizing.yaml").unlink()
+    with pytest.raises(gen.layoutlib.LayoutError, match="no sizing file"):
+        gen.read_sizing()
+
+
+def test_ota_generator_plans_its_rows_from_the_sizing(tmp_path):
+    ws = make_ws(tmp_path, "ota")
+    resize(ws, OTA_RESIZED)
+    gen = load_gen_ota(ws)
+    rows = {r[0]: r[2:5] for r in gen.row_plan(gen.read_sizing())}
+    assert rows == {
+        "N1": (1.2, 5.0, {"xmb": 1, "xmt": 2, "xm7": 20}),
+        "N2": (0.8, 6.0, {"xm1": 2, "xm2": 2}),
+        "P1": (1.5, 3.0, {"xm3": 2, "xm4": 2}),
+        "P2": (0.8, 10.0, {"xm6": 10}),
+    }
+
+
+@pytest.mark.slow
+def test_changed_ota_sizing_regenerates_a_layout_passing_drc_and_lvs(tmp_path):
+    """Every size changed: drc passes on the regenerated layout, and lvs,
+    which compares it with the netlist at those sizes, passes too."""
+    import check_analog_drc
+    ws = make_ws(tmp_path, "ota")
+    resize(ws, OTA_RESIZED)
+    out = tmp_path / "drc.json"
+    code = check_analog_drc.main(["--workspace", str(ws), "--out", str(out)])
+    drc = json.loads(out.read_text(encoding="utf-8"))
+    assert (code, drc["status"]) == (0, "pass"), drc
+    code, lvs = run_json(["--workspace", str(ws)], tmp_path)
+    assert (code, lvs["status"]) == (0, "pass"), lvs
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("read, drawn", [
+    ('on_grid(size, "w_in", 2)', "5.0"),
+    ('on_grid(size, "l_ld")', "1.0"),
+])
+def test_ota_layout_ignoring_a_changed_size_fails_lvs(tmp_path, read, drawn):
+    """The check above can fail: a generator that keeps one old size draws
+    what the sized netlist does not say."""
+    ws = make_ws(tmp_path, "ota")
+    resize(ws, OTA_RESIZED)
+    gen = ws / "layout" / "gen_ota.py"
+    source = gen.read_text(encoding="utf-8")
+    assert read in source
+    gen.write_text(source.replace(read, drawn), encoding="utf-8")
+    code, lvs = run_json(["--workspace", str(ws)], tmp_path)
+    assert code == 1 and lvs["status"] == "violations", lvs

@@ -495,7 +495,7 @@ gates:
       fail_severities: [error]
       max_count: 0
       fault: "control word polarity inverted"
-      description: "Every top-level measure inside its bound."
+      description: "Every top-level measure inside its bound, at typical and on the post-layout views at the corners that bound the analog side."
     boundary:
       phase: P3
       tool: boundary

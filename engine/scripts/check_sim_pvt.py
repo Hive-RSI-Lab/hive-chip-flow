@@ -60,6 +60,24 @@ SCRIPT = "check_sim_pvt"
 DEFAULT_TIMEOUT = 60.0
 
 
+def sweep(ws: Path, timeout: float | None = None,
+          sizing: dict | None = None, eda_bin: Path | None = None,
+          out_subdir: str = "log/sim") -> tuple[dict, list[dict]]:
+    """The gate's own run: every bench over the spec's sweep, as
+    (sim_run.run_workspace_benches result, recorded scope-outs). optimise.py
+    gates a sizing search's winner through this same call, with `sizing` a
+    candidate it has not written yet (default: sizing/sizing.yaml)."""
+    corner_list, scoped_out = sim_run.spec_sweep(ws)
+    timeout = speclib.sim_timeout(
+        speclib.load_spec(ws / "spec" / "spec.yaml"), "sim_pvt", timeout,
+        DEFAULT_TIMEOUT)
+    result = sim_run.run_workspace_benches(
+        ws, eda_bin=eda_bin, corners=corner_list, timeout=timeout,
+        check="sim_pvt", refuse_unswept=True, sizing=sizing,
+        out_subdir=out_subdir)
+    return result, scoped_out
+
+
 def run(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--workspace", required=True, help="block workspace")
@@ -70,14 +88,7 @@ def run(argv=None):
     args = ap.parse_args(argv)
 
     ws = Path(args.workspace)
-    corner_list, scoped_out = sim_run.spec_sweep(ws)
-    timeout = speclib.sim_timeout(
-        speclib.load_spec(ws / "spec" / "spec.yaml"), "sim_pvt", args.timeout,
-        DEFAULT_TIMEOUT)
-
-    result = sim_run.run_workspace_benches(
-        ws, corners=corner_list, timeout=timeout, check="sim_pvt",
-        refuse_unswept=True)
+    result, scoped_out = sweep(ws, args.timeout)
     top, corner_list = result["top"], result["corners"]
     results, violations = result["results"], result["violations"]
 

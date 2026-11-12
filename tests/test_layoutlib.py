@@ -396,6 +396,39 @@ def test_restore_unsplit_node_caps_leaves_a_net_at_its_ext_c_alone():
         UNSPLIT_EXT, UNSPLIT_RES, pex) == (pex, {})
 
 
+R2R_EXT = ('substrate "0" 8596 0 -200 0 pw\n'
+           'node "body1" 0 1374.7 0 0 rm1\n'
+           'node "body2" 0 1374.7 2200 0 rm1\n'
+           'node "vout" 0 137.47 2100 200 m1\n'
+           'node "bmsb" 0 216.332 -100 200 m1\n'
+           'node "mid" 0 333.548 4200 0 m1\n'
+           'device rsubckt rm1 0 0 1 1 l=2000 w=400 "None" "body1" 0 0 '
+           '"bmsb" 400 80000,1200 "vout" 400 40000,600\n'
+           'device rsubckt rm1 2200 0 2201 1 l=2000 w=400 "None" "body2" 0 0 '
+           '"vout" 400 40000,600 "mid" 400 80000,666\n')
+R2R_PEX = (".subckt r2r bmsb vout\n"
+           "X0 bmsb vout rm1 r_width=2u r_length=10u\n"
+           "X1 vout mid rm1 r_width=2u r_length=10u\n"
+           "C0 vout 0 1.51217f\n"
+           "C1 bmsb 0 0.90368f\n"
+           "C2 mid 0 1.0209f\n"
+           ".ends\n")
+
+
+def test_restore_unsplit_node_caps_keeps_the_resistor_body_shares():
+    # ext2spice writes no rm1 body node as a net: it splits each body's C
+    # equally over the resistor's two ends, so r2r_dac's vout carries half
+    # of each of its two bodies on top of its own 0.137 fF. That is the
+    # .ext's C too, and nothing is changed.
+    assert layoutlib.restore_unsplit_node_caps(
+        R2R_EXT, "scale 1000 1 0.5\n", R2R_PEX) == (R2R_PEX, {})
+    out, changed = layoutlib.restore_unsplit_node_caps(
+        R2R_EXT, "scale 1000 1 0.5\n",
+        R2R_PEX.replace("C0 vout 0 1.51217f\n", ""))
+    assert changed == {"vout": [0.0, 1.51217]}
+    assert c_to(out, "vout", "0") == pytest.approx(1.51217)
+
+
 def test_restore_unsplit_node_caps_refuses_without_one_substrate():
     with pytest.raises(layoutlib.LayoutError, match="substrate"):
         layoutlib.restore_unsplit_node_caps(
@@ -1127,3 +1160,42 @@ def test_move_mim_plate_caps_leaves_a_netlist_without_a_mim_alone():
         MIM_EXT, pex, {"cap_mim_2f0_m4m5_noshield": 7.602}) == (pex, {})
     assert not layoutlib._has_mim(MIM_TECH, pex)
     assert layoutlib._has_mim(MIM_TECH, MIM_PEX)
+
+
+# ---- parallel devices in a fixed order before netgen compares them
+
+_PAR_REF = """.subckt top vss
+.param a=150u b=148.36u
+xr1 vss vss vss ppolyf_u r_width=2u r_length={a}
+xm1 vss vss vss vss nfet_05v0 w=1u l=1u
+xr2 vss vss vss ppolyf_u r_width=2u r_length={b}
+.ends
+"""
+
+
+def test_parallel_sort_swaps_whole_lines_and_keeps_the_rest_in_place():
+    out = layoutlib.parallel_devices_sorted(_PAR_REF).splitlines()
+    assert out[2].startswith("xr2 ") and out[4].startswith("xr1 ")
+    assert out[3].startswith("xm1 ")
+
+
+def test_parallel_sort_gives_both_netlists_the_same_order():
+    ext = (".subckt top vss\n"
+           "X19 vss vss vss ppolyf_u r_width=2u r_length=0.15m\n"
+           "X34 vss vss vss ppolyf_u r_width=2u r_length=0.14836m\n"
+           ".ends\n")
+    a = layoutlib.parallel_devices_sorted(ext).splitlines()
+    assert a[1].startswith("X34 ") and a[2].startswith("X19 ")
+
+
+def test_parallel_sort_leaves_devices_on_other_nets_and_unknown_values():
+    other = (".subckt top a b\n"
+             "x1 a a a ppolyf_u r_length=2u\n"
+             "x2 b b b ppolyf_u r_length=1u\n"
+             ".ends\n")
+    assert layoutlib.parallel_devices_sorted(other) == other
+    unread = (".subckt top a\n"
+              "x1 a a a ppolyf_u r_length={nope}\n"
+              "x2 a a a ppolyf_u r_length=1u\n"
+              ".ends\n")
+    assert layoutlib.parallel_devices_sorted(unread) == unread

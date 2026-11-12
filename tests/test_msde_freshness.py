@@ -19,6 +19,8 @@ Hermetic: the PDK is a fake gf180mcuD tree under a fake EDA_TOOLCHAIN.
 """
 from __future__ import annotations
 
+import json
+import shutil
 import sys
 from pathlib import Path
 
@@ -99,6 +101,8 @@ def msde_block(ws: Path) -> state_mod.State:
     _y(ws / "analog" / "sizing" / "sizing.yaml", {"w1": {"value": "2u"}})
     _w(ws / "analog" / "layout" / "gen_blk_analog.py", "def build(): pass\n")
     _w(ws / "tb" / "test_blk.py", "async def test(dut): pass\n")
+    _w(ws / "tb" / "cosim_bench.json", json.dumps(
+        {"analog_kind": "transistor", "corners": {"list": ["tt_27c"]}}))
     _w(ws / "top" / "spec" / "spec.yaml", "top: blk\n")
     _w(ws / "top" / "macros" / "blk_analog.spice", ".subckt blk_analog\n.ends\n")
     _w(ws / "top" / "harden" / "runs" / "run" / "final" / "gds" / "t.gds", "G")
@@ -106,6 +110,14 @@ def msde_block(ws: Path) -> state_mod.State:
     for view, text in (("lef", "L"), ("sdf", "S"), ("spef", "P")):
         _w(ws / "top" / "harden" / "runs" / "run" / "final" / view
            / f"t.{view}", text)
+    # the post-layout views the cosim corner runs read (#108)
+    _w(ws / "analog" / "log" / "pex_sim" / "blk_analog.pex.ordered.spice", "R1")
+    _w(ws / "analog" / "log" / "pex_sim" / "run.log", "one")
+    _y(ws / "analog" / "reports" / "recorded" / "pex_pvt.json", {"a": 1})
+    _y(ws / "analog" / "reports" / "recorded" / "gate-pex_sim.json", {"a": 1})
+    for view in ("nl", "sdf", "spef", "sdc"):
+        _w(ws / "digital" / "harden" / "runs" / "run" / "final" / view
+           / f"d.{view}", "D")
     for g in MSDE_GATES:
         st.record_gate(g, {"status": "pass"})
     st.save()
@@ -206,6 +218,40 @@ PLANTED = {
         lambda ws: (lambda: _w(ws / "top" / "harden" / "runs" / "run" /
                                "final" / "spef" / "t.spef", "P2")),
         {"release"}),
+    # #108: cosim's corner runs read the extraction, the sweep that picks
+    # the corners and the digital side's hardened views. Nothing else does.
+    "extracted netlist in analog/log": (
+        lambda ws: (lambda: _w(ws / "analog" / "log" / "pex_sim" /
+                               "blk_analog.pex.ordered.spice", "R2")),
+        {"cosim"}),
+    "a log beside the extraction": (
+        lambda ws: (lambda: _w(ws / "analog" / "log" / "pex_sim" / "run.log",
+                               "two")),
+        set()),
+    "recorded pex_pvt.json": (
+        lambda ws: (lambda: _y(ws / "analog" / "reports" / "recorded" /
+                               "pex_pvt.json", {"a": 2})),
+        {"cosim"}),
+    "recorded gate-pex_sim.json": (
+        lambda ws: (lambda: _y(ws / "analog" / "reports" / "recorded" /
+                               "gate-pex_sim.json", {"a": 2})),
+        {"cosim"}),
+    "digital final netlist": (
+        lambda ws: (lambda: _w(ws / "digital" / "harden" / "runs" / "run" /
+                               "final" / "nl" / "d.nl", "D2")),
+        {"cosim"}),
+    "digital final SDF": (
+        lambda ws: (lambda: _w(ws / "digital" / "harden" / "runs" / "run" /
+                               "final" / "sdf" / "d.sdf", "D2")),
+        {"cosim"}),
+    "digital final SPEF": (
+        lambda ws: (lambda: _w(ws / "digital" / "harden" / "runs" / "run" /
+                               "final" / "spef" / "d.spef", "D2")),
+        {"cosim"}),
+    "digital final SDC": (
+        lambda ws: (lambda: _w(ws / "digital" / "harden" / "runs" / "run" /
+                               "final" / "sdc" / "d.sdc", "D2")),
+        {"cosim"}),
     "top powered netlist": (
         lambda ws: (lambda: _w(ws / "top" / "harden" / "runs" / "run" /
                                "final" / "pnl" / "t.v", "N2")),
@@ -315,3 +361,145 @@ def test_no_toolchain_hashes_pdk_kinds_none(tmp_path, monkeypatch):
     imap = statelib.load_map()
     assert statelib.hash_kind(tmp_path, "pdk_version", imap) == (
         "${PDK_ROOT}/SOURCES", None)
+
+
+# --- post-layout inputs only where the corners are owed; clones (#108) ---
+
+VIEW_RECORD = Path("reports/recorded/cosim_views.json")
+DIGITAL_RUNS = Path("digital/harden/runs")
+ANALOG_LOG = Path("analog/log")
+
+
+def _set_bench(ws: Path, **fields) -> None:
+    _w(ws / "tb" / "cosim_bench.json", json.dumps(fields))
+
+
+def _record_cosim(ws: Path) -> None:
+    """A passing cosim now: what gate.py records on a pass."""
+    imap = statelib.load_map()
+    st = state_mod.State.load(ws / "state.json")
+    for g in MSDE_GATES:
+        st.record_gate(g, {"status": "pass"})
+    st.save()
+    statelib.write_view_records(ws, "msde", "cosim", imap)
+
+
+def _cosim_fresh(ws: Path) -> str:
+    data = state_mod.State.load(ws / "state.json").data
+    stale = statelib.freshness_report(data, ws)["summary"]["stale"]
+    return "stale" if "cosim" in stale else "fresh"
+
+
+def _v1_like(tmp_path: Path) -> Path:
+    """A block whose cosim never read the post-layout views."""
+    ws = tmp_path / "blocks" / "r2r_dac"
+    ws.mkdir(parents=True)
+    msde_block(ws)
+    _set_bench(ws, analog_kind="transistor")
+    _record_cosim(ws)
+    return ws
+
+
+def test_a_v1_block_with_no_corners_is_not_staled_by_the_views(tmp_path):
+    ws = _v1_like(tmp_path)
+    assert statelib.gate_inputs_here(ws, "msde", "cosim",
+                                     statelib.load_map()).count("digital_final_nl") == 0
+    _w(ws / DIGITAL_RUNS / "run" / "final" / "nl" / "d.nl", "changed")
+    _w(ws / ANALOG_LOG / "pex_sim" / "blk_analog.pex.ordered.spice", "R2")
+    assert _cosim_fresh(ws) == "fresh"
+
+
+def test_a_block_that_owes_corners_is_staled_by_the_views(tmp_path):
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    msde_block(ws)
+    _record_cosim(ws)
+    assert _cosim_fresh(ws) == "fresh"
+    _w(ws / DIGITAL_RUNS / "run" / "final" / "nl" / "d.nl", "changed")
+    assert _cosim_fresh(ws) == "stale"
+
+
+def test_a_block_that_starts_owing_corners_reads_stale(tmp_path):
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    msde_block(ws)
+    recorded = ws / "analog" / "reports" / "recorded"
+    (recorded / "pex_pvt.json").unlink()
+    (recorded / "gate-pex_sim.json").unlink()
+    _set_bench(ws, analog_kind="transistor")
+    _record_cosim(ws)
+    assert _cosim_fresh(ws) == "fresh"
+    # only the sweep appears, and no input the old run read has changed
+    _y(recorded / "gate-pex_sim.json",
+       {"measured_by_corner": {"tt_27c": {"m": 1}}})
+    assert _cosim_fresh(ws) == "stale"
+
+
+def _passed_then_cloned(tmp_path: Path) -> Path:
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    msde_block(ws)
+    _record_cosim(ws)
+    assert (ws / VIEW_RECORD).is_file()
+    return ws
+
+
+def _clone(ws: Path) -> None:
+    shutil.rmtree(ws / DIGITAL_RUNS)
+    shutil.rmtree(ws / ANALOG_LOG)
+
+
+def test_a_clone_reads_the_views_the_passing_run_recorded(tmp_path):
+    ws = _passed_then_cloned(tmp_path)
+    _clone(ws)
+    assert _cosim_fresh(ws) == "fresh"
+
+
+@pytest.mark.parametrize("tamper", ["delete", "edit"])
+def test_a_clone_with_a_bad_record_reads_stale(tmp_path, tamper):
+    ws = _passed_then_cloned(tmp_path)
+    _clone(ws)
+    if tamper == "delete":
+        (ws / VIEW_RECORD).unlink()
+    else:
+        data = json.loads((ws / VIEW_RECORD).read_text())
+        data["digital_final_nl"] = "dir_text:" + "0" * 64
+        (ws / VIEW_RECORD).write_text(json.dumps(data))
+    assert _cosim_fresh(ws) == "stale"
+
+
+def test_real_files_win_over_the_record(tmp_path):
+    ws = _passed_then_cloned(tmp_path)
+    _w(ws / DIGITAL_RUNS / "run" / "final" / "nl" / "d.nl", "changed")
+    assert _cosim_fresh(ws) == "stale"
+
+
+def test_a_partly_missing_run_reads_stale(tmp_path):
+    ws = _passed_then_cloned(tmp_path)
+    shutil.rmtree(ws / DIGITAL_RUNS / "run" / "final" / "sdf")
+    assert _cosim_fresh(ws) == "stale"
+
+
+def test_a_rerun_of_the_gate_drops_the_record(tmp_path):
+    ws = _passed_then_cloned(tmp_path)
+    statelib.drop_view_records(ws, "msde", "cosim", statelib.load_map())
+    assert not (ws / VIEW_RECORD).exists()
+
+
+def test_the_map_refuses_an_unknown_predicate(tmp_path):
+    data = yaml.safe_load(statelib.DEFAULT_MAP.read_text())
+    data["gate_inputs_when"]["msde"]["cosim"] = {"no_such": ["interface"]}
+    bad = tmp_path / "m.yaml"
+    bad.write_text(yaml.safe_dump(data))
+    with pytest.raises(ValueError, match="unknown predicate"):
+        statelib.load_map(bad)
+
+
+def test_the_map_refuses_a_kind_outside_the_row(tmp_path):
+    data = yaml.safe_load(statelib.DEFAULT_MAP.read_text())
+    data["gate_inputs_when"]["msde"]["cosim"] = {
+        "cosim_corners_owed": ["top_lef"]}
+    bad = tmp_path / "m.yaml"
+    bad.write_text(yaml.safe_dump(data))
+    with pytest.raises(ValueError, match="not in its row"):
+        statelib.load_map(bad)

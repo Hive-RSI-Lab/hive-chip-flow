@@ -7,6 +7,15 @@ the corner set, hashed. Each trial may change `sizing.yaml` only.
 own `min`/`max`, and the agent may append trials a sweep can't make. Both
 write `optimise/trials.tsv`.
 
+`numeric` is corner-aware. It runs the start through sim_pvt's own corner
+set, searches at typical plus the corners that bound it, runs every K-th
+kept trial and each round's winner through the full set, and adds a failing
+winner's worst corners for another round. It writes only a sizing that
+passed sim_pvt's own run and then re-runs that run on the file. `status:
+pass` means sim_pvt passes as written. `violations` means no sizing it found
+passes every corner, and the file is left as it was: search harder or change
+the design, never the bounds.
+
 ## Before you start
 
 - Every entry in `sizing.yaml` needs a `min` and a `max` the designer chose
@@ -18,8 +27,9 @@ write `optimise/trials.tsv`.
 
 ## After the winner
 
-`sim_tt`, `sim_pvt` and `bench_strength` all run on the winner. A trial
-evaluator that ran at typical does not prove the corners. A winner that
+`sim_tt`, `sim_pvt` and `bench_strength` all run on the winner, as gates.
+`numeric` already ran sim_pvt's corner set on what it wrote. An agent trial
+scored at typical does not prove the corners. A winner that
 only passes because the bounds are wide is `bench_strength`'s catch, and
 the fix for that is the bench, not the sizing. Once a layout exists,
 `sizing_edit` stales `lvs` and `pex_sim`, and the generator has to follow

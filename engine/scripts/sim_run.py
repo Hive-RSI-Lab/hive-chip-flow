@@ -465,7 +465,8 @@ def run_workspace_benches(ws: Path, eda_bin: Path | None = None,
                           out_subdir: str = "log/sim",
                           skip_unscored: bool = True,
                           scope_corners: list[dict] | None = None,
-                          refuse_unswept: bool = False) -> dict:
+                          refuse_unswept: bool = False,
+                          sizing: dict | None = None) -> dict:
     """Run every tb/*.cir with a bounds sidecar at every requested corner
     (default: corners.py's default_corners()) - `corners` passes the corner
     dicts themselves (a spec's grid has names corners.yaml never lists),
@@ -480,7 +481,9 @@ def run_workspace_benches(ws: Path, eda_bin: Path | None = None,
     refuse_unswept (sim_pvt, whose run is the whole sweep), a bench that
     is run but holds a bound scoped to corners no corner of the sweep
     answers to is a sim_bound_not_swept error per such bound: that bound
-    would otherwise go unscored while the gate passes. Returns {top,
+    would otherwise go unscored while the gate passes. `sizing` stands in
+    for sizing/sizing.yaml (optimise.py scores a candidate it has not
+    written) - default: the file on disk. Returns {top,
     corners, results: [run_bench_at_corner() dicts], not_scored: [{bench,
     corner, reason}], out_of_scope: [{bench, scored_at}], violations:
     [flattened]}."""
@@ -495,7 +498,7 @@ def run_workspace_benches(ws: Path, eda_bin: Path | None = None,
 
     t_root = toolchain_root(eda_bin)
     netlist_path = find_netlist(ws)
-    sizing = load_sizing(ws)
+    sizing = load_sizing(ws) if sizing is None else sizing
     corners_data = corners_mod.load()
     if corners:
         corner_list = [dict(c) for c in corners]

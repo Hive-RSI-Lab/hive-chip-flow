@@ -8,6 +8,11 @@
 * glitch_energy_down_skew_m200p, glitch_peak_skew_max, i_vdd_peak (also
 * in the step bench; see its header).
 *
+* sim_timeout_s: 600
+* (the max step is 4 ps, the 100 ps input edge over 25: every glitch peak
+* and i_vdd_peak is read during an edge, and at 100 ps glitch_peak_down read
+* 13 % low; the finer step takes about 70 s a corner)
+*
 * Stimulus (ns; edge = centre of the 100 ps input edge; MSB = dac_code[7]):
 *   0..20  code 127 (operating point first, no uic)
 *   20     127 -> 128  aligned            window 20..80    (*_up)
@@ -61,7 +66,7 @@ cload vpad 0 {c_load}
 .control
 set noaskquit
 save v(vout) v(vdd) i(vdd)
-tran 10p 380n 0 100p
+tran 1p 380n 0 4p
 let vo = v(vout)
 let tt = time
 let ivdd = -i(vdd)

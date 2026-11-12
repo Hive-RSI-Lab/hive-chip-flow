@@ -17,6 +17,7 @@ picks the half from the target's suffix:
     optimise.py start --workspace DIR --target sizing/sizing.yaml
                 [--objective margin] [--out FILE]
     optimise.py numeric --workspace DIR [--timeout SEC]
+                [--bounding N] [--check-every K] [--rounds N] [--workers 1|2]
                 [--popsize N] [--maxiter N] [--seed N] [--out FILE]
 
 RTL LOOP. The workspace must be a git repo with a clean tree, and the target
@@ -80,37 +81,54 @@ ONE FILE, WRITTEN ONCE (the write-set rule, section 4: "The write set is
 one file, enforced by the diff" - the digital loop's own mechanism, a git
 diff per trial, does not fit a search that calls its objective hundreds of
 times per run): a trial's candidate sizing values live ONLY in memory
-(passed straight into sim_run.build_subs's `sizing` argument, never written
-to sizing.yaml on disk) until the search concludes; then the target file on
-disk is overwritten with the BEST candidate found ONLY IF its score beats
-the STARTING sizing's own score (computed as trial 0, before the search
-proper) - "the change stays only if the metric improved" applied once, at
-the end, rather than per intermediate trial the way the digital loop's own
-git-revert does. Every evaluation still gets its own logged trials.tsv row
-(trial, timestamp, param values' own sha, each declared measure's margin,
-score, kept, note) - kept is true only for trial 0 (if nothing better was
-found) or the very last row (the written winner). Each row is appended and
-flushed to disk the moment its own trial finishes, never buffered in
-memory and written once at the end - a search calls its objective hundreds
-of times over real ngspice runs and can run for minutes, and a crash or a
-kill partway through must not cost every trial that already ran.
+(passed straight into sim_run.run_workspace_benches's `sizing` argument,
+never written to sizing.yaml) until the search concludes; then the file is
+written at most once, with the sizing chosen by the gate below. Every
+evaluation gets its own trials.tsv row (trial, timestamp, the sizing's
+sha, score, kept, note), appended and flushed the moment it finishes, so a
+crash partway through costs no trial that already ran. On a search row
+`kept` means it beat the round's best so far; on a full-corner row it
+means the sizing passed sim_pvt's own run.
 
-WINNER, FULL CORNER SET (section 4: "Every K-th kept trial and the winner
-run the full corner set" - only the winner's own half, here): every trial
-during the search itself scores ONLY at 'tt' (the cheap evaluator, section
-4: "the spec bench at typical") - once the search concludes, `numeric`
-also runs the kept sizing (whatever is now on disk, winner or unchanged
-start) through sim_run.run_workspace_benches over the FULL corner set
-spec.yaml's own `corners` field expands to (corners.spec_corners - the
-identical corner set a real `sim_pvt` gate run would use),
-logs ONE more trials.tsv row for it ("winner, full corner set"), and
-reports `full_corner_pass`/`full_corner_corners`/`full_corner_violations`
-in the payload - a winner that only holds at typical (gates.yaml's own
-sim_pvt fault: "meets at typical, loses headroom at slow and hot") is now
-always visible here, not only if a caller separately chases `numeric` with
-its own `sim_pvt` gate step. `status` itself stays keyed on the tt-only
-evaluator alone (the DAC's own M8 done-criterion is typical-only, unlike
-the mirror's) - full_corner_pass is reported, never gates it.
+CORNER-AWARE SEARCH (section 4: "Every K-th kept trial and the winner run
+the full corner set"; issue #103). The full corner set is
+check_sim_pvt.sweep - the very run the sim_pvt gate makes, same corners,
+same pad conditions, same pass rule (no violation at any severity).
+1. Trial 0 runs the starting sizing through it. The search corners are the
+   typical corner plus the --bounding (default 3) corners with the least
+   margin in that run, worst first.
+2. A trial's score is the minimum margin over the search corners' results.
+   Every --check-every (default 5) kept trial of a round also runs the
+   full set.
+3. A round is one differential-evolution run (round N seeds --seed+N-1,
+   later rounds start from the last winner). Its winner runs the full set;
+   if it fails, the corners every failing full-set run was worst at join
+   the search corners and the next round starts, up to --rounds (default
+   3).
+4. THE GATE ON WRITE-BACK: of every sizing that passed the full set (the
+   start, K-th kept trials, round winners), the one with the most margin
+   is written - a sizing that failed it never is. The file on disk is then
+   run once more ("on disk, full corner set"); should that fail, the
+   starting text is restored and re-run. `status` is that last run's
+   verdict, so pass means sim_pvt passes the file as it now stands, with
+   no fix-up step; violations means no sizing found passes every corner
+   and the file is as it was.
+DRAWABLE SIZES. scipy searches each parameter continuously, but a layout
+generator draws only some sizes: on the manufacturing grid, a mirror whose
+width is a whole number of its unit device. sizing.yaml may say so per
+parameter: `grid: G` (the value is a whole multiple of G), or `ratio_of:
+BASE` with `ratio_step: S` (the value is BASE's value times a whole
+multiple of S, at least S). Each candidate is snapped to the nearest such
+value inside its [min, max] BEFORE it is scored (`snap`), so every trial,
+every full-corner check and so the winner are drawable sizings, and the
+file written is exactly the sizing the corner gate passed - nothing is
+rounded afterwards. A candidate with no drawable value in range (a tied
+parameter's range holds no multiple of its base) scores
+MISSING_MEASURE_PENALTY with no simulation. The starting sizing is scored
+as written.
+--workers 2 scores two candidates at once (scipy's deferred updating),
+each in its own log/optimise/w<N>/ directory; more is refused (the memory
+cap).
 """
 from __future__ import annotations
 
@@ -118,6 +136,7 @@ import argparse
 import csv
 import hashlib
 import json
+import math
 import sys
 import time
 from pathlib import Path
@@ -128,7 +147,6 @@ sys.path.insert(0, str(SCRIPTS))
 sys.path.insert(0, str(ENGINE / "lib"))
 import checklib  # noqa: E402
 from check_synth import must_keep_missing  # noqa: E402
-import corners as corners_mod  # noqa: E402
 import sim_run  # noqa: E402
 import padlib  # noqa: E402
 import simlib  # noqa: E402
@@ -143,6 +161,10 @@ EVALUATOR_SUBDIR = "optimise/evaluator"
 META_PATH = "optimise/meta.json"
 TSV_PATH = "optimise/trials.tsv"
 TSV_FIELDS = ["trial", "timestamp", "target_sha", "score", "kept", "note"]
+DEFAULT_BOUNDING = 3
+DEFAULT_CHECK_EVERY = 5
+DEFAULT_ROUNDS = 3
+MAX_WORKERS = 2
 
 
 def target_sha(sizing: dict) -> str:
@@ -180,7 +202,81 @@ def load_sizing_yaml(path: Path) -> dict:
         if not isinstance(spec, dict) or not all(
                 k in spec for k in ("value", "min", "max")):
             raise CheckError(f"{path}: {name!r} needs value/min/max")
+    drawable_rules(data, path)
     return data
+
+
+def drawable_rules(sizing: dict, path) -> None:
+    """Refuse a malformed drawable rule (`grid`, `ratio_of`, `ratio_step`;
+    see snap) before a search spends a trial on it."""
+    for name, spec in sizing.items():
+        grid, of = spec.get("grid"), spec.get("ratio_of")
+        if grid is not None and (isinstance(grid, bool) or not isinstance(
+                grid, (int, float)) or grid <= 0):
+            raise CheckError(f"{path}: {name!r} grid {grid!r} must be a "
+                             "positive number (the step its value is a "
+                             "whole multiple of)")
+        if "ratio_step" in spec and of is None:
+            raise CheckError(f"{path}: {name!r} has ratio_step but no ratio_of")
+        if of is None:
+            continue
+        if grid is not None:
+            raise CheckError(f"{path}: {name!r} declares both grid and "
+                             f"ratio_of - a whole multiple of {of!r} is on "
+                             f"{of!r}'s grid already, so give it ratio_of only")
+        if of not in sizing or of == name:
+            raise CheckError(f"{path}: {name!r} ratio_of {of!r} is not "
+                             "another parameter in this file")
+        if "ratio_of" in sizing[of]:
+            raise CheckError(f"{path}: {name!r} ratio_of {of!r}, which is "
+                             "itself a ratio_of another - tie both to the "
+                             "same base parameter")
+        step = spec.get("ratio_step", 1)
+        if isinstance(step, bool) or not isinstance(step, int) or step < 1:
+            raise CheckError(f"{path}: {name!r} ratio_step {step!r} must "
+                             "be a whole number from 1")
+
+
+def _whole(lo: float, hi: float, unit: float, want: float,
+           least: int | None = None) -> int | None:
+    """The whole number k nearest `want` with k*unit inside [lo, hi] (and
+    k >= least); None when no such k exists."""
+    kmin = math.ceil(lo / unit - 1e-9)
+    kmax = math.floor(hi / unit + 1e-9)
+    if least is not None:
+        kmin = max(kmin, least)
+    if kmin > kmax:
+        return None
+    return min(max(round(want), kmin), kmax)
+
+
+def snap(sizing: dict) -> dict | None:
+    """`sizing` with each value moved to the nearest one the layout can
+    draw inside its [min, max]: a multiple of its `grid`, or, with
+    `ratio_of: base` (and `ratio_step: s`, default 1), base's snapped value
+    times a whole multiple of s (at least s). A parameter with neither is
+    left as it is. None when some tied parameter has no such multiple
+    inside its range at this base value. Pure."""
+    out = {n: dict(spec) for n, spec in sizing.items()}
+    for name, spec in out.items():
+        grid = spec.get("grid")
+        if grid is None or "ratio_of" in spec:
+            continue
+        k = _whole(spec["min"], spec["max"], grid, spec["value"] / grid)
+        if k is None:
+            return None
+        spec["value"] = float(f"{k * grid:.12g}")
+    for name, spec in out.items():
+        if "ratio_of" not in spec:
+            continue
+        unit = out[spec["ratio_of"]]["value"] * spec.get("ratio_step", 1)
+        if unit <= 0:
+            return None
+        k = _whole(spec["min"], spec["max"], unit, spec["value"] / unit, 1)
+        if k is None:
+            return None
+        spec["value"] = float(f"{k * unit:.12g}")
+    return out
 
 
 def write_sizing_yaml(path: Path, sizing: dict) -> None:
@@ -206,39 +302,14 @@ def measure_margin(value: float, bound: dict) -> float:
     return 0.0
 
 
-def score_sizing(ws: Path, eda_bin: Path, t_root: Path, netlist_path: Path,
-                 tt_corner: dict, nominal_vdd: float, sizing: dict,
-                 benches: list[tuple[Path, str, list[dict]]],
-                 out_dir: Path, timeout: float, trial: int) -> float:
-    """One evaluation: run every bench at 'tt' with `sizing` substituted in
-    (never written to disk), return the worst (minimum) measure margin."""
-    subs = sim_run.build_subs(t_root, netlist_path, tt_corner, nominal_vdd,
-                              sizing)
-    worst = None
-    for bench_path, template_text, bounds in benches:
-        result = sim_run.run_bench_at_corner(
-            eda_bin, f"trial{trial}__{bench_path.stem}", template_text,
-            bounds, subs, tt_corner, out_dir, timeout, check="optimise")
-        if result["engine_errors"]:
-            return MISSING_MEASURE_PENALTY
-        for b in bounds:
-            if not simlib.scored_at(b, corners_mod.names_of(tt_corner)):
-                continue
-            key = b["measure"].lower()
-            if key not in result["measures"]:
-                return MISSING_MEASURE_PENALTY
-            m = measure_margin(result["measures"][key], b)
-            worst = m if worst is None else min(worst, m)
-    return worst if worst is not None else MISSING_MEASURE_PENALTY
-
-
 def full_corner_margin(results: list[dict],
                        benches: list[tuple[Path, str, list[dict]]]) -> float:
-    """The same worst-margin scalar score_sizing computes per trial, but
-    over sim_run.run_workspace_benches()'s own per-corner `results` (the
-    winner's full-corner check, run_numeric, after the search concludes) -
-    logged as that check's own trials.tsv score; the pass/fail call itself
-    is `results`' own `violations`, not this number."""
+    """The worst (minimum) normalized measure margin over
+    sim_run.run_workspace_benches()'s per-corner `results`: a search
+    trial's score over its corners, and a full-corner check's logged
+    trials.tsv score. A bench that errors or never printed a declared
+    measure scores MISSING_MEASURE_PENALTY. The pass/fail call itself is
+    the run's own `violations`, not this number."""
     bounds_by_bench = {bench_path.name: bounds for bench_path, _text, bounds
                        in benches}
     worst = None
@@ -287,8 +358,37 @@ def run_start(argv=None):
     return payload, args.out
 
 
+def corner_margins(results: list[dict],
+                   benches: list[tuple[Path, str, list[dict]]]) -> dict:
+    """{corner name: full_corner_margin over that corner's results alone},
+    in the order the corners first appear in `results`."""
+    by_corner: dict[str, list[dict]] = {}
+    for r in results:
+        by_corner.setdefault(r["corner"], []).append(r)
+    return {name: full_corner_margin(rs, benches)
+            for name, rs in by_corner.items()}
+
+
+def bounding_corners(results: list[dict],
+                     benches: list[tuple[Path, str, list[dict]]],
+                     typical: str, n: int) -> list[str]:
+    """The `n` corners of a full-corner run (not `typical`) with the least
+    margin, worst first: the corners that bound the design."""
+    margins = corner_margins(results, benches)
+    ranked = sorted((m, name) for name, m in margins.items()
+                    if name != typical)
+    return [name for _m, name in ranked[:n]]
+
+
 def run_numeric(argv=None):
+    from concurrent.futures import ThreadPoolExecutor
+    import queue
+    import threading
+
     from scipy.optimize import differential_evolution
+
+    import check_pex_sim
+    import check_sim_pvt
 
     ap = argparse.ArgumentParser(description="scipy differential evolution "
                                  "over sizing/sizing.yaml")
@@ -298,8 +398,33 @@ def run_numeric(argv=None):
     ap.add_argument("--popsize", type=int, default=6)
     ap.add_argument("--maxiter", type=int, default=15)
     ap.add_argument("--seed", type=int, default=1)
+    ap.add_argument("--bounding", type=int, default=DEFAULT_BOUNDING,
+                    help="corners scored with tt on every trial: the ones "
+                    "with the least margin in the last full-corner run")
+    ap.add_argument("--check-every", type=int, default=DEFAULT_CHECK_EVERY,
+                    help="every K-th kept trial runs the full corner set")
+    ap.add_argument("--typical-maxiter", type=int, default=None,
+                    help="generations of the typical-only stage a start "
+                    "that fails at typical searches first (default: "
+                    "--maxiter; 0 skips the stage)")
+    ap.add_argument("--rounds", type=int, default=DEFAULT_ROUNDS,
+                    help="searches at most; a winner that fails the full "
+                    "corner set adds its worst corners and searches again")
+    ap.add_argument("--workers", type=int, default=1,
+                    help=f"evaluations at once, 1 to {MAX_WORKERS}")
     ap.add_argument("--out", help="write result JSON here instead of stdout")
     args = ap.parse_args(argv)
+    if not 1 <= args.workers <= MAX_WORKERS:
+        raise CheckError(f"--workers must be 1 to {MAX_WORKERS} (each "
+                         "evaluation is a set of ngspice runs; the cap keeps "
+                         "a search inside its memory share)")
+    if args.typical_maxiter is None:
+        args.typical_maxiter = args.maxiter
+    for flag, v in (("--bounding", args.bounding), ("--rounds", args.rounds),
+                    ("--check-every", args.check_every),
+                    ("--typical-maxiter", args.typical_maxiter)):
+        if v < (0 if flag in ("--bounding", "--typical-maxiter") else 1):
+            raise CheckError(f"{flag} {v} is out of range")
 
     ws = Path(args.workspace)
     meta_path = ws / META_PATH
@@ -319,140 +444,239 @@ def run_numeric(argv=None):
             f"{target_rel} was edited mid-run; re-run `start`")
 
     target_path = ws / target_rel
+    start_text = target_path.read_text(encoding="utf-8")
     start_sizing = load_sizing_yaml(target_path)
     names = sorted(start_sizing)
     bounds_arr = [(start_sizing[n]["min"], start_sizing[n]["max"]) for n in names]
 
-    spec = speclib.load_spec(ws / "spec" / "spec.yaml")
-    nominal_vdd = (spec.get("supply") or {}).get("vdd")
     eda_bin = sim_run.EDA_BIN
-    t_root = sim_run.toolchain_root(eda_bin)
-    netlist_path = sim_run.find_netlist(ws)
-    tt_corner = corners_mod.corners_by_name(corners_mod.load(), ["tt"])[0]
+    sweep, _scoped_out = sim_run.spec_sweep(ws)
+    by_name = {c["name"]: c for c in sweep}
+    typical = check_pex_sim.typical_corner(sweep)["name"]
 
     benches = []
     for bench_path, bounds_path in sim_run.find_benches(ws):
         benches.append((bench_path, bench_path.read_text(encoding="utf-8"),
                        simlib.load_bounds(bounds_path)))
 
-    out_dir = ws / "log" / "optimise"
+    out_root = ws / "log" / "optimise"
     import shutil
-    shutil.rmtree(out_dir, ignore_errors=True)
+    shutil.rmtree(out_root, ignore_errors=True)
+    slots: queue.Queue = queue.Queue()
+    for i in range(args.workers):
+        slots.put(i)
 
     tsv_path = ws / TSV_PATH
     tsv_path.parent.mkdir(parents=True, exist_ok=True)
     # Appended and flushed ONE ROW AT A TIME (never buffered in memory and
-    # written once at the end): a DE search calls its objective hundreds of
-    # times over real ngspice runs and can run for minutes - a crash, a
-    # --wall timeout, or this process getting killed partway through used
-    # to leave trials.tsv holding only `start`'s own header, every trial
-    # that already ran lost with it. "Every evaluation still gets its own
-    # logged trials.tsv row" (this module's own docstring) means on disk as
-    # it happens, not "eventually, if the run finishes clean".
+    # written once at the end): a search calls its objective hundreds of
+    # times over real ngspice runs and can run for minutes, and a crash or a
+    # kill partway through must not cost every trial that already ran.
     tsv_file = open(tsv_path, "a", newline="", encoding="utf-8")
     tsv_writer = csv.DictWriter(tsv_file, fieldnames=TSV_FIELDS, delimiter="\t")
+    lock = threading.Lock()
     trial_counter = {"n": 0}
-    best = {"score": None, "sizing": None, "trial": None}
+    search = {"corners": [typical], "best": None, "kept": 0}
+    passed: list[dict] = []    # sizings that passed the full corner set
+    failed_at: list[str] = []  # worst corners of full-corner failures
 
-    def sizing_from_x(x) -> dict:
-        return {n: {"value": float(v), "min": start_sizing[n]["min"],
-                   "max": start_sizing[n]["max"]} for n, v in zip(names, x)}
+    def sizing_from_x(x) -> dict | None:
+        # snapped HERE, before scoring: every sizing the search scores, and
+        # so every winner, is one the layout can draw (sizing.yaml's grid
+        # and ratio_of rules) - never rounded after the corner gate passed
+        return snap({n: {**start_sizing[n], "value": float(v)}
+                     for n, v in zip(names, x)})
 
-    def write_row(trial: int, sizing: dict, score: float, kept: bool, note: str) -> None:
-        tsv_writer.writerow({"trial": trial, "timestamp": round(time.time(), 3),
-                             "target_sha": target_sha(sizing), "score": round(score, 6),
-                             "kept": kept, "note": note})
-        tsv_file.flush()
+    def write_row(sizing: dict, score: float, kept: bool, note: str) -> int:
+        with lock:
+            n = trial_counter["n"]
+            tsv_writer.writerow({"trial": n, "timestamp": round(time.time(), 3),
+                                 "target_sha": target_sha(sizing),
+                                 "score": round(score, 6), "kept": kept,
+                                 "note": note})
+            tsv_file.flush()
+            trial_counter["n"] += 1
+            return n
 
-    def record(sizing: dict, score: float, note: str) -> None:
-        n = trial_counter["n"]
-        kept = best["score"] is None or score > best["score"]
-        if kept:
-            best["score"], best["sizing"], best["trial"] = score, sizing, n
-        write_row(n, sizing, score, kept, note)
-        trial_counter["n"] += 1
+    def full_check(sizing: dict | None, note: str, slot: int) -> dict:
+        """sim_pvt's own run (check_sim_pvt.sweep) on `sizing`, never
+        written to disk (None: the file on disk). One trials.tsv row; the
+        kept column holds its pass/fail."""
+        result, _ = check_sim_pvt.sweep(
+            ws, sizing=sizing, eda_bin=eda_bin,
+            out_subdir=f"log/optimise/w{slot}/pvt")
+        ok = not result["violations"]
+        margin = full_corner_margin(result["results"], benches)
+        recorded = sizing if sizing is not None else load_sizing_yaml(target_path)
+        trial = write_row(recorded, margin, ok, note)
+        check = {"trial": trial, "sizing": recorded,
+                 "pass": ok, "margin": margin, "result": result}
+        with lock:
+            if ok and sizing is not None:
+                passed.append(check)
+            else:
+                failed_at.extend(bounding_corners(
+                    result["results"], benches, typical, args.bounding))
+        return check
 
-    # trial 0: the deliberately-wrong starting sizing, scored the same way
-    # every other candidate is - this is the baseline "the change stays
-    # only if the metric improved" compares the winner against.
-    start_score = score_sizing(ws, eda_bin, t_root, netlist_path, tt_corner,
-                               nominal_vdd, start_sizing, benches, out_dir,
-                               args.timeout, 0)
-    record(start_sizing, start_score, "starting sizing")
+    def score(sizing: dict, slot: int) -> float:
+        """One trial: every bench at the search's corners (tt plus the
+        bounding ones), through the same bench runner sim_pvt uses."""
+        result = sim_run.run_workspace_benches(
+            ws, eda_bin=eda_bin, corners=[by_name[c] for c in search["corners"]],
+            timeout=args.timeout, check=SCRIPT,
+            out_subdir=f"log/optimise/w{slot}/trial", sizing=sizing,
+            scope_corners=sweep)
+        return full_corner_margin(result["results"], benches)
+
+    def evaluate(sizing: dict, note: str, checked: bool = False) -> float:
+        slot = slots.get()
+        try:
+            s = score(sizing, slot)
+            with lock:
+                best = search["best"]
+                kept = best is None or s > best[0]
+                if kept:
+                    search["best"] = (s, sizing)
+                    search["kept"] += 1
+                check_now = (kept and not checked
+                             and search["kept"] % args.check_every == 0)
+            write_row(sizing, s, kept, note)
+            if check_now:
+                full_check(sizing, "kept trial, full corner set", slot)
+            return s
+        finally:
+            slots.put(slot)
 
     def objective(x) -> float:
         sizing = sizing_from_x(x)
-        score = score_sizing(ws, eda_bin, t_root, netlist_path, tt_corner,
-                             nominal_vdd, sizing, benches, out_dir,
-                             args.timeout, trial_counter["n"])
-        record(sizing, score, "differential_evolution")
-        return -score  # scipy minimizes; this loop maximizes margin
+        if sizing is None:
+            # no drawable sizing near this point: scored as a failed bench
+            # would be, with no simulation spent on it
+            write_row({n: float(v) for n, v in zip(names, x)},
+                      MISSING_MEASURE_PENALTY, False,
+                      "differential_evolution, not drawable")
+            return -MISSING_MEASURE_PENALTY
+        return -evaluate(sizing, "differential_evolution")
+
+    pool = ThreadPoolExecutor(args.workers) if args.workers > 1 else None
+    rounds = []
+    typical_stage = None
+    message = None
+    try:
+        # trial 0: the starting sizing through sim_pvt's own run - whether
+        # it already passes, and the corners that bound it
+        start_check = full_check(start_sizing, "starting sizing, full corner set", 0)
+        search["corners"] = [typical] + bounding_corners(
+            start_check["result"]["results"], benches, typical, args.bounding)
+        failed_at.clear()
+        start_score = evaluate(start_sizing, "starting sizing", checked=True)
+        x0, init, done = None, "latinhypercube", False
+        start_typical = corner_margins(
+            start_check["result"]["results"], benches).get(
+                typical, MISSING_MEASURE_PENALTY)
+        if start_typical < 0 and args.typical_maxiter:
+            # a start that fails even at typical (a random one, say) is
+            # far from any design: most of the space misses typical, and
+            # every trial there would pay for the bounding corners too.
+            # Search typical alone first - a third of a trial's runs -
+            # and start the corner rounds from where that search ended
+            corner_set, search["corners"] = search["corners"], [typical]
+            search["best"], search["kept"] = None, 0
+            stage = differential_evolution(
+                objective, bounds_arr, seed=args.seed,
+                popsize=args.popsize, maxiter=args.typical_maxiter,
+                polish=False, tol=1e-3, workers=pool.map if pool else 1,
+                updating="deferred" if pool else "immediate")
+            message = stage.message
+            winner = search["best"][1]
+            already = [c for c in passed if c["sizing"] is winner]
+            check = already[0] if already else full_check(
+                winner, "typical stage winner, full corner set", 0)
+            typical_stage = {"start_typical_margin": round(start_typical, 6),
+                             "winner_trial": check["trial"],
+                             "winner_pass": check["pass"],
+                             "winner_sizing": {n: winner[n]["value"]
+                                               for n in names}}
+            search["corners"] = corner_set + [
+                c for c in dict.fromkeys(failed_at) if c not in corner_set]
+            failed_at.clear()
+            init, done = stage.population, check["pass"]
+        for rnd in range(1, 0 if done else args.rounds + 1):
+            search["best"], search["kept"] = None, 0
+            result = differential_evolution(
+                objective, bounds_arr, seed=args.seed + rnd - 1,
+                popsize=args.popsize, maxiter=args.maxiter, polish=False,
+                tol=1e-3, x0=x0, init=init if rnd == 1 else "latinhypercube",
+                workers=pool.map if pool else 1,
+                updating="deferred" if pool else "immediate")
+            message = result.message
+            winner = search["best"][1]
+            already = [c for c in passed if c["sizing"] is winner]
+            check = already[0] if already else full_check(
+                winner, f"round {rnd} winner, full corner set", 0)
+            rounds.append({"round": rnd, "corners": list(search["corners"]),
+                           "winner_trial": check["trial"],
+                           "winner_pass": check["pass"],
+                           "winner_sizing": {n: winner[n]["value"]
+                                             for n in names}})
+            if check["pass"]:
+                break
+            # re-pick: the corners this round's failures were worst at
+            for c in failed_at:
+                if c not in search["corners"]:
+                    search["corners"].append(c)
+            failed_at.clear()
+            x0 = [winner[n]["value"] for n in names]
+    finally:
+        if pool:
+            pool.shutdown()
 
     try:
-        result = differential_evolution(
-            objective, bounds_arr, seed=args.seed, popsize=args.popsize,
-            maxiter=args.maxiter, polish=False, tol=1e-3)
-
-        improved = best["sizing"] is not start_sizing and best["score"] > start_score
+        # the gate on write-back: only a sizing that passed sim_pvt's own
+        # run is written - the passing one with the most margin, the start
+        # itself when nothing beat it
+        chosen = max(passed, key=lambda c: c["margin"]) if passed else None
+        improved = chosen is not None and chosen["sizing"] is not start_sizing
         if improved:
-            write_sizing_yaml(target_path, best["sizing"])
-        # else: nothing beat the start - the file is left exactly as it was
-        # (the digital loop's own "otherwise git reverts it", applied once).
-        kept_final = best["sizing"] if improved else start_sizing
-
-        # The winner run[s] the full corner set (design.md 4) - not just
-        # the tt-only evaluator every trial above used for speed. A winner
-        # that only looks good at typical (gates.yaml's own sim_pvt fault:
-        # "meets at typical, loses headroom at slow and hot") used to ship
-        # straight to disk with nothing here ever checking another corner;
-        # a caller running `optimise.py numeric` on its own, without also
-        # chasing it with a separate `sim_pvt` gate step, would never find
-        # out. `kept_final` is already ON DISK at this point either way
-        # (write_sizing_yaml above, or untouched from `start` otherwise),
-        # so this is the exact same corner set/sizing a real sim_pvt gate
-        # run would score - reusing sim_run.run_workspace_benches directly,
-        # never a re-implementation of it.
-        full_corner_list = corners_mod.spec_corners(
-            corners_mod.load(), spec.get("corners", "default"),
-            corners_mod.passive_devices(sim_run.find_netlist(ws).read_text(
-                encoding="utf-8", errors="replace")))
-        full_corner = sim_run.run_workspace_benches(
-            ws, eda_bin=eda_bin, corners=full_corner_list,
-            timeout=args.timeout, check="sim_pvt")
-        full_corner_pass = not full_corner["violations"]
-        write_row(trial_counter["n"], kept_final,
-                 full_corner_margin(full_corner["results"], benches),
-                 full_corner_pass, "winner, full corner set")
-        trial_counter["n"] += 1
+            write_sizing_yaml(target_path, chosen["sizing"])
+        # and the gate itself, once more on what is now on disk: the file
+        # sim_pvt will read, not a copy in memory
+        on_disk = full_check(None, "on disk, full corner set", 0)
+        if improved and not on_disk["pass"]:
+            target_path.write_text(start_text, encoding="utf-8")
+            improved = False
+            on_disk = full_check(None, "restored start, full corner set", 0)
     finally:
         tsv_file.close()
+    kept_final = chosen["sizing"] if improved else start_sizing
     _record_state(ws, {"trials_run": trial_counter["n"],
                        "evaluator_sha": meta["evaluator_sha"],
-                       "best": {"trial": best["trial"], "score": best["score"]}})
+                       "best": {"trial": chosen["trial"] if chosen else None,
+                                "score": chosen["margin"] if chosen else None}})
 
-    # status stays keyed on the tt-only evaluator alone (design.md 4: "an
-    # evaluator that is the spec bench at typical" - and the M8 done
-    # criteria name full-corner sim_pvt success for the MIRROR rung only,
-    # never the DAC's own optimise done-criterion, which is typical-only
-    # by design). full_corner_pass is reported, not gated on: a winner
-    # that only holds at typical is now always visible in the payload/TSV
-    # (this finding's own point) rather than silently unchecked, but a
-    # corpus rung whose own bounds were never written to be corner-
-    # tolerant (r2r_dac's a known case: an absolute-volt bound against a
-    # ratiometric divider with a +-10% VDD sweep) does not regress a
-    # `numeric` run that otherwise met its documented scope.
-    all_in_bounds = best["score"] is not None and best["score"] >= 0
     payload = {
         "script": SCRIPT,
-        "status": "pass" if all_in_bounds else "violations",
+        "status": "pass" if on_disk["pass"] else "violations",
         "trials": trial_counter["n"], "start_score": round(start_score, 6),
-        "best_score": round(best["score"], 6) if best["score"] is not None else None,
+        "start_full_corner_pass": start_check["pass"],
+        "best_score": round(chosen["margin"], 6) if chosen else None,
         "improved": improved, "written": improved, "kept_sizing": kept_final,
-        "full_corner_pass": full_corner_pass,
-        "full_corner_corners": full_corner["corners"],
-        "full_corner_violations": full_corner["violations"],
-        "tsv": str(tsv_path), "scipy_message": result.message,
+        "typical_stage": typical_stage, "rounds": rounds,
+        "full_corner_pass": on_disk["pass"],
+        "full_corner_corners": on_disk["result"]["corners"],
+        "full_corner_violations": on_disk["result"]["violations"],
+        "tsv": str(tsv_path), "scipy_message": message,
     }
+    if not on_disk["pass"]:
+        payload["remediation"] = (
+            f"no sizing the search found passes sim_pvt at every corner of "
+            f"the spec's sweep ({', '.join(c['name'] for c in sweep)}), so "
+            f"{target_rel} is left as it was. The rounds field lists the "
+            "corners each search scored; the worst violations are in "
+            "full_corner_violations. Search harder (--rounds, --maxiter, "
+            "--popsize, a wider sizing range) or change the design - never "
+            "the bounds")
     return payload, args.out
 
 
