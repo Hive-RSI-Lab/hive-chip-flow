@@ -817,3 +817,31 @@ below_spread:
     out = json.loads(capsys.readouterr().out)
     assert code == 2, out
     assert "below_spread" in out["error"] and sent == []
+
+
+@pytest.mark.parametrize("value,want", [("", None), ("  ", None), ("4", 4)])
+def test_env_jobs_reads_the_cap(monkeypatch, value, want):
+    monkeypatch.setenv(check_mutate.JOBS_ENV, value)
+    assert check_mutate.env_jobs() == want
+
+
+@pytest.mark.parametrize("value", ["0", "-2", "four"])
+def test_env_jobs_refuses_a_bad_cap(monkeypatch, value):
+    monkeypatch.setenv(check_mutate.JOBS_ENV, value)
+    with pytest.raises(check_mutate.CheckError, match="CHIP_FLOW_MUTATE_JOBS"):
+        check_mutate.env_jobs()
+
+
+@pytest.mark.parametrize("value,want", [("", check_mutate.RUN_TIMEOUT_S),
+                                        ("5400", 5400.0), (" 90.5 ", 90.5)])
+def test_env_run_timeout_reads_the_backstop(monkeypatch, value, want):
+    monkeypatch.setenv(check_mutate.RUN_TIMEOUT_ENV, value)
+    assert check_mutate.env_run_timeout() == want
+
+
+@pytest.mark.parametrize("value", ["0", "-5", "soon", "nan"])
+def test_env_run_timeout_refuses_a_bad_backstop(monkeypatch, value):
+    monkeypatch.setenv(check_mutate.RUN_TIMEOUT_ENV, value)
+    with pytest.raises(check_mutate.CheckError,
+                       match="CHIP_FLOW_MUTATE_RUN_TIMEOUT"):
+        check_mutate.env_run_timeout()

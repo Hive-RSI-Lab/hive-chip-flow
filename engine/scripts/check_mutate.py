@@ -202,13 +202,14 @@ print(f"mutants={{tags()}} killed={{tags('KILLED')}} survived={{tags('SURVIVED')
     (mcy_dir / "config.mcy").write_text(config, encoding="utf-8")
 
 
-def run_mcy(mcy_dir: Path, mcy_real: Path, nproc: int) -> None:
+def run_mcy(mcy_dir: Path, mcy_real: Path, nproc: int,
+            run_timeout: float = RUN_TIMEOUT_S) -> None:
     def mcy(*args: str) -> subprocess.CompletedProcess:
         return checklib.run_group(
             [str(EDA_BIN), "python3", str(mcy_real), *args], cwd=str(mcy_dir),
             capture_output=True, text=True, encoding="utf-8", errors="replace",
             timeout=INIT_TIMEOUT_S if args and args[0] == "init"
-            else RUN_TIMEOUT_S)
+            else run_timeout)
 
     init = mcy("init")
     if init.returncode != 0:
@@ -721,6 +722,50 @@ def score(mutants: list[dict], equivalent: set[int],
     return facts, violations
 
 
+# gate.py runs this with no --jobs, so a cpu-count pool is the default; on a
+# shared box each mutant's sim plus pdr can push 20 workers over a memory
+# ceiling and get the whole gate OOM-killed. The env var caps it there.
+JOBS_ENV = "CHIP_FLOW_MUTATE_JOBS"
+
+
+def env_jobs() -> int | None:
+    """${CHIP_FLOW_MUTATE_JOBS} as a worker count, None when unset or empty;
+    CheckError when it is set to anything but a whole number >= 1."""
+    text = os.environ.get(JOBS_ENV, "").strip()
+    if not text:
+        return None
+    try:
+        n = int(text)
+    except ValueError:
+        n = 0
+    if n < 1:
+        raise CheckError(f"${JOBS_ENV}={text!r} is not a whole number >= 1")
+    return n
+
+
+# RUN_TIMEOUT_S bounds the whole `mcy run`, every mutant's tb included. A
+# tb that runs at the block's real parameters (a debounce of 80k cycles, a
+# full UART message) takes minutes per mutant, so size/jobs batches of it
+# overrun 600 s on a healthy run. The env var raises the backstop there.
+RUN_TIMEOUT_ENV = "CHIP_FLOW_MUTATE_RUN_TIMEOUT"
+
+
+def env_run_timeout() -> float:
+    """${CHIP_FLOW_MUTATE_RUN_TIMEOUT} in seconds, RUN_TIMEOUT_S when unset
+    or empty; CheckError when it is set to anything but a number > 0."""
+    text = os.environ.get(RUN_TIMEOUT_ENV, "").strip()
+    if not text:
+        return RUN_TIMEOUT_S
+    try:
+        t = float(text)
+    except ValueError:
+        t = 0.0
+    if not t > 0:
+        raise CheckError(f"${RUN_TIMEOUT_ENV}={text!r} is not a number of "
+                         "seconds > 0")
+    return t
+
+
 def parse_args(argv=None) -> argparse.Namespace:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--workspace", required=True, help="block workspace")
@@ -729,7 +774,7 @@ def parse_args(argv=None) -> argparse.Namespace:
     ap.add_argument("--seed", type=int, help="override the RNG seed "
                     f"(default {DEFAULT_SEED}, or spec.yaml mutate.seed)")
     ap.add_argument("--jobs", type=int, help="parallel mutant runs "
-                    "(default: cpu count)")
+                    f"(default: ${JOBS_ENV}, else cpu count)")
     ap.add_argument("--pdr-timeout", type=float, default=PDR_TIMEOUT_S,
                     help="seconds of pdr per survivor that induction could "
                     f"not settle (default {PDR_TIMEOUT_S:.0f})")
@@ -757,7 +802,7 @@ def run(argv=None):
     size = args.size or mutate_cfg.get("size") or DEFAULT_SIZE
     seed = (args.seed if args.seed is not None
            else mutate_cfg.get("seed", DEFAULT_SEED))
-    nproc = args.jobs or os.cpu_count() or 1
+    nproc = args.jobs or env_jobs() or os.cpu_count() or 1
     output_ports = {name for name, p in (spec.get("ports") or {}).items()
                    if isinstance(p, dict) and p.get("dir") == "output"}
 
@@ -772,7 +817,7 @@ def run(argv=None):
     write_config(mcy_dir, rtl_files, top, tb_dir, size, seed)
 
     t0 = time.monotonic()
-    run_mcy(mcy_dir, mcy_real, nproc)
+    run_mcy(mcy_dir, mcy_real, nproc, env_run_timeout())
 
     db_path = mcy_dir / "database" / "db.sqlite3"
     check_baseline(db_path)
