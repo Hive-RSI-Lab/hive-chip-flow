@@ -86,9 +86,10 @@ IR. A supply net's drop is the worst |V(node) - V(pin)| over its extracted
 nodes, straight from the operating point.
 
 Refuses rather than guesses: a thickness with no layer, a device current
-with no FastHenry node near it, a current with no geometry, a layer
-change with no cut within reach, or substrate current in a cell with no
-substrate tap is an EmirError, never a skipped wire.
+with no FastHenry node near it, a current with no geometry that the DRC's
+narrowest wire or a single cut could not carry, a layer change with no cut
+within reach, or substrate current in a cell with no substrate tap is an
+EmirError, never a skipped wire.
 """
 from __future__ import annotations
 
@@ -140,6 +141,7 @@ def load_limits(path=REFERENCE) -> dict:
             layers[name] = {"thick": float(row["thick"]),
                             "sheet": float(row["sheet_ohm"]),
                             "limit": float(row["limit_ma_per_um"]) * 1e-3 / 1e-6,
+                            "min_width": float(row["min_width_um"]),
                             "metal": True}
         for name, row in data["under_metal1"].items():
             layers[name] = {"thick": float(row["thick"]),
@@ -402,6 +404,11 @@ def net_bound(name: str, inj: dict, net: FhNet | None,
     (i_total against the tightest per-cut limit) at or under 1 pass the net
     with nothing guessed; over 1 the gate looks closer (tier two).
 
+    A net magic's FastHenry writer gives no geometry (it can leave out a
+    small net extresist split all the same) is held, whole, to the DRC's
+    narrowest wire of any metal layer at the tightest wire limit and to
+    one cut: it passes flagged `no_geometry`, or is refused.
+
     `i_total`, given, stands for the sum (a transient's pulsed_stat of it:
     one current that each pulsed rule holds to the DC limit)."""
     name = name.lower()
@@ -418,12 +425,25 @@ def net_bound(name: str, inj: dict, net: FhNet | None,
                 continue
             w_min = w if w_min is None else min(w_min, w)
             wire_ratio = max(wire_ratio, i_total / (w * 1e-6) / min(lims))
-    elif i_total >= I_FLOOR_A:
-        raise EmirError(f"net {name} carries {i_total:.3g} A but magic's "
-                        "FastHenry file has no geometry for it")
     cut_limit = min(c["limit"] for c in limits["cuts"].values())
+    cut_ratio = i_total / cut_limit
+    if net is None and i_total >= I_FLOOR_A:
+        # No geometry: the narrowest wire the DRC lets any metal layer have,
+        # at the tightest wire limit, and one cut. Over 1 there is nothing
+        # closer to look at, so it is refused.
+        metals = [r for r in limits["layers"].values() if r["metal"]]
+        w_min = min(r["min_width"] for r in metals)
+        wire_ratio = i_total / (w_min * 1e-6) / min(r["limit"] for r in metals)
+        if wire_ratio > 1.0 or cut_ratio > 1.0:
+            raise EmirError(
+                f"net {name} carries {i_total:.3g} A but magic's FastHenry "
+                f"file has no geometry for it, and at the DRC's narrowest "
+                f"wire ({w_min:g} um) or one cut that is over the limit")
+        return {"net": name, "i_total": i_total, "w_min_um": w_min,
+                "wire_ratio": wire_ratio, "cut_ratio": cut_ratio,
+                "no_geometry": True}
     return {"net": name, "i_total": i_total, "w_min_um": w_min,
-            "wire_ratio": wire_ratio, "cut_ratio": i_total / cut_limit}
+            "wire_ratio": wire_ratio, "cut_ratio": cut_ratio}
 
 
 @dataclass
@@ -803,7 +823,7 @@ def node_flows(net: FhNet, segs: list, placed: list, limits: dict) -> dict:
 
 
 def _charge_orphan(net, node_reps, xy, amps, layers, clusters, what,
-                   charge, on_net=None):
+                   charge, on_net=None, memo=None):
     """Charge `amps` that crosses a cut magic put nowhere near one to the
     array with the fewest cuts near it: of the arrays within FOLD_REACH_UM
     of the node or of the far end of any segment at it, those no more than
@@ -817,7 +837,29 @@ def _charge_orphan(net, node_reps, xy, amps, layers, clusters, what,
     apart, so another net's array a strap of this net only crosses passes
     it; the nearness band keeps such an array from drawing current
     across the cell from a cut that has its own array beside it. Returns
-    the orphan record; refuses when no array is in reach."""
+    the orphan record; refuses when no array is in reach. `memo` (a dict
+    kept between calls on one net, as cut_charges' ctx) keeps the array
+    chosen for a node, which depends on the geometry alone."""
+    key = (frozenset(node_reps), frozenset(xy), tuple(layers))
+    if memo is not None and key in memo:
+        best = memo[key]
+    else:
+        best = _orphan_array(net, node_reps, xy, layers, clusters, on_net)
+        if memo is not None:
+            memo[key] = best
+    if best is None:
+        x, y = sorted(xy)[0]
+        raise EmirError(f"net {net.name}: {amps:.3g} A changes layer at "
+                        f"({x:.2f}, {y:.2f}) ({what}) but the GDS draws no "
+                        f"cut within {FOLD_REACH_UM} um of it")
+    charge[id(best)] = (best, charge.get(id(best), (best, 0.0))[1] + amps)
+    return {"net": net.name, "at": [round(v, 2) for v in sorted(xy)[0]],
+            "amps": amps, "what": what, "charged": best.gds,
+            "box": [round(v, 2) for v in best.box], "cuts": best.cuts}
+
+
+def _orphan_array(net, node_reps, xy, layers, clusters, on_net):
+    """The array _charge_orphan charges, or None when none is in reach."""
     pts = set(xy)
     for a, b, _w, _h in net.segs:
         ra, rb = net.rep(a), net.rep(b)
@@ -840,15 +882,7 @@ def _charge_orphan(net, node_reps, xy, amps, layers, clusters, what,
     for c in reach:
         if best is None or c.cuts < best.cuts:
             best = c
-    if best is None:
-        x, y = sorted(xy)[0]
-        raise EmirError(f"net {net.name}: {amps:.3g} A changes layer at "
-                        f"({x:.2f}, {y:.2f}) ({what}) but the GDS draws no "
-                        f"cut within {FOLD_REACH_UM} um of it")
-    charge[id(best)] = (best, charge.get(id(best), (best, 0.0))[1] + amps)
-    return {"net": net.name, "at": [round(v, 2) for v in sorted(xy)[0]],
-            "amps": amps, "what": what, "charged": best.gds,
-            "box": [round(v, 2) for v in best.box], "cuts": best.cuts}
+    return best
 
 
 def assign_cuts(net: FhNet, segs: list, placed: list, clusters: dict,
@@ -893,11 +927,15 @@ def cut_charges(net: FhNet, segs: list, placed: list, clusters: dict,
     ctx = {} if ctx is None else ctx
     footprints = ctx.setdefault("footprints", {})
     near_of = ctx.setdefault("near", {})
+    reached = ctx.setdefault("on_net", {})
+    memo = ctx.setdefault("orphan", {})
 
     def on_net(c):
-        if c.dbu not in footprints:
-            footprints[c.dbu] = net_footprint(net, c.dbu, limits)
-        return _on_net(c, footprints[c.dbu])
+        if id(c) not in reached:
+            if c.dbu not in footprints:
+                footprints[c.dbu] = net_footprint(net, c.dbu, limits)
+            reached[id(c)] = _on_net(c, footprints[c.dbu])
+        return reached[id(c)]
 
     for node, e in flows.items():
         if e["through"] < I_FLOOR_A:
@@ -949,7 +987,7 @@ def cut_charges(net: FhNet, segs: list, placed: list, clusters: dict,
         elif changes and not hit_contact:
             orphans.append(_charge_orphan(
                 net, {node}, e["xy"], e["below"], contact, clusters,
-                "a wire under metal1 meets metal", charge, on_net))
+                "a wire under metal1 meets metal", charge, on_net, memo))
     for s in segs:
         if not s.is_cut or abs(s.amps) < I_FLOOR_A:
             continue
@@ -962,7 +1000,7 @@ def cut_charges(net: FhNet, segs: list, placed: list, clusters: dict,
         if not near_of[key]:
             orphans.append(_charge_orphan(
                 net, {net.rep(s.a), net.rep(s.b)}, {(x, y)}, abs(s.amps),
-                every, clusters, "a cut segment", charge, on_net))
+                every, clusters, "a cut segment", charge, on_net, memo))
     return charge, orphans
 
 
@@ -1214,16 +1252,81 @@ def resistor_heads(gds_path, topcell: str, insts: list, ext_devs: list,
     return list(heads.values())
 
 
-def handed_on_nodes(insts: list) -> frozenset:
+def handed_on_nodes(insts: list, mos_bulks=()) -> frozenset:
     """The extracted nodes place() hands on along the wire R instead of
-    refusing for distance: each resistor's bulk terminal, and both heads of
-    a dummy (a resistor with both heads on one net). Both carry only the
-    current a body's capacitance or a strap's own drop pushes through it,
-    and magic writes their rnode at the device, off the net's metal."""
-    out = {r.bulk for r in insts if r.bulk}
+    refusing for distance: each resistor's and each MOS's (`mos_bulks`,
+    device_terminals) bulk terminal, and both heads of a dummy (a resistor
+    with both heads on one net). All carry only the current a body's
+    capacitance or junction, or a strap's own drop, pushes through it, and
+    magic writes their rnode at the device, off the net's metal."""
+    out = {r.bulk for r in insts if r.bulk} | set(mos_bulks)
     for r in insts:
         if base_net(r.a) == base_net(r.b):
             out |= {r.a, r.b}
+    return frozenset(out)
+
+
+# a MOS model: gf180mcu's nfet_03v3 / pfet_06v0, sky130's sky130_fd_pr__nfet_01v8
+MOS_RE = re.compile(r"(?:^|__)[np]fet_", re.I)
+
+
+def device_terminals(pex_text: str, cell: str) -> tuple:
+    """(terminals, mos_bulks): every node an X or M device instance of
+    `.subckt cell` touches, and the bulk (fourth) node of each MOS one
+    (a model MOS_RE matches)."""
+    terms, bulks, inside = set(), set(), False
+    for line in _logical_lines(pex_text):
+        tok = line.split()
+        if not tok:
+            continue
+        head = tok[0].lower()
+        if head == ".subckt":
+            inside = len(tok) > 1 and tok[1].lower() == cell.lower()
+            continue
+        if head == ".ends":
+            inside = False
+        if not inside or head[0] not in "xm":
+            continue
+        pos = [t.lower() for t in tok[1:] if "=" not in t]
+        if len(pos) < 2:
+            continue
+        nodes, model = pos[:-1], pos[-1]
+        terms |= set(nodes)
+        if MOS_RE.search(model) and len(nodes) >= 4:
+            bulks.add(nodes[3])
+    return terms, bulks
+
+
+def body_nodes(bulk, terminals, resistors: list, fh: dict,
+               rnodes: dict) -> frozenset:
+    """`bulk` (handed_on_nodes) and the well or substrate around it: each
+    extracted node more than FOLD_REACH_UM from every FastHenry node of its
+    net that no device touches (`terminals`) and that the extracted
+    resistors join to a bulk node through such nodes only. Magic splits an
+    n-well under a row of PFETs into pieces between their bulk terminals,
+    with no metal over them; in a transient each carries only the well's
+    own capacitance current. A node of a wire stays out: either a device
+    is on it or the walk reaches it through a node the geometry has."""
+    def far(n):
+        net = fh.get(base_net(n))
+        if net is None or n not in rnodes:
+            return False
+        x, y = rnodes[n]
+        return min(math.hypot(p[0] - x, p[1] - y)
+                   for p in net.nodes.values()) > FOLD_REACH_UM
+
+    adj = {}
+    for a, b, ohm in resistors:
+        if ohm > 0:
+            adj.setdefault(a, []).append(b)
+            adj.setdefault(b, []).append(a)
+    out, todo = set(bulk), list(bulk)
+    while todo:
+        n = todo.pop()
+        for m in adj.get(n, ()):
+            if m not in out and m not in terminals and far(m):
+                out.add(m)
+                todo.append(m)
     return frozenset(out)
 
 

@@ -102,8 +102,30 @@ def test_injections_and_bound():
 
 
 def test_bound_refuses_a_current_with_no_geometry():
+    # 1 mA: over one 0.14 mA cut and over 0.23 um of metal1 at 0.67 mA/um
     with pytest.raises(emirlib.EmirError, match="no geometry"):
         emirlib.net_bound("vdd", {"vdd": 1e-3}, None, LIM)
+    # 0.15 mA: under 0.23 um x 0.67 mA/um (0.154 mA) but over one cut
+    with pytest.raises(emirlib.EmirError, match="no geometry"):
+        emirlib.net_bound("x", {"x": 0.15e-3}, None, LIM)
+
+
+def test_bound_holds_a_net_with_no_geometry_to_the_narrowest_drc_wire():
+    b = emirlib.net_bound("x", {"x": 74e-6, "x.t0": -74e-6}, None, LIM)
+    assert b["no_geometry"] is True
+    assert b["w_min_um"] == pytest.approx(0.23)
+    assert b["wire_ratio"] == pytest.approx(74e-6 / 0.23e-6 / 670.0)
+    assert b["cut_ratio"] == pytest.approx(74e-6 / 0.14e-3)
+    # under the floor it is not a current at all
+    assert "no_geometry" not in emirlib.net_bound("x", {"x": 1e-12}, None,
+                                                  LIM)
+
+
+def test_limits_give_every_metal_its_drc_min_width():
+    assert {n: r["min_width"] for n, r in LIM["layers"].items()
+            if r["metal"]} == {"metal1": 0.23, "metal2": 0.28,
+                               "metal3": 0.28, "metal4": 0.28,
+                               "metal5": 0.36}
 
 
 def test_injections_refuse_a_node_with_no_voltage():
@@ -230,6 +252,32 @@ def test_an_orphan_goes_to_the_smallest_array_on_the_net():
         assert rec["cuts"] == want.cuts
 
 
+def test_an_orphans_array_is_kept_between_timepoints_and_still_refused():
+    # a transient charges the same orphan node at every timepoint: the
+    # array it picks is geometry alone, kept in the memo, and the amps of
+    # each call still land on it; a node with no array in reach is refused
+    # every time, memo or not
+    net = emirlib.FhNet("n", "n", nodes={"a": (0, 0, 0)}, segs=[])
+    mine = emirlib.Cluster((33, 0), (2, 0, 3, 1), 3)
+    calls, memo, charge = [], {}, {}
+    def on_net(c):
+        calls.append(c)
+        return True
+    for amps in (1e-4, 3e-4):
+        rec = emirlib._charge_orphan(net, {"a"}, {(0, 0)}, amps, [(33, 0)],
+                                     {(33, 0): [mine]}, "x", charge, on_net,
+                                     memo)
+        assert rec["amps"] == amps and rec["cuts"] == 3
+    assert len(calls) == 1
+    assert charge[id(mine)][1] == pytest.approx(4e-4)
+    far = {(33, 0): [emirlib.Cluster((33, 0), (50, 0, 51, 1), 3)]}
+    memo = {}                      # another net: its own memo
+    for _ in range(2):
+        with pytest.raises(emirlib.EmirError):
+            emirlib._charge_orphan(net, {"a"}, {(0, 0)}, 1e-4, [(33, 0)],
+                                   far, "x", {}, on_net, memo)
+
+
 def test_an_orphan_goes_to_the_smallest_array_near_the_nearest():
     # a 3-cut array 0.5 um off the node, a 2-cut one 1.2 um off and a
     # 1-cut one 4 um off, all on the net: the far single cut is out of
@@ -345,6 +393,13 @@ def test_with_op_adds_the_control_block_before_end():
     out = gate.with_op(BENCH)
     assert out.index("op\nprint all") < out.rindex(".end")
     assert gate.dut_line(BENCH) == (["vdd", "0", "out"], "mirror")
+
+
+def test_with_op_prints_the_operating_point_at_twelve_digits():
+    # 6 digits (ngspice's default) is 1 uV on a 3 V rail: 30 nA over 33 ohm,
+    # which made a deviceless n-well node look like a current source.
+    out = gate.with_op(BENCH)
+    assert out.index("set numdgt=12") < out.index("op\nprint all")
 
 
 def test_with_op_refuses_a_bench_with_its_own_control_block():
@@ -687,3 +742,56 @@ def test_with_tran_saves_the_probes_and_needs_a_tran_line():
     assert out.index(".control") < out.rindex(".end")
     with pytest.raises(CheckError, match=".tran"):
         gate.with_tran(BENCH, "x.raw")
+
+
+WELL_PEX = """\
+.subckt pump vdd out
+X1 out g vdd.t1 vdd.t2 pfet_03v3 w=50u l=4u
+X2 out g vdd.t3 vdd.t4 pfet_03v3 w=50u l=4u
+X3 out vss vss ppolyf_u r_width=1u r_length=10u
+R1 vdd.t2 vdd.n9 80
+R2 vdd.n9 vdd.t4 80
+R3 vdd.n9 vdd.n1 30
+R4 vdd.n1 vdd.n7 1
+R5 vdd.n7 vdd.n8 1
+.ends pump
+"""
+
+
+def test_device_terminals_names_each_mos_bulk():
+    terms, bulks = emirlib.device_terminals(WELL_PEX, "pump")
+    assert bulks == {"vdd.t2", "vdd.t4"}
+    assert {"out", "g", "vdd.t1", "vdd.t3", "vss"} <= terms
+    assert "vdd.n9" not in terms
+
+
+def test_body_nodes_take_the_well_between_bulk_pins_and_stop_at_metal():
+    """vdd.n9 is n-well between the two PFETs' bulk pins, 20 um from the
+    vdd metal: it joins the body. vdd.n1 is the tap's metal (on the
+    geometry), so vdd.n8 beyond it, far and deviceless as it is, stays a
+    wire node the gate defends."""
+    fh = emirlib.parse_fh(STRAP_FH.replace("Nout", "Nvdd"))
+    rnodes = {"vdd.t2": (25.0, 0.0), "vdd.t4": (35.0, 0.0),
+              "vdd.n9": (30.0, 0.0), "vdd.n1": (10.0, 0.0),
+              "vdd.n7": (5.0, 0.0), "vdd.n8": (40.0, 0.0)}
+    terms, bulks = emirlib.device_terminals(WELL_PEX, "pump")
+    res = emirlib.subckt_resistors(WELL_PEX, "pump")
+    body = emirlib.body_nodes(emirlib.handed_on_nodes([], bulks), terms,
+                              res, fh, rnodes)
+    assert body == {"vdd.t2", "vdd.t4", "vdd.n9"}
+
+
+def test_a_well_node_far_off_the_geometry_is_handed_on_as_body():
+    """The PLL case: a deviceless well node 17.6 um from the vdd metal
+    carries its own capacitance current in a transient."""
+    net = emirlib.parse_fh(STRAP_FH)["out"]
+    inj = {"out.n9": 7e-8}
+    rnodes = {"out.n9": (30.0, 0.0), "out.n1": (10.0, 0.0)}
+    res = [("out.n9", "out.n1", 33.0)]
+    volts = {"out.n9": 7e-8 * 33.0, "out.n1": 0.0}
+    with pytest.raises(emirlib.EmirError, match="um away"):
+        emirlib.place(net, inj, rnodes, res, volts)
+    placed, folded = emirlib.place(net, inj, rnodes, res, volts,
+                                   bulk=frozenset({"out.n9"}))
+    assert folded == 1
+    assert placed == [("1", pytest.approx(7e-8))]
