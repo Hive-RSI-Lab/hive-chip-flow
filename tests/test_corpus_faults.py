@@ -49,7 +49,7 @@ HARDEN_RUNGS: dict[tuple[str, str], str] = {
                          "plants each run a full LibreLane harden",
     ("msde", "dac_tile"): "top_harden, top_lvs and precheck each need a full "
                           "LibreLane top harden",
-    ("msde", "sensor_counted"): "top_harden, top_drc, top_lvs and top_erc each need a "
+    ("msde", "sensor_counted"): "top_harden, top_drc, top_lvs, top_erc and top_stress each need a "
                                 "full LibreLane top harden",
 }
 HELD_BACK: dict[tuple[str, str], str] = {}

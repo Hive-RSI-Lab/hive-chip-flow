@@ -66,6 +66,12 @@ faults:
     gate: top_erc
     plant: plant_top_erc.py
     expect: {status: fail, kind: floating_gate}
+  # the same top with its supply declared at 5 V: every cell's edges
+  # overshoot the 5 V-class limit (#328, #329)
+  - name: top_stress_supply_past_cell_limit
+    gate: top_stress
+    plant: plant_top_stress.py
+    expect: {status: fail, kind: device_overstress}
   - name: release_stale_nested_release
     gate: release
     plant: plant_release.py

@@ -267,8 +267,10 @@ def test_lef_swapped_after_top_harden_refuses_as_stale(tmp_path, capsys):
                                        ("sdf", "top_sdf")])
 def test_timing_view_swapped_after_top_harden_refuses(tmp_path, capsys,
                                                       view, kind):
-    """No gate but release reads the SDF or SPEF: release holds them to the
-    hashes top_harden recorded, so re-running it does not launder a swap."""
+    """Release holds the SDF and SPEF to the hashes top_harden recorded, so
+    re-running it does not launder a swap. Only release reads the SDF;
+    top_stress also reads the SPEF (its cell loads), so a SPEF swap leaves
+    that gate stale as well."""
     ws = make_msde_tile(tmp_path)
     d = ws / "top" / "harden" / "runs" / "run" / "final" / view
     d.mkdir(parents=True, exist_ok=True)
@@ -277,8 +279,13 @@ def test_timing_view_swapped_after_top_harden_refuses(tmp_path, capsys,
     st.record_gate("release", {"status": "pass"})   # release re-recorded
     st.save()
     violations = _refusals(ws, capsys)
-    assert [v["kind"] for v in violations] == ["harden_output_changed"]
-    assert kind in violations[0]["msg"]
+    msgs = {v["kind"]: v["msg"] for v in violations}
+    want = {"harden_output_changed"} | (
+        {"gate_not_ready"} if kind == "top_spef" else set())
+    assert set(msgs) == want and len(violations) == len(want)
+    assert kind in msgs["harden_output_changed"]
+    if kind == "top_spef":
+        assert "top_stress: stale" in msgs["gate_not_ready"]
 
 
 def test_a_clone_reads_the_new_views_from_the_harden_record(tmp_path, capsys):
