@@ -36,7 +36,7 @@ import state as state_mod  # noqa: E402
 import statelib  # noqa: E402
 
 MSDE_GATES = ("split", "cosim", "top_harden", "top_drc", "top_lvs", "top_erc",
-              "precheck", "release")
+              "top_stress", "precheck", "release")
 
 
 @pytest.fixture
@@ -149,7 +149,8 @@ def _set(doc, keys, value):
 # the gates that read what top_harden writes (gate_writes, #147): an edit
 # that stales top_harden stales them too, before it has rewritten top/.
 # release reads its LEF, SDF and SPEF (#164).
-AFTER_TOP_HARDEN = {"top_drc", "top_lvs", "top_erc", "precheck", "release"}
+AFTER_TOP_HARDEN = {"top_drc", "top_lvs", "top_erc", "top_stress", "precheck",
+                    "release"}
 
 # (what is edited, the edit, the gates that read it - from the scripts, plus
 # the gates after a stale one)
@@ -203,9 +204,10 @@ PLANTED = {
     "top/macros .subckt": (
         lambda ws: (lambda: _w(ws / "top" / "macros" / "blk_analog.spice",
                                ".subckt blk_analog x\n.ends\n")),
-        {"top_lvs", "top_erc"}),
+        {"top_lvs", "top_erc", "top_stress"}),
     # #164: precheck copies the LEF into its design dir and release stages
-    # it; release archives the SDF and SPEF, which no other gate reads
+    # it; release archives the SDF and SPEF, and top_stress loads each
+    # output from the SPEF (#329)
     "top LEF": (
         lambda ws: (lambda: _w(ws / "top" / "harden" / "runs" / "run" /
                                "final" / "lef" / "t.lef", "L2")),
@@ -217,7 +219,7 @@ PLANTED = {
     "top SPEF": (
         lambda ws: (lambda: _w(ws / "top" / "harden" / "runs" / "run" /
                                "final" / "spef" / "t.spef", "P2")),
-        {"release"}),
+        {"top_stress", "release"}),
     # #108: cosim's corner runs read the extraction, the sweep that picks
     # the corners and the digital side's hardened views. Nothing else does.
     "extracted netlist in analog/log": (
@@ -255,7 +257,7 @@ PLANTED = {
     "top powered netlist": (
         lambda ws: (lambda: _w(ws / "top" / "harden" / "runs" / "run" /
                                "final" / "pnl" / "t.v", "N2")),
-        {"top_lvs", "top_erc"}),
+        {"top_lvs", "top_erc", "top_stress"}),
 }
 
 
@@ -277,7 +279,7 @@ def test_a_new_open_pdks_commit_stales_every_pdk_gate_and_only_those(
     msde_block(ws)
     stale = stale_after(ws, lambda: _w(pdk / "SOURCES", "open_pdks deadbeef\n"))
     assert stale == {"cosim", "top_harden", "top_drc", "top_lvs", "top_erc",
-                     "precheck", "release"}
+                     "top_stress", "precheck", "release"}
 
 
 def test_a_new_toolchain_root_stales_the_pdk_gates(tmp_path, pdk, monkeypatch):

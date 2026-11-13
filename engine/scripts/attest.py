@@ -253,10 +253,15 @@ def _boundary_not_applicable(ws: Path) -> str | None:
     return check_boundary.not_applicable_at_release(ws)
 
 
+# msde gates added after the V1_BLOCKS were released (owed_gates)
+V1_LATER_GATES = ("boundary", "top_erc", "top_stress")
+
+
 def owed_gates(ws: Path, skill: str, imap: dict | None = None) -> list[str]:
-    """applicable_gates, less `boundary` and `top_erc` for a released block
-    that engine/lib/boundary.py's V1_BLOCKS names while it is still on
-    interface version 1: both gates came after those blocks were released.
+    """applicable_gates, less `boundary`, `top_erc` and `top_stress` for a
+    released block that engine/lib/boundary.py's V1_BLOCKS names while it is
+    still on interface version 1: all three came after those blocks were
+    released.
     That list is two names a test pins, not a carve-out a block can opt
     into: each block leaves it by moving to version 2."""
     gates = applicable_gates(skill, imap)
@@ -269,7 +274,7 @@ def owed_gates(ws: Path, skill: str, imap: dict | None = None) -> list[str]:
         return gates
     if boundary.interface_version(data or {}) == boundary.TYPED_VERSION:
         return gates
-    return [g for g in gates if g not in ("boundary", "top_erc")]
+    return [g for g in gates if g not in V1_LATER_GATES]
 
 
 def _macro_lib_not_applicable(ws: Path) -> str | None:

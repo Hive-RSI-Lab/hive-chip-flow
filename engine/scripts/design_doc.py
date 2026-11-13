@@ -96,6 +96,7 @@ GATE_WHAT = {
     "macro_lib": "analog macro timing abstract",
     "top_harden": "top-level harden", "top_drc": "top-level DRC",
     "top_lvs": "top-level LVS", "top_erc": "top-level voltage rule check",
+    "top_stress": "top-level standard-cell overstress",
 }
 
 

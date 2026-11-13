@@ -313,6 +313,12 @@ def test_only_the_named_v1_blocks_do_not_owe_the_gate(tmp_path):
     assert "top_erc" in attest.owed_gates(_released_ws(tmp_path, "sensor"), "msde")
 
 
+def test_only_the_named_v1_blocks_do_not_owe_top_stress(tmp_path):
+    import attest
+    assert "top_stress" not in attest.owed_gates(_released_ws(tmp_path, "pll"), "msde")
+    assert "top_stress" in attest.owed_gates(_released_ws(tmp_path, "sensor"), "msde")
+
+
 # ------------------------------------------------------------------ real CVC
 
 @pytest.mark.slow

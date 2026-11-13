@@ -32,7 +32,7 @@ resolved to that root, and led by `bin/eda python`, by the time it reaches
 
 ## The workspace: one msde block, two nested runs
 
-    blocks/<name>/          skill msde: split, cosim, boundary, macro_lib, top_harden, top_drc, top_lvs, top_erc, precheck, release
+    blocks/<name>/          skill msde: split, cosim, boundary, macro_lib, top_harden, top_drc, top_lvs, top_erc, top_stress, precheck, release
       brief/                the task's spec, verbatim
       interface.yaml        every crossing signal (splitter)
       digital_spec.yaml     the digital side's copy of the same entries
@@ -99,7 +99,7 @@ side's skill and nested workspace, then re-check what it touched here.
 P0 Intake - P1 Split -
 P2 The two nested runs, independent: analog to its own release, digital
    to its own release (its own harden and signoff included) -
-P3 cosim, then the top gates (boundary, macro_lib, top_harden, top_drc, top_lvs, top_erc, precheck) -
+P3 cosim, then the top gates (boundary, macro_lib, top_harden, top_drc, top_lvs, top_erc, top_stress, precheck) -
 P4 Release -[H2: sign-off]- then the design document
 ```
 
@@ -147,6 +147,7 @@ Gates (`engine/reference/gates.yaml`, msde rows), in pipeline order:
 | top_drc | P3 | 0 violations, magic and klayout, on the top's final GDS | `check_top_drc.py` |
 | top_lvs | P3 | the top's final GDS matches the powered netlist, the analog block compared device by device | `check_top_lvs.py` |
 | top_erc | P3 | CVC finds no floating gate, overvoltage, forward-biased junction or supply-to-supply leak on the flat top: powered, held in reset, and the macro alone | `check_top_erc.py` |
+| top_stress | P3 | every standard-cell type of the top, simulated alone at ff/fs/sf, -40 C and the supply +10%: no device past its class's documented limit (stress_limits.yaml) | `check_top_stress.py` |
 | precheck | P3 | Tiny Tapeout's own precheck passes on the top's GDS; an analog tile's used ua pads, and only those, carry metal | `check_precheck.py` |
 | release | P4 | every msde gate fresh-pass AND both nested workspaces released | `check_release.py` |
 

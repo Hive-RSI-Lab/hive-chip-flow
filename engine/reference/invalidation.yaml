@@ -362,6 +362,12 @@ gate_inputs:
     # top_pnl first: it is the input the report is stamped with (#111).
     top_erc:  [top_pnl, top_spec, top_macros, interface, analog_spec,
                erc_waivers, pdk_version]
+    # top_stress reads the powered netlist (which cells, how many), both
+    # SPEF corners (each output's load), the top spec (its fastest clock),
+    # the macro libs (macro pin caps), the analog spec's supply and the
+    # PDK's cell spice (#329). top_pnl first: the report is stamped with it.
+    top_stress: [top_pnl, top_spef, top_spec, top_macros, analog_spec,
+                 pdk_version]
     # precheck: the GDS and the LEF it copies into its design dir (#164)
     precheck: [top_gds, top_lef, interface, pdk_version, pdk_magic,
                pdk_klayout]
@@ -520,7 +526,7 @@ edit_classes:
     spec_edit:
       mutates: [spec_yaml, spec_md]
       stale_artifacts: []
-      gates: [split, cosim, boundary, macro_lib, top_harden, top_drc, top_lvs, top_erc, precheck, release]
+      gates: [split, cosim, boundary, macro_lib, top_harden, top_drc, top_lvs, top_erc, top_stress, precheck, release]
       human_hold: 2
     interface_edit:
       # "marks the top gates and both nested runs' spec_edit" (1.6). The
@@ -529,12 +535,12 @@ edit_classes:
       # top-level gates a plain `state.py edit` can reach on its own.
       mutates: [interface]
       stale_artifacts: []
-      gates: [split, cosim, boundary, macro_lib, top_harden, top_drc, top_lvs, top_erc, precheck, release]
+      gates: [split, cosim, boundary, macro_lib, top_harden, top_drc, top_lvs, top_erc, top_stress, precheck, release]
       human_hold: 2
     top_sdc_edit:
       # the integrator's top.sdc: the top's clocks move, so the top GDS
       # and everything that reads it re-run
       mutates: [top_sdc]
       stale_artifacts: []
-      gates: [top_harden, top_drc, top_lvs, top_erc, precheck, release]
+      gates: [top_harden, top_drc, top_lvs, top_erc, top_stress, precheck, release]
       human_hold: 2

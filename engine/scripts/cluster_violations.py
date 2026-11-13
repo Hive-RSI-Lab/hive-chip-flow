@@ -323,6 +323,8 @@ CHECK_HINTS: dict[str, str] = {
     "analog_erc": "layout",
     # top_erc (#111): reported on the assembled top, routed like top_lvs
     "top_erc": "harden",
+    # top_stress (#329): a standard cell of the assembled top, like top_erc
+    "top_stress": "harden",
     # layout_match (#118): a row drawn in the wrong pattern is the generator's
     "layout_match": "layout",
     "pex_sim": "layout",

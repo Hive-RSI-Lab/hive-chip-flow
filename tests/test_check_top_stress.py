@@ -394,6 +394,25 @@ def test_a_failing_row_is_a_named_finding_with_the_instance_count(
     assert payload["supply_v"] == pytest.approx(3.63)
 
 
+
+def test_the_stamped_digest_is_what_state_records_against(tmp_path, monkeypatch):
+    """state.record_gate refuses a result whose input_digest is not the hash
+    of the gate's first input kind (top_pnl, the pnl directory): stamping the
+    .pnl.v file would leave no top_stress result recordable (#329)."""
+    import statelib
+    ws = _fake(tmp_path, monkeypatch)
+    def clean(job):
+        dev = job["devices"][0]
+        return {"rows": [], "repeat": None,
+                "worst": {"device": dev["label"], "pair": "Vgs",
+                          "class": "gate", "peak_v": 3.7, "limit_v": 5.5}}
+    monkeypatch.setattr(ts, "run_cell", clean)
+    code, payload = _run(ws, tmp_path)
+    assert code == 0 and payload["status"] == "pass", payload
+    imap = statelib.load_map()
+    first = imap["gate_inputs"]["msde"]["top_stress"][0]
+    assert payload["input_digest"] == statelib.hash_kind(ws, first, imap)[1]
+
 def test_diodes_and_passives_are_listed_not_scored_and_others_refused():
     antenna = (f".SUBCKT {LIB}__antenna I VDD VNW VPW VSS\n"
                "D0 VPW I diode_nd2ps_06v0 AREA=0.2052p PJ=1.86u M=1\n"
