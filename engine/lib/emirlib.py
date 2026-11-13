@@ -1214,16 +1214,81 @@ def resistor_heads(gds_path, topcell: str, insts: list, ext_devs: list,
     return list(heads.values())
 
 
-def handed_on_nodes(insts: list) -> frozenset:
+def handed_on_nodes(insts: list, mos_bulks=()) -> frozenset:
     """The extracted nodes place() hands on along the wire R instead of
-    refusing for distance: each resistor's bulk terminal, and both heads of
-    a dummy (a resistor with both heads on one net). Both carry only the
-    current a body's capacitance or a strap's own drop pushes through it,
-    and magic writes their rnode at the device, off the net's metal."""
-    out = {r.bulk for r in insts if r.bulk}
+    refusing for distance: each resistor's and each MOS's (`mos_bulks`,
+    device_terminals) bulk terminal, and both heads of a dummy (a resistor
+    with both heads on one net). All carry only the current a body's
+    capacitance or junction, or a strap's own drop, pushes through it, and
+    magic writes their rnode at the device, off the net's metal."""
+    out = {r.bulk for r in insts if r.bulk} | set(mos_bulks)
     for r in insts:
         if base_net(r.a) == base_net(r.b):
             out |= {r.a, r.b}
+    return frozenset(out)
+
+
+# a MOS model: gf180mcu's nfet_03v3 / pfet_06v0, sky130's sky130_fd_pr__nfet_01v8
+MOS_RE = re.compile(r"(?:^|__)[np]fet_", re.I)
+
+
+def device_terminals(pex_text: str, cell: str) -> tuple:
+    """(terminals, mos_bulks): every node an X or M device instance of
+    `.subckt cell` touches, and the bulk (fourth) node of each MOS one
+    (a model MOS_RE matches)."""
+    terms, bulks, inside = set(), set(), False
+    for line in _logical_lines(pex_text):
+        tok = line.split()
+        if not tok:
+            continue
+        head = tok[0].lower()
+        if head == ".subckt":
+            inside = len(tok) > 1 and tok[1].lower() == cell.lower()
+            continue
+        if head == ".ends":
+            inside = False
+        if not inside or head[0] not in "xm":
+            continue
+        pos = [t.lower() for t in tok[1:] if "=" not in t]
+        if len(pos) < 2:
+            continue
+        nodes, model = pos[:-1], pos[-1]
+        terms |= set(nodes)
+        if MOS_RE.search(model) and len(nodes) >= 4:
+            bulks.add(nodes[3])
+    return terms, bulks
+
+
+def body_nodes(bulk, terminals, resistors: list, fh: dict,
+               rnodes: dict) -> frozenset:
+    """`bulk` (handed_on_nodes) and the well or substrate around it: each
+    extracted node more than FOLD_REACH_UM from every FastHenry node of its
+    net that no device touches (`terminals`) and that the extracted
+    resistors join to a bulk node through such nodes only. Magic splits an
+    n-well under a row of PFETs into pieces between their bulk terminals,
+    with no metal over them; in a transient each carries only the well's
+    own capacitance current. A node of a wire stays out: either a device
+    is on it or the walk reaches it through a node the geometry has."""
+    def far(n):
+        net = fh.get(base_net(n))
+        if net is None or n not in rnodes:
+            return False
+        x, y = rnodes[n]
+        return min(math.hypot(p[0] - x, p[1] - y)
+                   for p in net.nodes.values()) > FOLD_REACH_UM
+
+    adj = {}
+    for a, b, ohm in resistors:
+        if ohm > 0:
+            adj.setdefault(a, []).append(b)
+            adj.setdefault(b, []).append(a)
+    out, todo = set(bulk), list(bulk)
+    while todo:
+        n = todo.pop()
+        for m in adj.get(n, ()):
+            if m not in out and m not in terminals and far(m):
+                out.add(m)
+                todo.append(m)
     return frozenset(out)
 
 
