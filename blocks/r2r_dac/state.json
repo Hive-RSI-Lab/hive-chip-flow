@@ -4,7 +4,7 @@
  "block": "r2r_dac",
  "workspace": "blocks/r2r_dac",
  "created": "2026-09-25T05:42:01",
- "updated": "2026-11-12T23:42:50",
+ "updated": "2026-11-13T15:28:59",
  "phase": "P4",
  "toolchain": null,
  "gates": {
@@ -6450,6 +6450,71 @@
      }
     }
    ]
+  },
+  "top_stress": {
+   "phase": "P3",
+   "status": "pass",
+   "attempts": 1,
+   "last": {
+    "ts": "2026-11-13T15:28:59",
+    "status": "pass",
+    "failing_count": 0,
+    "total": 0,
+    "inputs": {
+     "top_pnl": "dir_text:d5af7fd96d8b5a47c3998ae525d45a8b76ebe719ed103a4b3c22e5a83e6f74de",
+     "top_spef": "dir_text:a446a98b3a5d3e95250bff41154db4c0a4f0b5bd7bbdf50e45b8bd0753911033",
+     "top_spec": "json_canonical:d863d5e4ac42eb90b849bfae8bc19ecdb8167ca2c310bd40cdb64c48a4355186",
+     "top_macros": "dir_text:2956b759fa67e4a3ef5051fd834b44010844b7f79d445fdf8ea74bbdeca01e32",
+     "analog_spec": "json_canonical:bea97fb251ebda8c3059ca750c9247e051bdd64946a521b40eb21ee20fe77e64",
+     "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2"
+    },
+    "strength": 0,
+    "job": null,
+    "facts": {
+     "vdd": 3.3,
+     "supply_v": 3.63,
+     "corners": [
+      "ff",
+      "fs",
+      "sf"
+     ],
+     "temp_c": -40,
+     "edge_s": 2e-11,
+     "clock_period_ns": 20.0,
+     "slot_s": 1e-08
+    }
+   },
+   "history": [
+    {
+     "ts": "2026-11-13T15:28:59",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "top_pnl": "dir_text:d5af7fd96d8b5a47c3998ae525d45a8b76ebe719ed103a4b3c22e5a83e6f74de",
+      "top_spef": "dir_text:a446a98b3a5d3e95250bff41154db4c0a4f0b5bd7bbdf50e45b8bd0753911033",
+      "top_spec": "json_canonical:d863d5e4ac42eb90b849bfae8bc19ecdb8167ca2c310bd40cdb64c48a4355186",
+      "top_macros": "dir_text:2956b759fa67e4a3ef5051fd834b44010844b7f79d445fdf8ea74bbdeca01e32",
+      "analog_spec": "json_canonical:bea97fb251ebda8c3059ca750c9247e051bdd64946a521b40eb21ee20fe77e64",
+      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2"
+     },
+     "strength": 0,
+     "job": null,
+     "facts": {
+      "vdd": 3.3,
+      "supply_v": 3.63,
+      "corners": [
+       "ff",
+       "fs",
+       "sf"
+      ],
+      "temp_c": -40,
+      "edge_s": 2e-11,
+      "clock_period_ns": 20.0,
+      "slot_s": 1e-08
+     }
+    }
+   ]
   }
  },
  "jobs": {
@@ -6568,13 +6633,13 @@
    "path": "analog/spec/spec.yaml",
    "kind": "analog_spec",
    "sha256": "json_canonical:bea97fb251ebda8c3059ca750c9247e051bdd64946a521b40eb21ee20fe77e64",
-   "hashed": "2026-11-12T23:42:18"
+   "hashed": "2026-11-13T15:28:59"
   },
   "pdk_version": {
    "path": "${PDK_ROOT}/SOURCES",
    "kind": "pdk_version",
    "sha256": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
-   "hashed": "2026-11-12T23:42:50"
+   "hashed": "2026-11-13T15:28:59"
   },
   "pdk_models": {
    "path": "${PDK_ROOT}/libs.tech/ngspice",
@@ -6652,19 +6717,19 @@
    "path": "top/spec/spec.yaml",
    "kind": "top_spec",
    "sha256": "json_canonical:d863d5e4ac42eb90b849bfae8bc19ecdb8167ca2c310bd40cdb64c48a4355186",
-   "hashed": "2026-11-12T23:42:18"
+   "hashed": "2026-11-13T15:28:59"
   },
   "top_macros": {
    "path": "top/macros",
    "kind": "top_macros",
    "sha256": "dir_text:2956b759fa67e4a3ef5051fd834b44010844b7f79d445fdf8ea74bbdeca01e32",
-   "hashed": "2026-11-12T23:42:18"
+   "hashed": "2026-11-13T15:28:59"
   },
   "top_pnl": {
    "path": "top/harden/runs/run/final/pnl",
    "kind": "top_pnl",
    "sha256": "dir_text:d5af7fd96d8b5a47c3998ae525d45a8b76ebe719ed103a4b3c22e5a83e6f74de",
-   "hashed": "2026-11-12T23:42:17"
+   "hashed": "2026-11-13T15:28:59"
   },
   "digital_side_spec": {
    "path": "digital_spec.yaml",
@@ -6700,7 +6765,7 @@
    "path": "top/harden/runs/run/final/spef",
    "kind": "top_spef",
    "sha256": "dir_text:a446a98b3a5d3e95250bff41154db4c0a4f0b5bd7bbdf50e45b8bd0753911033",
-   "hashed": "2026-11-12T23:42:50"
+   "hashed": "2026-11-13T15:28:59"
   },
   "erc_waivers": {
    "path": "spec/erc_waivers.yaml",
@@ -8417,6 +8482,14 @@
    "gate": "release",
    "status": "pass",
    "attempt": 32,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-11-13T15:28:59",
+   "event": "gate",
+   "gate": "top_stress",
+   "status": "pass",
+   "attempt": 1,
    "failing_count": 0
   }
  ]
