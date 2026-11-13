@@ -781,16 +781,16 @@ def test_scope_with_a_reasonless_opt_out_refuses(tmp_path):
 # --- #169: an msde comparator output the split says is async --------------
 
 CMP_IFACE = """\
-version: 1
+version: 2
 signals:
   - {name: cmp_out, direction: a2d, level: cmos_3v3, domain: clk_free,
-     width: 1, load: 2pF}
+     width: 1, load: {cap_ff: 2000}}
 """
 CMP_SIDE = """\
 top: {top}
 interface:
   - {{name: cmp_out, direction: a2d, level: cmos_3v3, domain: clk_free,
-     width: 1, load: 2pF}}
+     width: 1, load: {{cap_ff: 2000}}}}
 """
 CMP_RTL = """\
 module cmp_digital (input wire clk, input wire rst_n, input wire cmp_out,

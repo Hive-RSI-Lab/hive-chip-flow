@@ -2,8 +2,9 @@
 through faults.py's own run_rung: the untouched reference passes every gate
 its faults/manifest.yaml names, and each planted fault is caught with the
 expected finding (docs/design.md section 3). tests/smoke-faults.sh does
-the same for vde by hand; these are marked slow, so tests/check-slow.sh
-(and its CI job) runs them, not tests/check.sh. Only the holdout check of
+the same for vde by hand; these are marked slow, so bin/chip-flow test
+(one CI job per corpus shard) runs them, not tests/check.sh; check-slow.sh
+leaves this file out, as the rungs alone take most of its 1800 s cap. Only the holdout check of
 references no manifest reaches is fast (seconds) and runs there. Measured unmarked on
 2026-10-15: the seven ade and msde rungs run here took about 45 s of CPU
 together (comparator 25 s, mirror 11 s, bandgap 7 s, the rest under 4 s
@@ -14,8 +15,8 @@ msde rungs three to five top hardens each: the clean reference, then each
 plant that hardens the untouched top first; vde counter8 one harden per
 M4 plant, plus mutate twice). They are marked `harden_faults` as well as
 `slow`: check-engine.sh's `not slow` keeps them out of check.sh,
-check-slow.sh's `slow and not harden_faults` keeps them out of its 1800 s
-cap, and tests/check-harden-faults.sh runs them, one CI job per rung (the
+bin/chip-flow test's `slow and not harden_faults` keeps them out of its
+corpus shards, and tests/check-harden-faults.sh runs them, one CI job per rung (the
 `harden-faults` matrix in .github/workflows/harden-faults.yml, which a fast test
 below keeps equal to HARDEN_RUNGS).
 
@@ -187,6 +188,31 @@ def test_split_rungs_run_every_piece_exactly_once():
             "CI, one in two runs twice")
     assert len(set(CORPUS_SHARDS)) == len(CORPUS_SHARDS), CORPUS_SHARDS
     assert "engine" not in CORPUS_SHARDS, "engine is check-engine.sh's job"
+
+
+def test_corpus_rungs_run_in_chip_flow_test_not_check_slow():
+    # The rungs run once per change, in bin/chip-flow test's corpus shards;
+    # check-slow.sh leaving them out is what keeps it under its 1800 s cap,
+    # and is only safe while bin/chip-flow test still runs this file.
+    slow = (REPO / "tests" / "check-slow.sh").read_text()
+    assert "--ignore=tests/test_corpus_faults.py" in slow
+    runner = (REPO / "bin" / "chip-flow").read_text()
+    assert "tests/test_corpus_faults.py" in runner
+    assert '"slow and not harden_faults"' in runner
+
+
+def test_check_slow_parts_name_real_files_and_rest_runs_the_others():
+    # A part naming a file that moved would run nothing and still pass.
+    def part(name):
+        return subprocess.run(
+            ["bash", "-c", 'eval "$(sed -n "/^shard_files()/,/^}/p" '
+             'tests/check-slow.sh)"; shard_files "$1"', "-", name],
+            cwd=REPO, capture_output=True, text=True, check=True).stdout.split()
+    named = part("harden") + part("charlib")
+    rest = part("rest")
+    assert named and all((REPO / f).is_file() for f in named), named
+    assert rest[0] == "tests/"
+    assert sorted(rest[1:]) == sorted(f"--ignore={f}" for f in named), rest
 
 
 def test_ci_matrix_runs_every_corpus_shard():

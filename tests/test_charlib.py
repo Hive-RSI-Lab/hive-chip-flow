@@ -168,6 +168,43 @@ def test_extracted_wins_when_it_exists(tmp_path):
     assert exc.value.kind == "no_netlist"
 
 
+def test_hidden_power_ties_coupling_to_ground():
+    text = ("* x\n.subckt c A Z VDD VNW VSS\n"
+            "C0 A VNW.t0 0.2f\nC1 vdd z 1e-16\nC2 A n1 0.3f m=1\n"
+            "C3 VDD VSS 1f\nM1 Z A VDD VNW pfet\n.ends\n")
+    got = charlib.ground_coupling(text, ["VDD", "VNW", "VSS"]).splitlines()
+    assert got[2:7] == ["C0 A 0 0.2f", "C1 z 0 1e-16", "C2_a A 0 0.3f m=1",
+                        "C2_b n1 0 0.3f m=1", "C3 VDD VSS 1f"]
+    assert got[7] == "M1 Z A VDD VNW pfet"
+
+
+def test_only_hidden_power_runs_on_the_grounded_netlist(tmp_path, monkeypatch):
+    cell = charlib.parse_liberty(
+        CELL.replace("x__inv", "x__nand").replace('"(!I)"', '"(!(A&B))"')
+        .replace("pin(I)", "pin(A)").replace(
+            'related_pin : "I" ;', 'related_pin : "A" ;'))
+    pin_b = "pin(B) { capacitance : 0.0046 ; direction : input ; }"
+    cell = charlib.parse_liberty(charlib.write_liberty(cell).replace(
+        "pin(A)", pin_b + "\n pin(A)", 1))
+    real = tmp_path / "netlist.sp"
+    real.write_text(".subckt x__nand A B ZN VDD VSS\nC0 A VDD 1f\n.ends\n")
+    bench = charlib.Bench("x__nand", real, ["A", "B", "ZN", "VDD", "VSS"],
+                          {"VDD": "primary_power", "VSS": "primary_ground"},
+                          tmp_path, {}, 3.3, tmp_path / "w", TERMS)
+    seen = []
+
+    def fake_pool(b, fn, tasks, jobs):
+        seen.append((fn.__name__, b.netlist.read_text()))
+        return [0.0 if fn.__name__ == "one_hidden" else (True, 0.0)
+                for _ in tasks]
+    monkeypatch.setattr(charlib, "_pool_map", fake_pool)
+    charlib._measure_comb_power(bench, cell, [0.1], [0.01], 1)
+    got = dict(seen)
+    assert "C0 A VDD 1f" in got["one_arc"]
+    assert "C0 A 0 1f" in got["one_hidden"]
+    assert bench.netlist == real and "C0 A VDD 1f" in real.read_text()
+
+
 def test_function_evaluator():
     ev = charlib.eval_function
     assert ev('"(!I)"', {"I": False}) is True
@@ -496,11 +533,18 @@ def _band(rows, kinds, load_min, load_max=1e9):
     return min(picked), max(picked)
 
 
+# nand2_1 adds slew index 4 and load index 0 so the grid holds a point where
+# the A2-related fall energy (when A1) is out of band (+10% on the full grid),
+# an open bug that the default points miss (#322).
 @pytest.mark.slow
-@pytest.mark.parametrize("cell", ["inv_1", "nand2_1"])
-def test_known_answer_extracted_at_real_loads(cell, tmp_path):
+@pytest.mark.parametrize("cell,slews,loads", [
+    ("inv_1", (1, 3), (3, 4)),
+    ("nand2_1", (1, 3, 4), (0, 3, 4)),
+])
+def test_known_answer_extracted_at_real_loads(cell, slews, loads, tmp_path):
     full = f"{LIB}__{cell}"
-    report = _run(cell, tmp_path / "out", extracted=_extract(full, tmp_path))
+    report = _run(cell, tmp_path / "out", extracted=_extract(full, tmp_path),
+                  slews=slews, loads=loads)
     assert report["netlist_kind"] == "extracted"
     assert report["ok"], report["corners"]["tt_025C"]["check"]["failed"]
     _, rows, _ = _compare(report, cell)
@@ -527,21 +571,25 @@ def _assert_power_band(report, cell):
     band = charlib.POWER_BAND_SHIPPED
     ours, theirs = _power_groups(got), _power_groups(ship)
     assert ours and set(ours) <= set(theirs), set(ours) - set(theirs)
+    out = []
     for key, g in ours.items():
         s = theirs[key]
         tol = band["hidden" if g.attr("index_2") is None else "output"]
         slews = charlib.numbers(g.attr("index_1"))
         if g.attr("index_2") is None:
             ship_idx = charlib.numbers(s.attr("index_1"))
-            pairs = [(v, charlib.table(s)[0][charlib._nearest(ship_idx, sl)])
+            pairs = [(sl, None, v,
+                      charlib.table(s)[0][charlib._nearest(ship_idx, sl)])
                      for sl, v in zip(slews, charlib.table(g)[0])]
         else:
             loads = charlib.numbers(g.attr("index_2"))
-            pairs = [(charlib.table(g)[i][j], charlib._lookup(s, sl, ld))
+            pairs = [(sl, ld, charlib.table(g)[i][j], charlib._lookup(s, sl, ld))
                      for i, sl in enumerate(slews) for j, ld in enumerate(loads)]
-        for v, sv in pairs:
-            assert abs(v - sv) <= max(tol["rel"] * abs(sv), tol["abs_pj"]), (
-                key, v, sv)
+        out += [f"{' '.join(map(str, key))} slew {sl} load {ld}: {v:.6g} vs "
+                f"{sv:.6g} ({100 * (v - sv) / sv:+.1f}%)"
+                for sl, ld, v, sv in pairs
+                if abs(v - sv) > max(tol["rel"] * abs(sv), tol["abs_pj"])]
+    assert not out, "out of band:\n" + "\n".join(out)
     low, high = band["leakage_ratio"]
     shipped = {(g.attr("when") or "").strip('"'): float(g.attr("value").strip('"'))
                for g in ship.sub("leakage_power")}

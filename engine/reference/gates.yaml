@@ -410,6 +410,11 @@ gates:
       # 20% of the smaller, else pex_extractors_disagree (kpex is never
       # benched; wire R stays magic's). A dropped net label (extresist
       # loses its coupling C) is caught there even with lost_couplings off.
+      # A block with layout_ref/<block>_stress.yaml also runs the stress stage
+      # (stresslib): every MOS device's gate pairs in those transients against
+      # DRM 14.1.4.2's 3.63 V and the flow's own allowance, junction pairs
+      # against breakdown, in engine/reference/stress_limits.yaml. No block
+      # had the file when this was added, so strength did not change.
       phase: P5
       tool: pex_sim
       strength: 0

@@ -1,0 +1,76 @@
+# Per-device transient stress limits, read by engine/lib/stresslib.py for the
+# opt-in stage of the pex_sim gate. A block opts in with
+# layout_ref/<block>_stress.yaml (see the remediation device_overstress.md).
+# gate_oxide and junction hold the 3.3 V thin-oxide devices. A model naming a
+# `class` is held to that class's DC limit and junction reference instead,
+# under the same allowance rules (floor, repeating, one_off). A block with a
+# MOS model not listed here is refused until its class is added here with its
+# own citation.
+gate_oxide:
+  citation: >-
+    GF180MCU design rule manual 14.1.4.2: 3.63 V maximum DC between the gate
+    and any other FET node (3.3 V devices); the gate-node voltage may
+    periodically exceed the DC maximum depending on duty cycle (TDDB).
+  own_numbers: >-
+    The manual publishes no numbers for that allowance. The bounds below are
+    this flow's own, chosen on principle and not fitted to any macro.
+  dc_limit_v: 3.63
+  # less than this over the limit is below what device ratings and models
+  # resolve (a held node's real uV RC tail through its switch), not timed as stress (ours)
+  floor_v: 0.001
+  # an excess that repeats, judged per cycle of a declared repeating window:
+  # peak over dc_limit_v, the share of the cycle spent more than
+  # share_band_v over it, and the cycle average under dc_limit_v
+  repeating:
+    peak_over_v: 0.100
+    time_over_share: 0.02
+    # Provisional, a project ruling (not a manual number): time within this
+    # band over the limit does not count toward the share. Every device that
+    # passes only because of the band is listed in the report. To be checked
+    # against the PDK documents; if they disagree, they win.
+    share_band_v: 0.050
+  # a one-off edge (enable, start-up): each excursion outside those windows
+  one_off:
+    peak_over_v: 0.300
+    time_over_s: 1.0e-6
+    # a project ruling (ours): a one-off peak this close to peak_over_v,
+    # either side, needs the deck rerun at its fine_step_s before it is
+    # judged; the gate fails until the deck declares one
+    near_bound_v: 0.010
+junction:
+  citation: >-
+    The GF180MCU design rule manual gives no number for a drain, source or
+    body junction: 14.1.4.2 covers the gate only, and 14.1.4.1 (hot carriers,
+    drain-source) asks that the supply stay within 10% over Vdd for any
+    significant time, with no number. The limit here is the minimum BVDSS of
+    the PDK electrical specification, 3.3 V devices, W/L 10/0.28.
+  # junction pairs above this are listed with peak and time, not failed
+  dc_reference_v: 3.63
+classes:
+  # The 5 V (thick gate) devices the gf180mcu 5 V standard cells are built of.
+  05v0:
+    gate_oxide:
+      citation: >-
+        GF180MCU design rule manual 14.1.2: for the high-voltage (5 V/6 V)
+        devices, drain and gate voltages shall not exceed the maximum
+        operating voltage (5 V) by more than 10%, so 5.5 V. 14.1.4.2 gives
+        the DC gate-node maximum for the thick gate as "6.5V/6V for 5V/6V
+        process"; the lower of the two figures is the limit.
+      dc_limit_v: 5.5
+    junction:
+      citation: >-
+        GF180MCU design rule manual 14.1.2 (drain voltage within 10% over the
+        5 V maximum operating voltage) and 14.1.4.1 (hot carriers, supply
+        within 10% over Vdd). Breakdown: the minimum BVDSS of the PDK
+        electrical specification 3.0, 5 V devices (NE2 W/L 10/0.6, PE2 W/L
+        10/0.5), 8.5 V for both.
+      dc_reference_v: 5.5
+models:
+  nfet_03v3: {kind: mos, breakdown_v: 7.0}
+  pfet_03v3: {kind: mos, breakdown_v: 6.5}
+  cap_nmos_03v3: {kind: cap}
+  cap_nmos_03v3_b: {kind: cap}
+  cap_pmos_03v3: {kind: cap}
+  cap_pmos_03v3_b: {kind: cap}
+  nfet_05v0: {kind: mos, breakdown_v: 8.5, class: 05v0}
+  pfet_05v0: {kind: mos, breakdown_v: 8.5, class: 05v0}
