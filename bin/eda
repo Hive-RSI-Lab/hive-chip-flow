@@ -215,7 +215,9 @@ fi
 # not /proc/self/exe) but yosys calls readlink("/proc/self/exe") itself to
 # find its share/ directory, and fails outright without it. The preload
 # below intercepts exactly that one readlink() and answers with whatever
-# EDA_FAKE_SELF_EXE says, source-built with the image's own gcc rather than
+# EDA_FAKE_SELF_EXE says - but only while the real answer is ld.so itself,
+# so a host binary exec'd normally from inside a tool still sees its own
+# path - source-built with the image's own gcc rather than
 # vendoring a prebuilt patchelf or similar into the repo.
 FAKEEXE_SO=""
 fakeexe_so() {
@@ -243,13 +245,26 @@ ssize_t readlink(const char *path, char *buf, size_t bufsiz) {
     static ssize_t (*real_readlink)(const char *, char *, size_t) = 0;
     if (!real_readlink)
         real_readlink = (ssize_t (*)(const char *, char *, size_t))dlsym(RTLD_NEXT, "readlink");
-    if (path && strcmp(path, "/proc/self/exe") == 0) {
-        const char *fake = getenv("EDA_FAKE_SELF_EXE");
-        if (fake) {
-            size_t len = strlen(fake);
-            if (len > bufsiz) len = bufsiz;
-            memcpy(buf, fake, len);
-            return (ssize_t)len;
+    const char *fake = getenv("EDA_FAKE_SELF_EXE");
+    if (fake && path && strcmp(path, "/proc/self/exe") == 0) {
+        /* Only a process the image loader started (ld.so is its exe) gets
+           the fake answer. LD_PRELOAD and EDA_FAKE_SELF_EXE are inherited,
+           so a host binary a tool runs (the LVS deck's `pmap | tail`) has
+           them too, and since rust-coreutils 0.10 a coreutils multicall
+           refuses to run when its exe is not itself ("Security violation:
+           Requested utility `tail` does not match executable name"). */
+        char real[4096];
+        ssize_t n = real_readlink(path, real, sizeof real - 1);
+        if (n >= 0) {
+            real[n] = 0;
+            const char *base = strrchr(real, '/');
+            base = base ? base + 1 : real;
+            if (strncmp(base, "ld-linux", 8) == 0) {
+                size_t len = strlen(fake);
+                if (len > bufsiz) len = bufsiz;
+                memcpy(buf, fake, len);
+                return (ssize_t)len;
+            }
         }
     }
     return real_readlink(path, buf, bufsiz);

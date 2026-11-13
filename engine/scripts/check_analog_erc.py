@@ -135,6 +135,18 @@ DIODES = ("diode_nd2ps_03v3", "diode_pd2nw_03v3", "diode_nd2ps_06v0",
 CAPS = ("cap_mim_1f5fF", "cap_mim_1f0fF", "cap_mim_2f0fF",
         "cap_mim_2f0_m4m5_noshield", "cap_mim_1f5_m4m5_noshield",
         "cap_mim_1f0_m4m5_noshield")
+# MOS caps: the PDK models each as a two-terminal cap (terminal 1 the poly
+# gate, terminal 2 the diffusion and well under it; sm141064.ngspice), but
+# its limit is the gate oxide of its MOS class. Each goes to CVC as a MOS
+# with drain, source and bulk all on terminal 2 (it never conducts), so
+# CVC checks gate to well against the class rating (overvoltage_vgs/vbg)
+# and flags a gate nothing drives. (CVC type, Vth, oxide limit.)
+MOSCAPS = {
+    "cap_nmos_03v3": ("N", 0.6, _LV), "cap_pmos_03v3": ("P", -0.6, _LV),
+    "cap_nmos_03v3_b": ("N", 0.6, _LV), "cap_pmos_03v3_b": ("P", -0.6, _LV),
+    "cap_nmos_06v0": ("N", 0.7, _HV), "cap_pmos_06v0": ("P", -0.7, _HV),
+    "cap_nmos_06v0_b": ("N", 0.7, _HV), "cap_pmos_06v0_b": ("P", -0.7, _HV),
+}
 # Bipolars: GF180MCU's vertical PNP (collector = p-substrate, base = nwell,
 # emitter = P+) and its deep-nwell NPN (collector = deep nwell, base =
 # pwell, emitter = N+, substrate = p-substrate). The PDK lists both in its
@@ -230,6 +242,8 @@ def device_class(model: str) -> str | None:
         return "diode"
     if m in CAPS:
         return "cap"
+    if m in MOSCAPS:
+        return "moscap"
     if m in BJT:
         return "bjt"
     return None
@@ -258,10 +272,11 @@ def to_cdl(spice: str, topcell: str):
     ext2spice writes every PDK device as a subcircuit call (`X0 d g s b
     nfet_03v3 ... w=8u l=0.5u`); CVC matches models on the CDL letter, so
     a MOS becomes `M0`, a resistor `R0` (two terminals, `w`/`l` for CVC's
-    `R=l/w*rsh`), a MIM cap `C0`, a diode `D0`. A BJT (`X0 c b e [s]
-    pnp_...`) becomes one diode per junction, `DQ0_eb` and so on, each on
-    its own CVC model `<model>_<junction>` (JUNCTIONS). Any other device
-    class refuses."""
+    `R=l/w*rsh`), a MIM cap `C0`, a diode `D0`, a MOS cap (`X0 g w
+    cap_nmos_03v3_b c_width= c_length=`) a MOS `M0` with drain, source and
+    bulk on its well terminal (MOSCAPS). A BJT (`X0 c b e [s] pnp_...`)
+    becomes one diode per junction, `DQ0_eb` and so on, each on its own CVC
+    model `<model>_<junction>` (JUNCTIONS). Any other device class refuses."""
     lines = []
     for raw in spice.splitlines():
         if raw.startswith("+") and lines:
@@ -337,6 +352,13 @@ def to_cdl(spice: str, topcell: str):
             name, w, length = f"C{num}", None, None
             out.append(f"{name} {nets[0]} {nets[1]} {model}")
             terms = dict(zip("ab", nets))
+        elif cls == "moscap" and len(nets) == 2:
+            name = f"M{num}"
+            w = _um(params.get("c_width", params.get("w")))
+            length = _um(params.get("c_length", params.get("l")))
+            g, b = nets
+            out.append(f"{name} {b} {g} {b} {b} {model} w={w}u l={length}u")
+            terms = {"g": g, "b": b}
         elif cls == "diode" and len(nets) == 2:
             name, w, length = f"D{num}", None, None
             out.append(f"{name} {nets[0]} {nets[1]} {model}")
@@ -375,6 +397,10 @@ def model_file(devices: dict) -> str:
             typ, vth, vg, vd = MOS[model.lower()]
             lines.append(f"M{typ} {model} Vth={vth} Vgs={vg} Vbg={vg} "
                          f"Vds={vd} Vbs={vd}")
+        elif cls == "moscap":
+            typ, vth, vg = MOSCAPS[model.lower()]
+            lines.append(f"M{typ} {model} Vth={vth} Vgs={vg} Vbg={vg} "
+                         f"Vds={vg} Vbs={vg}")
         elif cls == "res":
             lines.append(f"R {model} R=l/w*{RES[model.lower()]}")
         elif cls == "diode":

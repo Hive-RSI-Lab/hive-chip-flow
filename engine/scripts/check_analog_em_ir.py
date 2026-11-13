@@ -51,7 +51,9 @@ there). A resistor's bulk terminal (its well or substrate pin), and both
 heads of a dummy resistor (both on one net), carry only the body's
 displacement current or a strap's own drop, and magic writes them at the
 device: they are handed on along the extracted resistors, never refused
-for distance (emirlib.handed_on_nodes).
+for distance (emirlib.handed_on_nodes). So is a MOS's bulk terminal, and
+the deviceless well or substrate pieces magic splits off between such
+terminals, far from any metal of the net (emirlib.body_nodes).
 
 Findings: em_wire_over, em_cut_over, ir_drop_over, em_res_body_over,
 em_res_contact_over, and in the transient em_wire_over / em_cut_over /
@@ -128,12 +130,22 @@ def _with_control(bench_text: str, tail: str, what: str) -> str:
     return bench_text[:at] + tail + bench_text[at:]
 
 
+# significant digits of the op print (with_op)
+NUMDGT = 12
+
+
 def with_op(bench_text: str, probes=()) -> str:
     """The op bench with `op`, `print all` (every node voltage) and a print
-    of each resistor body current probe."""
+    of each resistor body current probe, at NUMDGT significant digits.
+    ngspice's default 6 leaves a node voltage good to about 1 uV, and
+    injections() turns that into the current of each extracted resistor:
+    over a few ohms of well or strap it is tens of nA of rounding, enough
+    to give a node with no device on it a current above I_FLOOR_A and so a
+    position to defend. At 12 digits the rounding is a few pA."""
     prints = "".join(f"print {p}\n" for p in probes)
     return _with_control(
-        bench_text, ".control\nset noaskquit\nop\nprint all\n" + prints
+        bench_text, f".control\nset noaskquit\nset numdgt={NUMDGT}\nop\n"
+        "print all\n" + prints
         + ".endc\n", "op")
 
 
@@ -645,7 +657,9 @@ def run(argv=None):
     except emirlib.EmirError as exc:
         raise CheckError(str(exc)) from exc
     probes = [r.probe(INST) for r in insts]
-    bulk = emirlib.handed_on_nodes(insts)
+    _terms, mos_bulks = emirlib.device_terminals(raw_text, topcell)
+    bulk = emirlib.body_nodes(emirlib.handed_on_nodes(insts, mos_bulks),
+                              _terms, resistors, fh, rnodes)
     tran_tpl = find_tran_bench(ws, block)
 
     if spec is None:
