@@ -102,8 +102,30 @@ def test_injections_and_bound():
 
 
 def test_bound_refuses_a_current_with_no_geometry():
+    # 1 mA: over one 0.14 mA cut and over 0.23 um of metal1 at 0.67 mA/um
     with pytest.raises(emirlib.EmirError, match="no geometry"):
         emirlib.net_bound("vdd", {"vdd": 1e-3}, None, LIM)
+    # 0.15 mA: under 0.23 um x 0.67 mA/um (0.154 mA) but over one cut
+    with pytest.raises(emirlib.EmirError, match="no geometry"):
+        emirlib.net_bound("x", {"x": 0.15e-3}, None, LIM)
+
+
+def test_bound_holds_a_net_with_no_geometry_to_the_narrowest_drc_wire():
+    b = emirlib.net_bound("x", {"x": 74e-6, "x.t0": -74e-6}, None, LIM)
+    assert b["no_geometry"] is True
+    assert b["w_min_um"] == pytest.approx(0.23)
+    assert b["wire_ratio"] == pytest.approx(74e-6 / 0.23e-6 / 670.0)
+    assert b["cut_ratio"] == pytest.approx(74e-6 / 0.14e-3)
+    # under the floor it is not a current at all
+    assert "no_geometry" not in emirlib.net_bound("x", {"x": 1e-12}, None,
+                                                  LIM)
+
+
+def test_limits_give_every_metal_its_drc_min_width():
+    assert {n: r["min_width"] for n, r in LIM["layers"].items()
+            if r["metal"]} == {"metal1": 0.23, "metal2": 0.28,
+                               "metal3": 0.28, "metal4": 0.28,
+                               "metal5": 0.36}
 
 
 def test_injections_refuse_a_node_with_no_voltage():

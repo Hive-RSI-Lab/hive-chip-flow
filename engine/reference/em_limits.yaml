@@ -30,13 +30,16 @@
 # net carries comes from the operating point, never from these.
 temperature_c: 125
 
-# wires: limit in mA per um of drawn width
+# wires: limit in mA per um of drawn width. min_width_um is the DRC's
+# least width for the layer (the PDK klayout deck: M1.1 0.23, M2.1-M4.1
+# 0.28, MT.1 0.36 for the thinnest top metal), the narrowest any wire of a
+# DRC-clean layout can be: it bounds a net magic writes no geometry for
 wires:
-  metal1: {thick: 0.55, limit_ma_per_um: 0.67, sheet_ohm: 0.090}
-  metal2: {thick: 0.55, limit_ma_per_um: 0.67, sheet_ohm: 0.090}
-  metal3: {thick: 0.55, limit_ma_per_um: 0.67, sheet_ohm: 0.090}
-  metal4: {thick: 0.55, limit_ma_per_um: 0.67, sheet_ohm: 0.090}
-  metal5: {thick: 1.00, limit_ma_per_um: 1.21, sheet_ohm: 0.040}
+  metal1: {thick: 0.55, limit_ma_per_um: 0.67, sheet_ohm: 0.090, min_width_um: 0.23}
+  metal2: {thick: 0.55, limit_ma_per_um: 0.67, sheet_ohm: 0.090, min_width_um: 0.28}
+  metal3: {thick: 0.55, limit_ma_per_um: 0.67, sheet_ohm: 0.090, min_width_um: 0.28}
+  metal4: {thick: 0.55, limit_ma_per_um: 0.67, sheet_ohm: 0.090, min_width_um: 0.28}
+  metal5: {thick: 1.00, limit_ma_per_um: 1.21, sheet_ohm: 0.040, min_width_um: 0.36}
 
 # layers under metal1 a net runs in but the DRM gives no wire limit for
 # (diffusion, poly, wells): the solve needs their resistance, EM skips them

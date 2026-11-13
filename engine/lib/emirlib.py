@@ -86,9 +86,10 @@ IR. A supply net's drop is the worst |V(node) - V(pin)| over its extracted
 nodes, straight from the operating point.
 
 Refuses rather than guesses: a thickness with no layer, a device current
-with no FastHenry node near it, a current with no geometry, a layer
-change with no cut within reach, or substrate current in a cell with no
-substrate tap is an EmirError, never a skipped wire.
+with no FastHenry node near it, a current with no geometry that the DRC's
+narrowest wire or a single cut could not carry, a layer change with no cut
+within reach, or substrate current in a cell with no substrate tap is an
+EmirError, never a skipped wire.
 """
 from __future__ import annotations
 
@@ -140,6 +141,7 @@ def load_limits(path=REFERENCE) -> dict:
             layers[name] = {"thick": float(row["thick"]),
                             "sheet": float(row["sheet_ohm"]),
                             "limit": float(row["limit_ma_per_um"]) * 1e-3 / 1e-6,
+                            "min_width": float(row["min_width_um"]),
                             "metal": True}
         for name, row in data["under_metal1"].items():
             layers[name] = {"thick": float(row["thick"]),
@@ -402,6 +404,11 @@ def net_bound(name: str, inj: dict, net: FhNet | None,
     (i_total against the tightest per-cut limit) at or under 1 pass the net
     with nothing guessed; over 1 the gate looks closer (tier two).
 
+    A net magic's FastHenry writer gives no geometry (it can leave out a
+    small net extresist split all the same) is held, whole, to the DRC's
+    narrowest wire of any metal layer at the tightest wire limit and to
+    one cut: it passes flagged `no_geometry`, or is refused.
+
     `i_total`, given, stands for the sum (a transient's pulsed_stat of it:
     one current that each pulsed rule holds to the DC limit)."""
     name = name.lower()
@@ -418,12 +425,25 @@ def net_bound(name: str, inj: dict, net: FhNet | None,
                 continue
             w_min = w if w_min is None else min(w_min, w)
             wire_ratio = max(wire_ratio, i_total / (w * 1e-6) / min(lims))
-    elif i_total >= I_FLOOR_A:
-        raise EmirError(f"net {name} carries {i_total:.3g} A but magic's "
-                        "FastHenry file has no geometry for it")
     cut_limit = min(c["limit"] for c in limits["cuts"].values())
+    cut_ratio = i_total / cut_limit
+    if net is None and i_total >= I_FLOOR_A:
+        # No geometry: the narrowest wire the DRC lets any metal layer have,
+        # at the tightest wire limit, and one cut. Over 1 there is nothing
+        # closer to look at, so it is refused.
+        metals = [r for r in limits["layers"].values() if r["metal"]]
+        w_min = min(r["min_width"] for r in metals)
+        wire_ratio = i_total / (w_min * 1e-6) / min(r["limit"] for r in metals)
+        if wire_ratio > 1.0 or cut_ratio > 1.0:
+            raise EmirError(
+                f"net {name} carries {i_total:.3g} A but magic's FastHenry "
+                f"file has no geometry for it, and at the DRC's narrowest "
+                f"wire ({w_min:g} um) or one cut that is over the limit")
+        return {"net": name, "i_total": i_total, "w_min_um": w_min,
+                "wire_ratio": wire_ratio, "cut_ratio": cut_ratio,
+                "no_geometry": True}
     return {"net": name, "i_total": i_total, "w_min_um": w_min,
-            "wire_ratio": wire_ratio, "cut_ratio": i_total / cut_limit}
+            "wire_ratio": wire_ratio, "cut_ratio": cut_ratio}
 
 
 @dataclass
