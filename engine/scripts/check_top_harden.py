@@ -49,7 +49,15 @@ named like vdd goes to VPWR and the one like vss to VGND (PDN macro hookup).
 The macro sits in the middle of the tile, slid along x by whole sites (no
 further than one stripe pitch) to where the tile's Metal4 stripes reach
 both its supplies past the cell's own Metal4 (power_location); where none
-does, that is a `macro_power_unreachable` finding (no harden runs). With no
+does, that is a `macro_power_unreachable` finding (no harden runs). When,
+centred, the macro and its PDN halo leave no full std-cell row above or
+below it, the tile (no Metal5; horizontal power only on the rows' Metal1
+rails) would split into two power grids, so the macro goes to the side
+edge that keeps its signal pins facing the std-cell block, slid only as
+far as its halo still covers the strip to that edge (place_macro, which
+logs the choice; the report's macros carry it as `placement`). A placement
+that still splits the grid is a `macro_splits_power_grid` finding naming
+the island (no harden runs), not PSM-0069 at the harden's end. With no
 PR boundary, the macro's GDS gets one over what it draws (clean_gds),
 which LibreLane's Magic.StreamOut needs. The recipe - LEF by magic's `lef
 write`, the PDN's Metal3-Metal4 connect, extraction from GDS - is
@@ -120,6 +128,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import re
 import shutil
@@ -709,11 +718,14 @@ def supply_reach(lef: Path, pin: str, half: float,
 
 def power_location(macro: dict, die_area: str, start: list[float],
                    stripes: list[tuple[str, float]], half: float,
-                   pitch: float) -> list[float] | None:
+                   pitch: float,
+                   bounds: tuple[float, float] | None = None
+                   ) -> list[float] | None:
     """The macro's lower-left nearest `start` along x, on the site grid and
     no further than one stripe `pitch`, where a stripe of VPWR reaches its
     vdd pin and one of VGND its vss pin (supply_reach); None when no such
-    place keeps it in the die."""
+    place keeps it in the die, or with `bounds` (lo, hi) its lower-left x
+    in lo..hi (edge_location's window)."""
     lef = Path(macro["files"]["lef"])
     w = macro_size(lef, Path(macro["files"]["gds"]), macro["cell"])[0]
     reach = {net: supply_reach(lef, macro["power"][side], half)
@@ -723,6 +735,8 @@ def power_location(macro: dict, die_area: str, start: list[float],
     for n in sorted(range(-steps, steps + 1), key=lambda k: (abs(k), k)):
         x = round(start[0] + n * ttlib.SITE_WIDTH_UM, 2)
         if x < 0 or x + w > dx:
+            continue
+        if bounds and not bounds[0] - 1e-6 <= x <= bounds[1] + 1e-6:
             continue
         if all(any(a <= c - x <= b for net_c, c in stripes if net_c == net
                    for a, b in spans) for net, spans in reach.items()):
@@ -780,6 +794,188 @@ def centre(die_area: str, w: float, h: float) -> list[float] | None:
         return None
     return [round(round((dx - w) / 2 / 0.56) * 0.56, 2),
             round(round((dy - h) / 2 / 3.92) * 3.92, 2)]
+
+
+ROW_HEIGHT_UM = 3.92
+
+
+def core_box(die_area: str) -> tuple[float, float, float, float]:
+    """The tile's core (where its std-cell rows are), from the template's
+    *_MARGIN_MULT: sites at the left and right, rows at the bottom and top."""
+    template = ttlib.load_template_config()
+    _x0, _y0, dx, dy = (float(v) for v in die_area.split())
+    site = ttlib.SITE_WIDTH_UM
+    return (float(template.get("LEFT_MARGIN_MULT", 0)) * site,
+            float(template.get("BOTTOM_MARGIN_MULT", 0)) * ROW_HEIGHT_UM,
+            dx - float(template.get("RIGHT_MARGIN_MULT", 0)) * site,
+            dy - float(template.get("TOP_MARGIN_MULT", 0)) * ROW_HEIGHT_UM)
+
+
+def row_passes(die_area: str, location: list[float], h: float,
+               halo: float = ttlib.MACRO_PDN_HALO_UM) -> bool:
+    """Whether at least one full std-cell row of the core runs below or
+    above the macro grown by its PDN halo. The tile has no Metal5, so its
+    only horizontal power is the rows' Metal1 rails, which the PDN cuts at
+    the halo: with no row past the macro, the cells on its left and on its
+    right are two grids that nothing joins."""
+    _cx0, cy0, _cx1, cy1 = core_box(die_area)
+    lo, hi = location[1] - halo, location[1] + h + halo
+    rows = int(round((cy1 - cy0) / ROW_HEIGHT_UM))
+    return any(cy0 + (r + 1) * ROW_HEIGHT_UM <= lo + 1e-6
+               or cy0 + r * ROW_HEIGHT_UM >= hi - 1e-6 for r in range(rows))
+
+
+def signal_side(macro: dict, w: float) -> tuple[str | None, list[str]]:
+    """Which side of the macro ("left" or "right") its digital signal pins
+    (macro["pins"]) sit on, by their mean x against the cell's middle, and
+    those pins; None when they have no shape or sit in the middle."""
+    lef = Path(macro["files"]["lef"])
+    text = lef.read_text(encoding="utf-8", errors="replace")
+    centres, named = [], []
+    for pin in sorted(macro.get("pins") or {}):
+        m = re.search(rf"^\s*PIN\s+{re.escape(pin)}\s*$(.*?)^\s*END\s+"
+                      rf"{re.escape(pin)}\s*$", text, re.MULTILINE | re.DOTALL)
+        if not m:
+            continue
+        rects = [[float(v) for v in r.split()[:4]] for r in
+                 re.findall(r"RECT\s+([-\d.\s]+);", m.group(1))]
+        if rects:
+            named.append(pin)
+            centres += [(r[0] + r[2]) / 2 for r in rects]
+    if not centres:
+        return None, named
+    mean = sum(centres) / len(centres)
+    if abs(mean - w / 2) < ttlib.SITE_WIDTH_UM:
+        return None, named
+    return ("right" if mean > w / 2 else "left"), named
+
+
+def edge_location(die_area: str, w: float, start: list[float], face: str,
+                  halo: float = ttlib.MACRO_PDN_HALO_UM
+                  ) -> tuple[list[float], tuple[float, float]]:
+    """The lower-left that puts the macro against the core's side edge
+    away from `face` (the side its signal pins are on, which then faces
+    the std-cell block), y kept, on the site grid; and the window of x
+    (lo, hi) that power_location may slide it in while its PDN halo still
+    covers the strip between it and that edge, so no std-cell row can sit
+    there cut off from the rest."""
+    cx0, _cy0, cx1, _cy1 = core_box(die_area)
+    site = ttlib.SITE_WIDTH_UM
+    if face == "right":
+        lo = round(math.ceil(cx0 / site - 1e-6) * site, 2)
+        return [lo, start[1]], (lo, cx0 + halo)
+    hi = round(math.floor((cx1 - w) / site + 1e-6) * site, 2)
+    return [hi, start[1]], (cx1 - halo - w, hi)
+
+
+def row_location(die_area: str, h: float, x: float,
+                 halo: float = ttlib.MACRO_PDN_HALO_UM) -> list[float] | None:
+    """The macro against the core's bottom edge, else its top edge, on the
+    row grid, whichever leaves a full std-cell row past it and its halo
+    (row_passes); None when neither does. At the side edge the macro's own
+    supply stripes reach the cell grid only through such a row: with none,
+    they are an island tied to nothing but the macro, and the harden's
+    IR-drop check, which needs each net to be one connected grid, fails
+    (PSM-0069)."""
+    _cx0, cy0, _cx1, cy1 = core_box(die_area)
+    rows = int(round((cy1 - cy0) / ROW_HEIGHT_UM))
+    top = cy0 + math.floor((cy1 - cy0 - h) / ROW_HEIGHT_UM + 1e-6) \
+        * ROW_HEIGHT_UM
+    for y in (cy0, top):
+        if y >= cy0 - 1e-6 and rows and row_passes(die_area, [x, y], h, halo):
+            return [x, round(y, 2)]
+    return None
+
+
+def power_split(die_area: str, location: list[float], w: float, h: float,
+                halo: float = ttlib.MACRO_PDN_HALO_UM) -> dict | None:
+    """With no full std-cell row past the macro and its halo (row_passes),
+    the core's strips left and right of it, each as (x0, x1) um, when both
+    can hold cells: two blocks the tile's power grid does not join, which
+    the harden's IR-drop check (PSM-0069) refuses only at its end. `island`
+    names the narrower one. With cells on one side only (the macro at a
+    side edge), the island is the macro's own supply stripes, which
+    nothing then joins to the cells' grid: `island` is "macro", at the
+    macro's x span. None when the grid is whole."""
+    if row_passes(die_area, location, h, halo):
+        return None
+    cx0, _cy0, cx1, _cy1 = core_box(die_area)
+    left = (round(cx0, 2), round(location[0] - halo, 2))
+    right = (round(location[0] + w + halo, 2), round(cx1, 2))
+    narrow = [side for side, (a, b) in (("left", left), ("right", right))
+              if b - a < ttlib.SITE_WIDTH_UM]
+    if len(narrow) == 2:
+        return None
+    if narrow:
+        island = "macro"
+    else:
+        island = "left" if left[1] - left[0] < right[1] - right[0] \
+            else "right"
+    return {"left": list(left), "right": list(right), "island": island,
+            "macro": [round(location[0], 2), round(location[0] + w, 2)],
+            "macro_y": [round(location[1] - halo, 2),
+                        round(location[1] + h + halo, 2)],
+            "halo": halo}
+
+
+def split_message(m: dict, sp: dict) -> str:
+    """The macro_splits_power_grid message for power_split's `sp`."""
+    isl = sp[sp["island"]]
+    head = (f"the analog macro {m['cell']} at {m['location']} with its "
+            f"{sp['halo']:g} um PDN halo covers y {sp['macro_y'][0]:g}.."
+            f"{sp['macro_y'][1]:g} um, every std-cell row of the core")
+    if sp["island"] == "macro":
+        return (head + ", and has cells on one side only: its own supply "
+                f"stripes (x {isl[0]:g}..{isl[1]:g} um) reach no row, so "
+                "they are an island tied only to the macro, which the "
+                "harden's IR-drop check would refuse at its end "
+                "(PSM-0069: each net must be one connected grid); make "
+                "the macro shorter so a std-cell row runs past it")
+    return (head + f", so the cells left of it (x {sp['left'][0]:g}.."
+            f"{sp['left'][1]:g} um) and right of it (x {sp['right'][0]:g}.."
+            f"{sp['right'][1]:g} um) are two power grids: the tile has no "
+            "Metal5 and its only horizontal power is the rows' Metal1 "
+            f"rails, which the halo cuts. The {sp['island']} block (x "
+            f"{isl[0]:g}..{isl[1]:g} um) is an island the harden's IR-drop "
+            "check would refuse at its end (PSM-0069); make the macro "
+            "shorter, or let it sit at a side edge with its signal pins "
+            "facing the std-cell block")
+
+
+def place_macro(macro: dict, die_area: str, size: tuple[float, float]
+                ) -> tuple[list[float] | None, str, tuple | None]:
+    """centre, unless the macro and its PDN halo then leave no full
+    std-cell row above or below it (row_passes): then edge_location, at
+    the side edge that keeps its signal pins facing the std-cell block.
+    Returns the lower-left, a note on the choice (logged and kept in the
+    report's macros) and power_location's x bounds (None when centred)."""
+    w, h = size
+    loc = centre(die_area, w, h)
+    if loc is None:
+        return None, "larger than the tile", None
+    if row_passes(die_area, loc, h):
+        return loc, "centred", None
+    face, pins = signal_side(macro, w)
+    why = (f"its signal pins ({', '.join(pins)}) are on its {face} side"
+           if face else "its signal pins give no side, so the left edge "
+           "by default")
+    face = face or "right"
+    loc, bounds = edge_location(die_area, w, loc, face)
+    edge = "left" if face == "right" else "right"
+    row = row_location(die_area, h, loc[0])
+    if row is not None:
+        _cx0, cy0, _cx1, _cy1 = core_box(die_area)
+        vert = "bottom" if abs(row[1] - cy0) < 1e-6 else "top"
+        loc = row
+    note = (f"at the {edge} edge: centred, it and its "
+            f"{ttlib.MACRO_PDN_HALO_UM:g} um PDN halo leave no full "
+            "std-cell row above or below it, which would split the power "
+            f"grid in two; {why}, so they face the std-cell block")
+    if row is not None:
+        note += (f"; and at the {vert} edge, so full std-cell rows run "
+                 "past it and join its supply stripes to the cell grid")
+    print(f"check_top_harden: macro {macro['cell']} {note}", file=sys.stderr)
+    return loc, note, bounds
 
 
 def pad_signals(iface: dict) -> set[str]:
@@ -1086,7 +1282,8 @@ def assemble(ws: Path) -> tuple[Path, dict]:
     tspec = ttlib.macro_top_spec(dspec, macro, set(signals) - pads,
                                  iface.get("tiles"))
     tiles = ttlib.spec_tiles(tspec)
-    macro["location"] = centre(ttlib.tile_die_area(tiles), *size)
+    macro["location"], macro["placement"], bounds = place_macro(
+        macro, ttlib.tile_die_area(tiles), size)
     macro["size_um"] = list(size)
     if macro["location"] is None:
         return top, tspec
@@ -1105,13 +1302,18 @@ def assemble(ws: Path) -> tuple[Path, dict]:
         except ttlib.TTError as exc:
             raise CheckError(str(exc)) from exc
         placed = power_location(macro, die, macro["location"], stripes,
-                                pdn["PDN_VWIDTH"] / 2, pdn["PDN_VPITCH"])
+                                pdn["PDN_VWIDTH"] / 2, pdn["PDN_VPITCH"],
+                                bounds)
         if placed is None:
             tspec["power_unreached"] = {
                 "width": pdn["PDN_VWIDTH"], "halo": ttlib.MACRO_PDN_HALO_UM,
                 "step": pdn["PDN_VWIDTH"] + pdn["PDN_VSPACING"]}
             return top, tspec
         macro["location"] = placed
+    split = power_split(ttlib.tile_die_area(tiles), macro["location"], *size)
+    if split:
+        tspec["power_split"] = split
+        return top, tspec
     problems = ttlib.validate_tt_pins(tspec)
     if problems:
         raise CheckError("the assembled top's pins do not fit: "
@@ -1535,7 +1737,7 @@ def run(argv=None):
     except layoutlib.LayoutError as exc:
         raise CheckError(str(exc)) from exc
     macros = [{k: m[k] for k in ("cell", "instance", "location", "size_um",
-                                 "pins", "ua", "dont_touch_pins",
+                                 "placement", "pins", "ua", "dont_touch_pins",
                                  "clock_pins") if k in m}
               for m in spec["macros"]]
     too_big = [m for m in macros if m["location"] is None]
@@ -1608,6 +1810,16 @@ def run(argv=None):
             f"{col + pdn['step']:g} um wide crossing a strap of each always "
             "fits", SCRIPT)
             for m in unreached]
+        payload = checklib.report(SCRIPT, ws / "digital" / "rtl", violations,
+                                  macros=macros)
+        return payload, args.out
+    if spec.get("power_split"):
+        sp = spec["power_split"]
+        isl = sp[sp["island"]]
+        violations = [checklib.violation(
+            "top_harden", "error", None, m["cell"], "macro_splits_power_grid",
+            [f"island x {isl[0]:g}..{isl[1]:g} um"],
+            split_message(m, sp), SCRIPT) for m in spec["macros"]]
         payload = checklib.report(SCRIPT, ws / "digital" / "rtl", violations,
                                   macros=macros)
         return payload, args.out
