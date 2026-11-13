@@ -18,7 +18,7 @@
 # with the analog GDS as a LibreLane macro. It is a `job: true` gate, so it
 # is started with jobs.py and polled, never scheduled as a `gate:` step -
 # which is also why `integrate` lists it in no `gates:` (the router would
-# append it after top_erc).
+# append it after top_stress).
 
 version: 1
 verbs:
@@ -27,7 +27,7 @@ verbs:
   full-run:
     summary: The whole mixed-signal pipeline, spec.md to a released tile -
       P1 split, P2 the two nested runs (each to its own release), P3 cosim
-      and the top gates (boundary, macro_lib, top_harden, top_drc, top_lvs, top_erc), P4 release with H2.
+      and the top gates (boundary, macro_lib, top_harden, top_drc, top_lvs, top_erc, top_stress), P4 release with H2.
       Overrides the engine's own placeholder.
     doc: skills/msde/reference/recipes/full-run.md
     workspace: created
@@ -125,6 +125,10 @@ verbs:
         why: "CVC on the flat transistor netlist, the macro included: no
               floating gate, overvoltage, forward-biased junction or
               supply-to-supply leak, powered and held in reset"
+      - gate: top_stress
+        why: "every standard-cell type the top uses, simulated alone at the
+              fast corners and the supply +10%: no device past its class's
+              documented limit (#328)"
       - gate: precheck
         why: "the shuttle's own signoff on top/harden's GDS - pins against
               the tile template, and on an analog tile metal on exactly the
@@ -176,7 +180,7 @@ verbs:
         why: "fresh context; edits interface.yaml, digital_spec.yaml and
               analog_spec.yaml together, never one alone. No web tools."
       - do: "scripts/state.py edit --workspace {ws} --class interface_edit --note \"split\""
-        why: "marks split, cosim, boundary, macro_lib, top_harden, top_drc, top_lvs, top_erc and release
+        why: "marks split, cosim, boundary, macro_lib, top_harden, top_drc, top_lvs, top_erc, top_stress and release
               stale here"
       - gate: split
         why: "both side specs agree with interface.yaml"
@@ -203,7 +207,7 @@ verbs:
       analog GDS as a macro (top_harden) and check what came out.
     doc: skills/msde/reference/recipes/integrate.md
     workspace: required
-    gates: [cosim, macro_lib, top_drc, top_lvs, top_erc, precheck]
+    gates: [cosim, macro_lib, top_drc, top_lvs, top_erc, top_stress, precheck]
     human_hold: 1
     preconditions: [workspace, gates_fresh:split]
     match:
@@ -242,6 +246,9 @@ verbs:
       - gate: top_erc
         why: "CVC on the flat top, powered and held in reset, and on the
               macro alone"
+      - gate: top_stress
+        why: "each standard cell's devices against their class limit, at
+              the fast corners and the supply +10%"
       - gate: precheck
         why: "the shuttle's signoff on the same GDS"
 

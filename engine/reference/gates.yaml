@@ -581,6 +581,17 @@ gates:
       max_count: 0
       fault: "a macro input left unconnected in the top"
       description: "No floating gate, overvoltage, forward-biased junction or supply-to-supply leak, unless waived with a reason."
+    top_stress:
+      # transient overstress on the top's digital standard cells (#328,
+      # #329): each cell type alone at ff/fs/sf, -40 C, supply +10%, every
+      # device against its class limit in stress_limits.yaml
+      phase: P3
+      tool: top_stress
+      strength: 0
+      fail_severities: [error]
+      max_count: 0
+      fault: "a cell whose internal node overshoots its device class's limit"
+      description: "No standard-cell device past its class's documented limit beyond the share and band stress_limits.yaml allows."
     precheck:
       # the shuttle's own signoff (check_precheck.py) on the chip top at
       # top/; an analog tile is checked against the analog pin template and

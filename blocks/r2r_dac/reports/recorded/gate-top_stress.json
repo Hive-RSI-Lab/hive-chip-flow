@@ -1,0 +1,1763 @@
+{
+ "script": "gate",
+ "gate": "top_stress",
+ "phase": "P3",
+ "tool": "top_stress",
+ "input_digest": "dir_text:d5af7fd96d8b5a47c3998ae525d45a8b76ebe719ed103a4b3c22e5a83e6f74de",
+ "status": "pass",
+ "criteria": {
+  "fail_severities": [
+   "error"
+  ],
+  "max_count": 0
+ },
+ "counts": {
+  "total": 0,
+  "by_severity": {},
+  "by_source": {}
+ },
+ "failing_count": 0,
+ "failing": [],
+ "violations": [],
+ "facts": {
+  "top": "tt_um_r2r_dac_digital",
+  "vdd": 3.3,
+  "supply_v": 3.63,
+  "corners": [
+   "ff",
+   "fs",
+   "sf"
+  ],
+  "temp_c": -40,
+  "edge_s": 2e-11,
+  "clock_period_ns": 20.0,
+  "slot_s": 1e-08,
+  "over_limit": [],
+  "cells": [
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__and2_1",
+    "instances": 11,
+    "inputs": [
+     "A1",
+     "A2"
+    ],
+    "outputs": [
+     "Z"
+    ],
+    "loads_pf": {
+     "Z": {
+      "min": 0.004803936,
+      "max": 0.04918100000000001,
+      "ports": 0
+     }
+    },
+    "devices": 6,
+    "not_scored": [],
+    "worst": {
+     "device": "gf180mcu_fd_sc_mcu7t5v0__and2_1/X_i_2",
+     "pair": "Vsb",
+     "class": "junction",
+     "peak_v": 4.034498864652814,
+     "limit_v": 5.5,
+     "corner": "sf",
+     "load": "min"
+    }
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__and2_2",
+    "instances": 1,
+    "inputs": [
+     "A1",
+     "A2"
+    ],
+    "outputs": [
+     "Z"
+    ],
+    "loads_pf": {
+     "Z": {
+      "min": 0.07103630000000001,
+      "max": 0.07535990000000001,
+      "ports": 0
+     }
+    },
+    "devices": 8,
+    "not_scored": [],
+    "worst": {
+     "device": "gf180mcu_fd_sc_mcu7t5v0__and2_2/X_i_2",
+     "pair": "Vsb",
+     "class": "junction",
+     "peak_v": 3.9931517554706866,
+     "limit_v": 5.5,
+     "corner": "sf",
+     "load": "min"
+    }
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__and3_1",
+    "instances": 1,
+    "inputs": [
+     "A1",
+     "A2",
+     "A3"
+    ],
+    "outputs": [
+     "Z"
+    ],
+    "loads_pf": {
+     "Z": {
+      "min": 0.039799999999999995,
+      "max": 0.0448577,
+      "ports": 0
+     }
+    },
+    "devices": 8,
+    "not_scored": [],
+    "worst": {
+     "device": "gf180mcu_fd_sc_mcu7t5v0__and3_1/X_i_3",
+     "pair": "Vgd",
+     "class": "gate",
+     "peak_v": 4.0718691011794395,
+     "limit_v": 5.5,
+     "corner": "sf",
+     "load": "min"
+    }
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__and4_1",
+    "instances": 3,
+    "inputs": [
+     "A1",
+     "A2",
+     "A3",
+     "A4"
+    ],
+    "outputs": [
+     "Z"
+    ],
+    "loads_pf": {
+     "Z": {
+      "min": 0.0038448700000000002,
+      "max": 0.01043099,
+      "ports": 0
+     }
+    },
+    "devices": 10,
+    "not_scored": [],
+    "worst": {
+     "device": "gf180mcu_fd_sc_mcu7t5v0__and4_1/X_i_3",
+     "pair": "Vgd",
+     "class": "gate",
+     "peak_v": 4.089701012732664,
+     "limit_v": 5.5,
+     "corner": "fs",
+     "load": "min"
+    }
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__aoi211_1",
+    "instances": 5,
+    "inputs": [
+     "A1",
+     "A2",
+     "B",
+     "C"
+    ],
+    "outputs": [
+     "ZN"
+    ],
+    "loads_pf": {
+     "ZN": {
+      "min": 0.0028895820000000003,
+      "max": 0.00929187,
+      "ports": 0
+     }
+    },
+    "devices": 8,
+    "not_scored": [],
+    "worst": {
+     "device": "gf180mcu_fd_sc_mcu7t5v0__aoi211_1/X_i_5",
+     "pair": "Vds",
+     "class": "junction",
+     "peak_v": 4.419458108512434,
+     "limit_v": 5.5,
+     "corner": "fs",
+     "load": "min"
+    }
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__aoi211_2",
+    "instances": 4,
+    "inputs": [
+     "A1",
+     "A2",
+     "B",
+     "C"
+    ],
+    "outputs": [
+     "ZN"
+    ],
+    "loads_pf": {
+     "ZN": {
+      "min": 0.010260728,
+      "max": 0.01598201,
+      "ports": 0
+     }
+    },
+    "devices": 16,
+    "not_scored": [],
+    "worst": {
+     "device": "gf180mcu_fd_sc_mcu7t5v0__aoi211_2/X_i_5_1",
+     "pair": "Vds",
+     "class": "junction",
+     "peak_v": 4.415062385918655,
+     "limit_v": 5.5,
+     "corner": "fs",
+     "load": "min"
+    }
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__aoi21_1",
+    "instances": 52,
+    "inputs": [
+     "A1",
+     "A2",
+     "B"
+    ],
+    "outputs": [
+     "ZN"
+    ],
+    "loads_pf": {
+     "ZN": {
+      "min": 0.002693398,
+      "max": 0.02308929,
+      "ports": 0
+     }
+    },
+    "devices": 6,
+    "not_scored": [],
+    "worst": {
+     "device": "gf180mcu_fd_sc_mcu7t5v0__aoi21_1/X_i_4",
+     "pair": "Vds",
+     "class": "junction",
+     "peak_v": 4.400796137681676,
+     "limit_v": 5.5,
+     "corner": "fs",
+     "load": "min"
+    }
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__aoi21_2",
+    "instances": 2,
+    "inputs": [
+     "A1",
+     "A2",
+     "B"
+    ],
+    "outputs": [
+     "ZN"
+    ],
+    "loads_pf": {
+     "ZN": {
+      "min": 0.02007997,
+      "max": 0.03006193,
+      "ports": 0
+     }
+    },
+    "devices": 12,
+    "not_scored": [],
+    "worst": {
+     "device": "gf180mcu_fd_sc_mcu7t5v0__aoi21_2/X_i_4_0",
+     "pair": "Vds",
+     "class": "junction",
+     "peak_v": 4.386618123073096,
+     "limit_v": 5.5,
+     "corner": "fs",
+     "load": "min"
+    }
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__aoi221_1",
+    "instances": 2,
+    "inputs": [
+     "A1",
+     "A2",
+     "B1",
+     "B2",
+     "C"
+    ],
+    "outputs": [
+     "ZN"
+    ],
+    "loads_pf": {
+     "ZN": {
+      "min": 0.003300251,
+      "max": 0.004677880000000001,
+      "ports": 0
+     }
+    },
+    "devices": 10,
+    "not_scored": [],
+    "worst": {
+     "device": "gf180mcu_fd_sc_mcu7t5v0__aoi221_1/X_i_6",
+     "pair": "Vds",
+     "class": "junction",
+     "peak_v": 4.570080234875746,
+     "limit_v": 5.5,
+     "corner": "fs",
+     "load": "max"
+    }
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__aoi221_2",
+    "instances": 2,
+    "inputs": [
+     "A1",
+     "A2",
+     "B1",
+     "B2",
+     "C"
+    ],
+    "outputs": [
+     "ZN"
+    ],
+    "loads_pf": {
+     "ZN": {
+      "min": 0.00973164,
+      "max": 0.016557099999999998,
+      "ports": 0
+     }
+    },
+    "devices": 20,
+    "not_scored": [],
+    "worst": {
+     "device": "gf180mcu_fd_sc_mcu7t5v0__aoi221_2/X_i_5_1",
+     "pair": "Vds",
+     "class": "junction",
+     "peak_v": 4.581725670156298,
+     "limit_v": 5.5,
+     "corner": "fs",
+     "load": "max"
+    }
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__aoi221_4",
+    "instances": 2,
+    "inputs": [
+     "A1",
+     "A2",
+     "B1",
+     "B2",
+     "C"
+    ],
+    "outputs": [
+     "ZN"
+    ],
+    "loads_pf": {
+     "ZN": {
+      "min": 0.013303549999999999,
+      "max": 0.0240817,
+      "ports": 0
+     }
+    },
+    "devices": 40,
+    "not_scored": [],
+    "worst": {
+     "device": "gf180mcu_fd_sc_mcu7t5v0__aoi221_4/X_i_5_3",
+     "pair": "Vds",
+     "class": "junction",
+     "peak_v": 4.569809023243767,
+     "limit_v": 5.5,
+     "corner": "fs",
+     "load": "max"
+    }
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__aoi22_1",
+    "instances": 21,
+    "inputs": [
+     "A1",
+     "A2",
+     "B1",
+     "B2"
+    ],
+    "outputs": [
+     "ZN"
+    ],
+    "loads_pf": {
+     "ZN": {
+      "min": 0.00517459,
+      "max": 0.01644658,
+      "ports": 0
+     }
+    },
+    "devices": 8,
+    "not_scored": [],
+    "worst": {
+     "device": "gf180mcu_fd_sc_mcu7t5v0__aoi22_1/X_i_4",
+     "pair": "Vds",
+     "class": "junction",
+     "peak_v": 4.343649687038046,
+     "limit_v": 5.5,
+     "corner": "fs",
+     "load": "min"
+    }
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__buf_1",
+    "instances": 12,
+    "inputs": [
+     "I"
+    ],
+    "outputs": [
+     "Z"
+    ],
+    "loads_pf": {
+     "Z": {
+      "min": 0.011714019999999999,
+      "max": 0.0242749,
+      "ports": 0
+     }
+    },
+    "devices": 4,
+    "not_scored": [],
+    "worst": {
+     "device": "gf180mcu_fd_sc_mcu7t5v0__buf_1/X_i_2",
+     "pair": "Vds",
+     "class": "junction",
+     "peak_v": 3.937346667612586,
+     "limit_v": 5.5,
+     "corner": "sf",
+     "load": "min"
+    }
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__buf_2",
+    "instances": 3,
+    "inputs": [
+     "I"
+    ],
+    "outputs": [
+     "Z"
+    ],
+    "loads_pf": {
+     "Z": {
+      "min": 0.04428066,
+      "max": 0.0651428,
+      "ports": 0
+     }
+    },
+    "devices": 6,
+    "not_scored": [],
+    "worst": {
+     "device": "gf180mcu_fd_sc_mcu7t5v0__buf_2/X_i_2",
+     "pair": "Vds",
+     "class": "junction",
+     "peak_v": 3.974521589876195,
+     "limit_v": 5.5,
+     "corner": "sf",
+     "load": "min"
+    }
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__buf_8",
+    "instances": 60,
+    "inputs": [
+     "I"
+    ],
+    "outputs": [
+     "Z"
+    ],
+    "loads_pf": {
+     "Z": {
+      "min": 0.0106175,
+      "max": 0.1250936,
+      "ports": 8
+     }
+    },
+    "devices": 24,
+    "not_scored": [],
+    "worst": {
+     "device": "gf180mcu_fd_sc_mcu7t5v0__buf_8/X_i_2_0",
+     "pair": "Vds",
+     "class": "junction",
+     "peak_v": 3.9752242097331356,
+     "limit_v": 5.5,
+     "corner": "sf",
+     "load": "max"
+    }
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__clkbuf_1",
+    "instances": 1,
+    "inputs": [
+     "I"
+    ],
+    "outputs": [
+     "Z"
+    ],
+    "loads_pf": {
+     "Z": {
+      "min": 0.018314900999999998,
+      "max": 0.0183428,
+      "ports": 0
+     }
+    },
+    "devices": 4,
+    "not_scored": [],
+    "worst": {
+     "device": "gf180mcu_fd_sc_mcu7t5v0__clkbuf_1/X_i_2",
+     "pair": "Vds",
+     "class": "junction",
+     "peak_v": 4.2480817726455395,
+     "limit_v": 5.5,
+     "corner": "sf",
+     "load": "min"
+    }
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__clkbuf_2",
+    "instances": 4,
+    "inputs": [
+     "I"
+    ],
+    "outputs": [
+     "Z"
+    ],
+    "loads_pf": {
+     "Z": {
+      "min": 0.0,
+      "max": 0.0,
+      "ports": 0
+     }
+    },
+    "devices": 6,
+    "not_scored": [],
+    "worst": {
+     "device": "gf180mcu_fd_sc_mcu7t5v0__clkbuf_2/X_i_2",
+     "pair": "Vds",
+     "class": "junction",
+     "peak_v": 4.035593672336232,
+     "limit_v": 5.5,
+     "corner": "sf",
+     "load": "min"
+    }
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__clkbuf_8",
+    "instances": 9,
+    "inputs": [
+     "I"
+    ],
+    "outputs": [
+     "Z"
+    ],
+    "loads_pf": {
+     "Z": {
+      "min": 0.0324172,
+      "max": 0.12319399999999997,
+      "ports": 0
+     }
+    },
+    "devices": 23,
+    "not_scored": [],
+    "worst": {
+     "device": "gf180mcu_fd_sc_mcu7t5v0__clkbuf_8/X_i_2_0",
+     "pair": "Vds",
+     "class": "junction",
+     "peak_v": 3.998942922044829,
+     "limit_v": 5.5,
+     "corner": "sf",
+     "load": "min"
+    }
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__clkinv_1",
+    "instances": 14,
+    "inputs": [
+     "I"
+    ],
+    "outputs": [
+     "ZN"
+    ],
+    "loads_pf": {
+     "ZN": {
+      "min": 0.00564806,
+      "max": 0.04990870000000001,
+      "ports": 0
+     }
+    },
+    "devices": 2,
+    "not_scored": [],
+    "worst": {
+     "device": "gf180mcu_fd_sc_mcu7t5v0__clkinv_1/X_i_0",
+     "pair": "Vds",
+     "class": "junction",
+     "peak_v": 3.9469582743847953,
+     "limit_v": 5.5,
+     "corner": "sf",
+     "load": "min"
+    }
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__dffq_1",
+    "instances": 45,
+    "inputs": [
+     "D",
+     "CLK"
+    ],
+    "outputs": [
+     "Q"
+    ],
+    "loads_pf": {
+     "Q": {
+      "min": 0.00548403,
+      "max": 0.05284609999999999,
+      "ports": 0
+     }
+    },
+    "devices": 24,
+    "not_scored": [],
+    "worst": {
+     "device": "gf180mcu_fd_sc_mcu7t5v0__dffq_1/X_tp6",
+     "pair": "Vds",
+     "class": "junction",
+     "peak_v": 4.622908750312109,
+     "limit_v": 5.5,
+     "corner": "fs",
+     "load": "min"
+    }
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__dffq_2",
+    "instances": 5,
+    "inputs": [
+     "D",
+     "CLK"
+    ],
+    "outputs": [
+     "Q"
+    ],
+    "loads_pf": {
+     "Q": {
+      "min": 0.0285355,
+      "max": 0.0762828,
+      "ports": 0
+     }
+    },
+    "devices": 26,
+    "not_scored": [],
+    "worst": {
+     "device": "gf180mcu_fd_sc_mcu7t5v0__dffq_2/X_tp6",
+     "pair": "Vds",
+     "class": "junction",
+     "peak_v": 4.622906735286265,
+     "limit_v": 5.5,
+     "corner": "fs",
+     "load": "min"
+    }
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__dffrnq_1",
+    "instances": 2,
+    "inputs": [
+     "D",
+     "RN",
+     "CLK"
+    ],
+    "outputs": [
+     "Q"
+    ],
+    "loads_pf": {
+     "Q": {
+      "min": 0.0033493969999999996,
+      "max": 0.003655943,
+      "ports": 0
+     }
+    },
+    "devices": 28,
+    "not_scored": [],
+    "worst": {
+     "device": "gf180mcu_fd_sc_mcu7t5v0__dffrnq_1/X_tp7",
+     "pair": "Vds",
+     "class": "junction",
+     "peak_v": 4.445568398374412,
+     "limit_v": 5.5,
+     "corner": "fs",
+     "load": "min"
+    }
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__endcap",
+    "instances": 254,
+    "inputs": [],
+    "outputs": [],
+    "loads_pf": {},
+    "devices": 0,
+    "not_scored": [],
+    "worst": null
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__fill_1",
+    "instances": 300,
+    "inputs": [],
+    "outputs": [],
+    "loads_pf": {},
+    "devices": 0,
+    "not_scored": [],
+    "worst": null
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__fill_2",
+    "instances": 204,
+    "inputs": [],
+    "outputs": [],
+    "loads_pf": {},
+    "devices": 0,
+    "not_scored": [],
+    "worst": null
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__fillcap_16",
+    "instances": 59,
+    "inputs": [],
+    "outputs": [],
+    "loads_pf": {},
+    "devices": 8,
+    "not_scored": [],
+    "worst": {
+     "device": "gf180mcu_fd_sc_mcu7t5v0__fillcap_16/X_i_17",
+     "pair": "Vgs",
+     "class": "gate",
+     "peak_v": 3.6300000000015777,
+     "limit_v": 5.5,
+     "corner": "fs",
+     "load": "min"
+    }
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__fillcap_32",
+    "instances": 167,
+    "inputs": [],
+    "outputs": [],
+    "loads_pf": {},
+    "devices": 16,
+    "not_scored": [],
+    "worst": {
+     "device": "gf180mcu_fd_sc_mcu7t5v0__fillcap_32/X_i_17",
+     "pair": "Vgs",
+     "class": "gate",
+     "peak_v": 3.6300000000015777,
+     "limit_v": 5.5,
+     "corner": "fs",
+     "load": "min"
+    }
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__fillcap_4",
+    "instances": 377,
+    "inputs": [],
+    "outputs": [],
+    "loads_pf": {},
+    "devices": 2,
+    "not_scored": [],
+    "worst": {
+     "device": "gf180mcu_fd_sc_mcu7t5v0__fillcap_4/X_i_17",
+     "pair": "Vgs",
+     "class": "gate",
+     "peak_v": 3.6300000000015777,
+     "limit_v": 5.5,
+     "corner": "fs",
+     "load": "min"
+    }
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__fillcap_64",
+    "instances": 171,
+    "inputs": [],
+    "outputs": [],
+    "loads_pf": {},
+    "devices": 32,
+    "not_scored": [],
+    "worst": {
+     "device": "gf180mcu_fd_sc_mcu7t5v0__fillcap_64/X_i_17",
+     "pair": "Vgs",
+     "class": "gate",
+     "peak_v": 3.6300000000015777,
+     "limit_v": 5.5,
+     "corner": "fs",
+     "load": "min"
+    }
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__fillcap_8",
+    "instances": 219,
+    "inputs": [],
+    "outputs": [],
+    "loads_pf": {},
+    "devices": 4,
+    "not_scored": [],
+    "worst": {
+     "device": "gf180mcu_fd_sc_mcu7t5v0__fillcap_8/X_i_17",
+     "pair": "Vgs",
+     "class": "gate",
+     "peak_v": 3.6300000000015777,
+     "limit_v": 5.5,
+     "corner": "fs",
+     "load": "min"
+    }
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__filltie",
+    "instances": 423,
+    "inputs": [],
+    "outputs": [],
+    "loads_pf": {},
+    "devices": 0,
+    "not_scored": [],
+    "worst": null
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__inv_2",
+    "instances": 3,
+    "inputs": [
+     "I"
+    ],
+    "outputs": [
+     "ZN"
+    ],
+    "loads_pf": {
+     "ZN": {
+      "min": 0.026593159999999998,
+      "max": 0.07457089999999998,
+      "ports": 0
+     }
+    },
+    "devices": 4,
+    "not_scored": [],
+    "worst": {
+     "device": "gf180mcu_fd_sc_mcu7t5v0__inv_2/X_i_0_0",
+     "pair": "Vds",
+     "class": "junction",
+     "peak_v": 3.7768301086551963,
+     "limit_v": 5.5,
+     "corner": "sf",
+     "load": "min"
+    }
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__mux2_2",
+    "instances": 5,
+    "inputs": [
+     "I0",
+     "I1",
+     "S"
+    ],
+    "outputs": [
+     "Z"
+    ],
+    "loads_pf": {
+     "Z": {
+      "min": 0.005343071,
+      "max": 0.015607099999999999,
+      "ports": 0
+     }
+    },
+    "devices": 14,
+    "not_scored": [],
+    "worst": {
+     "device": "gf180mcu_fd_sc_mcu7t5v0__mux2_2/X_MP8",
+     "pair": "Vds",
+     "class": "junction",
+     "peak_v": 4.571809744047616,
+     "limit_v": 5.5,
+     "corner": "fs",
+     "load": "max"
+    }
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__mux4_1",
+    "instances": 1,
+    "inputs": [
+     "I0",
+     "I1",
+     "I2",
+     "I3",
+     "S0",
+     "S1"
+    ],
+    "outputs": [
+     "Z"
+    ],
+    "loads_pf": {
+     "Z": {
+      "min": 0.01102125,
+      "max": 0.01170589,
+      "ports": 0
+     }
+    },
+    "devices": 26,
+    "not_scored": [],
+    "worst": {
+     "device": "gf180mcu_fd_sc_mcu7t5v0__mux4_1/X_MN9",
+     "pair": "Vdb",
+     "class": "junction",
+     "peak_v": 4.52149181491471,
+     "limit_v": 5.5,
+     "corner": "fs",
+     "load": "min"
+    }
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__nand2_1",
+    "instances": 54,
+    "inputs": [
+     "A1",
+     "A2"
+    ],
+    "outputs": [
+     "ZN"
+    ],
+    "loads_pf": {
+     "ZN": {
+      "min": 0.0032226010000000003,
+      "max": 0.041533299999999995,
+      "ports": 0
+     }
+    },
+    "devices": 4,
+    "not_scored": [],
+    "worst": {
+     "device": "gf180mcu_fd_sc_mcu7t5v0__nand2_1/X_i_0",
+     "pair": "Vdb",
+     "class": "junction",
+     "peak_v": 4.097283179141476,
+     "limit_v": 5.5,
+     "corner": "sf",
+     "load": "min"
+    }
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__nand2_2",
+    "instances": 1,
+    "inputs": [
+     "A1",
+     "A2"
+    ],
+    "outputs": [
+     "ZN"
+    ],
+    "loads_pf": {
+     "ZN": {
+      "min": 0.058100700000000005,
+      "max": 0.0641419,
+      "ports": 0
+     }
+    },
+    "devices": 8,
+    "not_scored": [],
+    "worst": {
+     "device": "gf180mcu_fd_sc_mcu7t5v0__nand2_2/X_i_0_1",
+     "pair": "Vds",
+     "class": "junction",
+     "peak_v": 4.054321887202357,
+     "limit_v": 5.5,
+     "corner": "sf",
+     "load": "max"
+    }
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__nand3_1",
+    "instances": 13,
+    "inputs": [
+     "A1",
+     "A2",
+     "A3"
+    ],
+    "outputs": [
+     "ZN"
+    ],
+    "loads_pf": {
+     "ZN": {
+      "min": 0.0035597000000000003,
+      "max": 0.01790299,
+      "ports": 0
+     }
+    },
+    "devices": 6,
+    "not_scored": [],
+    "worst": {
+     "device": "gf180mcu_fd_sc_mcu7t5v0__nand3_1/X_i_1",
+     "pair": "Vgs",
+     "class": "gate",
+     "peak_v": 4.084033239921418,
+     "limit_v": 5.5,
+     "corner": "sf",
+     "load": "min"
+    }
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__nand3_2",
+    "instances": 1,
+    "inputs": [
+     "A1",
+     "A2",
+     "A3"
+    ],
+    "outputs": [
+     "ZN"
+    ],
+    "loads_pf": {
+     "ZN": {
+      "min": 0.0335132,
+      "max": 0.0377756,
+      "ports": 0
+     }
+    },
+    "devices": 12,
+    "not_scored": [],
+    "worst": {
+     "device": "gf180mcu_fd_sc_mcu7t5v0__nand3_2/X_i_1_1",
+     "pair": "Vgd",
+     "class": "gate",
+     "peak_v": 4.084033235042062,
+     "limit_v": 5.5,
+     "corner": "sf",
+     "load": "min"
+    }
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__nand4_1",
+    "instances": 3,
+    "inputs": [
+     "A1",
+     "A2",
+     "A3",
+     "A4"
+    ],
+    "outputs": [
+     "ZN"
+    ],
+    "loads_pf": {
+     "ZN": {
+      "min": 0.00550859,
+      "max": 0.00989104,
+      "ports": 0
+     }
+    },
+    "devices": 8,
+    "not_scored": [],
+    "worst": {
+     "device": "gf180mcu_fd_sc_mcu7t5v0__nand4_1/X_i_1",
+     "pair": "Vgs",
+     "class": "gate",
+     "peak_v": 4.102209656392526,
+     "limit_v": 5.5,
+     "corner": "fs",
+     "load": "min"
+    }
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__nor2_1",
+    "instances": 24,
+    "inputs": [
+     "A1",
+     "A2"
+    ],
+    "outputs": [
+     "ZN"
+    ],
+    "loads_pf": {
+     "ZN": {
+      "min": 0.0028285100000000002,
+      "max": 0.0229556,
+      "ports": 0
+     }
+    },
+    "devices": 4,
+    "not_scored": [],
+    "worst": {
+     "device": "gf180mcu_fd_sc_mcu7t5v0__nor2_1/X_i_2",
+     "pair": "Vds",
+     "class": "junction",
+     "peak_v": 4.51503229050619,
+     "limit_v": 5.5,
+     "corner": "fs",
+     "load": "max"
+    }
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__nor2_2",
+    "instances": 3,
+    "inputs": [
+     "A1",
+     "A2"
+    ],
+    "outputs": [
+     "ZN"
+    ],
+    "loads_pf": {
+     "ZN": {
+      "min": 0.023945789999999998,
+      "max": 0.0393589,
+      "ports": 0
+     }
+    },
+    "devices": 8,
+    "not_scored": [],
+    "worst": {
+     "device": "gf180mcu_fd_sc_mcu7t5v0__nor2_2/X_i_2_1",
+     "pair": "Vds",
+     "class": "junction",
+     "peak_v": 4.508936146441026,
+     "limit_v": 5.5,
+     "corner": "fs",
+     "load": "max"
+    }
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__nor3_1",
+    "instances": 5,
+    "inputs": [
+     "A1",
+     "A2",
+     "A3"
+    ],
+    "outputs": [
+     "ZN"
+    ],
+    "loads_pf": {
+     "ZN": {
+      "min": 0.004984296,
+      "max": 0.01121102,
+      "ports": 0
+     }
+    },
+    "devices": 6,
+    "not_scored": [],
+    "worst": {
+     "device": "gf180mcu_fd_sc_mcu7t5v0__nor3_1/X_i_3",
+     "pair": "Vds",
+     "class": "junction",
+     "peak_v": 4.540837794592891,
+     "limit_v": 5.5,
+     "corner": "fs",
+     "load": "max"
+    }
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__nor3_2",
+    "instances": 1,
+    "inputs": [
+     "A1",
+     "A2",
+     "A3"
+    ],
+    "outputs": [
+     "ZN"
+    ],
+    "loads_pf": {
+     "ZN": {
+      "min": 0.00392327,
+      "max": 0.003996592,
+      "ports": 0
+     }
+    },
+    "devices": 12,
+    "not_scored": [],
+    "worst": {
+     "device": "gf180mcu_fd_sc_mcu7t5v0__nor3_2/X_i_3_0",
+     "pair": "Vds",
+     "class": "junction",
+     "peak_v": 4.537941830681322,
+     "limit_v": 5.5,
+     "corner": "fs",
+     "load": "min"
+    }
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__nor3_4",
+    "instances": 1,
+    "inputs": [
+     "A1",
+     "A2",
+     "A3"
+    ],
+    "outputs": [
+     "ZN"
+    ],
+    "loads_pf": {
+     "ZN": {
+      "min": 0.02496772,
+      "max": 0.025808209999999998,
+      "ports": 0
+     }
+    },
+    "devices": 24,
+    "not_scored": [],
+    "worst": {
+     "device": "gf180mcu_fd_sc_mcu7t5v0__nor3_4/X_i_3_3",
+     "pair": "Vds",
+     "class": "junction",
+     "peak_v": 4.521545134677457,
+     "limit_v": 5.5,
+     "corner": "fs",
+     "load": "max"
+    }
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__nor4_2",
+    "instances": 1,
+    "inputs": [
+     "A1",
+     "A2",
+     "A3",
+     "A4"
+    ],
+    "outputs": [
+     "ZN"
+    ],
+    "loads_pf": {
+     "ZN": {
+      "min": 0.01079299,
+      "max": 0.01159843,
+      "ports": 0
+     }
+    },
+    "devices": 16,
+    "not_scored": [],
+    "worst": {
+     "device": "gf180mcu_fd_sc_mcu7t5v0__nor4_2/X_i_4_1",
+     "pair": "Vds",
+     "class": "junction",
+     "peak_v": 4.528531553683574,
+     "limit_v": 5.5,
+     "corner": "fs",
+     "load": "max"
+    }
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__nor4_4",
+    "instances": 1,
+    "inputs": [
+     "A1",
+     "A2",
+     "A3",
+     "A4"
+    ],
+    "outputs": [
+     "ZN"
+    ],
+    "loads_pf": {
+     "ZN": {
+      "min": 0.01652657,
+      "max": 0.017004389999999998,
+      "ports": 0
+     }
+    },
+    "devices": 32,
+    "not_scored": [],
+    "worst": {
+     "device": "gf180mcu_fd_sc_mcu7t5v0__nor4_4/X_i_4_3",
+     "pair": "Vds",
+     "class": "junction",
+     "peak_v": 4.5239001646824795,
+     "limit_v": 5.5,
+     "corner": "fs",
+     "load": "max"
+    }
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__oai211_1",
+    "instances": 9,
+    "inputs": [
+     "A1",
+     "A2",
+     "B",
+     "C"
+    ],
+    "outputs": [
+     "ZN"
+    ],
+    "loads_pf": {
+     "ZN": {
+      "min": 0.0049775,
+      "max": 0.0224741,
+      "ports": 0
+     }
+    },
+    "devices": 8,
+    "not_scored": [],
+    "worst": {
+     "device": "gf180mcu_fd_sc_mcu7t5v0__oai211_1/X_i_4",
+     "pair": "Vds",
+     "class": "junction",
+     "peak_v": 4.443778422922149,
+     "limit_v": 5.5,
+     "corner": "fs",
+     "load": "max"
+    }
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__oai211_2",
+    "instances": 3,
+    "inputs": [
+     "A1",
+     "A2",
+     "B",
+     "C"
+    ],
+    "outputs": [
+     "ZN"
+    ],
+    "loads_pf": {
+     "ZN": {
+      "min": 0.0216921,
+      "max": 0.029464,
+      "ports": 0
+     }
+    },
+    "devices": 16,
+    "not_scored": [],
+    "worst": {
+     "device": "gf180mcu_fd_sc_mcu7t5v0__oai211_2/X_i_4_1",
+     "pair": "Vds",
+     "class": "junction",
+     "peak_v": 4.399034298390762,
+     "limit_v": 5.5,
+     "corner": "fs",
+     "load": "max"
+    }
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__oai21_1",
+    "instances": 32,
+    "inputs": [
+     "A1",
+     "A2",
+     "B"
+    ],
+    "outputs": [
+     "ZN"
+    ],
+    "loads_pf": {
+     "ZN": {
+      "min": 0.0033222850000000003,
+      "max": 0.019066399999999997,
+      "ports": 0
+     }
+    },
+    "devices": 6,
+    "not_scored": [],
+    "worst": {
+     "device": "gf180mcu_fd_sc_mcu7t5v0__oai21_1/X_i_3",
+     "pair": "Vds",
+     "class": "junction",
+     "peak_v": 4.434859589842397,
+     "limit_v": 5.5,
+     "corner": "fs",
+     "load": "max"
+    }
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__oai21_2",
+    "instances": 5,
+    "inputs": [
+     "A1",
+     "A2",
+     "B"
+    ],
+    "outputs": [
+     "ZN"
+    ],
+    "loads_pf": {
+     "ZN": {
+      "min": 0.02121318,
+      "max": 0.0328672,
+      "ports": 0
+     }
+    },
+    "devices": 12,
+    "not_scored": [],
+    "worst": {
+     "device": "gf180mcu_fd_sc_mcu7t5v0__oai21_2/X_i_3_1",
+     "pair": "Vds",
+     "class": "junction",
+     "peak_v": 4.419502264471707,
+     "limit_v": 5.5,
+     "corner": "fs",
+     "load": "max"
+    }
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__oai221_2",
+    "instances": 4,
+    "inputs": [
+     "A1",
+     "A2",
+     "B1",
+     "B2",
+     "C"
+    ],
+    "outputs": [
+     "ZN"
+    ],
+    "loads_pf": {
+     "ZN": {
+      "min": 0.009737437,
+      "max": 0.01494138,
+      "ports": 0
+     }
+    },
+    "devices": 20,
+    "not_scored": [],
+    "worst": {
+     "device": "gf180mcu_fd_sc_mcu7t5v0__oai221_2/X_i_8_1",
+     "pair": "Vds",
+     "class": "junction",
+     "peak_v": 4.553272709883072,
+     "limit_v": 5.5,
+     "corner": "fs",
+     "load": "min"
+    }
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__oai22_4",
+    "instances": 1,
+    "inputs": [
+     "A1",
+     "A2",
+     "B1",
+     "B2"
+    ],
+    "outputs": [
+     "ZN"
+    ],
+    "loads_pf": {
+     "ZN": {
+      "min": 0.024885499999999998,
+      "max": 0.0281377,
+      "ports": 0
+     }
+    },
+    "devices": 32,
+    "not_scored": [],
+    "worst": {
+     "device": "gf180mcu_fd_sc_mcu7t5v0__oai22_4/X_i_6_2",
+     "pair": "Vds",
+     "class": "junction",
+     "peak_v": 4.505939933823497,
+     "limit_v": 5.5,
+     "corner": "fs",
+     "load": "max"
+    }
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__oai31_2",
+    "instances": 5,
+    "inputs": [
+     "A1",
+     "A2",
+     "A3",
+     "B"
+    ],
+    "outputs": [
+     "ZN"
+    ],
+    "loads_pf": {
+     "ZN": {
+      "min": 0.00599762,
+      "max": 0.01141227,
+      "ports": 0
+     }
+    },
+    "devices": 16,
+    "not_scored": [],
+    "worst": {
+     "device": "gf180mcu_fd_sc_mcu7t5v0__oai31_2/X_i_4_1",
+     "pair": "Vds",
+     "class": "junction",
+     "peak_v": 4.743045525394139,
+     "limit_v": 5.5,
+     "corner": "fs",
+     "load": "max"
+    }
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__or2_1",
+    "instances": 8,
+    "inputs": [
+     "A1",
+     "A2"
+    ],
+    "outputs": [
+     "Z"
+    ],
+    "loads_pf": {
+     "Z": {
+      "min": 0.003047451,
+      "max": 0.0246036,
+      "ports": 0
+     }
+    },
+    "devices": 6,
+    "not_scored": [],
+    "worst": {
+     "device": "gf180mcu_fd_sc_mcu7t5v0__or2_1/X_i_4",
+     "pair": "Vds",
+     "class": "junction",
+     "peak_v": 4.505938866371983,
+     "limit_v": 5.5,
+     "corner": "fs",
+     "load": "min"
+    }
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__or3_1",
+    "instances": 1,
+    "inputs": [
+     "A1",
+     "A2",
+     "A3"
+    ],
+    "outputs": [
+     "Z"
+    ],
+    "loads_pf": {
+     "Z": {
+      "min": 0.0113378,
+      "max": 0.01206519,
+      "ports": 0
+     }
+    },
+    "devices": 8,
+    "not_scored": [],
+    "worst": {
+     "device": "gf180mcu_fd_sc_mcu7t5v0__or3_1/X_i_5",
+     "pair": "Vds",
+     "class": "junction",
+     "peak_v": 4.540290806929588,
+     "limit_v": 5.5,
+     "corner": "fs",
+     "load": "min"
+    }
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__or4_1",
+    "instances": 2,
+    "inputs": [
+     "A1",
+     "A2",
+     "A3",
+     "A4"
+    ],
+    "outputs": [
+     "Z"
+    ],
+    "loads_pf": {
+     "Z": {
+      "min": 0.009681966,
+      "max": 0.01022869,
+      "ports": 0
+     }
+    },
+    "devices": 10,
+    "not_scored": [],
+    "worst": {
+     "device": "gf180mcu_fd_sc_mcu7t5v0__or4_1/X_i_6",
+     "pair": "Vds",
+     "class": "junction",
+     "peak_v": 4.540649934418711,
+     "limit_v": 5.5,
+     "corner": "fs",
+     "load": "min"
+    }
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__tieh",
+    "instances": 1,
+    "inputs": [],
+    "outputs": [
+     "Z"
+    ],
+    "loads_pf": {
+     "Z": {
+      "min": 0.0035838140000000003,
+      "max": 0.003741548,
+      "ports": 0
+     }
+    },
+    "devices": 2,
+    "not_scored": [],
+    "worst": {
+     "device": "gf180mcu_fd_sc_mcu7t5v0__tieh/X_p_tran_2",
+     "pair": "Vgs",
+     "class": "gate",
+     "peak_v": 3.6300000000000208,
+     "limit_v": 5.5,
+     "corner": "fs",
+     "load": "max"
+    }
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__tiel",
+    "instances": 16,
+    "inputs": [],
+    "outputs": [
+     "ZN"
+    ],
+    "loads_pf": {
+     "ZN": {
+      "min": 0.000419546,
+      "max": 0.000975849,
+      "ports": 16
+     }
+    },
+    "devices": 2,
+    "not_scored": [],
+    "worst": {
+     "device": "gf180mcu_fd_sc_mcu7t5v0__tiel/X_n_tran_1",
+     "pair": "Vgs",
+     "class": "gate",
+     "peak_v": 3.6300000000000257,
+     "limit_v": 5.5,
+     "corner": "fs",
+     "load": "min"
+    }
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__xnor2_2",
+    "instances": 1,
+    "inputs": [
+     "A1",
+     "A2"
+    ],
+    "outputs": [
+     "ZN"
+    ],
+    "loads_pf": {
+     "ZN": {
+      "min": 0.026088109999999998,
+      "max": 0.027254109999999998,
+      "ports": 0
+     }
+    },
+    "devices": 14,
+    "not_scored": [],
+    "worst": {
+     "device": "gf180mcu_fd_sc_mcu7t5v0__xnor2_2/X_i_10",
+     "pair": "Vds",
+     "class": "junction",
+     "peak_v": 4.537117658940559,
+     "limit_v": 5.5,
+     "corner": "fs",
+     "load": "min"
+    }
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__xor2_1",
+    "instances": 3,
+    "inputs": [
+     "A1",
+     "A2"
+    ],
+    "outputs": [
+     "Z"
+    ],
+    "loads_pf": {
+     "Z": {
+      "min": 0.004645788,
+      "max": 0.018607301,
+      "ports": 0
+     }
+    },
+    "devices": 10,
+    "not_scored": [],
+    "worst": {
+     "device": "gf180mcu_fd_sc_mcu7t5v0__xor2_1/X_i_8",
+     "pair": "Vds",
+     "class": "junction",
+     "peak_v": 4.536919889842248,
+     "limit_v": 5.5,
+     "corner": "fs",
+     "load": "min"
+    }
+   },
+   {
+    "cell": "gf180mcu_fd_sc_mcu7t5v0__xor2_2",
+    "instances": 1,
+    "inputs": [
+     "A1",
+     "A2"
+    ],
+    "outputs": [
+     "Z"
+    ],
+    "loads_pf": {
+     "Z": {
+      "min": 0.030101100000000002,
+      "max": 0.032937799999999996,
+      "ports": 0
+     }
+    },
+    "devices": 14,
+    "not_scored": [],
+    "worst": {
+     "device": "gf180mcu_fd_sc_mcu7t5v0__xor2_2/X_i_5",
+     "pair": "Vds",
+     "class": "junction",
+     "peak_v": 4.443199375354201,
+     "limit_v": 5.5,
+     "corner": "fs",
+     "load": "min"
+    }
+   }
+  ],
+  "stress": {
+   "gate_oxide_citation": "GF180MCU design rule manual 14.1.4.2: 3.63 V maximum DC between the gate and any other FET node (3.3 V devices); the gate-node voltage may periodically exceed the DC maximum depending on duty cycle (TDDB).",
+   "allowance_is_ours": "The manual publishes no numbers for that allowance. The bounds below are this flow's own, chosen on principle and not fitted to any macro.",
+   "junction_citation": "The GF180MCU design rule manual gives no number for a drain, source or body junction: 14.1.4.2 covers the gate only, and 14.1.4.1 (hot carriers, drain-source) asks that the supply stay within 10% over Vdd for any significant time, with no number. The limit here is the minimum BVDSS of the PDK electrical specification, 3.3 V devices, W/L 10/0.28.",
+   "bounds": {
+    "dc_limit_v": 3.63,
+    "floor_v": 0.001,
+    "repeating": {
+     "peak_over_v": 0.1,
+     "time_over_share": 0.02,
+     "share_band_v": 0.05
+    },
+    "one_off": {
+     "peak_over_v": 0.3,
+     "time_over_s": 1e-06,
+     "near_bound_v": 0.01
+    }
+   },
+   "classes": {
+    "05v0": {
+     "dc_limit_v": 5.5,
+     "gate_oxide_citation": "GF180MCU design rule manual 14.1.2: for the high-voltage (5 V/6 V) devices, drain and gate voltages shall not exceed the maximum operating voltage (5 V) by more than 10%, so 5.5 V. 14.1.4.2 gives the DC gate-node maximum for the thick gate as \"6.5V/6V for 5V/6V process\"; the lower of the two figures is the limit.",
+     "junction_reference_v": 5.5,
+     "junction_citation": "GF180MCU design rule manual 14.1.2 (drain voltage within 10% over the 5 V maximum operating voltage) and 14.1.4.1 (hot carriers, supply within 10% over Vdd). Breakdown: the minimum BVDSS of the PDK electrical specification 3.0, 5 V devices (NE2 W/L 10/0.6, PE2 W/L 10/0.5), 8.5 V for both."
+    }
+   },
+   "runs": 342,
+   "devices": 721,
+   "other_models_not_scored": {},
+   "devices_failing": [],
+   "allowance_only": [],
+   "share_band_only": [],
+   "junctions_over_reference": []
+  },
+  "fine_repeats": [],
+  "report": "log/top_stress"
+ },
+ "inputs_at_start": {
+  "top_pnl": "dir_text:d5af7fd96d8b5a47c3998ae525d45a8b76ebe719ed103a4b3c22e5a83e6f74de",
+  "top_spef": "dir_text:a446a98b3a5d3e95250bff41154db4c0a4f0b5bd7bbdf50e45b8bd0753911033",
+  "top_spec": "json_canonical:d863d5e4ac42eb90b849bfae8bc19ecdb8167ca2c310bd40cdb64c48a4355186",
+  "top_macros": "dir_text:2956b759fa67e4a3ef5051fd834b44010844b7f79d445fdf8ea74bbdeca01e32",
+  "analog_spec": "json_canonical:bea97fb251ebda8c3059ca750c9247e051bdd64946a521b40eb21ee20fe77e64",
+  "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2"
+ },
+ "strength_at_start": 0,
+ "recorded_ts": "2026-11-13T15:28:59",
+ "attempts": 1
+}

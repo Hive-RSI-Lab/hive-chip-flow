@@ -145,6 +145,7 @@ Mixed-signal (`/msde`):
 | top_drc | magic and klayout on the assembled GDS | 0 | a planted spacing violation |
 | top_lvs | netgen on the assembled GDS, the analog block as a subcircuit | match | a macro pin left unconnected |
 | top_erc | CVC on the flat transistor netlist of the top: powered, held in reset, and the macro alone | no floating gate, overvoltage, forward-biased junction or supply-to-supply leak, unless waived with a reason | a macro input left unconnected in the top |
+| top_stress | ngspice on each standard-cell type of the top alone, ff/fs/sf at -40 C and the supply +10%, scored by stresslib | no device past its class's documented limit | a cell whose internal node overshoots its class's limit |
 | release | attest, strict | both nested runs released, top gates fresh; every file in the staged tree held by a gate record (release/manifest.json) | a stale nested release |
 
 ### 1.6 The stale map

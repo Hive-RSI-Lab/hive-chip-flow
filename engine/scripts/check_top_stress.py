@@ -617,8 +617,10 @@ def run(argv=None):
     facts = stresslib.summarise(rows, len(CORNERS) * len(LOADS) * sum(
         1 for c in cells.values() if c["devices"]), sum(
         c["devices"] for c in cells.values()), limits, others)
+    # stamped with the pnl directory, the first of the gate's input kinds
+    # (top_pnl): state records a result only against that kind's hash.
     payload = checklib.report(
-        SCRIPT, pnl, violations, top=top, vdd=float(vdd), supply_v=supply,
+        SCRIPT, pnl.parent, violations, top=top, vdd=float(vdd), supply_v=supply,
         corners=list(CORNERS), temp_c=TEMP_C, edge_s=EDGE_S,
         clock_period_ns=period_ns, slot_s=slot,
         over_limit=over_limit(rows, counts),
