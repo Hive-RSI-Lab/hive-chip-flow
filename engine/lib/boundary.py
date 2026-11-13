@@ -52,12 +52,11 @@ Refused = macrolib.Refused
 
 LEVELS_PATH = _LIB.parent / "reference" / "levels.yaml"
 TYPED_VERSION = 2
-# The two released blocks still on interface version 1, each with the reason.
-# They stay on the old form, and do not owe the boundary gate, until they are
+# The released block still on interface version 1, with the reason.
+# It stays on the old form, and does not owe the boundary gate, until it is
 # measured and re-released; every other block's split refuses version 1.
 V1_BLOCKS = {
     "pll": "released before the boundary gate; not yet measured at the boundary",
-    "r2r_dac": "released before the boundary gate; not yet measured at the boundary",
 }
 OPEN = "open"
 EDGE_LOW, EDGE_HIGH = 0.1, 0.9

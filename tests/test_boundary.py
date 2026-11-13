@@ -224,12 +224,12 @@ def test_an_incomplete_section_is_refused(mutate, words):
 
 # ---- registration
 
-def test_only_the_two_released_blocks_may_stay_on_version_1():
-    assert set(boundary.V1_BLOCKS) == {"pll", "r2r_dac"}
+def test_only_the_pll_may_stay_on_version_1():
+    assert set(boundary.V1_BLOCKS) == {"pll"}
 
 
 @pytest.mark.parametrize("path, expected", [
-    ("blocks/pll", True), ("blocks/r2r_dac", True), ("blocks/other", False),
+    ("blocks/pll", True), ("blocks/r2r_dac", False), ("blocks/other", False),
     ("work/pll", False)])
 def test_version_1_exemption_is_by_released_name(tmp_path, path, expected):
     assert boundary.is_v1_block(tmp_path / path) is expected
@@ -245,8 +245,9 @@ def _untyped_ws(tmp_path, name) -> Path:
 
 
 def test_a_v1_block_does_not_owe_the_gate_at_release(tmp_path):
-    assert "boundary" not in attest.owed_gates(_untyped_ws(tmp_path, "pll"), "msde")
-    assert "cosim" in attest.owed_gates(_untyped_ws(tmp_path, "r2r_dac"), "msde")
+    owed = attest.owed_gates(_untyped_ws(tmp_path, "pll"), "msde")
+    assert "boundary" not in owed
+    assert "cosim" in owed
 
 
 def test_any_other_block_owes_the_gate_at_release(tmp_path):

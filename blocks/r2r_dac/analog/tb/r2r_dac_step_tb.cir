@@ -12,8 +12,9 @@
 *
 * WINDOW (template rule): t_win = max(5 x t_bound, 20 x tau_exp) with
 * t_bound = 1.5 us (spec.yaml t_settle_rise/fall) and tau_exp = 230 ns
-* (spec.md round 2: 27k x 7 pF = 189 ns at tt, +20 % rsh at ss) ->
-* t_win = 7.5 us per edge. Never a fixed 100 ns window.
+* (spec.md round 2: 27k x 7 pF = 189 ns at tt, +20 % rsh at ss; the old
+* assumed pad load, larger than the pad model's ~6 pF that replaced it, so
+* the window only errs long) -> t_win = 7.5 us per edge. Never a fixed 100 ns window.
 *
 * Stimulus (edge = centre of a 100 ps input edge; all eight dac_code bits
 * switch together, ideal 0/VDD sources per spec.md Interface):
@@ -34,8 +35,10 @@
 *           v0 = vout just before the edge. From masked vectors: a waveform
 *           that never gets there scores ~1 s (fails its bound).
 *
-* Pad load ASSUMED (spec.md): R_pad = 100 ohm in series with C_load = 7 pF,
-* one parameter each. Corners: {{CORNER}} FET section + {{RES_CORNER}}
+* No load of its own on vout: the spec lists vout in ua_pins, so every run is
+* made bare and again through the TT ua pad model (engine/lib/padlib.py, 500 ohm
+* + 5 pF + the pad's ESD diodes). A bench R/C here would count the pad twice.
+* Corners: {{CORNER}} FET section + {{RES_CORNER}}
 * resistor section (sim_run.RES_LIB_SECTION).
 
 .include '{{PDK}}/libs.tech/ngspice/design.ngspice'
@@ -47,7 +50,6 @@
 
 .temp {{TEMP_C}}
 .param vddp={{VDD}}
-.param r_pad=100 c_load=7p
 .param t_bound=1.5u tau_exp=230n nbits=8 dv_ideal='255/256*vddp'
 .param t_r=20n t_win='max(5*t_bound, 20*tau_exp)'
 .param t_f='t_r+t_win'
@@ -80,8 +82,6 @@ vb0 b0 0 pwl(0 0 {t_r-0.05n} 0 {t_r+0.05n} {vddp} {t_f-0.05n} {vddp} {t_f+0.05n}
 * DUT, pins in topology.md order: dac_code[7..0] vout vdd vss
 xdut b7 b6 b5 b4 b3 b2 b1 b0 vout vdd vss r2r_dac_analog
 
-rpad vout vpad {r_pad}
-cload vpad 0 {c_load}
 * --- DUT END
 
 .control

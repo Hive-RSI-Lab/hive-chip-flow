@@ -12,15 +12,15 @@
 * i_vdd_avg: mean vdd current over the 256 codes - the average over spec.md's
 * full-code sweep with each code held until settled (200 ns), where the
 * static ladder current dominates; the switching charge per code edge
-* (7 pF x ~1 LSB plus the driver nodes) adds well under 1 % at 200 ns/code.
+* (the pad's ~6 pF x ~1 LSB plus the driver nodes) adds well under 1 % at 200 ns/code.
 *
 * Method: a DC sweep of an integer "code" source 0..255 step 1; eight
 * behavioural sources decode it to the eight dac_code bits at 0 / VDD
 * (ideal CMOS levels, as spec.md's Interface says the bench drives them).
 * A DC point is the fully-settled limit of spec.md's "hold each code long
 * enough to settle (e.g. 200 ns)": it reads the same end-of-step value
-* without a 51 us transient. vout drives the assumed pad load (R_pad in
-* series with C_load; C is open at DC). LSB_meas = (v(255)-v(0))/255,
+* without a 51 us transient. vout has no load here: the pad model (padlib,
+* ua_pins) is added by the run, and its C is open at DC. LSB_meas = (v(255)-v(0))/255,
 * end-point fit, exactly spec.md's Measures table: sim_run reads the wrdata
 * sweep back and scores it through the engine's convlib.static_ramp, so DNL,
 * INL and monotonic are not computed in this deck.
@@ -57,8 +57,6 @@
 .options reltol=1e-6 vntol=1e-9 abstol=1e-13
 .temp {{TEMP_C}}
 .param vddp={{VDD}}
-* assumed TT ua[0] pad load (spec.md "Values chosen"), one parameter each
-.param r_pad=100 c_load=7p
 
 vdd vdd 0 {vddp}
 vss vss 0 0
@@ -79,9 +77,6 @@ bc0 b0 0 v={vddp*(floor((v(code)+0.25)/1)   - 2*floor((v(code)+0.25)/2))}
 * dac_code[7..0] vout vdd vss
 xdut b7 b6 b5 b4 b3 b2 b1 b0 vout vdd vss r2r_dac_analog
 
-* pad load
-rpad vout vpad {r_pad}
-cload vpad 0 {c_load}
 * test current for inl_sens_1pct_max (0 except in the reciprocity sweep)
 iinj 0 vout 0
 

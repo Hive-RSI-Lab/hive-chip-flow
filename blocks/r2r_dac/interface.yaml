@@ -9,14 +9,16 @@
 # Only one signal crosses. The DAC's analog output (vout) does NOT cross to
 # the digital side - it leaves the tile on Tiny Tapeout analog pad ua[0],
 # declared under ua_pins below (chip-flow #20's analog-tile path).
-version: 1
+# version 2: the typed load (#110); the boundary gate measures dac_code's
+# switching point against cmos_3v3, set in analog/spec/spec.yaml boundary:.
+version: 2
 signals:
   - name: dac_code
     direction: d2a
     level: cmos_3v3
     domain: clk_sys
     width: 8
-    load: "gate inputs of the 8 ladder switch driver cells inside the analog macro, one gf180mcu_fd_sc_mcu7t5v0 buffer input per bit"
+    load: {pin: gf180mcu_fd_sc_mcu7t5v0__buf_20/I, count: 1, note: "each bit is the input of one ladder switch driver, xd0..xd7 in the macro"}
 # Analog-cell pins brought out to the Tiny Tapeout analog pads ua[k], read
 # by check_top_harden. One analog pin, the brief's minimum.
 ua_pins:

@@ -4,23 +4,23 @@
  "block": "r2r_dac",
  "workspace": "blocks/r2r_dac",
  "created": "2026-09-25T05:42:01",
- "updated": "2026-11-10T23:15:59",
+ "updated": "2026-11-12T23:42:50",
  "phase": "P4",
  "toolchain": null,
  "gates": {
   "split": {
    "phase": "P1",
    "status": "pass",
-   "attempts": 10,
+   "attempts": 12,
    "last": {
-    "ts": "2026-11-06T05:59:25",
+    "ts": "2026-11-12T23:31:23",
     "status": "pass",
     "failing_count": 0,
     "total": 0,
     "inputs": {
-     "interface": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
-     "digital_side_spec": "json_canonical:e52fd5cabc96bf3cfe80463861809e640516e763ffe6d5ad341dd19366f87352",
-     "analog_side_spec": "json_canonical:61734e544be2b0cd5fb5d3373df1e39f971c980f0e71decd49621c97736c30bd",
+     "interface": "json_canonical:b317b0c3e311adfb5ad2db6738f43e6e1c4a839c10c8d785d0ebda5c0505c87e",
+     "digital_side_spec": "json_canonical:b4d4ce6522e1867dcc286eae58d46471389ad997bf8092c2c5a71298fb2e46f7",
+     "analog_side_spec": "json_canonical:e77fc80a59dd66aa87d97c7911c9a67a90f1325ba0ef1f7a3e0fb2f220436611",
      "digital_spec": "json_canonical:316aabe3e699eb67a766fb42296b9a90d765394b6deefb2d5178cc8865c08bbf",
      "digital_cdc": null
     },
@@ -153,26 +153,56 @@
      },
      "strength": 0,
      "job": null
+    },
+    {
+     "ts": "2026-11-11T02:18:58",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "interface": "json_canonical:b317b0c3e311adfb5ad2db6738f43e6e1c4a839c10c8d785d0ebda5c0505c87e",
+      "digital_side_spec": "json_canonical:b4d4ce6522e1867dcc286eae58d46471389ad997bf8092c2c5a71298fb2e46f7",
+      "analog_side_spec": "json_canonical:e77fc80a59dd66aa87d97c7911c9a67a90f1325ba0ef1f7a3e0fb2f220436611",
+      "digital_spec": "json_canonical:316aabe3e699eb67a766fb42296b9a90d765394b6deefb2d5178cc8865c08bbf",
+      "digital_cdc": null
+     },
+     "strength": 0,
+     "job": null
+    },
+    {
+     "ts": "2026-11-12T23:31:23",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "interface": "json_canonical:b317b0c3e311adfb5ad2db6738f43e6e1c4a839c10c8d785d0ebda5c0505c87e",
+      "digital_side_spec": "json_canonical:b4d4ce6522e1867dcc286eae58d46471389ad997bf8092c2c5a71298fb2e46f7",
+      "analog_side_spec": "json_canonical:e77fc80a59dd66aa87d97c7911c9a67a90f1325ba0ef1f7a3e0fb2f220436611",
+      "digital_spec": "json_canonical:316aabe3e699eb67a766fb42296b9a90d765394b6deefb2d5178cc8865c08bbf",
+      "digital_cdc": null
+     },
+     "strength": 0,
+     "job": null
     }
    ]
   },
   "top_harden": {
    "phase": "P3",
    "status": "pass",
-   "attempts": 25,
+   "attempts": 26,
    "last": {
-    "ts": "2026-11-10T22:48:19",
+    "ts": "2026-11-12T23:37:24",
     "status": "pass",
     "failing_count": 0,
     "total": 0,
     "inputs": {
      "digital_rtl": "dir_text:5b5e3748612f45afdfaedc1d7e6daa228ca0e64c09072bc4ac8b8b6275a6d995",
-     "interface": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
+     "interface": "json_canonical:b317b0c3e311adfb5ad2db6738f43e6e1c4a839c10c8d785d0ebda5c0505c87e",
      "digital_spec": "json_canonical:316aabe3e699eb67a766fb42296b9a90d765394b6deefb2d5178cc8865c08bbf",
      "analog_layout": "dir_text:0e70004ef7ec01fff4a595cd07d638e11de9e4cc13b19173de7d027b54f419c9",
      "analog_netlist": "dir_text:2c6d358ba4c3ec93f5dc910e1777df9a3f5418293791a715229fa1b8d22d1e4e",
      "analog_sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
-     "analog_spec": "json_canonical:efe11a72dd5874ab5fa002e7531a93eab8036650518249c44e266fcab592fed9",
+     "analog_spec": "json_canonical:bea97fb251ebda8c3059ca750c9247e051bdd64946a521b40eb21ee20fe77e64",
      "macro_lib": "dir_text:21eb61d0043a7186ce338491ad1696bd6a048bde0664830879fde90126ed7a20",
      "top_sdc": null,
      "digital_sdc": null,
@@ -188,7 +218,7 @@
     "strength": 2,
     "job": null,
     "facts": {
-     "wall_s": 77.09
+     "wall_s": 63.62
     }
    },
    "history": [
@@ -844,24 +874,55 @@
      "facts": {
       "wall_s": 77.09
      }
+    },
+    {
+     "ts": "2026-11-12T23:37:24",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "digital_rtl": "dir_text:5b5e3748612f45afdfaedc1d7e6daa228ca0e64c09072bc4ac8b8b6275a6d995",
+      "interface": "json_canonical:b317b0c3e311adfb5ad2db6738f43e6e1c4a839c10c8d785d0ebda5c0505c87e",
+      "digital_spec": "json_canonical:316aabe3e699eb67a766fb42296b9a90d765394b6deefb2d5178cc8865c08bbf",
+      "analog_layout": "dir_text:0e70004ef7ec01fff4a595cd07d638e11de9e4cc13b19173de7d027b54f419c9",
+      "analog_netlist": "dir_text:2c6d358ba4c3ec93f5dc910e1777df9a3f5418293791a715229fa1b8d22d1e4e",
+      "analog_sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
+      "analog_spec": "json_canonical:bea97fb251ebda8c3059ca750c9247e051bdd64946a521b40eb21ee20fe77e64",
+      "macro_lib": "dir_text:21eb61d0043a7186ce338491ad1696bd6a048bde0664830879fde90126ed7a20",
+      "top_sdc": null,
+      "digital_sdc": null,
+      "top_override": null,
+      "digital_override": "json_canonical:287e8a2e466f0d26930245056d99dcc9dec4f71d106936c4f0bee579012017eb",
+      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+      "pdk_liberty": "dir_bytes:f09377f057ab484ec9e5a45b205c99a5de399e2bdca886531bf9eefa57783f32",
+      "pdk_librelane": "dir_text:34d9ac7321e45f53bb312360322931fa53cbee081929f4bd7047d6e84b5fdb37",
+      "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
+      "pdk_klayout": "dir_text:876da90e8aab65b830b36eca12bd720adfe8240a0952872419d9f2b4abda605d",
+      "pdk_netgen": "dir_text:8164f65bb7d1bef6e27af4c13b1c6ede50973cec7aec482556abb23881aceb04"
+     },
+     "strength": 2,
+     "job": null,
+     "facts": {
+      "wall_s": 63.62
+     }
     }
    ]
   },
   "cosim": {
    "phase": "P3",
    "status": "pass",
-   "attempts": 25,
+   "attempts": 26,
    "last": {
-    "ts": "2026-11-10T23:02:28",
+    "ts": "2026-11-12T23:34:25",
     "status": "pass",
     "failing_count": 0,
     "total": 0,
     "inputs": {
-     "interface": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
+     "interface": "json_canonical:b317b0c3e311adfb5ad2db6738f43e6e1c4a839c10c8d785d0ebda5c0505c87e",
      "tb": "dir_text:45289ff06ca425ad4d0082caa18b388c4544c45857d0388fdcdefaf08dff1c4e",
      "digital_rtl": "dir_text:5b5e3748612f45afdfaedc1d7e6daa228ca0e64c09072bc4ac8b8b6275a6d995",
      "digital_spec": "json_canonical:316aabe3e699eb67a766fb42296b9a90d765394b6deefb2d5178cc8865c08bbf",
-     "analog_spec": "json_canonical:efe11a72dd5874ab5fa002e7531a93eab8036650518249c44e266fcab592fed9",
+     "analog_spec": "json_canonical:bea97fb251ebda8c3059ca750c9247e051bdd64946a521b40eb21ee20fe77e64",
      "analog_netlist": "dir_text:2c6d358ba4c3ec93f5dc910e1777df9a3f5418293791a715229fa1b8d22d1e4e",
      "analog_sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
@@ -1328,20 +1389,45 @@
        "reason": "the bench's analog side is an ideal model, with no post-layout view to run"
       }
      }
+    },
+    {
+     "ts": "2026-11-12T23:34:25",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "interface": "json_canonical:b317b0c3e311adfb5ad2db6738f43e6e1c4a839c10c8d785d0ebda5c0505c87e",
+      "tb": "dir_text:45289ff06ca425ad4d0082caa18b388c4544c45857d0388fdcdefaf08dff1c4e",
+      "digital_rtl": "dir_text:5b5e3748612f45afdfaedc1d7e6daa228ca0e64c09072bc4ac8b8b6275a6d995",
+      "digital_spec": "json_canonical:316aabe3e699eb67a766fb42296b9a90d765394b6deefb2d5178cc8865c08bbf",
+      "analog_spec": "json_canonical:bea97fb251ebda8c3059ca750c9247e051bdd64946a521b40eb21ee20fe77e64",
+      "analog_netlist": "dir_text:2c6d358ba4c3ec93f5dc910e1777df9a3f5418293791a715229fa1b8d22d1e4e",
+      "analog_sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
+      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+      "pdk_models": "dir_text:84e0f27991c27acae27ec5243fd0d1587f7bfb2655e802ed0eb92a811cf5f7f8"
+     },
+     "strength": 0,
+     "job": null,
+     "facts": {
+      "corners": {
+       "owed": false,
+       "reason": "the bench's analog side is an ideal model, with no post-layout view to run"
+      }
+     }
     }
    ]
   },
   "top_drc": {
    "phase": "P3",
    "status": "pass",
-   "attempts": 20,
+   "attempts": 21,
    "last": {
-    "ts": "2026-11-10T22:49:33",
+    "ts": "2026-11-12T23:37:50",
     "status": "pass",
     "failing_count": 0,
     "total": 0,
     "inputs": {
-     "top_gds": "dir_text:bb511d0cd545cdf089237b480f5e8ab64216eeb209fd1f29cc66bda54dd30b76",
+     "top_gds": "dir_text:0bac6c5d30ee7fc8e07a078f61c99be225e1a974fcad0a99f54c066b93d83631",
      "top_spec": "json_canonical:d863d5e4ac42eb90b849bfae8bc19ecdb8167ca2c310bd40cdb64c48a4355186",
      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
      "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
@@ -1724,22 +1810,41 @@
       "magic_count": 0,
       "klayout_count": 0
      }
+    },
+    {
+     "ts": "2026-11-12T23:37:50",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "top_gds": "dir_text:0bac6c5d30ee7fc8e07a078f61c99be225e1a974fcad0a99f54c066b93d83631",
+      "top_spec": "json_canonical:d863d5e4ac42eb90b849bfae8bc19ecdb8167ca2c310bd40cdb64c48a4355186",
+      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+      "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
+      "pdk_klayout": "dir_text:876da90e8aab65b830b36eca12bd720adfe8240a0952872419d9f2b4abda605d"
+     },
+     "strength": 0,
+     "job": null,
+     "facts": {
+      "magic_count": 0,
+      "klayout_count": 0
+     }
     }
    ]
   },
   "precheck": {
    "phase": "P3",
    "status": "pass",
-   "attempts": 20,
+   "attempts": 21,
    "last": {
-    "ts": "2026-11-10T22:50:52",
+    "ts": "2026-11-12T23:38:55",
     "status": "pass",
     "failing_count": 0,
     "total": 0,
     "inputs": {
-     "top_gds": "dir_text:bb511d0cd545cdf089237b480f5e8ab64216eeb209fd1f29cc66bda54dd30b76",
+     "top_gds": "dir_text:0bac6c5d30ee7fc8e07a078f61c99be225e1a974fcad0a99f54c066b93d83631",
      "top_lef": "dir_text:b1aed146f6f2a3c5556a061d24c0ad4d534d22442c5f4bcf417b39e07d7a8448",
-     "interface": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
+     "interface": "json_canonical:b317b0c3e311adfb5ad2db6738f43e6e1c4a839c10c8d785d0ebda5c0505c87e",
      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
      "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
      "pdk_klayout": "dir_text:876da90e8aab65b830b36eca12bd720adfe8240a0952872419d9f2b4abda605d"
@@ -2109,22 +2214,41 @@
      "facts": {
       "checks_run": 12
      }
+    },
+    {
+     "ts": "2026-11-12T23:38:55",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "top_gds": "dir_text:0bac6c5d30ee7fc8e07a078f61c99be225e1a974fcad0a99f54c066b93d83631",
+      "top_lef": "dir_text:b1aed146f6f2a3c5556a061d24c0ad4d534d22442c5f4bcf417b39e07d7a8448",
+      "interface": "json_canonical:b317b0c3e311adfb5ad2db6738f43e6e1c4a839c10c8d785d0ebda5c0505c87e",
+      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+      "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
+      "pdk_klayout": "dir_text:876da90e8aab65b830b36eca12bd720adfe8240a0952872419d9f2b4abda605d"
+     },
+     "strength": 0,
+     "job": null,
+     "facts": {
+      "checks_run": 12
+     }
     }
    ]
   },
   "top_lvs": {
    "phase": "P3",
    "status": "pass",
-   "attempts": 20,
+   "attempts": 21,
    "last": {
-    "ts": "2026-11-10T22:49:35",
+    "ts": "2026-11-12T23:37:56",
     "status": "pass",
     "failing_count": 0,
     "total": 0,
     "inputs": {
-     "top_gds": "dir_text:bb511d0cd545cdf089237b480f5e8ab64216eeb209fd1f29cc66bda54dd30b76",
+     "top_gds": "dir_text:0bac6c5d30ee7fc8e07a078f61c99be225e1a974fcad0a99f54c066b93d83631",
      "top_spec": "json_canonical:d863d5e4ac42eb90b849bfae8bc19ecdb8167ca2c310bd40cdb64c48a4355186",
-     "top_macros": "dir_text:5966eac2cbe6a888e083b918f3e73dd120daaffdd7e033c4c2cf16bf2b2e2ab6",
+     "top_macros": "dir_text:2956b759fa67e4a3ef5051fd834b44010844b7f79d445fdf8ea74bbdeca01e32",
      "top_pnl": "dir_text:d5af7fd96d8b5a47c3998ae525d45a8b76ebe719ed103a4b3c22e5a83e6f74de",
      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
      "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
@@ -2485,30 +2609,47 @@
      },
      "strength": 0,
      "job": null
+    },
+    {
+     "ts": "2026-11-12T23:37:56",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "top_gds": "dir_text:0bac6c5d30ee7fc8e07a078f61c99be225e1a974fcad0a99f54c066b93d83631",
+      "top_spec": "json_canonical:d863d5e4ac42eb90b849bfae8bc19ecdb8167ca2c310bd40cdb64c48a4355186",
+      "top_macros": "dir_text:2956b759fa67e4a3ef5051fd834b44010844b7f79d445fdf8ea74bbdeca01e32",
+      "top_pnl": "dir_text:d5af7fd96d8b5a47c3998ae525d45a8b76ebe719ed103a4b3c22e5a83e6f74de",
+      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+      "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
+      "pdk_netgen": "dir_text:8164f65bb7d1bef6e27af4c13b1c6ede50973cec7aec482556abb23881aceb04"
+     },
+     "strength": 0,
+     "job": null
     }
    ]
   },
   "release": {
    "phase": "P4",
    "status": "pass",
-   "attempts": 29,
+   "attempts": 32,
    "last": {
-    "ts": "2026-11-10T23:15:59",
+    "ts": "2026-11-12T23:42:50",
     "status": "pass",
     "failing_count": 0,
     "total": 0,
     "inputs": {
-     "interface": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
+     "interface": "json_canonical:b317b0c3e311adfb5ad2db6738f43e6e1c4a839c10c8d785d0ebda5c0505c87e",
      "digital_rtl": "dir_text:5b5e3748612f45afdfaedc1d7e6daa228ca0e64c09072bc4ac8b8b6275a6d995",
      "analog_layout": "dir_text:0e70004ef7ec01fff4a595cd07d638e11de9e4cc13b19173de7d027b54f419c9",
      "digital_spec": "json_canonical:316aabe3e699eb67a766fb42296b9a90d765394b6deefb2d5178cc8865c08bbf",
      "analog_netlist": "dir_text:2c6d358ba4c3ec93f5dc910e1777df9a3f5418293791a715229fa1b8d22d1e4e",
      "analog_sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
-     "digital_side_spec": "json_canonical:e52fd5cabc96bf3cfe80463861809e640516e763ffe6d5ad341dd19366f87352",
-     "analog_side_spec": "json_canonical:61734e544be2b0cd5fb5d3373df1e39f971c980f0e71decd49621c97736c30bd",
+     "digital_side_spec": "json_canonical:b4d4ce6522e1867dcc286eae58d46471389ad997bf8092c2c5a71298fb2e46f7",
+     "analog_side_spec": "json_canonical:e77fc80a59dd66aa87d97c7911c9a67a90f1325ba0ef1f7a3e0fb2f220436611",
      "top_lef": "dir_text:b1aed146f6f2a3c5556a061d24c0ad4d534d22442c5f4bcf417b39e07d7a8448",
-     "top_sdf": "dir_text:4d177ca43b4d646c65fc860be5873e241e2afc8550257fe2ae26991f950ad792",
-     "top_spef": "dir_text:84bef3900f029b2fc9c057f2936e7abc70287b5466d5ec22ef6ceebd7c80d2a4",
+     "top_sdf": "dir_text:c3c7d52838bbed8a5e690c1bb455b212aa8c7a535bee829ada4447b1b02eecf7",
+     "top_spef": "dir_text:a446a98b3a5d3e95250bff41154db4c0a4f0b5bd7bbdf50e45b8bd0753911033",
      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2"
     },
     "strength": 0,
@@ -3087,23 +3228,89 @@
      },
      "strength": 0,
      "job": null
+    },
+    {
+     "ts": "2026-11-12T23:39:01",
+     "status": "fail",
+     "failing_count": 1,
+     "total": 1,
+     "inputs": {
+      "interface": "json_canonical:b317b0c3e311adfb5ad2db6738f43e6e1c4a839c10c8d785d0ebda5c0505c87e",
+      "digital_rtl": "dir_text:5b5e3748612f45afdfaedc1d7e6daa228ca0e64c09072bc4ac8b8b6275a6d995",
+      "analog_layout": "dir_text:0e70004ef7ec01fff4a595cd07d638e11de9e4cc13b19173de7d027b54f419c9",
+      "digital_spec": "json_canonical:316aabe3e699eb67a766fb42296b9a90d765394b6deefb2d5178cc8865c08bbf",
+      "analog_netlist": "dir_text:2c6d358ba4c3ec93f5dc910e1777df9a3f5418293791a715229fa1b8d22d1e4e",
+      "analog_sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
+      "digital_side_spec": "json_canonical:b4d4ce6522e1867dcc286eae58d46471389ad997bf8092c2c5a71298fb2e46f7",
+      "analog_side_spec": "json_canonical:e77fc80a59dd66aa87d97c7911c9a67a90f1325ba0ef1f7a3e0fb2f220436611",
+      "top_lef": "dir_text:b1aed146f6f2a3c5556a061d24c0ad4d534d22442c5f4bcf417b39e07d7a8448",
+      "top_sdf": "dir_text:c3c7d52838bbed8a5e690c1bb455b212aa8c7a535bee829ada4447b1b02eecf7",
+      "top_spef": "dir_text:a446a98b3a5d3e95250bff41154db4c0a4f0b5bd7bbdf50e45b8bd0753911033",
+      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2"
+     },
+     "strength": 0,
+     "job": null
+    },
+    {
+     "ts": "2026-11-12T23:40:06",
+     "status": "fail",
+     "failing_count": 1,
+     "total": 1,
+     "inputs": {
+      "interface": "json_canonical:b317b0c3e311adfb5ad2db6738f43e6e1c4a839c10c8d785d0ebda5c0505c87e",
+      "digital_rtl": "dir_text:5b5e3748612f45afdfaedc1d7e6daa228ca0e64c09072bc4ac8b8b6275a6d995",
+      "analog_layout": "dir_text:0e70004ef7ec01fff4a595cd07d638e11de9e4cc13b19173de7d027b54f419c9",
+      "digital_spec": "json_canonical:316aabe3e699eb67a766fb42296b9a90d765394b6deefb2d5178cc8865c08bbf",
+      "analog_netlist": "dir_text:2c6d358ba4c3ec93f5dc910e1777df9a3f5418293791a715229fa1b8d22d1e4e",
+      "analog_sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
+      "digital_side_spec": "json_canonical:b4d4ce6522e1867dcc286eae58d46471389ad997bf8092c2c5a71298fb2e46f7",
+      "analog_side_spec": "json_canonical:e77fc80a59dd66aa87d97c7911c9a67a90f1325ba0ef1f7a3e0fb2f220436611",
+      "top_lef": "dir_text:b1aed146f6f2a3c5556a061d24c0ad4d534d22442c5f4bcf417b39e07d7a8448",
+      "top_sdf": "dir_text:c3c7d52838bbed8a5e690c1bb455b212aa8c7a535bee829ada4447b1b02eecf7",
+      "top_spef": "dir_text:a446a98b3a5d3e95250bff41154db4c0a4f0b5bd7bbdf50e45b8bd0753911033",
+      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2"
+     },
+     "strength": 0,
+     "job": null
+    },
+    {
+     "ts": "2026-11-12T23:42:50",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "interface": "json_canonical:b317b0c3e311adfb5ad2db6738f43e6e1c4a839c10c8d785d0ebda5c0505c87e",
+      "digital_rtl": "dir_text:5b5e3748612f45afdfaedc1d7e6daa228ca0e64c09072bc4ac8b8b6275a6d995",
+      "analog_layout": "dir_text:0e70004ef7ec01fff4a595cd07d638e11de9e4cc13b19173de7d027b54f419c9",
+      "digital_spec": "json_canonical:316aabe3e699eb67a766fb42296b9a90d765394b6deefb2d5178cc8865c08bbf",
+      "analog_netlist": "dir_text:2c6d358ba4c3ec93f5dc910e1777df9a3f5418293791a715229fa1b8d22d1e4e",
+      "analog_sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
+      "digital_side_spec": "json_canonical:b4d4ce6522e1867dcc286eae58d46471389ad997bf8092c2c5a71298fb2e46f7",
+      "analog_side_spec": "json_canonical:e77fc80a59dd66aa87d97c7911c9a67a90f1325ba0ef1f7a3e0fb2f220436611",
+      "top_lef": "dir_text:b1aed146f6f2a3c5556a061d24c0ad4d534d22442c5f4bcf417b39e07d7a8448",
+      "top_sdf": "dir_text:c3c7d52838bbed8a5e690c1bb455b212aa8c7a535bee829ada4447b1b02eecf7",
+      "top_spef": "dir_text:a446a98b3a5d3e95250bff41154db4c0a4f0b5bd7bbdf50e45b8bd0753911033",
+      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2"
+     },
+     "strength": 0,
+     "job": null
     }
    ]
   },
   "macro_lib": {
    "phase": "P3",
    "status": "pass",
-   "attempts": 17,
+   "attempts": 18,
    "last": {
-    "ts": "2026-11-10T22:46:56",
+    "ts": "2026-11-12T23:36:07",
     "status": "pass",
     "failing_count": 0,
     "total": 0,
     "inputs": {
-     "interface": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
+     "interface": "json_canonical:b317b0c3e311adfb5ad2db6738f43e6e1c4a839c10c8d785d0ebda5c0505c87e",
      "analog_netlist": "dir_text:2c6d358ba4c3ec93f5dc910e1777df9a3f5418293791a715229fa1b8d22d1e4e",
      "analog_sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
-     "analog_spec": "json_canonical:efe11a72dd5874ab5fa002e7531a93eab8036650518249c44e266fcab592fed9",
+     "analog_spec": "json_canonical:bea97fb251ebda8c3059ca750c9247e051bdd64946a521b40eb21ee20fe77e64",
      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
      "pdk_models": "dir_text:84e0f27991c27acae27ec5243fd0d1587f7bfb2655e802ed0eb92a811cf5f7f8",
      "pdk_liberty": "dir_bytes:f09377f057ab484ec9e5a45b205c99a5de399e2bdca886531bf9eefa57783f32"
@@ -5956,6 +6163,291 @@
        }
       }
      }
+    },
+    {
+     "ts": "2026-11-12T23:36:07",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "interface": "json_canonical:b317b0c3e311adfb5ad2db6738f43e6e1c4a839c10c8d785d0ebda5c0505c87e",
+      "analog_netlist": "dir_text:2c6d358ba4c3ec93f5dc910e1777df9a3f5418293791a715229fa1b8d22d1e4e",
+      "analog_sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
+      "analog_spec": "json_canonical:bea97fb251ebda8c3059ca750c9247e051bdd64946a521b40eb21ee20fe77e64",
+      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+      "pdk_models": "dir_text:84e0f27991c27acae27ec5243fd0d1587f7bfb2655e802ed0eb92a811cf5f7f8",
+      "pdk_liberty": "dir_bytes:f09377f057ab484ec9e5a45b205c99a5de399e2bdca886531bf9eefa57783f32"
+     },
+     "strength": 1,
+     "job": null,
+     "facts": {
+      "corners": {
+       "tt_025C_3v30": {
+        "lib": "r2r_dac_analog__tt_025C_3v30.lib",
+        "vdd": 3.3,
+        "input_cap_pf": {
+         "dac_code[0]": {
+          "capacitance": 0.031147878787878787,
+          "rise_capacitance": 0.031146060606060604,
+          "fall_capacitance": 0.031147878787878787
+         },
+         "dac_code[1]": {
+          "capacitance": 0.031147878787878787,
+          "rise_capacitance": 0.031146060606060604,
+          "fall_capacitance": 0.031147878787878787
+         },
+         "dac_code[2]": {
+          "capacitance": 0.031147878787878787,
+          "rise_capacitance": 0.031146060606060604,
+          "fall_capacitance": 0.031147878787878787
+         },
+         "dac_code[3]": {
+          "capacitance": 0.031147878787878787,
+          "rise_capacitance": 0.031146060606060604,
+          "fall_capacitance": 0.031147878787878787
+         },
+         "dac_code[4]": {
+          "capacitance": 0.031147878787878787,
+          "rise_capacitance": 0.031146060606060604,
+          "fall_capacitance": 0.031147878787878787
+         },
+         "dac_code[5]": {
+          "capacitance": 0.031147878787878787,
+          "rise_capacitance": 0.031146060606060604,
+          "fall_capacitance": 0.031147878787878787
+         },
+         "dac_code[6]": {
+          "capacitance": 0.031147878787878787,
+          "rise_capacitance": 0.031146060606060604,
+          "fall_capacitance": 0.031147878787878787
+         },
+         "dac_code[7]": {
+          "capacitance": 0.031147878787878787,
+          "rise_capacitance": 0.031146060606060604,
+          "fall_capacitance": 0.031147878787878787
+         }
+        }
+       },
+       "ss_125C_3v00": {
+        "lib": "r2r_dac_analog__ss_125C_3v00.lib",
+        "vdd": 3.0,
+        "input_cap_pf": {
+         "dac_code[0]": {
+          "capacitance": 0.031079000000000002,
+          "rise_capacitance": 0.0310772,
+          "fall_capacitance": 0.031079000000000002
+         },
+         "dac_code[1]": {
+          "capacitance": 0.03107903333333333,
+          "rise_capacitance": 0.0310772,
+          "fall_capacitance": 0.03107903333333333
+         },
+         "dac_code[2]": {
+          "capacitance": 0.03107903333333333,
+          "rise_capacitance": 0.0310772,
+          "fall_capacitance": 0.03107903333333333
+         },
+         "dac_code[3]": {
+          "capacitance": 0.03107903333333333,
+          "rise_capacitance": 0.0310772,
+          "fall_capacitance": 0.03107903333333333
+         },
+         "dac_code[4]": {
+          "capacitance": 0.03107903333333333,
+          "rise_capacitance": 0.0310772,
+          "fall_capacitance": 0.03107903333333333
+         },
+         "dac_code[5]": {
+          "capacitance": 0.03107903333333333,
+          "rise_capacitance": 0.0310772,
+          "fall_capacitance": 0.03107903333333333
+         },
+         "dac_code[6]": {
+          "capacitance": 0.031079099999999995,
+          "rise_capacitance": 0.031077233333333332,
+          "fall_capacitance": 0.031079099999999995
+         },
+         "dac_code[7]": {
+          "capacitance": 0.031079099999999995,
+          "rise_capacitance": 0.031077266666666666,
+          "fall_capacitance": 0.031079099999999995
+         }
+        }
+       },
+       "ff_n40C_3v60": {
+        "lib": "r2r_dac_analog__ff_n40C_3v60.lib",
+        "vdd": 3.6,
+        "input_cap_pf": {
+         "dac_code[0]": {
+          "capacitance": 0.031899166666666666,
+          "rise_capacitance": 0.03189805555555555,
+          "fall_capacitance": 0.031899166666666666
+         },
+         "dac_code[1]": {
+          "capacitance": 0.031899166666666666,
+          "rise_capacitance": 0.03189805555555555,
+          "fall_capacitance": 0.031899166666666666
+         },
+         "dac_code[2]": {
+          "capacitance": 0.031899166666666666,
+          "rise_capacitance": 0.03189805555555555,
+          "fall_capacitance": 0.031899166666666666
+         },
+         "dac_code[3]": {
+          "capacitance": 0.031899166666666666,
+          "rise_capacitance": 0.03189805555555555,
+          "fall_capacitance": 0.031899166666666666
+         },
+         "dac_code[4]": {
+          "capacitance": 0.031899166666666666,
+          "rise_capacitance": 0.03189805555555555,
+          "fall_capacitance": 0.031899166666666666
+         },
+         "dac_code[5]": {
+          "capacitance": 0.031899166666666666,
+          "rise_capacitance": 0.03189805555555555,
+          "fall_capacitance": 0.031899166666666666
+         },
+         "dac_code[6]": {
+          "capacitance": 0.031899166666666666,
+          "rise_capacitance": 0.03189805555555555,
+          "fall_capacitance": 0.031899166666666666
+         },
+         "dac_code[7]": {
+          "capacitance": 0.031899166666666666,
+          "rise_capacitance": 0.03189805555555555,
+          "fall_capacitance": 0.031899166666666666
+         }
+        }
+       }
+      }
+     }
+    }
+   ]
+  },
+  "boundary": {
+   "phase": "P3",
+   "status": "pass",
+   "attempts": 2,
+   "last": {
+    "ts": "2026-11-12T23:34:13",
+    "status": "pass",
+    "failing_count": 0,
+    "total": 0,
+    "inputs": {
+     "interface": "json_canonical:b317b0c3e311adfb5ad2db6738f43e6e1c4a839c10c8d785d0ebda5c0505c87e",
+     "analog_netlist": "dir_text:2c6d358ba4c3ec93f5dc910e1777df9a3f5418293791a715229fa1b8d22d1e4e",
+     "analog_sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
+     "analog_spec": "json_canonical:bea97fb251ebda8c3059ca750c9247e051bdd64946a521b40eb21ee20fe77e64",
+     "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+     "pdk_models": "dir_text:84e0f27991c27acae27ec5243fd0d1587f7bfb2655e802ed0eb92a811cf5f7f8",
+     "pdk_liberty": "dir_bytes:f09377f057ab484ec9e5a45b205c99a5de399e2bdca886531bf9eefa57783f32"
+    },
+    "strength": 1,
+    "job": null,
+    "facts": {
+     "corners": [
+      "tt_025C_3v30",
+      "ss_125C_3v00",
+      "ff_n40C_3v60"
+     ]
+    }
+   },
+   "history": [
+    {
+     "ts": "2026-11-11T02:23:02",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "interface": "json_canonical:b317b0c3e311adfb5ad2db6738f43e6e1c4a839c10c8d785d0ebda5c0505c87e",
+      "analog_netlist": "dir_text:2c6d358ba4c3ec93f5dc910e1777df9a3f5418293791a715229fa1b8d22d1e4e",
+      "analog_sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
+      "analog_spec": "json_canonical:a14012ef531704dd507cc3c2ed4921566636cd1ec7543f373f32b224e37c5edf",
+      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+      "pdk_models": "dir_text:84e0f27991c27acae27ec5243fd0d1587f7bfb2655e802ed0eb92a811cf5f7f8",
+      "pdk_liberty": "dir_bytes:f09377f057ab484ec9e5a45b205c99a5de399e2bdca886531bf9eefa57783f32"
+     },
+     "strength": 1,
+     "job": null,
+     "facts": {
+      "corners": [
+       "tt_025C_3v30",
+       "ss_125C_3v00",
+       "ff_n40C_3v60"
+      ]
+     }
+    },
+    {
+     "ts": "2026-11-12T23:34:13",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 0,
+     "inputs": {
+      "interface": "json_canonical:b317b0c3e311adfb5ad2db6738f43e6e1c4a839c10c8d785d0ebda5c0505c87e",
+      "analog_netlist": "dir_text:2c6d358ba4c3ec93f5dc910e1777df9a3f5418293791a715229fa1b8d22d1e4e",
+      "analog_sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
+      "analog_spec": "json_canonical:bea97fb251ebda8c3059ca750c9247e051bdd64946a521b40eb21ee20fe77e64",
+      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+      "pdk_models": "dir_text:84e0f27991c27acae27ec5243fd0d1587f7bfb2655e802ed0eb92a811cf5f7f8",
+      "pdk_liberty": "dir_bytes:f09377f057ab484ec9e5a45b205c99a5de399e2bdca886531bf9eefa57783f32"
+     },
+     "strength": 1,
+     "job": null,
+     "facts": {
+      "corners": [
+       "tt_025C_3v30",
+       "ss_125C_3v00",
+       "ff_n40C_3v60"
+      ]
+     }
+    }
+   ]
+  },
+  "top_erc": {
+   "phase": "P3",
+   "status": "pass",
+   "attempts": 1,
+   "last": {
+    "ts": "2026-11-12T23:42:18",
+    "status": "pass",
+    "failing_count": 0,
+    "total": 16,
+    "inputs": {
+     "top_pnl": "dir_text:d5af7fd96d8b5a47c3998ae525d45a8b76ebe719ed103a4b3c22e5a83e6f74de",
+     "top_spec": "json_canonical:d863d5e4ac42eb90b849bfae8bc19ecdb8167ca2c310bd40cdb64c48a4355186",
+     "top_macros": "dir_text:2956b759fa67e4a3ef5051fd834b44010844b7f79d445fdf8ea74bbdeca01e32",
+     "interface": "json_canonical:b317b0c3e311adfb5ad2db6738f43e6e1c4a839c10c8d785d0ebda5c0505c87e",
+     "analog_spec": "json_canonical:bea97fb251ebda8c3059ca750c9247e051bdd64946a521b40eb21ee20fe77e64",
+     "erc_waivers": null,
+     "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2"
+    },
+    "strength": 0,
+    "job": null,
+    "facts": {
+     "vdd": 3.3
+    }
+   },
+   "history": [
+    {
+     "ts": "2026-11-12T23:42:18",
+     "status": "pass",
+     "failing_count": 0,
+     "total": 16,
+     "inputs": {
+      "top_pnl": "dir_text:d5af7fd96d8b5a47c3998ae525d45a8b76ebe719ed103a4b3c22e5a83e6f74de",
+      "top_spec": "json_canonical:d863d5e4ac42eb90b849bfae8bc19ecdb8167ca2c310bd40cdb64c48a4355186",
+      "top_macros": "dir_text:2956b759fa67e4a3ef5051fd834b44010844b7f79d445fdf8ea74bbdeca01e32",
+      "interface": "json_canonical:b317b0c3e311adfb5ad2db6738f43e6e1c4a839c10c8d785d0ebda5c0505c87e",
+      "analog_spec": "json_canonical:bea97fb251ebda8c3059ca750c9247e051bdd64946a521b40eb21ee20fe77e64",
+      "erc_waivers": null,
+      "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2"
+     },
+     "strength": 0,
+     "job": null,
+     "facts": {
+      "vdd": 3.3
+     }
     }
    ]
   }
@@ -6033,182 +6525,188 @@
   "interface": {
    "path": "interface.yaml",
    "kind": "interface",
-   "sha256": "json_canonical:88bbbf805a8b01cc0e2a81dbfb1a07ce5e57ff99655e04f0ba248d9241d24440",
-   "hashed": "2026-11-10T23:15:59"
+   "sha256": "json_canonical:b317b0c3e311adfb5ad2db6738f43e6e1c4a839c10c8d785d0ebda5c0505c87e",
+   "hashed": "2026-11-12T23:42:50"
   },
   "digital_rtl": {
    "path": "digital/rtl",
    "kind": "digital_rtl",
    "sha256": "dir_text:5b5e3748612f45afdfaedc1d7e6daa228ca0e64c09072bc4ac8b8b6275a6d995",
-   "hashed": "2026-11-10T23:15:59"
+   "hashed": "2026-11-12T23:42:50"
   },
   "analog_layout": {
    "path": "analog/layout",
    "kind": "analog_layout",
    "sha256": "dir_text:0e70004ef7ec01fff4a595cd07d638e11de9e4cc13b19173de7d027b54f419c9",
-   "hashed": "2026-11-10T23:15:59"
+   "hashed": "2026-11-12T23:42:50"
   },
   "tb": {
    "path": "tb",
    "kind": "tb",
    "sha256": "dir_text:45289ff06ca425ad4d0082caa18b388c4544c45857d0388fdcdefaf08dff1c4e",
-   "hashed": "2026-11-10T23:02:28"
+   "hashed": "2026-11-12T23:34:25"
   },
   "analog_netlist": {
    "path": "analog/netlist",
    "kind": "analog_netlist",
    "sha256": "dir_text:2c6d358ba4c3ec93f5dc910e1777df9a3f5418293791a715229fa1b8d22d1e4e",
-   "hashed": "2026-11-10T23:15:59"
+   "hashed": "2026-11-12T23:42:50"
   },
   "analog_sizing": {
    "path": "analog/sizing/sizing.yaml",
    "kind": "analog_sizing",
    "sha256": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
-   "hashed": "2026-11-10T23:15:59"
+   "hashed": "2026-11-12T23:42:50"
   },
   "top_gds": {
    "path": "top/harden/runs/run/final/gds",
    "kind": "top_gds",
-   "sha256": "dir_text:bb511d0cd545cdf089237b480f5e8ab64216eeb209fd1f29cc66bda54dd30b76",
-   "hashed": "2026-11-10T22:50:52"
+   "sha256": "dir_text:0bac6c5d30ee7fc8e07a078f61c99be225e1a974fcad0a99f54c066b93d83631",
+   "hashed": "2026-11-12T23:38:55"
   },
   "analog_spec": {
    "path": "analog/spec/spec.yaml",
    "kind": "analog_spec",
-   "sha256": "json_canonical:efe11a72dd5874ab5fa002e7531a93eab8036650518249c44e266fcab592fed9",
-   "hashed": "2026-11-10T23:02:28"
+   "sha256": "json_canonical:bea97fb251ebda8c3059ca750c9247e051bdd64946a521b40eb21ee20fe77e64",
+   "hashed": "2026-11-12T23:42:18"
   },
   "pdk_version": {
    "path": "${PDK_ROOT}/SOURCES",
    "kind": "pdk_version",
    "sha256": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
-   "hashed": "2026-11-10T23:15:59"
+   "hashed": "2026-11-12T23:42:50"
   },
   "pdk_models": {
    "path": "${PDK_ROOT}/libs.tech/ngspice",
    "kind": "pdk_models",
    "sha256": "dir_text:84e0f27991c27acae27ec5243fd0d1587f7bfb2655e802ed0eb92a811cf5f7f8",
-   "hashed": "2026-11-10T23:02:28"
+   "hashed": "2026-11-12T23:36:07"
   },
   "pdk_liberty": {
    "path": "${PDK_ROOT}/libs.ref/gf180mcu_fd_sc_mcu7t5v0/lib",
    "kind": "pdk_liberty",
    "sha256": "dir_bytes:f09377f057ab484ec9e5a45b205c99a5de399e2bdca886531bf9eefa57783f32",
-   "hashed": "2026-11-10T22:48:19"
+   "hashed": "2026-11-12T23:37:24"
   },
   "digital_spec": {
    "path": "digital/spec/spec.yaml",
    "kind": "digital_spec",
    "sha256": "json_canonical:316aabe3e699eb67a766fb42296b9a90d765394b6deefb2d5178cc8865c08bbf",
-   "hashed": "2026-11-10T23:15:59"
+   "hashed": "2026-11-12T23:42:50"
   },
   "macro_lib": {
    "path": "macro_lib",
    "kind": "macro_lib",
    "sha256": "dir_text:21eb61d0043a7186ce338491ad1696bd6a048bde0664830879fde90126ed7a20",
-   "hashed": "2026-11-10T22:48:19"
+   "hashed": "2026-11-12T23:37:24"
   },
   "top_sdc": {
    "path": "top.sdc",
    "kind": "top_sdc",
    "sha256": null,
-   "hashed": "2026-11-10T22:48:19"
+   "hashed": "2026-11-12T23:37:24"
   },
   "digital_sdc": {
    "path": "digital/harden/constraints.sdc",
    "kind": "digital_sdc",
    "sha256": null,
-   "hashed": "2026-11-10T22:48:19"
+   "hashed": "2026-11-12T23:37:24"
   },
   "top_override": {
    "path": "top.override.json",
    "kind": "top_override",
    "sha256": null,
-   "hashed": "2026-11-10T22:48:19"
+   "hashed": "2026-11-12T23:37:24"
   },
   "digital_override": {
    "path": "digital/harden/config.override.json",
    "kind": "digital_override",
    "sha256": "json_canonical:287e8a2e466f0d26930245056d99dcc9dec4f71d106936c4f0bee579012017eb",
-   "hashed": "2026-11-10T22:48:19"
+   "hashed": "2026-11-12T23:37:24"
   },
   "pdk_librelane": {
    "path": "${PDK_ROOT}/libs.tech/librelane",
    "kind": "pdk_librelane",
    "sha256": "dir_text:34d9ac7321e45f53bb312360322931fa53cbee081929f4bd7047d6e84b5fdb37",
-   "hashed": "2026-11-10T22:48:19"
+   "hashed": "2026-11-12T23:37:24"
   },
   "pdk_magic": {
    "path": "${PDK_ROOT}/libs.tech/magic",
    "kind": "pdk_magic",
    "sha256": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
-   "hashed": "2026-11-10T22:50:52"
+   "hashed": "2026-11-12T23:38:55"
   },
   "pdk_klayout": {
    "path": "${PDK_ROOT}/libs.tech/klayout",
    "kind": "pdk_klayout",
    "sha256": "dir_text:876da90e8aab65b830b36eca12bd720adfe8240a0952872419d9f2b4abda605d",
-   "hashed": "2026-11-10T22:50:52"
+   "hashed": "2026-11-12T23:38:55"
   },
   "pdk_netgen": {
    "path": "${PDK_ROOT}/libs.tech/netgen",
    "kind": "pdk_netgen",
    "sha256": "dir_text:8164f65bb7d1bef6e27af4c13b1c6ede50973cec7aec482556abb23881aceb04",
-   "hashed": "2026-11-10T22:49:35"
+   "hashed": "2026-11-12T23:37:56"
   },
   "top_spec": {
    "path": "top/spec/spec.yaml",
    "kind": "top_spec",
    "sha256": "json_canonical:d863d5e4ac42eb90b849bfae8bc19ecdb8167ca2c310bd40cdb64c48a4355186",
-   "hashed": "2026-11-10T22:49:35"
+   "hashed": "2026-11-12T23:42:18"
   },
   "top_macros": {
    "path": "top/macros",
    "kind": "top_macros",
-   "sha256": "dir_text:5966eac2cbe6a888e083b918f3e73dd120daaffdd7e033c4c2cf16bf2b2e2ab6",
-   "hashed": "2026-11-10T22:49:35"
+   "sha256": "dir_text:2956b759fa67e4a3ef5051fd834b44010844b7f79d445fdf8ea74bbdeca01e32",
+   "hashed": "2026-11-12T23:42:18"
   },
   "top_pnl": {
    "path": "top/harden/runs/run/final/pnl",
    "kind": "top_pnl",
    "sha256": "dir_text:d5af7fd96d8b5a47c3998ae525d45a8b76ebe719ed103a4b3c22e5a83e6f74de",
-   "hashed": "2026-11-10T22:49:35"
+   "hashed": "2026-11-12T23:42:17"
   },
   "digital_side_spec": {
    "path": "digital_spec.yaml",
    "kind": "digital_side_spec",
-   "sha256": "json_canonical:e52fd5cabc96bf3cfe80463861809e640516e763ffe6d5ad341dd19366f87352",
-   "hashed": "2026-11-10T23:15:59"
+   "sha256": "json_canonical:b4d4ce6522e1867dcc286eae58d46471389ad997bf8092c2c5a71298fb2e46f7",
+   "hashed": "2026-11-12T23:42:50"
   },
   "analog_side_spec": {
    "path": "analog_spec.yaml",
    "kind": "analog_side_spec",
-   "sha256": "json_canonical:61734e544be2b0cd5fb5d3373df1e39f971c980f0e71decd49621c97736c30bd",
-   "hashed": "2026-11-10T23:15:59"
+   "sha256": "json_canonical:e77fc80a59dd66aa87d97c7911c9a67a90f1325ba0ef1f7a3e0fb2f220436611",
+   "hashed": "2026-11-12T23:42:50"
   },
   "digital_cdc": {
    "path": "digital/spec/cdc.yaml",
    "kind": "digital_cdc",
    "sha256": null,
-   "hashed": "2026-11-06T05:59:25"
+   "hashed": "2026-11-12T23:31:23"
   },
   "top_lef": {
    "path": "top/harden/runs/run/final/lef",
    "kind": "top_lef",
    "sha256": "dir_text:b1aed146f6f2a3c5556a061d24c0ad4d534d22442c5f4bcf417b39e07d7a8448",
-   "hashed": "2026-11-10T23:15:59"
+   "hashed": "2026-11-12T23:42:50"
   },
   "top_sdf": {
    "path": "top/harden/runs/run/final/sdf",
    "kind": "top_sdf",
-   "sha256": "dir_text:4d177ca43b4d646c65fc860be5873e241e2afc8550257fe2ae26991f950ad792",
-   "hashed": "2026-11-10T23:15:59"
+   "sha256": "dir_text:c3c7d52838bbed8a5e690c1bb455b212aa8c7a535bee829ada4447b1b02eecf7",
+   "hashed": "2026-11-12T23:42:50"
   },
   "top_spef": {
    "path": "top/harden/runs/run/final/spef",
    "kind": "top_spef",
-   "sha256": "dir_text:84bef3900f029b2fc9c057f2936e7abc70287b5466d5ec22ef6ceebd7c80d2a4",
-   "hashed": "2026-11-10T23:15:59"
+   "sha256": "dir_text:a446a98b3a5d3e95250bff41154db4c0a4f0b5bd7bbdf50e45b8bd0753911033",
+   "hashed": "2026-11-12T23:42:50"
+  },
+  "erc_waivers": {
+   "path": "spec/erc_waivers.yaml",
+   "kind": "erc_waivers",
+   "sha256": null,
+   "hashed": "2026-11-12T23:42:18"
   }
  },
  "open_issues": [
@@ -7807,6 +8305,118 @@
    "gate": "release",
    "status": "pass",
    "attempt": 29,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-11-11T02:18:58",
+   "event": "gate",
+   "gate": "split",
+   "status": "pass",
+   "attempt": 11,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-11-11T02:23:02",
+   "event": "gate",
+   "gate": "boundary",
+   "status": "pass",
+   "attempt": 1,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-11-12T23:31:23",
+   "event": "gate",
+   "gate": "split",
+   "status": "pass",
+   "attempt": 12,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-11-12T23:34:13",
+   "event": "gate",
+   "gate": "boundary",
+   "status": "pass",
+   "attempt": 2,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-11-12T23:34:25",
+   "event": "gate",
+   "gate": "cosim",
+   "status": "pass",
+   "attempt": 26,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-11-12T23:36:07",
+   "event": "gate",
+   "gate": "macro_lib",
+   "status": "pass",
+   "attempt": 18,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-11-12T23:37:24",
+   "event": "gate",
+   "gate": "top_harden",
+   "status": "pass",
+   "attempt": 26,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-11-12T23:37:50",
+   "event": "gate",
+   "gate": "top_drc",
+   "status": "pass",
+   "attempt": 21,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-11-12T23:37:56",
+   "event": "gate",
+   "gate": "top_lvs",
+   "status": "pass",
+   "attempt": 21,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-11-12T23:38:55",
+   "event": "gate",
+   "gate": "precheck",
+   "status": "pass",
+   "attempt": 21,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-11-12T23:39:01",
+   "event": "gate",
+   "gate": "release",
+   "status": "fail",
+   "attempt": 30,
+   "failing_count": 1
+  },
+  {
+   "ts": "2026-11-12T23:40:06",
+   "event": "gate",
+   "gate": "release",
+   "status": "fail",
+   "attempt": 31,
+   "failing_count": 1
+  },
+  {
+   "ts": "2026-11-12T23:42:18",
+   "event": "gate",
+   "gate": "top_erc",
+   "status": "pass",
+   "attempt": 1,
+   "failing_count": 0
+  },
+  {
+   "ts": "2026-11-12T23:42:50",
+   "event": "gate",
+   "gate": "release",
+   "status": "pass",
+   "attempt": 32,
    "failing_count": 0
   }
  ]

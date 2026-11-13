@@ -12,12 +12,12 @@
   "max_count": 0
  },
  "counts": {
-  "total": 1,
+  "total": 2,
   "by_severity": {
-   "warning": 1
+   "warning": 2
   },
   "by_source": {
-   "ngspice": 1
+   "ngspice": 2
   }
  },
  "failing_count": 0,
@@ -32,17 +32,42 @@
    "kind": "sim_bound_fail",
    "refs": [
     "inl_sens_1pct_max",
+    "no_pad",
     "tt"
    ],
-   "msg": "inl_sens_1pct_max @ tt = 0.526369 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
+   "msg": "[no_pad] inl_sens_1pct_max @ tt = 0.526369 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
    "source": "ngspice",
    "items": [
     {
-     "msg": "inl_sens_1pct_max @ tt = 0.526369 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
+     "msg": "[no_pad] inl_sens_1pct_max @ tt = 0.526369 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
      "file": "r2r_dac_tb.cir",
      "line": null
     }
-   ]
+   ],
+   "condition": "no_pad"
+  },
+  {
+   "check": "sim_tt",
+   "severity": "warning",
+   "file": "r2r_dac_tb.cir",
+   "module": null,
+   "line": null,
+   "kind": "sim_bound_fail",
+   "refs": [
+    "inl_sens_1pct_max",
+    "pad",
+    "tt"
+   ],
+   "msg": "[pad] inl_sens_1pct_max @ tt = 0.526369 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
+   "source": "ngspice",
+   "items": [
+    {
+     "msg": "[pad] inl_sens_1pct_max @ tt = 0.526369 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
+     "file": "r2r_dac_tb.cir",
+     "line": null
+    }
+   ],
+   "condition": "pad"
   }
  ],
  "facts": {
@@ -64,20 +89,50 @@
     "vdd": "3.3",
     "returncode": 0,
     "measures": {
-     "glitch_energy_up": 1.90089e-12,
-     "glitch_energy_down": 2.14909e-15,
-     "glitch_peak_up": 7.01269e-05,
-     "glitch_peak_down": 3.59883e-05,
-     "glitch_energy_up_skew_p200p": 1.18562e-14,
-     "glitch_energy_up_skew_m200p": 1.39951e-11,
-     "glitch_energy_down_skew_p200p": 3.11719e-14,
-     "glitch_energy_down_skew_m200p": 0.0,
-     "glitch_peak_skew_max": 0.000511851,
+     "glitch_energy_up": 2.60312e-09,
+     "glitch_energy_down": 2.52874e-09,
+     "glitch_peak_up": 0.599374,
+     "glitch_peak_down": 0.579825,
+     "glitch_energy_up_skew_p200p": 2.27655e-09,
+     "glitch_energy_up_skew_m200p": 2.92224e-09,
+     "glitch_energy_down_skew_p200p": 2.19613e-09,
+     "glitch_energy_down_skew_m200p": 2.85582e-09,
+     "glitch_peak_skew_max": 0.681598,
      "i_vdd_peak": 0.0146043
     },
     "engine_errors": [],
     "violations": [],
-    "deck": "log/sim/r2r_dac_glitch_tb__tt.cir"
+    "deck": "log/sim/r2r_dac_glitch_tb__tt.cir",
+    "condition": "no_pad"
+   },
+   {
+    "bench": "r2r_dac_glitch_tb.cir",
+    "corner": "tt",
+    "names": [
+     "tt",
+     "tt_27c"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": 27,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "glitch_energy_up": 1.76964e-11,
+     "glitch_energy_down": 2.26625e-12,
+     "glitch_peak_up": 0.000623463,
+     "glitch_peak_down": 8.56691e-05,
+     "glitch_energy_up_skew_p200p": 2.64666e-12,
+     "glitch_energy_up_skew_m200p": 3.17499e-11,
+     "glitch_energy_down_skew_p200p": 5.37761e-15,
+     "glitch_energy_down_skew_m200p": 6.10108e-12,
+     "glitch_peak_skew_max": 0.00109949,
+     "i_vdd_peak": 0.0146043
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/r2r_dac_glitch_tb__tt__pad.cir",
+    "condition": "pad"
    },
    {
     "bench": "r2r_dac_step_tb.cir",
@@ -92,15 +147,40 @@
     "vdd": "3.3",
     "returncode": 0,
     "measures": {
-     "t_settle_rise": 1.18882e-06,
-     "t_settle_fall": 1.18613e-06,
-     "t_rise_10_90": 4.2e-07,
-     "t_fall_10_90": 4.1625e-07,
+     "t_settle_rise": 9.10647e-09,
+     "t_settle_fall": 1.20957e-08,
+     "t_rise_10_90": 5.71812e-09,
+     "t_fall_10_90": 4.82751e-09,
      "i_vdd_peak": 0.0153811
     },
     "engine_errors": [],
     "violations": [],
-    "deck": "log/sim/r2r_dac_step_tb__tt.cir"
+    "deck": "log/sim/r2r_dac_step_tb__tt.cir",
+    "condition": "no_pad"
+   },
+   {
+    "bench": "r2r_dac_step_tb.cir",
+    "corner": "tt",
+    "names": [
+     "tt",
+     "tt_27c"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": 27,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "t_settle_rise": 1.0276e-06,
+     "t_settle_fall": 1.02488e-06,
+     "t_rise_10_90": 3.6e-07,
+     "t_fall_10_90": 3.6e-07,
+     "i_vdd_peak": 0.0153811
+    },
+    "engine_errors": [],
+    "violations": [],
+    "deck": "log/sim/r2r_dac_step_tb__tt__pad.cir",
+    "condition": "pad"
    },
    {
     "bench": "r2r_dac_tb.cir",
@@ -119,9 +199,9 @@
      "fs_gain_err_lsb": -0.00471474,
      "inl_sens_1pct_max": 0.526369,
      "i_vdd_avg": 8.8296e-05,
-     "dnl_max_abs": 0.048107988241163246,
-     "inl_max_abs": 0.23276038642657135,
-     "inl_best_fit_max_abs": 0.17005029138143274,
+     "dnl_max_abs": 0.04810798824206053,
+     "inl_max_abs": 0.23276038642438407,
+     "inl_best_fit_max_abs": 0.1700502913812887,
      "missing_code_count": 0.0,
      "monotonic": 1.0
     },
@@ -136,20 +216,75 @@
       "kind": "sim_bound_fail",
       "refs": [
        "inl_sens_1pct_max",
+       "no_pad",
        "tt"
       ],
-      "msg": "inl_sens_1pct_max @ tt = 0.526369 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
+      "msg": "[no_pad] inl_sens_1pct_max @ tt = 0.526369 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
       "source": "ngspice",
       "items": [
        {
-        "msg": "inl_sens_1pct_max @ tt = 0.526369 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
+        "msg": "[no_pad] inl_sens_1pct_max @ tt = 0.526369 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
         "file": "r2r_dac_tb.cir",
         "line": null
        }
-      ]
+      ],
+      "condition": "no_pad"
      }
     ],
-    "deck": "log/sim/r2r_dac_tb__tt.cir"
+    "deck": "log/sim/r2r_dac_tb__tt.cir",
+    "condition": "no_pad"
+   },
+   {
+    "bench": "r2r_dac_tb.cir",
+    "corner": "tt",
+    "names": [
+     "tt",
+     "tt_27c"
+    ],
+    "process": "typical",
+    "passive": "typical",
+    "temp_c": 27,
+    "vdd": "3.3",
+    "returncode": 0,
+    "measures": {
+     "v_zero_offset": 1.01003e-07,
+     "fs_gain_err_lsb": -0.00472875,
+     "inl_sens_1pct_max": 0.526369,
+     "i_vdd_avg": 8.8296e-05,
+     "dnl_max_abs": 0.04810798696917851,
+     "inl_max_abs": 0.23276037702730973,
+     "inl_best_fit_max_abs": 0.17005028737696526,
+     "missing_code_count": 0.0,
+     "monotonic": 1.0
+    },
+    "engine_errors": [],
+    "violations": [
+     {
+      "check": "sim_tt",
+      "severity": "warning",
+      "file": "r2r_dac_tb.cir",
+      "module": null,
+      "line": null,
+      "kind": "sim_bound_fail",
+      "refs": [
+       "inl_sens_1pct_max",
+       "pad",
+       "tt"
+      ],
+      "msg": "[pad] inl_sens_1pct_max @ tt = 0.526369 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
+      "source": "ngspice",
+      "items": [
+       {
+        "msg": "[pad] inl_sens_1pct_max @ tt = 0.526369 outside bound [-inf, 0.5] (derived: worst |INL| with any one unit resistor +-1 %)",
+        "file": "r2r_dac_tb.cir",
+        "line": null
+       }
+      ],
+      "condition": "pad"
+     }
+    ],
+    "deck": "log/sim/r2r_dac_tb__tt__pad.cir",
+    "condition": "pad"
    }
   ],
   "not_scored": [],
@@ -157,13 +292,13 @@
  },
  "inputs_at_start": {
   "netlist": "dir_text:2c6d358ba4c3ec93f5dc910e1777df9a3f5418293791a715229fa1b8d22d1e4e",
-  "tb": "dir_text:0e206cf624d2e523cadff994c220aa92224bba0a5603f3067e72445e8e6ade41",
-  "spec_yaml": "json_canonical:efe11a72dd5874ab5fa002e7531a93eab8036650518249c44e266fcab592fed9",
+  "tb": "dir_text:b0cefb3731f4b3ce1262e4a17578da18761c0bb9e4647f0ad11db73a345f8b0c",
+  "spec_yaml": "json_canonical:bea97fb251ebda8c3059ca750c9247e051bdd64946a521b40eb21ee20fe77e64",
   "sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
   "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
   "pdk_models": "dir_text:84e0f27991c27acae27ec5243fd0d1587f7bfb2655e802ed0eb92a811cf5f7f8"
  },
  "strength_at_start": 0,
- "recorded_ts": "2026-11-10T08:13:29",
- "attempts": 16
+ "recorded_ts": "2026-11-12T06:39:42",
+ "attempts": 18
 }

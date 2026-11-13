@@ -39,11 +39,21 @@ and full scale is 255/256 x 3.3 V = 3.287 V.
 
 ### Values chosen (the analog-designer revises with numbers at P2)
 
-- Pad load ASSUMED: TT analog pin `ua[0]` modelled as C_pad = 5 pF (pad +
-  ESD + package) plus 2 pF tile-to-pad routing, in series with R_pad =
-  100 ohm (pad/ESD series resistance): R_pad = 100 ohm, C_load = 7 pF to
-  vss. The TT analog pad's real load is not documented in this repo; the
-  bench carries both as one parameter each so they can be changed.
+- Pad load: vout leaves the tile on `ua[0]`, so spec.yaml lists it in
+  `ua_pins` and every bench runs twice, bare and through the engine's TT
+  ua pad model (engine/lib/padlib.py): 500 ohm series and 5 pF shunt,
+  TT's published worst case for the route from the project to the pad,
+  plus the GF180 analog pad's own ESD diodes at the pad node. The benches
+  carry no load of their own on vout. Until 2026-11-11 they carried an
+  ASSUMED 100 ohm + 7 pF (5 pF pad + 2 pF routing); that load stood for
+  the same pad, so keeping it beside the model would count the pad twice,
+  and it was dropped. The settling and rise-time bounds below are
+  unchanged and now bind in both runs. The glitch bounds bind in the
+  pad run only (`pad: pad`): they were set for vout loaded by the pad
+  (energy as 1 LSB for one 20 ns period, peak as 4 LSB). An unloaded
+  vout carries the drivers' edge mismatch at full size (about 0.54 V
+  post-layout, against 7 mV through the pad), and no use of the tile
+  leaves ua[0] without its pad.
 - R = 250 ohm (2R = 500 ohm). Thevenin output resistance is R plus about
   Ron/2, so tau = (250 + ~30 + 100) x 7 pF = 2.7 ns; settling to 0.5 LSB
   of 8 bits is ln(512) = 6.24 tau = 17 ns, inside one 50 MHz period
@@ -196,6 +206,8 @@ How the derived bounds were set:
   unit 1 % off is what "ratio set by matching" means in practice.
 - Supply current: the brief's own "a few to ~15 mA"; the peak adds the
   7 pF load's slew current through ~380 ohm (~9 mA) and rounds to 30 mA.
+  (Round-1 numbers. The pad model's 500 ohm series R only lowers that
+  slew current, so the 30 mA bound is kept.)
 
 The brief's "typical" qualifier on the DNL/INL targets cannot be expressed
 per corner (per-measure corners are lint-only), so dnl_max_abs and
@@ -234,7 +246,8 @@ node a bench measures. bench_strength reports them as
 - Settling: the owner kept the accurate 27k unit R and accepted ~1.2 us
   full-scale settling as a known trade-off against the brief's 20 ns. The
   bound is 1.5 us (tau = 27k x 7 pF = 189 ns; 9 ln2 tau = 1.18 us at tt,
-  1.42 us at ss). 10-90 % rise/fall bound 0.53 us: the owner relaxed it
+  1.42 us at ss; 7 pF was the assumed pad load, since replaced by the pad
+  model, see "Values chosen"). 10-90 % rise/fall bound 0.53 us: the owner relaxed it
   from 0.5 us on 2026-11-05 rather than resize R, since post-layout ss
   measured 504-512 ns and 1.5 us x 2.197 / (9 ln2) = 0.528 us. The 20 ns
   figures above are the round-1 derivation at R = 250 ohm and no longer bind.

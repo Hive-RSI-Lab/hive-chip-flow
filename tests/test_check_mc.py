@@ -66,14 +66,15 @@ def make_ws(tmp_path: Path, mc_yaml: str = "") -> Path:
 
 def make_fake_eda(tmp_path: Path, ratios: list[str],
                   nominal: str = "2.0", by_process: dict | None = None,
-                  seed_base: int = 1) -> Path:
+                  seed_base: int = 1, pad_drop: float = 0.0) -> Path:
     """A fake eda that reads the deck it is handed. A Monte Carlo deck
     (`sw_stat_mismatch=1`, `.option seed=N`) reports
     ratios[(N - seed_base) % len(ratios)]; a nominal deck (the gate's own
     PVT sweep) reports `nominal`. `by_process` maps a `.lib ... <process>`
     word (typical, ss, ff, sf, fs) to its own (ratios, nominal) pair, so a
-    test can script a corner that misses. Keyed by seed, never by call
-    order: the gate runs its samples in a pool."""
+    test can script a corner that misses. A deck with the ua pad model in
+    it reports its value less `pad_drop`. Keyed by seed,
+    never by call order: the gate runs its samples in a pool."""
     fake_root = tmp_path / "fake_toolchain"
     (fake_root / "foss" / "pdks" / "gf180mcuD").mkdir(parents=True,
                                                     exist_ok=True)
@@ -94,11 +95,12 @@ def make_fake_eda(tmp_path: Path, ratios: list[str],
         f"  echo '{fake_root}'; exit 0\n"
         "fi\n"
         'for deck; do :; done\n'
-        f"exec awk -v base={int(seed_base)} '\n"
+        f"exec awk -v base={int(seed_base)} -v padd={float(pad_drop)!r} '\n"
         "FNR == NR { t[$1] = $0; next }\n"
         "/sm141064[.]spice/ && !proc { for (i = 1; i < NF; i++)\n"
         "    if ($i ~ /sm141064[.]spice/) { proc = $(i + 1); break } }\n"
         "/sw_stat_mismatch=1/ { mm = 1 }\n"
+        "/tt_ua_pad/ { pad = 1 }\n"
         "match($0, /[.]option seed=[0-9]+/) && seed == \"\" {\n"
         "    seed = substr($0, RSTART + 13, RLENGTH - 13) + 0 }\n"
         "END {\n"
@@ -107,6 +109,7 @@ def make_fake_eda(tmp_path: Path, ratios: list[str],
         "    if (mm && seed != \"\") {\n"
         "        k = (seed - base) % (n - 2); if (k < 0) k += n - 2\n"
         "        v = f[3 + k] } else v = f[2]\n"
+        "    if (pad) v = v - padd\n"
         "    print \"\"; print \"  Measurements for Transient Analysis\"\n"
         "    print \"iout_ratio            =  \" v\n"
         f"}}' '{table}' \"$deck\"\n",
@@ -367,6 +370,45 @@ def test_every_sample_failed_is_always_a_violation(tmp_path, monkeypatch, capsys
     assert code == 1, out
     assert out["hits"] == 0
     assert "yield_all_failed" in kinds_of(out)
+
+
+PAD_SPEC = """\
+top: mirror
+supply: {vdd: 3.3}
+devices: [xmref, xmout]
+ua_pins: [out]
+measures:
+  - {name: iout_ratio, bounds: {min: 1.8, max: 2.2}, pad: pad}
+mc: {enabled: true, runs: 40, yield_min: 0.5}
+"""
+
+
+def test_pad_only_bound_is_sampled_through_the_pad_never_bare(
+        tmp_path, monkeypatch, capsys):
+    # sim_pvt scores a `pad: pad` bound only in the run through the ua pad
+    # model. The mc gate once sampled the bare deck alone and scored every
+    # bound there, so a design whose bare pin reads far off (a glitch the
+    # pad's R/C then filters) failed every sample of a design sim_pvt
+    # passes. Here the bare deck reads 9 and the padded one 7 less.
+    ws = make_ws(tmp_path)
+    (ws / "spec" / "spec.yaml").write_text(PAD_SPEC, encoding="utf-8")
+    (ws / "netlist" / "mirror.cir").write_text(
+        ".subckt mirror out vss\nr1 out vss 1k\n.ends mirror\n",
+        encoding="utf-8")
+    (ws / "tb" / "mirror_tb.cir").write_text(BENCH_TEMPLATE.replace(
+        "vdd vdd 0 {{VDD}}\n", "vdd vdd 0 {{VDD}}\nxdut out 0 mirror\n"),
+        encoding="utf-8")
+    (ws / "tb" / "mirror_tb.bounds.json").write_text(json.dumps(
+        [{"measure": "iout_ratio", "min": 1.8, "max": 2.2, "pad": "pad"}]),
+        encoding="utf-8")
+    monkeypatch.setattr(sim_run, "EDA_BIN", make_fake_eda(
+        tmp_path, ["9.0", "9.05", "9.1", "9.15"], nominal="9.0",
+        pad_drop=7.0))
+    code, out = run_mc(ws, capsys)
+    assert "yield_all_failed" not in kinds_of(out), out
+    benches = {g["bench"] for g in out["groups"]}
+    assert benches == {"mirror_tb.cir[pad]"}, out["groups"]
+    assert out["hits"] == out["samples"] > 0
 
 
 @pytest.mark.slow
