@@ -3,10 +3,11 @@
 * the pdk path, the extracted netlist and the corner's process, resistor
 * section, temperature and supply; no other brace may appear (.format()).
 *
-* The ladder's output pole is R_out x C_load = 27k x 7 pF = 189 ns, and the
+* The ladder's output pole is R_out x C_pad = 27k x ~6 pF (the pad's 5 pF
+* plus its ESD diodes' junction C) = about 160 ns, and the
 * glitch is set by the driver/ladder RC in the first nanoseconds, so what
 * the extraction moves is the wire C hung on the rungs and 2R midpoints (it
-* adds to the 7 pF pad load and slows tau) and the driver edge into the
+* adds to the pad's C and slows tau) and the driver edge into the
 * ladder. One transient measures exactly the spec's parasitic-sensitive
 * measures, same definitions as tb/r2r_dac_step_tb.cir and
 * tb/r2r_dac_glitch_tb.cir (spec.md Measures):
@@ -21,7 +22,9 @@
 *   200n       127 -> 0     (then 3 us to settle)
 *   3.2u       0 -> 255     (rise window 3.2u..7.2u, 4 us > 2.5x the 1.5 us bound)
 *   7.2u       255 -> 0     (fall window 7.2u..11.2u)
-* Pad load ASSUMED as in the spec benches: 100 ohm + 7 pF.
+* No load of its own on vout: the spec lists vout in ua_pins, so every run is
+* made bare and again through the TT ua pad model (engine/lib/padlib.py, 500 ohm
+* + 5 pF + the pad's ESD diodes). A bench R/C here would count the pad twice.
 * Instance in netlist/ pin order: dac_code[7..0] vout vdd vss.
 
 .include '{pdk}/libs.tech/ngspice/design.ngspice'
@@ -45,8 +48,6 @@ vb1 b1 0 pwl(0 {vdd} 19.95n {vdd} 20.05n 0 79.95n 0 80.05n {vdd} 199.95n {vdd} 2
 vb0 b0 0 pwl(0 {vdd} 19.95n {vdd} 20.05n 0 79.95n 0 80.05n {vdd} 199.95n {vdd} 200.05n 0 3.1999u 0 3.2001u {vdd} 7.1999u {vdd} 7.2001u 0)
 
 xdut b7 b6 b5 b4 b3 b2 b1 b0 vout vdd vss r2r_dac_analog
-rpad vout vpad 100
-cload vpad 0 7p
 
 .control
 set noaskquit

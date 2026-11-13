@@ -12,4 +12,4 @@ interface:
     level: cmos_3v3
     domain: clk_sys
     width: 8
-    load: "gate inputs of the 8 ladder switch driver cells inside the analog macro, one gf180mcu_fd_sc_mcu7t5v0 buffer input per bit"
+    load: {pin: gf180mcu_fd_sc_mcu7t5v0__buf_20/I, count: 1, note: "each bit is the input of one ladder switch driver, xd0..xd7 in the macro"}

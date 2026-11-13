@@ -1,0 +1,1361 @@
+{
+ "script": "gate",
+ "gate": "top_erc",
+ "phase": "P3",
+ "tool": "top_erc",
+ "input_digest": "dir_text:d5af7fd96d8b5a47c3998ae525d45a8b76ebe719ed103a4b3c22e5a83e6f74de",
+ "status": "pass",
+ "criteria": {
+  "fail_severities": [
+   "error"
+  ],
+  "max_count": 0
+ },
+ "counts": {
+  "total": 16,
+  "by_severity": {
+   "warning": 16
+  },
+  "by_source": {
+   "cvc": 16
+  }
+ },
+ "failing_count": 0,
+ "failing": [],
+ "violations": [
+  {
+   "check": "top_erc",
+   "severity": "warning",
+   "file": "top/harden/runs/run/final/pnl/tt_um_r2r_dac_digital.pnl.v",
+   "module": "tt_um_r2r_dac_digital",
+   "line": null,
+   "kind": "possible_leak",
+   "refs": [
+    "VPWR",
+    "u_analog.d7",
+    "u_analog.xd7.Z_neg",
+    "u_analog/xd7/X_i_1_0"
+   ],
+   "msg": "u_analog/xd7/X_i_1_0 (+19 parallel) pfet_05v0 w=1.22u l=0.5u: pmos possible leak errors - gate u_analog.xd7.Z_neg 0..3.3 V; source VPWR 3.3 V; drain u_analog.d7 0 V; bulk VPWR 3.3 V",
+   "source": "cvc",
+   "items": [
+    {
+     "msg": "u_analog/xd7/X_i_1_0 (+19 parallel) pfet_05v0 w=1.22u l=0.5u: pmos possible leak errors - gate u_analog.xd7.Z_neg 0..3.3 V; source VPWR 3.3 V; drain u_analog.d7 0 V; bulk VPWR 3.3 V",
+     "file": "top/harden/runs/run/final/pnl/tt_um_r2r_dac_digital.pnl.v",
+     "line": null
+    }
+   ],
+   "device": "u_analog/xd7/X_i_1_0",
+   "refdes": null,
+   "model": "pfet_05v0",
+   "terminals": {
+    "gate": {
+     "net": "u_analog.xd7.Z_neg",
+     "min_v": 0.0,
+     "max_v": 3.3
+    },
+    "source": {
+     "net": "VPWR",
+     "min_v": 3.3,
+     "max_v": 3.3
+    },
+    "drain": {
+     "net": "u_analog.d7",
+     "min_v": 0.0,
+     "max_v": 0.0
+    },
+    "bulk": {
+     "net": "VPWR",
+     "min_v": 3.3,
+     "max_v": 3.3
+    }
+   },
+   "nets": {
+    "d": "u_analog.d7",
+    "g": "u_analog.xd7.Z_neg",
+    "s": "VPWR",
+    "b": "VPWR"
+   },
+   "cvc_check": "pmos possible leak errors",
+   "cvc_detail": null,
+   "position": null,
+   "positions": [],
+   "parallel": [
+    "u_analog/xd7/X_i_1_1",
+    "u_analog/xd7/X_i_1_2",
+    "u_analog/xd7/X_i_1_3",
+    "u_analog/xd7/X_i_1_4",
+    "u_analog/xd7/X_i_1_5",
+    "u_analog/xd7/X_i_1_6",
+    "u_analog/xd7/X_i_1_7",
+    "u_analog/xd7/X_i_1_8",
+    "u_analog/xd7/X_i_1_9",
+    "u_analog/xd7/X_i_1_10",
+    "u_analog/xd7/X_i_1_11",
+    "u_analog/xd7/X_i_1_12",
+    "u_analog/xd7/X_i_1_13",
+    "u_analog/xd7/X_i_1_14",
+    "u_analog/xd7/X_i_1_15",
+    "u_analog/xd7/X_i_1_16",
+    "u_analog/xd7/X_i_1_17",
+    "u_analog/xd7/X_i_1_18",
+    "u_analog/xd7/X_i_1_19"
+   ],
+   "mode": "operating"
+  },
+  {
+   "check": "top_erc",
+   "severity": "warning",
+   "file": "top/harden/runs/run/final/pnl/tt_um_r2r_dac_digital.pnl.v",
+   "module": "tt_um_r2r_dac_digital",
+   "line": null,
+   "kind": "possible_leak",
+   "refs": [
+    "VPWR",
+    "u_analog.d6",
+    "u_analog.xd6.Z_neg",
+    "u_analog/xd6/X_i_1_0"
+   ],
+   "msg": "u_analog/xd6/X_i_1_0 (+19 parallel) pfet_05v0 w=1.22u l=0.5u: pmos possible leak errors - gate u_analog.xd6.Z_neg 0..3.3 V; source VPWR 3.3 V; drain u_analog.d6 0 V; bulk VPWR 3.3 V",
+   "source": "cvc",
+   "items": [
+    {
+     "msg": "u_analog/xd6/X_i_1_0 (+19 parallel) pfet_05v0 w=1.22u l=0.5u: pmos possible leak errors - gate u_analog.xd6.Z_neg 0..3.3 V; source VPWR 3.3 V; drain u_analog.d6 0 V; bulk VPWR 3.3 V",
+     "file": "top/harden/runs/run/final/pnl/tt_um_r2r_dac_digital.pnl.v",
+     "line": null
+    }
+   ],
+   "device": "u_analog/xd6/X_i_1_0",
+   "refdes": null,
+   "model": "pfet_05v0",
+   "terminals": {
+    "gate": {
+     "net": "u_analog.xd6.Z_neg",
+     "min_v": 0.0,
+     "max_v": 3.3
+    },
+    "source": {
+     "net": "VPWR",
+     "min_v": 3.3,
+     "max_v": 3.3
+    },
+    "drain": {
+     "net": "u_analog.d6",
+     "min_v": 0.0,
+     "max_v": 0.0
+    },
+    "bulk": {
+     "net": "VPWR",
+     "min_v": 3.3,
+     "max_v": 3.3
+    }
+   },
+   "nets": {
+    "d": "u_analog.d6",
+    "g": "u_analog.xd6.Z_neg",
+    "s": "VPWR",
+    "b": "VPWR"
+   },
+   "cvc_check": "pmos possible leak errors",
+   "cvc_detail": null,
+   "position": null,
+   "positions": [],
+   "parallel": [
+    "u_analog/xd6/X_i_1_1",
+    "u_analog/xd6/X_i_1_2",
+    "u_analog/xd6/X_i_1_3",
+    "u_analog/xd6/X_i_1_4",
+    "u_analog/xd6/X_i_1_5",
+    "u_analog/xd6/X_i_1_6",
+    "u_analog/xd6/X_i_1_7",
+    "u_analog/xd6/X_i_1_8",
+    "u_analog/xd6/X_i_1_9",
+    "u_analog/xd6/X_i_1_10",
+    "u_analog/xd6/X_i_1_11",
+    "u_analog/xd6/X_i_1_12",
+    "u_analog/xd6/X_i_1_13",
+    "u_analog/xd6/X_i_1_14",
+    "u_analog/xd6/X_i_1_15",
+    "u_analog/xd6/X_i_1_16",
+    "u_analog/xd6/X_i_1_17",
+    "u_analog/xd6/X_i_1_18",
+    "u_analog/xd6/X_i_1_19"
+   ],
+   "mode": "operating"
+  },
+  {
+   "check": "top_erc",
+   "severity": "warning",
+   "file": "top/harden/runs/run/final/pnl/tt_um_r2r_dac_digital.pnl.v",
+   "module": "tt_um_r2r_dac_digital",
+   "line": null,
+   "kind": "possible_leak",
+   "refs": [
+    "VPWR",
+    "u_analog.d5",
+    "u_analog.xd5.Z_neg",
+    "u_analog/xd5/X_i_1_0"
+   ],
+   "msg": "u_analog/xd5/X_i_1_0 (+19 parallel) pfet_05v0 w=1.22u l=0.5u: pmos possible leak errors - gate u_analog.xd5.Z_neg 0..3.3 V; source VPWR 3.3 V; drain u_analog.d5 0 V; bulk VPWR 3.3 V",
+   "source": "cvc",
+   "items": [
+    {
+     "msg": "u_analog/xd5/X_i_1_0 (+19 parallel) pfet_05v0 w=1.22u l=0.5u: pmos possible leak errors - gate u_analog.xd5.Z_neg 0..3.3 V; source VPWR 3.3 V; drain u_analog.d5 0 V; bulk VPWR 3.3 V",
+     "file": "top/harden/runs/run/final/pnl/tt_um_r2r_dac_digital.pnl.v",
+     "line": null
+    }
+   ],
+   "device": "u_analog/xd5/X_i_1_0",
+   "refdes": null,
+   "model": "pfet_05v0",
+   "terminals": {
+    "gate": {
+     "net": "u_analog.xd5.Z_neg",
+     "min_v": 0.0,
+     "max_v": 3.3
+    },
+    "source": {
+     "net": "VPWR",
+     "min_v": 3.3,
+     "max_v": 3.3
+    },
+    "drain": {
+     "net": "u_analog.d5",
+     "min_v": 0.0,
+     "max_v": 0.0
+    },
+    "bulk": {
+     "net": "VPWR",
+     "min_v": 3.3,
+     "max_v": 3.3
+    }
+   },
+   "nets": {
+    "d": "u_analog.d5",
+    "g": "u_analog.xd5.Z_neg",
+    "s": "VPWR",
+    "b": "VPWR"
+   },
+   "cvc_check": "pmos possible leak errors",
+   "cvc_detail": null,
+   "position": null,
+   "positions": [],
+   "parallel": [
+    "u_analog/xd5/X_i_1_1",
+    "u_analog/xd5/X_i_1_2",
+    "u_analog/xd5/X_i_1_3",
+    "u_analog/xd5/X_i_1_4",
+    "u_analog/xd5/X_i_1_5",
+    "u_analog/xd5/X_i_1_6",
+    "u_analog/xd5/X_i_1_7",
+    "u_analog/xd5/X_i_1_8",
+    "u_analog/xd5/X_i_1_9",
+    "u_analog/xd5/X_i_1_10",
+    "u_analog/xd5/X_i_1_11",
+    "u_analog/xd5/X_i_1_12",
+    "u_analog/xd5/X_i_1_13",
+    "u_analog/xd5/X_i_1_14",
+    "u_analog/xd5/X_i_1_15",
+    "u_analog/xd5/X_i_1_16",
+    "u_analog/xd5/X_i_1_17",
+    "u_analog/xd5/X_i_1_18",
+    "u_analog/xd5/X_i_1_19"
+   ],
+   "mode": "operating"
+  },
+  {
+   "check": "top_erc",
+   "severity": "warning",
+   "file": "top/harden/runs/run/final/pnl/tt_um_r2r_dac_digital.pnl.v",
+   "module": "tt_um_r2r_dac_digital",
+   "line": null,
+   "kind": "possible_leak",
+   "refs": [
+    "VPWR",
+    "u_analog.d4",
+    "u_analog.xd4.Z_neg",
+    "u_analog/xd4/X_i_1_0"
+   ],
+   "msg": "u_analog/xd4/X_i_1_0 (+19 parallel) pfet_05v0 w=1.22u l=0.5u: pmos possible leak errors - gate u_analog.xd4.Z_neg 0..3.3 V; source VPWR 3.3 V; drain u_analog.d4 0 V; bulk VPWR 3.3 V",
+   "source": "cvc",
+   "items": [
+    {
+     "msg": "u_analog/xd4/X_i_1_0 (+19 parallel) pfet_05v0 w=1.22u l=0.5u: pmos possible leak errors - gate u_analog.xd4.Z_neg 0..3.3 V; source VPWR 3.3 V; drain u_analog.d4 0 V; bulk VPWR 3.3 V",
+     "file": "top/harden/runs/run/final/pnl/tt_um_r2r_dac_digital.pnl.v",
+     "line": null
+    }
+   ],
+   "device": "u_analog/xd4/X_i_1_0",
+   "refdes": null,
+   "model": "pfet_05v0",
+   "terminals": {
+    "gate": {
+     "net": "u_analog.xd4.Z_neg",
+     "min_v": 0.0,
+     "max_v": 3.3
+    },
+    "source": {
+     "net": "VPWR",
+     "min_v": 3.3,
+     "max_v": 3.3
+    },
+    "drain": {
+     "net": "u_analog.d4",
+     "min_v": 0.0,
+     "max_v": 0.0
+    },
+    "bulk": {
+     "net": "VPWR",
+     "min_v": 3.3,
+     "max_v": 3.3
+    }
+   },
+   "nets": {
+    "d": "u_analog.d4",
+    "g": "u_analog.xd4.Z_neg",
+    "s": "VPWR",
+    "b": "VPWR"
+   },
+   "cvc_check": "pmos possible leak errors",
+   "cvc_detail": null,
+   "position": null,
+   "positions": [],
+   "parallel": [
+    "u_analog/xd4/X_i_1_1",
+    "u_analog/xd4/X_i_1_2",
+    "u_analog/xd4/X_i_1_3",
+    "u_analog/xd4/X_i_1_4",
+    "u_analog/xd4/X_i_1_5",
+    "u_analog/xd4/X_i_1_6",
+    "u_analog/xd4/X_i_1_7",
+    "u_analog/xd4/X_i_1_8",
+    "u_analog/xd4/X_i_1_9",
+    "u_analog/xd4/X_i_1_10",
+    "u_analog/xd4/X_i_1_11",
+    "u_analog/xd4/X_i_1_12",
+    "u_analog/xd4/X_i_1_13",
+    "u_analog/xd4/X_i_1_14",
+    "u_analog/xd4/X_i_1_15",
+    "u_analog/xd4/X_i_1_16",
+    "u_analog/xd4/X_i_1_17",
+    "u_analog/xd4/X_i_1_18",
+    "u_analog/xd4/X_i_1_19"
+   ],
+   "mode": "operating"
+  },
+  {
+   "check": "top_erc",
+   "severity": "warning",
+   "file": "top/harden/runs/run/final/pnl/tt_um_r2r_dac_digital.pnl.v",
+   "module": "tt_um_r2r_dac_digital",
+   "line": null,
+   "kind": "possible_leak",
+   "refs": [
+    "VPWR",
+    "u_analog.d3",
+    "u_analog.xd3.Z_neg",
+    "u_analog/xd3/X_i_1_0"
+   ],
+   "msg": "u_analog/xd3/X_i_1_0 (+19 parallel) pfet_05v0 w=1.22u l=0.5u: pmos possible leak errors - gate u_analog.xd3.Z_neg 0..3.3 V; source VPWR 3.3 V; drain u_analog.d3 0 V; bulk VPWR 3.3 V",
+   "source": "cvc",
+   "items": [
+    {
+     "msg": "u_analog/xd3/X_i_1_0 (+19 parallel) pfet_05v0 w=1.22u l=0.5u: pmos possible leak errors - gate u_analog.xd3.Z_neg 0..3.3 V; source VPWR 3.3 V; drain u_analog.d3 0 V; bulk VPWR 3.3 V",
+     "file": "top/harden/runs/run/final/pnl/tt_um_r2r_dac_digital.pnl.v",
+     "line": null
+    }
+   ],
+   "device": "u_analog/xd3/X_i_1_0",
+   "refdes": null,
+   "model": "pfet_05v0",
+   "terminals": {
+    "gate": {
+     "net": "u_analog.xd3.Z_neg",
+     "min_v": 0.0,
+     "max_v": 3.3
+    },
+    "source": {
+     "net": "VPWR",
+     "min_v": 3.3,
+     "max_v": 3.3
+    },
+    "drain": {
+     "net": "u_analog.d3",
+     "min_v": 0.0,
+     "max_v": 0.0
+    },
+    "bulk": {
+     "net": "VPWR",
+     "min_v": 3.3,
+     "max_v": 3.3
+    }
+   },
+   "nets": {
+    "d": "u_analog.d3",
+    "g": "u_analog.xd3.Z_neg",
+    "s": "VPWR",
+    "b": "VPWR"
+   },
+   "cvc_check": "pmos possible leak errors",
+   "cvc_detail": null,
+   "position": null,
+   "positions": [],
+   "parallel": [
+    "u_analog/xd3/X_i_1_1",
+    "u_analog/xd3/X_i_1_2",
+    "u_analog/xd3/X_i_1_3",
+    "u_analog/xd3/X_i_1_4",
+    "u_analog/xd3/X_i_1_5",
+    "u_analog/xd3/X_i_1_6",
+    "u_analog/xd3/X_i_1_7",
+    "u_analog/xd3/X_i_1_8",
+    "u_analog/xd3/X_i_1_9",
+    "u_analog/xd3/X_i_1_10",
+    "u_analog/xd3/X_i_1_11",
+    "u_analog/xd3/X_i_1_12",
+    "u_analog/xd3/X_i_1_13",
+    "u_analog/xd3/X_i_1_14",
+    "u_analog/xd3/X_i_1_15",
+    "u_analog/xd3/X_i_1_16",
+    "u_analog/xd3/X_i_1_17",
+    "u_analog/xd3/X_i_1_18",
+    "u_analog/xd3/X_i_1_19"
+   ],
+   "mode": "operating"
+  },
+  {
+   "check": "top_erc",
+   "severity": "warning",
+   "file": "top/harden/runs/run/final/pnl/tt_um_r2r_dac_digital.pnl.v",
+   "module": "tt_um_r2r_dac_digital",
+   "line": null,
+   "kind": "possible_leak",
+   "refs": [
+    "VPWR",
+    "u_analog.d2",
+    "u_analog.xd2.Z_neg",
+    "u_analog/xd2/X_i_1_0"
+   ],
+   "msg": "u_analog/xd2/X_i_1_0 (+19 parallel) pfet_05v0 w=1.22u l=0.5u: pmos possible leak errors - gate u_analog.xd2.Z_neg 0..3.3 V; source VPWR 3.3 V; drain u_analog.d2 0 V; bulk VPWR 3.3 V",
+   "source": "cvc",
+   "items": [
+    {
+     "msg": "u_analog/xd2/X_i_1_0 (+19 parallel) pfet_05v0 w=1.22u l=0.5u: pmos possible leak errors - gate u_analog.xd2.Z_neg 0..3.3 V; source VPWR 3.3 V; drain u_analog.d2 0 V; bulk VPWR 3.3 V",
+     "file": "top/harden/runs/run/final/pnl/tt_um_r2r_dac_digital.pnl.v",
+     "line": null
+    }
+   ],
+   "device": "u_analog/xd2/X_i_1_0",
+   "refdes": null,
+   "model": "pfet_05v0",
+   "terminals": {
+    "gate": {
+     "net": "u_analog.xd2.Z_neg",
+     "min_v": 0.0,
+     "max_v": 3.3
+    },
+    "source": {
+     "net": "VPWR",
+     "min_v": 3.3,
+     "max_v": 3.3
+    },
+    "drain": {
+     "net": "u_analog.d2",
+     "min_v": 0.0,
+     "max_v": 0.0
+    },
+    "bulk": {
+     "net": "VPWR",
+     "min_v": 3.3,
+     "max_v": 3.3
+    }
+   },
+   "nets": {
+    "d": "u_analog.d2",
+    "g": "u_analog.xd2.Z_neg",
+    "s": "VPWR",
+    "b": "VPWR"
+   },
+   "cvc_check": "pmos possible leak errors",
+   "cvc_detail": null,
+   "position": null,
+   "positions": [],
+   "parallel": [
+    "u_analog/xd2/X_i_1_1",
+    "u_analog/xd2/X_i_1_2",
+    "u_analog/xd2/X_i_1_3",
+    "u_analog/xd2/X_i_1_4",
+    "u_analog/xd2/X_i_1_5",
+    "u_analog/xd2/X_i_1_6",
+    "u_analog/xd2/X_i_1_7",
+    "u_analog/xd2/X_i_1_8",
+    "u_analog/xd2/X_i_1_9",
+    "u_analog/xd2/X_i_1_10",
+    "u_analog/xd2/X_i_1_11",
+    "u_analog/xd2/X_i_1_12",
+    "u_analog/xd2/X_i_1_13",
+    "u_analog/xd2/X_i_1_14",
+    "u_analog/xd2/X_i_1_15",
+    "u_analog/xd2/X_i_1_16",
+    "u_analog/xd2/X_i_1_17",
+    "u_analog/xd2/X_i_1_18",
+    "u_analog/xd2/X_i_1_19"
+   ],
+   "mode": "operating"
+  },
+  {
+   "check": "top_erc",
+   "severity": "warning",
+   "file": "top/harden/runs/run/final/pnl/tt_um_r2r_dac_digital.pnl.v",
+   "module": "tt_um_r2r_dac_digital",
+   "line": null,
+   "kind": "possible_leak",
+   "refs": [
+    "VPWR",
+    "u_analog.d1",
+    "u_analog.xd1.Z_neg",
+    "u_analog/xd1/X_i_1_0"
+   ],
+   "msg": "u_analog/xd1/X_i_1_0 (+19 parallel) pfet_05v0 w=1.22u l=0.5u: pmos possible leak errors - gate u_analog.xd1.Z_neg 0..3.3 V; source VPWR 3.3 V; drain u_analog.d1 0 V; bulk VPWR 3.3 V",
+   "source": "cvc",
+   "items": [
+    {
+     "msg": "u_analog/xd1/X_i_1_0 (+19 parallel) pfet_05v0 w=1.22u l=0.5u: pmos possible leak errors - gate u_analog.xd1.Z_neg 0..3.3 V; source VPWR 3.3 V; drain u_analog.d1 0 V; bulk VPWR 3.3 V",
+     "file": "top/harden/runs/run/final/pnl/tt_um_r2r_dac_digital.pnl.v",
+     "line": null
+    }
+   ],
+   "device": "u_analog/xd1/X_i_1_0",
+   "refdes": null,
+   "model": "pfet_05v0",
+   "terminals": {
+    "gate": {
+     "net": "u_analog.xd1.Z_neg",
+     "min_v": 0.0,
+     "max_v": 3.3
+    },
+    "source": {
+     "net": "VPWR",
+     "min_v": 3.3,
+     "max_v": 3.3
+    },
+    "drain": {
+     "net": "u_analog.d1",
+     "min_v": 0.0,
+     "max_v": 0.0
+    },
+    "bulk": {
+     "net": "VPWR",
+     "min_v": 3.3,
+     "max_v": 3.3
+    }
+   },
+   "nets": {
+    "d": "u_analog.d1",
+    "g": "u_analog.xd1.Z_neg",
+    "s": "VPWR",
+    "b": "VPWR"
+   },
+   "cvc_check": "pmos possible leak errors",
+   "cvc_detail": null,
+   "position": null,
+   "positions": [],
+   "parallel": [
+    "u_analog/xd1/X_i_1_1",
+    "u_analog/xd1/X_i_1_2",
+    "u_analog/xd1/X_i_1_3",
+    "u_analog/xd1/X_i_1_4",
+    "u_analog/xd1/X_i_1_5",
+    "u_analog/xd1/X_i_1_6",
+    "u_analog/xd1/X_i_1_7",
+    "u_analog/xd1/X_i_1_8",
+    "u_analog/xd1/X_i_1_9",
+    "u_analog/xd1/X_i_1_10",
+    "u_analog/xd1/X_i_1_11",
+    "u_analog/xd1/X_i_1_12",
+    "u_analog/xd1/X_i_1_13",
+    "u_analog/xd1/X_i_1_14",
+    "u_analog/xd1/X_i_1_15",
+    "u_analog/xd1/X_i_1_16",
+    "u_analog/xd1/X_i_1_17",
+    "u_analog/xd1/X_i_1_18",
+    "u_analog/xd1/X_i_1_19"
+   ],
+   "mode": "operating"
+  },
+  {
+   "check": "top_erc",
+   "severity": "warning",
+   "file": "top/harden/runs/run/final/pnl/tt_um_r2r_dac_digital.pnl.v",
+   "module": "tt_um_r2r_dac_digital",
+   "line": null,
+   "kind": "possible_leak",
+   "refs": [
+    "VPWR",
+    "u_analog.d0",
+    "u_analog.xd0.Z_neg",
+    "u_analog/xd0/X_i_1_0"
+   ],
+   "msg": "u_analog/xd0/X_i_1_0 (+19 parallel) pfet_05v0 w=1.22u l=0.5u: pmos possible leak errors - gate u_analog.xd0.Z_neg 0..3.3 V; source VPWR 3.3 V; drain u_analog.d0 0 V; bulk VPWR 3.3 V",
+   "source": "cvc",
+   "items": [
+    {
+     "msg": "u_analog/xd0/X_i_1_0 (+19 parallel) pfet_05v0 w=1.22u l=0.5u: pmos possible leak errors - gate u_analog.xd0.Z_neg 0..3.3 V; source VPWR 3.3 V; drain u_analog.d0 0 V; bulk VPWR 3.3 V",
+     "file": "top/harden/runs/run/final/pnl/tt_um_r2r_dac_digital.pnl.v",
+     "line": null
+    }
+   ],
+   "device": "u_analog/xd0/X_i_1_0",
+   "refdes": null,
+   "model": "pfet_05v0",
+   "terminals": {
+    "gate": {
+     "net": "u_analog.xd0.Z_neg",
+     "min_v": 0.0,
+     "max_v": 3.3
+    },
+    "source": {
+     "net": "VPWR",
+     "min_v": 3.3,
+     "max_v": 3.3
+    },
+    "drain": {
+     "net": "u_analog.d0",
+     "min_v": 0.0,
+     "max_v": 0.0
+    },
+    "bulk": {
+     "net": "VPWR",
+     "min_v": 3.3,
+     "max_v": 3.3
+    }
+   },
+   "nets": {
+    "d": "u_analog.d0",
+    "g": "u_analog.xd0.Z_neg",
+    "s": "VPWR",
+    "b": "VPWR"
+   },
+   "cvc_check": "pmos possible leak errors",
+   "cvc_detail": null,
+   "position": null,
+   "positions": [],
+   "parallel": [
+    "u_analog/xd0/X_i_1_1",
+    "u_analog/xd0/X_i_1_2",
+    "u_analog/xd0/X_i_1_3",
+    "u_analog/xd0/X_i_1_4",
+    "u_analog/xd0/X_i_1_5",
+    "u_analog/xd0/X_i_1_6",
+    "u_analog/xd0/X_i_1_7",
+    "u_analog/xd0/X_i_1_8",
+    "u_analog/xd0/X_i_1_9",
+    "u_analog/xd0/X_i_1_10",
+    "u_analog/xd0/X_i_1_11",
+    "u_analog/xd0/X_i_1_12",
+    "u_analog/xd0/X_i_1_13",
+    "u_analog/xd0/X_i_1_14",
+    "u_analog/xd0/X_i_1_15",
+    "u_analog/xd0/X_i_1_16",
+    "u_analog/xd0/X_i_1_17",
+    "u_analog/xd0/X_i_1_18",
+    "u_analog/xd0/X_i_1_19"
+   ],
+   "mode": "operating"
+  },
+  {
+   "check": "top_erc",
+   "severity": "warning",
+   "file": "top/macros/r2r_dac_analog.spice",
+   "module": "r2r_dac_analog",
+   "line": null,
+   "kind": "possible_leak",
+   "refs": [
+    "u_analog.d7",
+    "u_analog.xd7.Z_neg",
+    "u_analog/xd7/X_i_1_0",
+    "vdd"
+   ],
+   "msg": "u_analog/xd7/X_i_1_0 (+19 parallel) pfet_05v0 w=1.22u l=0.5u: pmos possible leak errors - gate u_analog.xd7.Z_neg 0..3.3 V; source vdd 3.3 V; drain u_analog.d7 0 V; bulk vdd 3.3 V",
+   "source": "cvc",
+   "items": [
+    {
+     "msg": "u_analog/xd7/X_i_1_0 (+19 parallel) pfet_05v0 w=1.22u l=0.5u: pmos possible leak errors - gate u_analog.xd7.Z_neg 0..3.3 V; source vdd 3.3 V; drain u_analog.d7 0 V; bulk vdd 3.3 V",
+     "file": "top/macros/r2r_dac_analog.spice",
+     "line": null
+    }
+   ],
+   "device": "u_analog/xd7/X_i_1_0",
+   "refdes": null,
+   "model": "pfet_05v0",
+   "terminals": {
+    "gate": {
+     "net": "u_analog.xd7.Z_neg",
+     "min_v": 0.0,
+     "max_v": 3.3
+    },
+    "source": {
+     "net": "vdd",
+     "min_v": 3.3,
+     "max_v": 3.3
+    },
+    "drain": {
+     "net": "u_analog.d7",
+     "min_v": 0.0,
+     "max_v": 0.0
+    },
+    "bulk": {
+     "net": "vdd",
+     "min_v": 3.3,
+     "max_v": 3.3
+    }
+   },
+   "nets": {
+    "d": "u_analog.d7",
+    "g": "u_analog.xd7.Z_neg",
+    "s": "vdd",
+    "b": "vdd"
+   },
+   "cvc_check": "pmos possible leak errors",
+   "cvc_detail": null,
+   "position": null,
+   "positions": [],
+   "parallel": [
+    "u_analog/xd7/X_i_1_1",
+    "u_analog/xd7/X_i_1_2",
+    "u_analog/xd7/X_i_1_3",
+    "u_analog/xd7/X_i_1_4",
+    "u_analog/xd7/X_i_1_5",
+    "u_analog/xd7/X_i_1_6",
+    "u_analog/xd7/X_i_1_7",
+    "u_analog/xd7/X_i_1_8",
+    "u_analog/xd7/X_i_1_9",
+    "u_analog/xd7/X_i_1_10",
+    "u_analog/xd7/X_i_1_11",
+    "u_analog/xd7/X_i_1_12",
+    "u_analog/xd7/X_i_1_13",
+    "u_analog/xd7/X_i_1_14",
+    "u_analog/xd7/X_i_1_15",
+    "u_analog/xd7/X_i_1_16",
+    "u_analog/xd7/X_i_1_17",
+    "u_analog/xd7/X_i_1_18",
+    "u_analog/xd7/X_i_1_19"
+   ],
+   "mode": "analog_r2r_dac_analog"
+  },
+  {
+   "check": "top_erc",
+   "severity": "warning",
+   "file": "top/macros/r2r_dac_analog.spice",
+   "module": "r2r_dac_analog",
+   "line": null,
+   "kind": "possible_leak",
+   "refs": [
+    "u_analog.d6",
+    "u_analog.xd6.Z_neg",
+    "u_analog/xd6/X_i_1_0",
+    "vdd"
+   ],
+   "msg": "u_analog/xd6/X_i_1_0 (+19 parallel) pfet_05v0 w=1.22u l=0.5u: pmos possible leak errors - gate u_analog.xd6.Z_neg 0..3.3 V; source vdd 3.3 V; drain u_analog.d6 0 V; bulk vdd 3.3 V",
+   "source": "cvc",
+   "items": [
+    {
+     "msg": "u_analog/xd6/X_i_1_0 (+19 parallel) pfet_05v0 w=1.22u l=0.5u: pmos possible leak errors - gate u_analog.xd6.Z_neg 0..3.3 V; source vdd 3.3 V; drain u_analog.d6 0 V; bulk vdd 3.3 V",
+     "file": "top/macros/r2r_dac_analog.spice",
+     "line": null
+    }
+   ],
+   "device": "u_analog/xd6/X_i_1_0",
+   "refdes": null,
+   "model": "pfet_05v0",
+   "terminals": {
+    "gate": {
+     "net": "u_analog.xd6.Z_neg",
+     "min_v": 0.0,
+     "max_v": 3.3
+    },
+    "source": {
+     "net": "vdd",
+     "min_v": 3.3,
+     "max_v": 3.3
+    },
+    "drain": {
+     "net": "u_analog.d6",
+     "min_v": 0.0,
+     "max_v": 0.0
+    },
+    "bulk": {
+     "net": "vdd",
+     "min_v": 3.3,
+     "max_v": 3.3
+    }
+   },
+   "nets": {
+    "d": "u_analog.d6",
+    "g": "u_analog.xd6.Z_neg",
+    "s": "vdd",
+    "b": "vdd"
+   },
+   "cvc_check": "pmos possible leak errors",
+   "cvc_detail": null,
+   "position": null,
+   "positions": [],
+   "parallel": [
+    "u_analog/xd6/X_i_1_1",
+    "u_analog/xd6/X_i_1_2",
+    "u_analog/xd6/X_i_1_3",
+    "u_analog/xd6/X_i_1_4",
+    "u_analog/xd6/X_i_1_5",
+    "u_analog/xd6/X_i_1_6",
+    "u_analog/xd6/X_i_1_7",
+    "u_analog/xd6/X_i_1_8",
+    "u_analog/xd6/X_i_1_9",
+    "u_analog/xd6/X_i_1_10",
+    "u_analog/xd6/X_i_1_11",
+    "u_analog/xd6/X_i_1_12",
+    "u_analog/xd6/X_i_1_13",
+    "u_analog/xd6/X_i_1_14",
+    "u_analog/xd6/X_i_1_15",
+    "u_analog/xd6/X_i_1_16",
+    "u_analog/xd6/X_i_1_17",
+    "u_analog/xd6/X_i_1_18",
+    "u_analog/xd6/X_i_1_19"
+   ],
+   "mode": "analog_r2r_dac_analog"
+  },
+  {
+   "check": "top_erc",
+   "severity": "warning",
+   "file": "top/macros/r2r_dac_analog.spice",
+   "module": "r2r_dac_analog",
+   "line": null,
+   "kind": "possible_leak",
+   "refs": [
+    "u_analog.d5",
+    "u_analog.xd5.Z_neg",
+    "u_analog/xd5/X_i_1_0",
+    "vdd"
+   ],
+   "msg": "u_analog/xd5/X_i_1_0 (+19 parallel) pfet_05v0 w=1.22u l=0.5u: pmos possible leak errors - gate u_analog.xd5.Z_neg 0..3.3 V; source vdd 3.3 V; drain u_analog.d5 0 V; bulk vdd 3.3 V",
+   "source": "cvc",
+   "items": [
+    {
+     "msg": "u_analog/xd5/X_i_1_0 (+19 parallel) pfet_05v0 w=1.22u l=0.5u: pmos possible leak errors - gate u_analog.xd5.Z_neg 0..3.3 V; source vdd 3.3 V; drain u_analog.d5 0 V; bulk vdd 3.3 V",
+     "file": "top/macros/r2r_dac_analog.spice",
+     "line": null
+    }
+   ],
+   "device": "u_analog/xd5/X_i_1_0",
+   "refdes": null,
+   "model": "pfet_05v0",
+   "terminals": {
+    "gate": {
+     "net": "u_analog.xd5.Z_neg",
+     "min_v": 0.0,
+     "max_v": 3.3
+    },
+    "source": {
+     "net": "vdd",
+     "min_v": 3.3,
+     "max_v": 3.3
+    },
+    "drain": {
+     "net": "u_analog.d5",
+     "min_v": 0.0,
+     "max_v": 0.0
+    },
+    "bulk": {
+     "net": "vdd",
+     "min_v": 3.3,
+     "max_v": 3.3
+    }
+   },
+   "nets": {
+    "d": "u_analog.d5",
+    "g": "u_analog.xd5.Z_neg",
+    "s": "vdd",
+    "b": "vdd"
+   },
+   "cvc_check": "pmos possible leak errors",
+   "cvc_detail": null,
+   "position": null,
+   "positions": [],
+   "parallel": [
+    "u_analog/xd5/X_i_1_1",
+    "u_analog/xd5/X_i_1_2",
+    "u_analog/xd5/X_i_1_3",
+    "u_analog/xd5/X_i_1_4",
+    "u_analog/xd5/X_i_1_5",
+    "u_analog/xd5/X_i_1_6",
+    "u_analog/xd5/X_i_1_7",
+    "u_analog/xd5/X_i_1_8",
+    "u_analog/xd5/X_i_1_9",
+    "u_analog/xd5/X_i_1_10",
+    "u_analog/xd5/X_i_1_11",
+    "u_analog/xd5/X_i_1_12",
+    "u_analog/xd5/X_i_1_13",
+    "u_analog/xd5/X_i_1_14",
+    "u_analog/xd5/X_i_1_15",
+    "u_analog/xd5/X_i_1_16",
+    "u_analog/xd5/X_i_1_17",
+    "u_analog/xd5/X_i_1_18",
+    "u_analog/xd5/X_i_1_19"
+   ],
+   "mode": "analog_r2r_dac_analog"
+  },
+  {
+   "check": "top_erc",
+   "severity": "warning",
+   "file": "top/macros/r2r_dac_analog.spice",
+   "module": "r2r_dac_analog",
+   "line": null,
+   "kind": "possible_leak",
+   "refs": [
+    "u_analog.d4",
+    "u_analog.xd4.Z_neg",
+    "u_analog/xd4/X_i_1_0",
+    "vdd"
+   ],
+   "msg": "u_analog/xd4/X_i_1_0 (+19 parallel) pfet_05v0 w=1.22u l=0.5u: pmos possible leak errors - gate u_analog.xd4.Z_neg 0..3.3 V; source vdd 3.3 V; drain u_analog.d4 0 V; bulk vdd 3.3 V",
+   "source": "cvc",
+   "items": [
+    {
+     "msg": "u_analog/xd4/X_i_1_0 (+19 parallel) pfet_05v0 w=1.22u l=0.5u: pmos possible leak errors - gate u_analog.xd4.Z_neg 0..3.3 V; source vdd 3.3 V; drain u_analog.d4 0 V; bulk vdd 3.3 V",
+     "file": "top/macros/r2r_dac_analog.spice",
+     "line": null
+    }
+   ],
+   "device": "u_analog/xd4/X_i_1_0",
+   "refdes": null,
+   "model": "pfet_05v0",
+   "terminals": {
+    "gate": {
+     "net": "u_analog.xd4.Z_neg",
+     "min_v": 0.0,
+     "max_v": 3.3
+    },
+    "source": {
+     "net": "vdd",
+     "min_v": 3.3,
+     "max_v": 3.3
+    },
+    "drain": {
+     "net": "u_analog.d4",
+     "min_v": 0.0,
+     "max_v": 0.0
+    },
+    "bulk": {
+     "net": "vdd",
+     "min_v": 3.3,
+     "max_v": 3.3
+    }
+   },
+   "nets": {
+    "d": "u_analog.d4",
+    "g": "u_analog.xd4.Z_neg",
+    "s": "vdd",
+    "b": "vdd"
+   },
+   "cvc_check": "pmos possible leak errors",
+   "cvc_detail": null,
+   "position": null,
+   "positions": [],
+   "parallel": [
+    "u_analog/xd4/X_i_1_1",
+    "u_analog/xd4/X_i_1_2",
+    "u_analog/xd4/X_i_1_3",
+    "u_analog/xd4/X_i_1_4",
+    "u_analog/xd4/X_i_1_5",
+    "u_analog/xd4/X_i_1_6",
+    "u_analog/xd4/X_i_1_7",
+    "u_analog/xd4/X_i_1_8",
+    "u_analog/xd4/X_i_1_9",
+    "u_analog/xd4/X_i_1_10",
+    "u_analog/xd4/X_i_1_11",
+    "u_analog/xd4/X_i_1_12",
+    "u_analog/xd4/X_i_1_13",
+    "u_analog/xd4/X_i_1_14",
+    "u_analog/xd4/X_i_1_15",
+    "u_analog/xd4/X_i_1_16",
+    "u_analog/xd4/X_i_1_17",
+    "u_analog/xd4/X_i_1_18",
+    "u_analog/xd4/X_i_1_19"
+   ],
+   "mode": "analog_r2r_dac_analog"
+  },
+  {
+   "check": "top_erc",
+   "severity": "warning",
+   "file": "top/macros/r2r_dac_analog.spice",
+   "module": "r2r_dac_analog",
+   "line": null,
+   "kind": "possible_leak",
+   "refs": [
+    "u_analog.d3",
+    "u_analog.xd3.Z_neg",
+    "u_analog/xd3/X_i_1_0",
+    "vdd"
+   ],
+   "msg": "u_analog/xd3/X_i_1_0 (+19 parallel) pfet_05v0 w=1.22u l=0.5u: pmos possible leak errors - gate u_analog.xd3.Z_neg 0..3.3 V; source vdd 3.3 V; drain u_analog.d3 0 V; bulk vdd 3.3 V",
+   "source": "cvc",
+   "items": [
+    {
+     "msg": "u_analog/xd3/X_i_1_0 (+19 parallel) pfet_05v0 w=1.22u l=0.5u: pmos possible leak errors - gate u_analog.xd3.Z_neg 0..3.3 V; source vdd 3.3 V; drain u_analog.d3 0 V; bulk vdd 3.3 V",
+     "file": "top/macros/r2r_dac_analog.spice",
+     "line": null
+    }
+   ],
+   "device": "u_analog/xd3/X_i_1_0",
+   "refdes": null,
+   "model": "pfet_05v0",
+   "terminals": {
+    "gate": {
+     "net": "u_analog.xd3.Z_neg",
+     "min_v": 0.0,
+     "max_v": 3.3
+    },
+    "source": {
+     "net": "vdd",
+     "min_v": 3.3,
+     "max_v": 3.3
+    },
+    "drain": {
+     "net": "u_analog.d3",
+     "min_v": 0.0,
+     "max_v": 0.0
+    },
+    "bulk": {
+     "net": "vdd",
+     "min_v": 3.3,
+     "max_v": 3.3
+    }
+   },
+   "nets": {
+    "d": "u_analog.d3",
+    "g": "u_analog.xd3.Z_neg",
+    "s": "vdd",
+    "b": "vdd"
+   },
+   "cvc_check": "pmos possible leak errors",
+   "cvc_detail": null,
+   "position": null,
+   "positions": [],
+   "parallel": [
+    "u_analog/xd3/X_i_1_1",
+    "u_analog/xd3/X_i_1_2",
+    "u_analog/xd3/X_i_1_3",
+    "u_analog/xd3/X_i_1_4",
+    "u_analog/xd3/X_i_1_5",
+    "u_analog/xd3/X_i_1_6",
+    "u_analog/xd3/X_i_1_7",
+    "u_analog/xd3/X_i_1_8",
+    "u_analog/xd3/X_i_1_9",
+    "u_analog/xd3/X_i_1_10",
+    "u_analog/xd3/X_i_1_11",
+    "u_analog/xd3/X_i_1_12",
+    "u_analog/xd3/X_i_1_13",
+    "u_analog/xd3/X_i_1_14",
+    "u_analog/xd3/X_i_1_15",
+    "u_analog/xd3/X_i_1_16",
+    "u_analog/xd3/X_i_1_17",
+    "u_analog/xd3/X_i_1_18",
+    "u_analog/xd3/X_i_1_19"
+   ],
+   "mode": "analog_r2r_dac_analog"
+  },
+  {
+   "check": "top_erc",
+   "severity": "warning",
+   "file": "top/macros/r2r_dac_analog.spice",
+   "module": "r2r_dac_analog",
+   "line": null,
+   "kind": "possible_leak",
+   "refs": [
+    "u_analog.d2",
+    "u_analog.xd2.Z_neg",
+    "u_analog/xd2/X_i_1_0",
+    "vdd"
+   ],
+   "msg": "u_analog/xd2/X_i_1_0 (+19 parallel) pfet_05v0 w=1.22u l=0.5u: pmos possible leak errors - gate u_analog.xd2.Z_neg 0..3.3 V; source vdd 3.3 V; drain u_analog.d2 0 V; bulk vdd 3.3 V",
+   "source": "cvc",
+   "items": [
+    {
+     "msg": "u_analog/xd2/X_i_1_0 (+19 parallel) pfet_05v0 w=1.22u l=0.5u: pmos possible leak errors - gate u_analog.xd2.Z_neg 0..3.3 V; source vdd 3.3 V; drain u_analog.d2 0 V; bulk vdd 3.3 V",
+     "file": "top/macros/r2r_dac_analog.spice",
+     "line": null
+    }
+   ],
+   "device": "u_analog/xd2/X_i_1_0",
+   "refdes": null,
+   "model": "pfet_05v0",
+   "terminals": {
+    "gate": {
+     "net": "u_analog.xd2.Z_neg",
+     "min_v": 0.0,
+     "max_v": 3.3
+    },
+    "source": {
+     "net": "vdd",
+     "min_v": 3.3,
+     "max_v": 3.3
+    },
+    "drain": {
+     "net": "u_analog.d2",
+     "min_v": 0.0,
+     "max_v": 0.0
+    },
+    "bulk": {
+     "net": "vdd",
+     "min_v": 3.3,
+     "max_v": 3.3
+    }
+   },
+   "nets": {
+    "d": "u_analog.d2",
+    "g": "u_analog.xd2.Z_neg",
+    "s": "vdd",
+    "b": "vdd"
+   },
+   "cvc_check": "pmos possible leak errors",
+   "cvc_detail": null,
+   "position": null,
+   "positions": [],
+   "parallel": [
+    "u_analog/xd2/X_i_1_1",
+    "u_analog/xd2/X_i_1_2",
+    "u_analog/xd2/X_i_1_3",
+    "u_analog/xd2/X_i_1_4",
+    "u_analog/xd2/X_i_1_5",
+    "u_analog/xd2/X_i_1_6",
+    "u_analog/xd2/X_i_1_7",
+    "u_analog/xd2/X_i_1_8",
+    "u_analog/xd2/X_i_1_9",
+    "u_analog/xd2/X_i_1_10",
+    "u_analog/xd2/X_i_1_11",
+    "u_analog/xd2/X_i_1_12",
+    "u_analog/xd2/X_i_1_13",
+    "u_analog/xd2/X_i_1_14",
+    "u_analog/xd2/X_i_1_15",
+    "u_analog/xd2/X_i_1_16",
+    "u_analog/xd2/X_i_1_17",
+    "u_analog/xd2/X_i_1_18",
+    "u_analog/xd2/X_i_1_19"
+   ],
+   "mode": "analog_r2r_dac_analog"
+  },
+  {
+   "check": "top_erc",
+   "severity": "warning",
+   "file": "top/macros/r2r_dac_analog.spice",
+   "module": "r2r_dac_analog",
+   "line": null,
+   "kind": "possible_leak",
+   "refs": [
+    "u_analog.d1",
+    "u_analog.xd1.Z_neg",
+    "u_analog/xd1/X_i_1_0",
+    "vdd"
+   ],
+   "msg": "u_analog/xd1/X_i_1_0 (+19 parallel) pfet_05v0 w=1.22u l=0.5u: pmos possible leak errors - gate u_analog.xd1.Z_neg 0..3.3 V; source vdd 3.3 V; drain u_analog.d1 0 V; bulk vdd 3.3 V",
+   "source": "cvc",
+   "items": [
+    {
+     "msg": "u_analog/xd1/X_i_1_0 (+19 parallel) pfet_05v0 w=1.22u l=0.5u: pmos possible leak errors - gate u_analog.xd1.Z_neg 0..3.3 V; source vdd 3.3 V; drain u_analog.d1 0 V; bulk vdd 3.3 V",
+     "file": "top/macros/r2r_dac_analog.spice",
+     "line": null
+    }
+   ],
+   "device": "u_analog/xd1/X_i_1_0",
+   "refdes": null,
+   "model": "pfet_05v0",
+   "terminals": {
+    "gate": {
+     "net": "u_analog.xd1.Z_neg",
+     "min_v": 0.0,
+     "max_v": 3.3
+    },
+    "source": {
+     "net": "vdd",
+     "min_v": 3.3,
+     "max_v": 3.3
+    },
+    "drain": {
+     "net": "u_analog.d1",
+     "min_v": 0.0,
+     "max_v": 0.0
+    },
+    "bulk": {
+     "net": "vdd",
+     "min_v": 3.3,
+     "max_v": 3.3
+    }
+   },
+   "nets": {
+    "d": "u_analog.d1",
+    "g": "u_analog.xd1.Z_neg",
+    "s": "vdd",
+    "b": "vdd"
+   },
+   "cvc_check": "pmos possible leak errors",
+   "cvc_detail": null,
+   "position": null,
+   "positions": [],
+   "parallel": [
+    "u_analog/xd1/X_i_1_1",
+    "u_analog/xd1/X_i_1_2",
+    "u_analog/xd1/X_i_1_3",
+    "u_analog/xd1/X_i_1_4",
+    "u_analog/xd1/X_i_1_5",
+    "u_analog/xd1/X_i_1_6",
+    "u_analog/xd1/X_i_1_7",
+    "u_analog/xd1/X_i_1_8",
+    "u_analog/xd1/X_i_1_9",
+    "u_analog/xd1/X_i_1_10",
+    "u_analog/xd1/X_i_1_11",
+    "u_analog/xd1/X_i_1_12",
+    "u_analog/xd1/X_i_1_13",
+    "u_analog/xd1/X_i_1_14",
+    "u_analog/xd1/X_i_1_15",
+    "u_analog/xd1/X_i_1_16",
+    "u_analog/xd1/X_i_1_17",
+    "u_analog/xd1/X_i_1_18",
+    "u_analog/xd1/X_i_1_19"
+   ],
+   "mode": "analog_r2r_dac_analog"
+  },
+  {
+   "check": "top_erc",
+   "severity": "warning",
+   "file": "top/macros/r2r_dac_analog.spice",
+   "module": "r2r_dac_analog",
+   "line": null,
+   "kind": "possible_leak",
+   "refs": [
+    "u_analog.d0",
+    "u_analog.xd0.Z_neg",
+    "u_analog/xd0/X_i_1_0",
+    "vdd"
+   ],
+   "msg": "u_analog/xd0/X_i_1_0 (+19 parallel) pfet_05v0 w=1.22u l=0.5u: pmos possible leak errors - gate u_analog.xd0.Z_neg 0..3.3 V; source vdd 3.3 V; drain u_analog.d0 0 V; bulk vdd 3.3 V",
+   "source": "cvc",
+   "items": [
+    {
+     "msg": "u_analog/xd0/X_i_1_0 (+19 parallel) pfet_05v0 w=1.22u l=0.5u: pmos possible leak errors - gate u_analog.xd0.Z_neg 0..3.3 V; source vdd 3.3 V; drain u_analog.d0 0 V; bulk vdd 3.3 V",
+     "file": "top/macros/r2r_dac_analog.spice",
+     "line": null
+    }
+   ],
+   "device": "u_analog/xd0/X_i_1_0",
+   "refdes": null,
+   "model": "pfet_05v0",
+   "terminals": {
+    "gate": {
+     "net": "u_analog.xd0.Z_neg",
+     "min_v": 0.0,
+     "max_v": 3.3
+    },
+    "source": {
+     "net": "vdd",
+     "min_v": 3.3,
+     "max_v": 3.3
+    },
+    "drain": {
+     "net": "u_analog.d0",
+     "min_v": 0.0,
+     "max_v": 0.0
+    },
+    "bulk": {
+     "net": "vdd",
+     "min_v": 3.3,
+     "max_v": 3.3
+    }
+   },
+   "nets": {
+    "d": "u_analog.d0",
+    "g": "u_analog.xd0.Z_neg",
+    "s": "vdd",
+    "b": "vdd"
+   },
+   "cvc_check": "pmos possible leak errors",
+   "cvc_detail": null,
+   "position": null,
+   "positions": [],
+   "parallel": [
+    "u_analog/xd0/X_i_1_1",
+    "u_analog/xd0/X_i_1_2",
+    "u_analog/xd0/X_i_1_3",
+    "u_analog/xd0/X_i_1_4",
+    "u_analog/xd0/X_i_1_5",
+    "u_analog/xd0/X_i_1_6",
+    "u_analog/xd0/X_i_1_7",
+    "u_analog/xd0/X_i_1_8",
+    "u_analog/xd0/X_i_1_9",
+    "u_analog/xd0/X_i_1_10",
+    "u_analog/xd0/X_i_1_11",
+    "u_analog/xd0/X_i_1_12",
+    "u_analog/xd0/X_i_1_13",
+    "u_analog/xd0/X_i_1_14",
+    "u_analog/xd0/X_i_1_15",
+    "u_analog/xd0/X_i_1_16",
+    "u_analog/xd0/X_i_1_17",
+    "u_analog/xd0/X_i_1_18",
+    "u_analog/xd0/X_i_1_19"
+   ],
+   "mode": "analog_r2r_dac_analog"
+  }
+ ],
+ "facts": {
+  "top": "tt_um_r2r_dac_digital",
+  "vdd": 3.3,
+  "modes": {
+   "operating": {
+    "devices": 16062,
+    "grounds": [
+     "VGND"
+    ],
+    "cvc_counts": {
+     "PMOS Possible Leaks": 160
+    }
+   },
+   "held": {
+    "devices": 16062,
+    "grounds": [
+     "/u_analog.dac_code[0]",
+     "/u_analog.dac_code[1]",
+     "/u_analog.dac_code[2]",
+     "/u_analog.dac_code[3]",
+     "/u_analog.dac_code[4]",
+     "/u_analog.dac_code[5]",
+     "/u_analog.dac_code[6]",
+     "/u_analog.dac_code[7]",
+     "VGND",
+     "clk",
+     "rst_n"
+    ],
+    "cvc_counts": {}
+   },
+   "analog:r2r_dac_analog": {
+    "devices": 509,
+    "grounds": [
+     "vss"
+    ],
+    "cvc_counts": {
+     "PMOS Possible Leaks": 160
+    }
+   }
+  },
+  "report": "log/top_erc"
+ },
+ "inputs_at_start": {
+  "top_pnl": "dir_text:d5af7fd96d8b5a47c3998ae525d45a8b76ebe719ed103a4b3c22e5a83e6f74de",
+  "top_spec": "json_canonical:d863d5e4ac42eb90b849bfae8bc19ecdb8167ca2c310bd40cdb64c48a4355186",
+  "top_macros": "dir_text:2956b759fa67e4a3ef5051fd834b44010844b7f79d445fdf8ea74bbdeca01e32",
+  "interface": "json_canonical:b317b0c3e311adfb5ad2db6738f43e6e1c4a839c10c8d785d0ebda5c0505c87e",
+  "analog_spec": "json_canonical:bea97fb251ebda8c3059ca750c9247e051bdd64946a521b40eb21ee20fe77e64",
+  "erc_waivers": null,
+  "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2"
+ },
+ "strength_at_start": 0,
+ "recorded_ts": "2026-11-12T23:42:18",
+ "attempts": 1
+}

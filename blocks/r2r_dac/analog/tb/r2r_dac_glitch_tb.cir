@@ -30,7 +30,9 @@
 * energy = integral of the excursion over the window (V.s), peak = its max
 * (V). glitch_peak_skew_max = max peak over the four skewed windows.
 *
-* Pad load ASSUMED (spec.md): R_pad = 100 ohm in series with C_load = 7 pF.
+* No load of its own on vout: the spec lists vout in ua_pins, so every run is
+* made bare and again through the TT ua pad model (engine/lib/padlib.py, 500 ohm
+* + 5 pF + the pad's ESD diodes). A bench R/C here would count the pad twice.
 * Corners: {{CORNER}} FET section + {{RES_CORNER}} resistor section.
 
 .include '{{PDK}}/libs.tech/ngspice/design.ngspice'
@@ -42,7 +44,6 @@
 
 .temp {{TEMP_C}}
 .param vddp={{VDD}}
-.param r_pad=100 c_load=7p
 
 vdd vdd 0 {vddp}
 vss vss 0 0
@@ -60,8 +61,6 @@ vb0 b0 0 pwl(0 {vddp} 19.95n {vddp} 20.05n 0 79.95n 0 80.05n {vddp} 139.95n {vdd
 * DUT, pins in topology.md order: dac_code[7..0] vout vdd vss
 xdut b7 b6 b5 b4 b3 b2 b1 b0 vout vdd vss r2r_dac_analog
 
-rpad vout vpad {r_pad}
-cload vpad 0 {c_load}
 
 .control
 set noaskquit

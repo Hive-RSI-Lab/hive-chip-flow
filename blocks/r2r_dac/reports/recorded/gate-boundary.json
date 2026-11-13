@@ -1,0 +1,123 @@
+{
+ "script": "gate",
+ "gate": "boundary",
+ "phase": "P3",
+ "tool": "boundary",
+ "input_digest": "json_canonical:b317b0c3e311adfb5ad2db6738f43e6e1c4a839c10c8d785d0ebda5c0505c87e",
+ "status": "pass",
+ "criteria": {
+  "fail_severities": [
+   "error"
+  ],
+  "max_count": 0
+ },
+ "counts": {
+  "total": 0,
+  "by_severity": {},
+  "by_source": {}
+ },
+ "failing_count": 0,
+ "failing": [],
+ "violations": [],
+ "facts": {
+  "declared": true,
+  "cell": "r2r_dac_analog",
+  "corners": [
+   "tt_025C_3v30",
+   "ss_125C_3v00",
+   "ff_n40C_3v60"
+  ],
+  "pins": {
+   "tt_025C_3v30": {
+    "dac_code[0]": {
+     "threshold_v": 1.4008104
+    },
+    "dac_code[1]": {
+     "threshold_v": 1.4008104
+    },
+    "dac_code[2]": {
+     "threshold_v": 1.4008104
+    },
+    "dac_code[3]": {
+     "threshold_v": 1.4008104
+    },
+    "dac_code[4]": {
+     "threshold_v": 1.4008104
+    },
+    "dac_code[5]": {
+     "threshold_v": 1.4008104
+    },
+    "dac_code[6]": {
+     "threshold_v": 1.4008037999999998
+    },
+    "dac_code[7]": {
+     "threshold_v": 1.4007708
+    }
+   },
+   "ss_125C_3v00": {
+    "dac_code[0]": {
+     "threshold_v": 1.291086
+    },
+    "dac_code[1]": {
+     "threshold_v": 1.291086
+    },
+    "dac_code[2]": {
+     "threshold_v": 1.291086
+    },
+    "dac_code[3]": {
+     "threshold_v": 1.291086
+    },
+    "dac_code[4]": {
+     "threshold_v": 1.291086
+    },
+    "dac_code[5]": {
+     "threshold_v": 1.291086
+    },
+    "dac_code[6]": {
+     "threshold_v": 1.291083
+    },
+    "dac_code[7]": {
+     "threshold_v": 1.2910499999999998
+    }
+   },
+   "ff_n40C_3v60": {
+    "dac_code[0]": {
+     "threshold_v": 1.5138612
+    },
+    "dac_code[1]": {
+     "threshold_v": 1.5138612
+    },
+    "dac_code[2]": {
+     "threshold_v": 1.5138612
+    },
+    "dac_code[3]": {
+     "threshold_v": 1.5138612
+    },
+    "dac_code[4]": {
+     "threshold_v": 1.5138612
+    },
+    "dac_code[5]": {
+     "threshold_v": 1.5138612
+    },
+    "dac_code[6]": {
+     "threshold_v": 1.513854
+    },
+    "dac_code[7]": {
+     "threshold_v": 1.5138216
+    }
+   }
+  }
+ },
+ "inputs_at_start": {
+  "interface": "json_canonical:b317b0c3e311adfb5ad2db6738f43e6e1c4a839c10c8d785d0ebda5c0505c87e",
+  "analog_netlist": "dir_text:2c6d358ba4c3ec93f5dc910e1777df9a3f5418293791a715229fa1b8d22d1e4e",
+  "analog_sizing": "json_canonical:143a2b2839438ea425c0134de50627081e87e3d5ec338449012b3e9fc831a8df",
+  "analog_spec": "json_canonical:bea97fb251ebda8c3059ca750c9247e051bdd64946a521b40eb21ee20fe77e64",
+  "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
+  "pdk_models": "dir_text:84e0f27991c27acae27ec5243fd0d1587f7bfb2655e802ed0eb92a811cf5f7f8",
+  "pdk_liberty": "dir_bytes:f09377f057ab484ec9e5a45b205c99a5de399e2bdca886531bf9eefa57783f32"
+ },
+ "strength_at_start": 1,
+ "recorded_ts": "2026-11-12T23:34:13",
+ "attempts": 2
+}

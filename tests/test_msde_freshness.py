@@ -392,7 +392,7 @@ def _cosim_fresh(ws: Path) -> str:
 
 def _v1_like(tmp_path: Path) -> Path:
     """A block whose cosim never read the post-layout views."""
-    ws = tmp_path / "blocks" / "r2r_dac"
+    ws = tmp_path / "blocks" / "pll"
     ws.mkdir(parents=True)
     msde_block(ws)
     _set_bench(ws, analog_kind="transistor")

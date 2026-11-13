@@ -9,8 +9,10 @@
 #   typical, 420 ss, 280 ff in sm141064.spice res_typical/res_ss/res_ff),
 #   unit W ~ 2 um, every R one unit, every 2R two units in series, the 2R
 #   branch trimmed by Ron_nom of the driver.
-#   Pad load ASSUMED (not documented in this repo): R_pad = 100 ohm in
-#   series with C_load = 7 pF to vss - one bench parameter.
+#   Pad load: vout is on ua[0], listed in ua_pins below, so every bench runs
+#   bare and through the engine's TT ua pad model (padlib: 500 ohm + 5 pF +
+#   the pad's ESD diodes). The benches carry no load of their own; the
+#   ASSUMED 100 ohm + 7 pF they had stood for the same pad (spec.md).
 #   Drivers: eight identical gf180mcu_fd_sc_mcu7t5v0 buffer cells, the
 #   only active devices; Ron_pu/Ron_pd at tt/25 C to be stated by P2.
 #
@@ -30,6 +32,8 @@
 mc: {enabled: true, yield_min: 0.95, seed: 1}
 
 top: r2r_dac_analog
+# vout leaves the tile on ua[0] (spec.md "Values chosen").
+ua_pins: [vout]
 supply:
   vdd: 3.3
 
@@ -105,8 +109,9 @@ measures:
   #    value, from the code edge, seconds. The brief asked < 20 ns; the
   #    owner (2026-09-25 round 2) kept the accurate 27k unit R and accepted
   #    ~1.2 us as a known spec trade-off. Bound from topology: tau = R_out
-  #    x C_load = 27k x 7 pF = 189 ns, 0.5 LSB of 8 bits = 9 ln2 tau =
-  #    1.18 us at tt; ss rsh (+20 %) -> 1.42 us; bound 1.5 us. [owner]
+  #    x C_load = 27k x 7 pF = 189 ns (the old assumed pad load; the
+  #    pad model in its place is 500 ohm + 5 pF + ESD diodes), 0.5 LSB of
+  #    8 bits = 9 ln2 tau = 1.18 us at tt; ss rsh (+20 %) -> 1.42 us; bound 1.5 us. [owner]
   - name: t_settle_rise
     bounds: {max: 1.5e-6}
     severity: error
@@ -124,6 +129,10 @@ measures:
   - name: t_fall_10_90
     bounds: {max: 0.53e-6}
     severity: warning
+  #    The glitch bounds are scored through the pad only (pad: pad): they
+  #    are set for vout loaded by the pad's 5 pF, and a bare vout with no
+  #    load shows the drivers' raw edge mismatch at full size (spec.md
+  #    "Values chosen").
   # 6. Mid-code glitch, 127 <-> 128, all eight drivers switching at the
   #    same instant. Energy = integral of |vout - v_final| dt outside the
   #    band between v_initial and v_final, V.s; peak = max excursion
@@ -133,15 +142,19 @@ measures:
   - name: glitch_energy_up
     bounds: {max: 0.26e-9}
     severity: warning
+    pad: pad
   - name: glitch_energy_down
     bounds: {max: 0.26e-9}
     severity: warning
+    pad: pad
   - name: glitch_peak_up
     bounds: {max: 52e-3}
     severity: warning
+    pad: pad
   - name: glitch_peak_down
     bounds: {max: 52e-3}
     severity: warning
+    pad: pad
   #    Same transitions with the MSB driver input skewed +200 ps (late)
   #    and -200 ps (early) against the other seven. While the MSB lags the
   #    output heads for a half-scale code, so the energy is about
@@ -151,18 +164,23 @@ measures:
   - name: glitch_energy_up_skew_p200p
     bounds: {max: 0.5e-9}
     severity: warning
+    pad: pad
   - name: glitch_energy_up_skew_m200p
     bounds: {max: 0.5e-9}
     severity: warning
+    pad: pad
   - name: glitch_energy_down_skew_p200p
     bounds: {max: 0.5e-9}
     severity: warning
+    pad: pad
   - name: glitch_energy_down_skew_m200p
     bounds: {max: 0.5e-9}
     severity: warning
+    pad: pad
   - name: glitch_peak_skew_max
     bounds: {max: 0.2}
     severity: warning
+    pad: pad
   # 7. Resistor-mismatch sensitivity (the brief's fallback, kept beside the
   #    Monte Carlo now run on dnl/inl - see the mc comment above): each
   #    unit resistor perturbed +1 % and -1 % one at a time, all others
@@ -192,15 +210,15 @@ measures:
 post_layout_bounds:
   t_settle_rise: {max: 1.5e-6}
   t_settle_fall: {max: 1.5e-6}
-  glitch_energy_up: {max: 0.26e-9}
-  glitch_energy_down: {max: 0.26e-9}
-  glitch_peak_up: {max: 52e-3}
-  glitch_peak_down: {max: 52e-3}
-  glitch_energy_up_skew_p200p: {max: 0.5e-9}
-  glitch_energy_up_skew_m200p: {max: 0.5e-9}
-  glitch_energy_down_skew_p200p: {max: 0.5e-9}
-  glitch_energy_down_skew_m200p: {max: 0.5e-9}
-  glitch_peak_skew_max: {max: 0.2}
+  glitch_energy_up: {max: 0.26e-9, pad: pad}
+  glitch_energy_down: {max: 0.26e-9, pad: pad}
+  glitch_peak_up: {max: 52e-3, pad: pad}
+  glitch_peak_down: {max: 52e-3, pad: pad}
+  glitch_energy_up_skew_p200p: {max: 0.5e-9, pad: pad}
+  glitch_energy_up_skew_m200p: {max: 0.5e-9, pad: pad}
+  glitch_energy_down_skew_p200p: {max: 0.5e-9, pad: pad}
+  glitch_energy_down_skew_m200p: {max: 0.5e-9, pad: pad}
+  glitch_peak_skew_max: {max: 0.2, pad: pad}
 
 # The crossing pins' timing limits for the macro_lib gate. dac_code[7:0] are
 # the eight xd* buf_20 inputs, inputs only: there is no output arc, and vout
@@ -215,8 +233,10 @@ post_layout_bounds:
 #   the tightest of them.
 #   static: the bits not under test are held low; the cap is one gate's, so the
 #   level does not matter, but the gate refuses a floating pin.
-#   pad_caps_pf: vout's assumed pad load above, 7 pF (5 pad + 2 routing). The
-#   bench has no series R_pad: it measures input caps, which vout does not move.
+#   pad_caps_pf: vout's load on the pad, kept at the 7 pF (5 pad + 2 routing)
+#   the benches assumed before the pad model; vout has no arc here, so it
+#   only sets the cap the .lib quotes. The gate measures input caps, which
+#   vout does not move.
 macro_timing:
   pins:
     dac_code: {max_transition_ns: 3.0}
@@ -241,3 +261,28 @@ macro_timing:
 # 400 ps max step on the extracted ladder) ran past the 120 s default at
 # tt_m40c; 1200 s leaves room for a busy machine.
 sim_timeout_s: {pex_sim: 2400, em_ir: 1200}
+
+# The boundary gate (#110): each dac_code bit is ramped 0 -> vdd over 1 us
+# with the other bits held low and vout open, and its switching point is the
+# pin voltage when that bit's driver output (xdut.dK, the buf_20's Z) crosses
+# vdd/2. cmos_3v3 asks it to sit between vil and vih at every STA corner.
+boundary:
+  static:
+    "dac_code[0]": 0
+    "dac_code[1]": 0
+    "dac_code[2]": 0
+    "dac_code[3]": 0
+    "dac_code[4]": 0
+    "dac_code[5]": 0
+    "dac_code[6]": 0
+    "dac_code[7]": 0
+    vout: open
+  d2a:
+    "dac_code[0]": {observe: xdut.d0, ramp_ns: 1000, step_ns: 0.1}
+    "dac_code[1]": {observe: xdut.d1, ramp_ns: 1000, step_ns: 0.1}
+    "dac_code[2]": {observe: xdut.d2, ramp_ns: 1000, step_ns: 0.1}
+    "dac_code[3]": {observe: xdut.d3, ramp_ns: 1000, step_ns: 0.1}
+    "dac_code[4]": {observe: xdut.d4, ramp_ns: 1000, step_ns: 0.1}
+    "dac_code[5]": {observe: xdut.d5, ramp_ns: 1000, step_ns: 0.1}
+    "dac_code[6]": {observe: xdut.d6, ramp_ns: 1000, step_ns: 0.1}
+    "dac_code[7]": {observe: xdut.d7, ramp_ns: 1000, step_ns: 0.1}
