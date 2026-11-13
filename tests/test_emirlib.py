@@ -347,6 +347,13 @@ def test_with_op_adds_the_control_block_before_end():
     assert gate.dut_line(BENCH) == (["vdd", "0", "out"], "mirror")
 
 
+def test_with_op_prints_the_operating_point_at_twelve_digits():
+    # 6 digits (ngspice's default) is 1 uV on a 3 V rail: 30 nA over 33 ohm,
+    # which made a deviceless n-well node look like a current source.
+    out = gate.with_op(BENCH)
+    assert out.index("set numdgt=12") < out.index("op\nprint all")
+
+
 def test_with_op_refuses_a_bench_with_its_own_control_block():
     with pytest.raises(CheckError, match=".control"):
         gate.with_op(BENCH.replace(".end", ".control\nop\n.endc\n.end"))

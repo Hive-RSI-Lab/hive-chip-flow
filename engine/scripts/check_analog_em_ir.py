@@ -128,12 +128,22 @@ def _with_control(bench_text: str, tail: str, what: str) -> str:
     return bench_text[:at] + tail + bench_text[at:]
 
 
+# significant digits of the op print (with_op)
+NUMDGT = 12
+
+
 def with_op(bench_text: str, probes=()) -> str:
     """The op bench with `op`, `print all` (every node voltage) and a print
-    of each resistor body current probe."""
+    of each resistor body current probe, at NUMDGT significant digits.
+    ngspice's default 6 leaves a node voltage good to about 1 uV, and
+    injections() turns that into the current of each extracted resistor:
+    over a few ohms of well or strap it is tens of nA of rounding, enough
+    to give a node with no device on it a current above I_FLOOR_A and so a
+    position to defend. At 12 digits the rounding is a few pA."""
     prints = "".join(f"print {p}\n" for p in probes)
     return _with_control(
-        bench_text, ".control\nset noaskquit\nop\nprint all\n" + prints
+        bench_text, f".control\nset noaskquit\nset numdgt={NUMDGT}\nop\n"
+        "print all\n" + prints
         + ".endc\n", "op")
 
 
