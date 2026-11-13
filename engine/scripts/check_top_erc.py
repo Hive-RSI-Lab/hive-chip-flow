@@ -507,7 +507,9 @@ def run(argv=None):
             str(path.relative_to(ws)))
         violations += v
 
-    payload = checklib.report(SCRIPT, pnl, violations, top=top, vdd=vdd,
+    # the pnl directory, the first of the gate's input kinds (top_pnl): state
+    # records a result only against the hash of that kind.
+    payload = checklib.report(SCRIPT, pnl.parent, violations, top=top, vdd=vdd,
                               modes=modes, report="log/top_erc")
     return payload, args.out
 
