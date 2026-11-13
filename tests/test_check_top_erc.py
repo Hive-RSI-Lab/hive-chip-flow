@@ -348,3 +348,18 @@ def test_an_always_on_stack_between_the_rails_is_an_error(tmp_path, monkeypatch)
     assert code == 1
     assert any(v["kind"] == "leak" and v["severity"] == "error"
                for v in payload["violations"]), payload
+
+
+def test_the_stamped_digest_is_what_state_records_against(tmp_path, monkeypatch):
+    """state.record_gate refuses a result whose input_digest is not the hash
+    of the gate's first input kind. top_erc stamped the .pnl.v file while its
+    first kind was top_spec, so no top_erc pass could ever be recorded."""
+    import statelib
+    ws = _workspace(tmp_path, monkeypatch)
+    monkeypatch.setattr(erc, "run_cvc", lambda *a, **k: (
+        "CVC: Error Counts\nCVC: Fuse Errors : 0\n", ""))
+    code, payload = _run(ws, tmp_path)
+    assert code == 0 and payload["status"] == "pass", payload
+    imap = statelib.load_map()
+    first = imap["gate_inputs"]["msde"]["top_erc"][0]
+    assert payload["input_digest"] == statelib.hash_kind(ws, first, imap)[1]
