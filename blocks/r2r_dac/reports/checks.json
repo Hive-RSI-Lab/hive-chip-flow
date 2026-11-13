@@ -1,7 +1,7 @@
 {
  "skill": "msde",
  "block": "r2r_dac",
- "ts": "2026-11-12T23:42:48",
+ "ts": "2026-11-13T15:32:14",
  "pdk": {
   "name": "gf180mcuD",
   "open_pdks": "1689ac3f2dc763876eaf967227c7dfe831b031ae",
@@ -204,6 +204,26 @@
     "pdk_netgen": "dir_text:8164f65bb7d1bef6e27af4c13b1c6ede50973cec7aec482556abb23881aceb04"
    },
    "reason": null
+  },
+  {
+   "gate": "top_stress",
+   "applies": true,
+   "ran": true,
+   "ok": true,
+   "tool": "top_stress",
+   "version": 1,
+   "status": "pass",
+   "attempts": 1,
+   "ts": "2026-11-13T15:28:59",
+   "inputs": {
+    "top_pnl": "dir_text:d5af7fd96d8b5a47c3998ae525d45a8b76ebe719ed103a4b3c22e5a83e6f74de",
+    "top_spef": "dir_text:a446a98b3a5d3e95250bff41154db4c0a4f0b5bd7bbdf50e45b8bd0753911033",
+    "top_spec": "json_canonical:d863d5e4ac42eb90b849bfae8bc19ecdb8167ca2c310bd40cdb64c48a4355186",
+    "top_macros": "dir_text:2956b759fa67e4a3ef5051fd834b44010844b7f79d445fdf8ea74bbdeca01e32",
+    "analog_spec": "json_canonical:bea97fb251ebda8c3059ca750c9247e051bdd64946a521b40eb21ee20fe77e64",
+    "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2"
+   },
+   "reason": null
   }
  ],
  "tt_submission": {
@@ -249,7 +269,7 @@
    }
   ],
   "manifest": "release/manifest.json",
-  "manifest_sha256": "1a381a2a9880071832da9b4cd5dfcc503ae5019a76a88e48a1ef88049f568389"
+  "manifest_sha256": "2919abda8b20c78d6b6f33f6275b5efb2ec02938b3f202700b4106b32d40c182"
  },
- "attestation_sha256": "bba9d1435beab9ec91f384a30387da4a617d14fd81ffd2b9fcd19e8a127dfae6"
+ "attestation_sha256": "82ce5ad8cc9b4e8f04b0f13f69cd5f36846a9af9f67cb7989c6b1bf0428d9b7d"
 }
