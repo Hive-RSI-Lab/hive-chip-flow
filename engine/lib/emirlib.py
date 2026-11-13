@@ -803,7 +803,7 @@ def node_flows(net: FhNet, segs: list, placed: list, limits: dict) -> dict:
 
 
 def _charge_orphan(net, node_reps, xy, amps, layers, clusters, what,
-                   charge, on_net=None):
+                   charge, on_net=None, memo=None):
     """Charge `amps` that crosses a cut magic put nowhere near one to the
     array with the fewest cuts near it: of the arrays within FOLD_REACH_UM
     of the node or of the far end of any segment at it, those no more than
@@ -817,7 +817,29 @@ def _charge_orphan(net, node_reps, xy, amps, layers, clusters, what,
     apart, so another net's array a strap of this net only crosses passes
     it; the nearness band keeps such an array from drawing current
     across the cell from a cut that has its own array beside it. Returns
-    the orphan record; refuses when no array is in reach."""
+    the orphan record; refuses when no array is in reach. `memo` (a dict
+    kept between calls on one net, as cut_charges' ctx) keeps the array
+    chosen for a node, which depends on the geometry alone."""
+    key = (frozenset(node_reps), frozenset(xy), tuple(layers))
+    if memo is not None and key in memo:
+        best = memo[key]
+    else:
+        best = _orphan_array(net, node_reps, xy, layers, clusters, on_net)
+        if memo is not None:
+            memo[key] = best
+    if best is None:
+        x, y = sorted(xy)[0]
+        raise EmirError(f"net {net.name}: {amps:.3g} A changes layer at "
+                        f"({x:.2f}, {y:.2f}) ({what}) but the GDS draws no "
+                        f"cut within {FOLD_REACH_UM} um of it")
+    charge[id(best)] = (best, charge.get(id(best), (best, 0.0))[1] + amps)
+    return {"net": net.name, "at": [round(v, 2) for v in sorted(xy)[0]],
+            "amps": amps, "what": what, "charged": best.gds,
+            "box": [round(v, 2) for v in best.box], "cuts": best.cuts}
+
+
+def _orphan_array(net, node_reps, xy, layers, clusters, on_net):
+    """The array _charge_orphan charges, or None when none is in reach."""
     pts = set(xy)
     for a, b, _w, _h in net.segs:
         ra, rb = net.rep(a), net.rep(b)
@@ -840,15 +862,7 @@ def _charge_orphan(net, node_reps, xy, amps, layers, clusters, what,
     for c in reach:
         if best is None or c.cuts < best.cuts:
             best = c
-    if best is None:
-        x, y = sorted(xy)[0]
-        raise EmirError(f"net {net.name}: {amps:.3g} A changes layer at "
-                        f"({x:.2f}, {y:.2f}) ({what}) but the GDS draws no "
-                        f"cut within {FOLD_REACH_UM} um of it")
-    charge[id(best)] = (best, charge.get(id(best), (best, 0.0))[1] + amps)
-    return {"net": net.name, "at": [round(v, 2) for v in sorted(xy)[0]],
-            "amps": amps, "what": what, "charged": best.gds,
-            "box": [round(v, 2) for v in best.box], "cuts": best.cuts}
+    return best
 
 
 def assign_cuts(net: FhNet, segs: list, placed: list, clusters: dict,
@@ -893,11 +907,15 @@ def cut_charges(net: FhNet, segs: list, placed: list, clusters: dict,
     ctx = {} if ctx is None else ctx
     footprints = ctx.setdefault("footprints", {})
     near_of = ctx.setdefault("near", {})
+    reached = ctx.setdefault("on_net", {})
+    memo = ctx.setdefault("orphan", {})
 
     def on_net(c):
-        if c.dbu not in footprints:
-            footprints[c.dbu] = net_footprint(net, c.dbu, limits)
-        return _on_net(c, footprints[c.dbu])
+        if id(c) not in reached:
+            if c.dbu not in footprints:
+                footprints[c.dbu] = net_footprint(net, c.dbu, limits)
+            reached[id(c)] = _on_net(c, footprints[c.dbu])
+        return reached[id(c)]
 
     for node, e in flows.items():
         if e["through"] < I_FLOOR_A:
@@ -949,7 +967,7 @@ def cut_charges(net: FhNet, segs: list, placed: list, clusters: dict,
         elif changes and not hit_contact:
             orphans.append(_charge_orphan(
                 net, {node}, e["xy"], e["below"], contact, clusters,
-                "a wire under metal1 meets metal", charge, on_net))
+                "a wire under metal1 meets metal", charge, on_net, memo))
     for s in segs:
         if not s.is_cut or abs(s.amps) < I_FLOOR_A:
             continue
@@ -962,7 +980,7 @@ def cut_charges(net: FhNet, segs: list, placed: list, clusters: dict,
         if not near_of[key]:
             orphans.append(_charge_orphan(
                 net, {net.rep(s.a), net.rep(s.b)}, {(x, y)}, abs(s.amps),
-                every, clusters, "a cut segment", charge, on_net))
+                every, clusters, "a cut segment", charge, on_net, memo))
     return charge, orphans
 
 

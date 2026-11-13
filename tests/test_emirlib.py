@@ -230,6 +230,32 @@ def test_an_orphan_goes_to_the_smallest_array_on_the_net():
         assert rec["cuts"] == want.cuts
 
 
+def test_an_orphans_array_is_kept_between_timepoints_and_still_refused():
+    # a transient charges the same orphan node at every timepoint: the
+    # array it picks is geometry alone, kept in the memo, and the amps of
+    # each call still land on it; a node with no array in reach is refused
+    # every time, memo or not
+    net = emirlib.FhNet("n", "n", nodes={"a": (0, 0, 0)}, segs=[])
+    mine = emirlib.Cluster((33, 0), (2, 0, 3, 1), 3)
+    calls, memo, charge = [], {}, {}
+    def on_net(c):
+        calls.append(c)
+        return True
+    for amps in (1e-4, 3e-4):
+        rec = emirlib._charge_orphan(net, {"a"}, {(0, 0)}, amps, [(33, 0)],
+                                     {(33, 0): [mine]}, "x", charge, on_net,
+                                     memo)
+        assert rec["amps"] == amps and rec["cuts"] == 3
+    assert len(calls) == 1
+    assert charge[id(mine)][1] == pytest.approx(4e-4)
+    far = {(33, 0): [emirlib.Cluster((33, 0), (50, 0, 51, 1), 3)]}
+    memo = {}                      # another net: its own memo
+    for _ in range(2):
+        with pytest.raises(emirlib.EmirError):
+            emirlib._charge_orphan(net, {"a"}, {(0, 0)}, 1e-4, [(33, 0)],
+                                   far, "x", {}, on_net, memo)
+
+
 def test_an_orphan_goes_to_the_smallest_array_near_the_nearest():
     # a 3-cut array 0.5 um off the node, a 2-cut one 1.2 um off and a
     # 1-cut one 4 um off, all on the net: the far single cut is out of
