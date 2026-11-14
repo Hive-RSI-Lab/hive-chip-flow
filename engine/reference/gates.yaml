@@ -218,7 +218,9 @@ gates:
       fault: >-
         a register read before it is written, which only X-propagation
         exposes
-      description: "Every test passes both ways."
+      description: >-
+        Every test passes both ways (functional and nominal SDF); the ff and
+        ss SDF passes are reported in corner_failures.
     lec:
       phase: P6
       tool: lec

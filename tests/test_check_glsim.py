@@ -43,9 +43,10 @@ def make_ws(tmp_path: Path, with_sdf: bool = True, with_nl: bool = True) -> Path
     else:
         final.mkdir(parents=True)
     if with_sdf:
-        (final / "sdf" / check_glsim.SDF_CORNER).mkdir(parents=True)
-        (final / "sdf" / check_glsim.SDF_CORNER /
-        f"tt_um_counter8__{check_glsim.SDF_CORNER}.sdf").write_text("x", encoding="utf-8")
+        for _name, corner, _sel in check_glsim.SDF_PASSES:
+            (final / "sdf" / corner).mkdir(parents=True)
+            (final / "sdf" / corner /
+             f"tt_um_counter8__{corner}.sdf").write_text("x", encoding="utf-8")
     return ws
 
 
@@ -166,19 +167,25 @@ PASS_XML_X = """<?xml version="1.0"?>
 </testcase></testsuite></testsuites>"""
 
 
-def _runner_writing_logs(build_log_text="", sim_log_text="", calls=None):
+def _runner_writing_logs(build_log_text="", sim_log_text="", calls=None,
+                         every_corner=False):
     """A fake cocotb runner that passes every test and writes the given text
-    into the sdf pass's build/sim logs, the way Icarus's own messages land
-    there."""
+    into the nominal sdf pass's build/sim logs (every sdf pass's with
+    every_corner), the way Icarus's own messages land there."""
+    def gets_text(log_file):
+        name = Path(log_file).name
+        return ("sdf" in name if every_corner
+                else name in ("build_sdf.log", "sim_sdf.log"))
+
     class FakeRunner:
         def build(self, build_args, log_file, **kw):
             if calls is not None:
                 calls.append((log_file, list(build_args)))
-            if "sdf" in Path(log_file).name:
+            if gets_text(log_file):
                 Path(log_file).write_text(build_log_text, encoding="utf-8")
 
         def test(self, results_xml, log_file, **kw):
-            if "sdf" in Path(log_file).name:
+            if gets_text(log_file):
                 Path(log_file).write_text(sim_log_text, encoding="utf-8")
             Path(results_xml).write_text(PASS_XML_X, encoding="utf-8")
     return FakeRunner()
@@ -198,7 +205,107 @@ def test_sdf_pass_builds_with_specify_and_interconnect(tmp_path, monkeypatch, ca
     assert code == 0, out
     args = {Path(log).name: a for log, a in calls}
     assert args["build_functional.log"] == []
-    assert args["build_sdf.log"] == ["-gspecify", "-ginterconnect"]
+    assert args["build_sdf.log"] == ["-gspecify", "-ginterconnect", "-Ttyp"]
+    assert args["build_sdf_ff.log"] == ["-gspecify", "-ginterconnect", "-Tmin"]
+    assert args["build_sdf_ss.log"] == ["-gspecify", "-ginterconnect", "-Tmax"]
+    corners = out["sdf"]["corners"]
+    assert {k: (v["corner"], v["delay_selection"]) for k, v in corners.items()} == {
+        "sdf": ("nom_tt_025C_3v30", "typ"),
+        "sdf_ff": ("min_ff_n40C_3v60", "min"),
+        "sdf_ss": ("max_ss_125C_3v00", "max")}
+    assert set(out["results"]) == {"functional", "sdf", "sdf_ff", "sdf_ss"}
+
+
+def test_each_sdf_pass_reads_its_own_corners_sdf(tmp_path, monkeypatch, capsys):
+    ws = make_ws(tmp_path)
+    _patch_pdk(monkeypatch, tmp_path)
+    final = ws / "harden" / "runs" / "run" / "final"
+    for _n, corner, _s in check_glsim.SDF_PASSES:
+        (final / "sdf" / corner / f"tt_um_counter8__{corner}.sdf").write_text(
+            f"(DELAYFILE (DESIGN \"{corner}\"))\n", encoding="utf-8")
+    code, out = _run(ws, monkeypatch, capsys, _runner_writing_logs())
+    assert code == 0, out
+    build = ws / "log" / "glsim_build"
+    for name, corner, _s in check_glsim.SDF_PASSES:
+        assert corner in (build / f"{name}_icarus.sdf").read_text()
+        harness = (build / f"counter8_glsim_{name}.v").read_text()
+        assert f"{name}_icarus.sdf" in harness
+
+
+@pytest.mark.parametrize("corner", ["min_ff_n40C_3v60", "max_ss_125C_3v00"])
+def test_a_missing_corner_sdf_refuses(tmp_path, monkeypatch, capsys, corner):
+    ws = make_ws(tmp_path)
+    _patch_pdk(monkeypatch, tmp_path)
+    (ws / "harden" / "runs" / "run" / "final" / "sdf" / corner /
+     f"tt_um_counter8__{corner}.sdf").unlink()
+    code, out = _run(ws, monkeypatch, capsys, _runner_writing_logs())
+    assert code == 2, out
+    assert corner in out["error"]
+
+
+def test_a_failure_at_ff_or_ss_is_reported_in_corner_failures(
+        tmp_path, monkeypatch, capsys):
+    FAIL_XML = """<?xml version="1.0"?>
+<testsuites><testsuite><testcase name="test_counter8.test_x" classname="test_counter8">
+<failure message="count 3 != 2"/></testcase></testsuite></testsuites>"""
+
+    class Runner(_runner_writing_logs().__class__):
+        def test(self, results_xml, log_file, **kw):
+            Path(results_xml).write_text(
+                FAIL_XML if "sdf_ss" in results_xml else PASS_XML_X,
+                encoding="utf-8")
+
+    ws = make_ws(tmp_path)
+    _patch_pdk(monkeypatch, tmp_path)
+    code, out = _run(ws, monkeypatch, capsys, Runner())
+    # report-only until the benches clock at the spec period
+    # (check_glsim.REPORT_ONLY_PASSES); the nominal pass still fails the gate
+    assert code == 0, out
+    assert out["violations"] == []
+    assert [(f["glsim_pass"], f["test"], f["msg"]) for f in out["corner_failures"]] == [
+        ("sdf_ss", "test_x", "count 3 != 2")]
+    assert out["results"]["sdf"]["test_x"] is True
+    assert out["results"]["sdf_ss"]["test_x"] is False
+
+
+def test_unsupported_timing_checks_are_reported_not_implied(
+        tmp_path, monkeypatch, capsys):
+    ws = make_ws(tmp_path)
+    _patch_pdk(monkeypatch, tmp_path)
+    code, out = _run(ws, monkeypatch, capsys, _runner_writing_logs(
+        build_log_text="cells.v:9: warning: Timing checks are not supported.\n",
+        every_corner=True))
+    assert code == 0, out
+    for c in out["sdf"]["corners"].values():
+        assert c["timing_checks"].startswith("not simulated (Icarus"), c
+
+
+def test_timing_checks_say_not_simulated_even_without_the_warning(
+        tmp_path, monkeypatch, capsys):
+    ws = make_ws(tmp_path)
+    _patch_pdk(monkeypatch, tmp_path)
+    code, out = _run(ws, monkeypatch, capsys, _runner_writing_logs())
+    assert code == 0, out
+    for c in out["sdf"]["corners"].values():
+        assert c["timing_checks"] == "not simulated", c
+
+
+def test_sdf_annotate_omitted_at_the_slow_corner_refuses(
+        tmp_path, monkeypatch, capsys):
+    class Runner(_runner_writing_logs().__class__):
+        def test(self, results_xml, log_file, **kw):
+            if Path(log_file).name == "sim_sdf_ss.log":
+                Path(log_file).write_text(
+                    "h.v:30: warning: Omitting $sdf_annotate() since specify "
+                    "blocks and interconnects are being omitted.\n",
+                    encoding="utf-8")
+            Path(results_xml).write_text(PASS_XML_X, encoding="utf-8")
+
+    ws = make_ws(tmp_path)
+    _patch_pdk(monkeypatch, tmp_path)
+    code, out = _run(ws, monkeypatch, capsys, Runner())
+    assert code == 2, out
+    assert "sdf_ss pass" in out["error"]
 
 
 def test_sdf_annotate_omitted_refuses(tmp_path, monkeypatch, capsys):
