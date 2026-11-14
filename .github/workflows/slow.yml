@@ -1,0 +1,69 @@
+# tests/check-slow.sh, the real-tool `slow` tests outside the corpus rungs,
+# which no other workflow runs: test.yml's bin/chip-flow test covers
+# check-engine.sh and tests/test_corpus_faults.py, harden-faults.yml the
+# harden rungs. Without this a slow test can break on main unseen (#315 did,
+# #343). One job per part (SHARDS in check-slow.sh), so one part's timeout or
+# failure never hides another's, each under check-slow.sh's own unchanged
+# 1800 s cap. A fast test (tests/test_slow_ci.py) keeps the matrix equal to
+# check-slow.sh's SHARDS. A gate that cannot run fails the job.
+name: slow
+
+# Not on every PR: up to half an hour per part. A push to main that touches
+# the engine or the tests runs it, and a nightly run catches what changes
+# outside the repo; a PR runs it only when it changes this lane itself.
+# workflow_dispatch runs it on any branch by hand.
+on:
+  pull_request:
+    paths:
+      - tests/check-slow.sh
+      - .github/workflows/slow.yml
+  push:
+    branches: [main]
+    paths:
+      - engine/**
+      - corpus/**
+      - blocks/**
+      - evals/**
+      - skills/**
+      - bin/**
+      - tests/**
+      - .github/workflows/slow.yml
+      - .github/actions/toolchain/**
+  schedule:
+    - cron: "17 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: slow-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  slow:
+    name: slow (${{ matrix.part }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        part: [harden, charlib, charlib_seq, charlib_faults, optimise, rest]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/toolchain
+      - name: tests/check-slow.sh ${{ matrix.part }}
+        env:
+          # -vv prints a failed assertion's whole violation; -rs lists each
+          # skipped test and why, for the step summary.
+          PYTEST_ADDOPTS: -vv -rs
+        run: |
+          set +e
+          start=$SECONDS
+          bash tests/check-slow.sh "${{ matrix.part }}" 2>&1 | tee "$RUNNER_TEMP/part.log"
+          rc=${PIPESTATUS[0]}
+          echo "${{ matrix.part }}: $((SECONDS - start))s, exit $rc" | tee -a "$GITHUB_STEP_SUMMARY"
+          grep -E '^(check-slow.sh:|FAILED|ERROR|SKIPPED)' "$RUNNER_TEMP/part.log" >> "$GITHUB_STEP_SUMMARY" || true
+          exit $rc
