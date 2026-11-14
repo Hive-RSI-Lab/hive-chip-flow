@@ -5,7 +5,7 @@
 
 Runs the SAME tb/*.py cocotb suite `sim` uses (docs/design.md section 2:
 "a design can be right in RTL and wrong after synthesis") against the
-hardened gate-level netlist, twice:
+hardened gate-level netlist, functional once and with SDF at three corners:
 
   functional - the powered netlist the tile ships
   (`harden/runs/run/final/pnl/*.pnl.v`, ttship.py), on the PDK's own cell
@@ -23,6 +23,15 @@ hardened gate-level netlist, twice:
   X-propagating read-before-write only shows up under real timing (the
   fault this gate must catch, gates.yaml's `glsim` row).
 
+  sdf_ff, sdf_ss - the sdf pass again on the min_ff_n40C_3v60 SDF at its
+  minimum delays (Icarus -Tmin) and the max_ss_125C_3v00 SDF at its maximum
+  (-Tmax), the corners where a hold race or a path too long for the tb's
+  clock shows (SDF_PASSES). Each corner's SDF is required; a missing one is
+  a refusal. No simulator in the image runs the cells' $setup/$hold/
+  $recovery checks (Icarus prints TIMING_CHECKS_UNSUPPORTED), so these
+  passes prove delays, not those limits, which stay the timing gate's; the
+  report's `sdf.corners` says so per pass under `timing_checks`.
+
 The harness (`ttlib.generate_glsim_harness`) is the tt_pins map read in
 reverse: a module named exactly spec['top'], the original RTL's own port
 list, wrapping the hardened `tt_um_<top>` netlist - so tb/*.py drives and
@@ -34,7 +43,7 @@ since lec and the sdf pass read one and the tile ships the other. The report's
 `netlists` holds both sha256; release refuses a shipped netlist that is not
 the `pnl_sha256` recorded here.
 
-Passes when every test in tb/ passes BOTH ways (gates.yaml: "every test
+Passes when every test in tb/ passes in EVERY pass (gates.yaml: "every test
 passes both ways"). Failure classification (the same three-way split every
 M4 gate uses): no hardened netlist yet, or no PDK cell verilog/SDF for a
 pass -> CheckError. Icarus/cocotb producing no results.xml at all (a build
@@ -73,6 +82,23 @@ from checklib import CheckError  # noqa: E402
 SCRIPT = "check_glsim"
 EDA_BIN = REPO / "bin" / "eda"
 SDF_CORNER = "nom_tt_025C_3v30"
+# The sdf pass runs once per corner, each on LibreLane's own SDF for it,
+# with Icarus's -T picking which value of every (min:typ:max) triple it
+# annotates: the fast corner at its minimum delays, where a hold race shows,
+# the slow one at its maximum, where a path too long for the tb's clock
+# does. (pass name, corner, -T value). "sdf" keeps its name from when it was
+# the only one.
+SDF_PASSES = (
+    ("sdf", SDF_CORNER, "typ"),
+    ("sdf_ff", "min_ff_n40C_3v60", "min"),
+    ("sdf_ss", "max_ss_125C_3v00", "max"),
+)
+# What Icarus says once per cell model with a $setup/$hold/$recovery check
+# (and Verilator ignores them silently): no simulator in the image fires a
+# timing check's notifier, so the sdf passes prove delays, never the cells'
+# setup, hold or recovery limits - those are the timing gate's (STA). The
+# report says so in `sdf.timing_checks` rather than let a pass imply it.
+TIMING_CHECKS_UNSUPPORTED = "Timing checks are not supported"
 # Icarus drops $sdf_annotate without -gspecify (and interconnect delays
 # without -ginterconnect) and says so with the first marker; an SDF entry
 # it could not apply prints the second. Either one means the "sdf" pass ran
@@ -371,7 +397,8 @@ def _cell_sources(pdk_root: Path) -> list[Path]:
 
 def run_pass(name: str, ws: Path, spec: dict, final_dir: Path,
             cell_sources: list[Path], build_dir: Path,
-            functional: bool, sdf: Path | None) -> dict:
+            functional: bool, sdf: Path | None,
+            delay_selection: str = "typ") -> dict:
     top = spec["top"]
     dut_module = ttlib.wrapper_name(spec)
     nl = (final_dir / "nl" / f"{dut_module}.nl.v" if sdf is not None
@@ -405,7 +432,8 @@ def run_pass(name: str, ws: Path, spec: dict, final_dir: Path,
     defines_file = None
     # -gspecify keeps the cell models' specify blocks, the only thing
     # $sdf_annotate can write delays into; without it Icarus skips the SDF.
-    build_args = ["-gspecify", "-ginterconnect"] if sdf is not None else []
+    build_args = (["-gspecify", "-ginterconnect", f"-T{delay_selection}"]
+                  if sdf is not None else [])
     if functional:
         defines_file = build_dir / "functional_define.v"
         defines_file.write_text("`define FUNCTIONAL\n`define USE_POWER_PINS\n",
@@ -437,9 +465,17 @@ def run_pass(name: str, ws: Path, spec: dict, final_dir: Path,
     if not results:
         raise CheckError(f"{name} pass: cocotb produced no test cases in "
                          f"{results_xml}")
-    return results, {"zero_interconnects_dropped": dropped,
-                     "sdf_unannotated": waived,
-                     "instances_renamed": renames}
+    notes = {"zero_interconnects_dropped": dropped,
+             "sdf_unannotated": waived,
+             "instances_renamed": renames}
+    if sdf is not None:
+        logs = "".join(f.read_text(encoding="utf-8", errors="replace")
+                       for f in (build_log, sim_log) if f.is_file())
+        notes["timing_checks"] = ("not simulated: Icarus says "
+                                  f"\"{TIMING_CHECKS_UNSUPPORTED}\""
+                                  if TIMING_CHECKS_UNSUPPORTED in logs
+                                  else "no unsupported-check warning seen")
+    return results, notes
 
 
 def run(argv=None):
@@ -461,9 +497,12 @@ def run(argv=None):
         raise CheckError(f"no {final_dir} - the harden gate has not run yet")
 
     dut_module = ttlib.wrapper_name(spec)
-    sdf = final_dir / "sdf" / SDF_CORNER / f"{dut_module}__{SDF_CORNER}.sdf"
-    if not sdf.is_file():
-        raise CheckError(f"no SDF at {sdf}")
+    sdfs = {}
+    for name, corner, _sel in SDF_PASSES:
+        sdfs[name] = final_dir / "sdf" / corner / f"{dut_module}__{corner}.sdf"
+        if not sdfs[name].is_file():
+            raise CheckError(f"no SDF at {sdfs[name]} - the {name} pass "
+                             f"needs the {corner} corner")
 
     pdk_root = _pdk_root()
     cell_sources = _cell_sources(pdk_root)
@@ -475,14 +514,18 @@ def run(argv=None):
     violations = []
     all_results = {}
     notes = {}
-    for name, functional, sdf_path in (
-        ("functional", True, None),
-        ("sdf", False, sdf),
+    corners = {}
+    for name, functional, sdf_path, sel in (
+        ("functional", True, None, "typ"),
+        *((n, False, sdfs[n], s) for n, _c, s in SDF_PASSES),
     ):
         results, sdf_notes = run_pass(name, ws, spec, final_dir, cell_sources,
-                                      build_root, functional, sdf_path)
+                                      build_root, functional, sdf_path, sel)
+        if name == "sdf":
+            notes = dict(sdf_notes)
         if sdf_path is not None:
-            notes = sdf_notes
+            corners[name] = {"corner": sdf_path.parent.name,
+                             "delay_selection": sel, **sdf_notes}
         all_results[name] = {k: v["passed"] for k, v in results.items()}
         for tname, res in sorted(results.items()):
             if res["passed"]:
@@ -504,7 +547,8 @@ def run(argv=None):
             f"the powered netlist is not the netlist with power pins: {differs}",
             "check_glsim"))
     payload = checklib.report(SCRIPT, ws / "harden", violations, top=top,
-                              results=all_results, sdf=notes,
+                              results=all_results,
+                              sdf={**notes, "corners": corners},
                               netlists={"nl_sha256": ttship._sha256(nl),
                                         "pnl_sha256": ttship._sha256(pnl)})
     return payload, args.out
