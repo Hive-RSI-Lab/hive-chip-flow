@@ -394,6 +394,19 @@ def test_clean_r2r_dac_pex_sim_passes(tmp_path):
     assert abs(m["vout_msb_frac"] - 0.6) < 0.018
     assert abs(m["vout_both_frac"] - 0.8) < 0.024
     _crosscheck_agrees(out, {"blsb", "bmsb", "vout"})
+    # #315: vout's C counted by hand from the gds - its 1 x 2 um metal1 pad
+    # (2 um2, 2 um of free edge) and half of each 10 x 2 um rm1 body it
+    # ends (20 um2, 20 um of free edge each; ext2spice splits a body's C
+    # over its two ends), at the tech's metal1 field caps 29.304 aF/um2 and
+    # 39.431 aF/um: 137.47 + 2 x 687.35 aF = 1.512 fF. Both extractors must
+    # be near it, not just near each other: before 03b8e54 magic kept the
+    # pad alone (0.137 fF).
+    hand_ff = (2 * 29.304 + 2 * 39.431 + 20 * 29.304 + 20 * 39.431) / 1000
+    vout = next(r for r in out["extractor_crosscheck"]["nets"]
+                if r["net"] == "vout")
+    for side in ("magic_ff", "kpex_ff"):
+        assert abs(vout[side] - hand_ff) < 0.05 * hand_ff, (side, vout,
+                                                             hand_ff)
 
 
 @pytest.mark.slow
