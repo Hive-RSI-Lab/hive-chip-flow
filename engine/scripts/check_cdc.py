@@ -86,7 +86,14 @@ Buses (#168, cdclib.Analysis.bus_findings). A bus synchronised bit by bit is
 cdc_multibit_unsafe unless cdclib.prove_gray proves, from the netlist, that
 at most one of its bits changes per source clock: nothing declares a bus gray.
 The report's `buses` has each proof (states explored, or why it failed, with
-an example step). A crossing that enters its domain only through a mux whose
+an example step). A synchronous reset of the bus (#244: a reset net -
+a port named as a reset, a reset synchroniser, an async reset tree - that
+forces every bus flop to a constant) is a reset, not a step: the proof
+starts from its state and holds it inactive, and its jump is in the
+proof's `sync_resets`, `covered` when every receiving stage is async reset
+from every port that reset comes from; an uncovered jump fails the proof.
+A clear driven by anything else, or by a reset mixed with anything else,
+is an ordinary step. A crossing that enters its domain only through a mux whose
 select (or a flop whose enable) is driven by that domain alone and reads a
 synchroniser of the same source is `qualified` (a req/ack handshake or a
 mux-enable crossing), not cdc_unsynchronized. Separate synchronisers of

@@ -959,6 +959,87 @@ def test_its_binary_pointer_twin_fails(tmp_path):
     assert p["violations"][0]["crossing"]["from"] == "wgray"
 
 
+# #244: the write side clears synchronously on wr2, rst_n's synchronised
+# release (a reset), or {clear} too (wclr, a data-path clear; 1'b0 none);
+# the read side resets asynchronously, its wq1/wq2 synchroniser with it
+# ({sync} empty) or in a block of its own with no reset
+FIFO_SYNC = """\
+module top (input wire clk, input wire clk2, input wire rst_n,
+            input wire wclr, input wire winc, input wire rinc,
+            output wire empty_o);
+  reg [4:0] wbin, wgray, rq1, rq2, rbin, rgray, wq1, wq2;
+  reg wr1, wr2;   // rst_n's release synchronised into clk2
+  always @(posedge clk2 or negedge rst_n)
+    if (!rst_n) begin wr1 <= 0; wr2 <= 0; end
+    else begin wr1 <= 1; wr2 <= wr1; end
+  wire full = (wgray == {{~rq2[4:3], rq2[2:0]}});
+  wire empty = (rgray == wq2);
+  wire [4:0] wbin_next = wbin + {{4'd0, winc & ~full}};
+  wire [4:0] rbin_next = rbin + {{4'd0, rinc & ~empty}};
+  always @(posedge clk2)
+    if (!wr2 || {clear}) begin wbin <= 0; wgray <= 0; end
+    else begin wbin <= wbin_next; wgray <= (wbin_next >> 1) ^ wbin_next; end
+  always @(posedge clk2) begin rq1 <= rgray; rq2 <= rq1; end
+  always @(posedge clk or negedge rst_n)
+    if (!rst_n) begin rbin <= 0; rgray <= 0; {sync_rst} end
+    else begin
+      rbin <= rbin_next; rgray <= (rbin_next >> 1) ^ rbin_next; {sync_run}
+    end
+  {sync}
+  assign empty_o = empty;
+endmodule
+"""
+SYNC_CDC = {"ports": {"rst_n": "async", "wclr": "clk2", "winc": "clk2",
+                      "rinc": "clk"},
+            "waivers": CLK2_ASYNC_RST["waivers"]}
+
+
+def _fifo_sync(clear, receiver_reset=True):
+    run_ = "wq1 <= wgray; wq2 <= wq1;"
+    if receiver_reset:
+        return FIFO_SYNC.format(clear=clear, sync_rst="wq1 <= 0; wq2 <= 0;",
+                                sync_run=run_, sync="")
+    return FIFO_SYNC.format(clear=clear, sync_rst="", sync_run="",
+                            sync=f"always @(posedge clk) begin {run_} end")
+
+
+@pytest.mark.slow
+def test_a_sync_reset_gray_pointer_is_proven(tmp_path):
+    p = run(make_ws(tmp_path, _fifo_sync("1'b0"), cdc=SYNC_CDC))
+    assert p["status"] == "pass", p["violations"]
+    wg = next(b for b in p["buses"] if b["bus"] == "wgray")
+    assert wg["gray"]["proven"], wg["gray"]
+    [step] = wg["gray"]["sync_resets"]
+    assert (step["net"], step["active"], step["to"], step["covered"]) == (
+        "wr2", "0", "00000", True), step
+    assert not any("synchronous reset step" in n for n in p["not_checked"])
+
+
+@pytest.mark.slow
+def test_its_data_path_clear_twin_still_fails(tmp_path):
+    p = run(make_ws(tmp_path, _fifo_sync("wclr"), cdc=SYNC_CDC))
+    assert kinds(p) == ["cdc_multibit_unsafe"], p["violations"]
+    bus = p["violations"][0]["crossing"]
+    # wr2 is still held apart; wclr's clear is an ordinary step
+    assert bus["from"] == "wgray"
+    assert [r["net"] for r in bus["gray"]["sync_resets"]] == ["wr2"]
+    a, b = bus["gray"]["example"]
+    assert b == "00000" and sum(x != y for x, y in zip(a, b)) >= 2
+
+
+@pytest.mark.slow
+def test_a_sync_reset_step_the_receiver_misses_fails(tmp_path):
+    # the receiver isn't reset with the bus: it can sample the jump
+    p = run(make_ws(tmp_path, _fifo_sync("1'b0", receiver_reset=False),
+                    cdc=SYNC_CDC))
+    assert kinds(p) == ["cdc_multibit_unsafe"], p["violations"]
+    wg = next(b for b in p["buses"] if b["bus"] == "wgray")
+    assert not wg["gray"]["proven"]
+    assert wg["gray"]["sync_resets"][0]["covered"] is False
+    assert "wr2 jumps it to 00000" in wg["gray"]["why"], wg["gray"]
+    assert "wq" in wg["gray"]["why"], wg["gray"]
+
+
 # two flags from clk2, synchronised separately, then {USE}
 RECONVERGE = """\
 module top (input wire clk, input wire clk2, input wire a, input wire b,
@@ -1089,3 +1170,97 @@ def test_prove_gray_refuses_what_it_cannot_model():
     assert not r["proven"] and "not a flop" not in r["why"]
     nl = cdclib.Netlist(_module([_ff(3, 11)], {"g1": 11}))
     assert not cdclib.prove_gray(nl, [2, 11])["proven"]
+
+
+def _gray2(sel, extra_ports=()):
+    # g0' = ~g1, g1' = g0 unless the clear on `sel` (low) forces 00
+    ports = {"clr": {"direction": "input", "bits": [4]}}
+    m = _module([_ff(14, 10, "$_DFF_P_"), _ff(15, 11, "$_DFF_P_"),
+                 _cell("$_NOT_", A=11, Y=12),
+                 _cell("$_MUX_", A="0", B=12, S=sel, Y=14),
+                 _cell("$_MUX_", A="0", B=10, S=sel, Y=15)],
+                {"g0": 10, "g1": 11})
+    m["ports"].update(ports)
+    return cdclib.Netlist(m)
+
+
+def test_prove_gray_holds_a_sync_reset_apart():
+    nl = _gray2(3)
+    r = cdclib.prove_gray(nl, [10, 11], {3: "rst_n"})
+    assert r["proven"], r
+    assert r["states"] == 4
+    assert r["sync_resets"] == [{"net": "rst_n", "bit": 3, "active": "0",
+                                 "to": "00"}]
+    # without the reset known, 11 -> 00 is an ordinary two-bit step
+    r = cdclib.prove_gray(nl, [10, 11])
+    assert not r["proven"] and r["example"] == ["11", "00"]
+
+
+def test_prove_gray_a_data_clear_is_not_a_reset():
+    nl = _gray2(4)
+    r = cdclib.prove_gray(nl, [10, 11], {3: "rst_n"})
+    assert not r["proven"] and r["example"] == ["11", "00"]
+    assert "sync_resets" not in r
+
+
+def test_prove_gray_a_reset_that_misses_a_bus_bit_is_free():
+    # rst_n clears g0 only: not a reset of the bus, so a free input
+    m = _module([_ff(14, 10, "$_DFF_P_"), _ff(10, 11, "$_DFF_P_"),
+                 _cell("$_NOT_", A=11, Y=12),
+                 _cell("$_MUX_", A="0", B=12, S=3, Y=14)],
+                {"g0": 10, "g1": 11})
+    r = cdclib.prove_gray(cdclib.Netlist(m), [10, 11], {3: "rst_n"})
+    assert not r["proven"] and "sync_resets" not in r
+
+
+def test_reset_nets_are_reset_ports_and_async_trees():
+    m = _module([_ff(12, 10), _ff(10, 11, "$_DFF_P_"),
+                 _cell("$_NOT_", A=11, Y=12)], {"g0": 10, "g1": 11})
+    m["ports"]["clr"] = {"direction": "input", "bits": [4]}
+    an = cdclib.Analysis(m)
+    assert an.reset_nets() == {3: "rst_n"}
+    for name in ("rst_n", "rst_ni", "arst_n", "reset", "sys_rst_n",
+                 "por_rst_n", "nreset"):
+        assert cdclib.RESET_PORT_RE.match(name), name
+    # a flush or soft clear named like a reset is still a data path
+    for name in ("burst", "fifo_rst", "soft_rst", "wr_rst_n", "clr"):
+        assert not cdclib.RESET_PORT_RE.match(name), name
+
+
+def _ffr(d, q, r):
+    return _cell("$_DFF_PN0_", C=2, R=r, D=d, Q=q)
+
+
+def test_reset_nets_take_no_data_mixed_into_an_async_tree():
+    # f0 reset by rst_n & ~clr (a data clear mixed in), f1 by rst_n &
+    # sys_rst (resets only): only the second is a reset net, and clr,
+    # though it reaches an async pin, is not one
+    m = _module([_ffr(10, 10, 20), _ffr(11, 11, 21),
+                 _cell("$_NOT_", A=4, Y=22), _cell("$_AND_", A=3, B=22, Y=20),
+                 _cell("$_AND_", A=3, B=5, Y=21)], {"f0": 10, "f1": 11})
+    m["ports"]["clr"] = {"direction": "input", "bits": [4]}
+    m["ports"]["sys_rst"] = {"direction": "input", "bits": [5, 6]}
+    assert cdclib.Analysis(m).reset_nets() == {
+        3: "rst_n", 5: "sys_rst", 6: "sys_rst", 21: "net21"}
+
+
+def test_a_reset_step_needs_every_source_on_each_receiver():
+    # the bus's sync reset comes from rst_n and sys_rst; f0 is async reset
+    # by both, f1 by rst_n alone: overlap isn't cover
+    m = _module([_ffr(10, 10, 21), _ffr(11, 11, 3),
+                 _cell("$_AND_", A=3, B=5, Y=21)], {"f0": 10, "f1": 11})
+    m["ports"]["sys_rst"] = {"direction": "input", "bits": [5]}
+    an = cdclib.Analysis(m)
+    f0, f1 = an.nl.flops[10], an.nl.flops[11]
+
+    def proof():
+        return {"proven": True, "why": "", "sync_resets": [
+            {"net": "net21", "bit": 21, "active": "0", "to": "00"}]}
+    p = proof()
+    an._cover_reset_steps(p, [f0])
+    assert p["proven"] and p["sync_resets"][0]["covered"]
+    assert "bit" not in p["sync_resets"][0]
+    p = proof()
+    an._cover_reset_steps(p, [f0, f1])
+    assert not p["proven"] and not p["sync_resets"][0]["covered"]
+    assert "f1" in p["why"] and "f0" not in p["sync_resets"][0]["why"]

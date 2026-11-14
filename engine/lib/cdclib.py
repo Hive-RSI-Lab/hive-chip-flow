@@ -652,6 +652,7 @@ class Analysis:
                 "to_domain": sorted(ch["dst_dom"]), "leaves": set(),
                 "to": set(), "from_aliases": set(), "to_aliases": set()})
             g["leaves"].add(ch["leaf"])
+            g.setdefault("stages", []).extend(self._chain_flops(ch))
             g["to"].add(base_name(nl.label(ch["last"])))
             g["from_aliases"].update(base_name(a)
                                      for a in nl.aliases(ch["leaf"]))
@@ -668,7 +669,8 @@ class Analysis:
         for (bus, _), g in sorted(buses.items()):
             if len(g["leaves"]) < 2:
                 continue
-            proof = prove_gray(nl, order(g["leaves"]))
+            proof = prove_gray(nl, order(g["leaves"]), self.reset_nets())
+            self._cover_reset_steps(proof, g["stages"])
             row = {"bus": bus, "from": bus, "to": ", ".join(sorted(g["to"])),
                    "from_domain": g["from_domain"],
                    "to_domain": g["to_domain"], "bits": len(g["leaves"]),
@@ -715,6 +717,45 @@ class Analysis:
             recon.append(r)
         recon.sort(key=lambda r: (r["to"], r["from"]))
         return multibit, recon, reports
+
+    def _chain_flops(self, ch: dict) -> list:
+        """A data synchroniser's stages, first to last."""
+        nl = self.nl
+        out, cur = [nl.flops[ch["first"]]], nl.flops[ch["first"]]
+        while cur.q != ch["last"]:
+            cur = self._only_flop_load(cur)
+            if cur is None or cur in out:
+                break
+            out.append(cur)
+        return out
+
+    def _cover_reset_steps(self, proof: dict, stages: list) -> None:
+        """Mark each sync reset step prove_gray held apart `covered` when
+        every receiving stage is async reset from every port that reset
+        comes from (it is in reset while the bus jumps), with `why` either
+        way. An uncovered step is a many-bit jump the receiver can sample:
+        the proof fails on it."""
+        nl = self.nl
+        bad = []
+        for row in proof.get("sync_resets", []):
+            src = self.reset_sources(row.pop("bit"))
+            bare = sorted({base_name(nl.label(f.q)) for f in stages
+                           if not src <= self._flop_reset_sources(f)})
+            row["covered"] = bool(src) and not bare
+            ports = ", ".join(sorted(base_name(nl.in_ports[b])
+                                     for b in src)) or "no port"
+            row["why"] = (f"every receiving stage is reset from {ports} too"
+                          if row["covered"] else
+                          f"receiving stage(s) {', '.join(bare) or 'none'} "
+                          f"not async reset from {ports}: they can sample "
+                          "the jump")
+            if not row["covered"]:
+                bad.append(row)
+        if bad and proof.get("proven"):
+            r = bad[0]
+            proof["proven"] = False
+            proof["why"] = (f"its synchronous reset {r['net']} jumps it to "
+                            f"{r['to']} in one step and {r['why']}")
 
     def crossings(self) -> tuple[list, list]:
         """(crossings, input ports with no domain). One crossing per source
@@ -829,6 +870,75 @@ class Analysis:
                 "clock": nl.label(nl.canon(last.clk)[0]),
                 "domain": sorted(self.domains[last.q])}
         return sorted(rows.values(), key=lambda r: r["net"])
+
+    def reset_nets(self) -> dict:
+        """{bit: label} of the design's reset nets, for prove_gray's sync
+        reset (#244): an input port named as a reset (RESET_PORT_RE: rst_n,
+        sys_rst, por_rst_n...), the last stage of a reset synchroniser, and the
+        net on any flop's async set/reset pin when it is a port or flop
+        reached through buffers and inverters, or logic whose every leaf is
+        already a reset. A net that mixes in anything else (`rst_n & ~clr`)
+        and a clear from anything else are data paths, never resets."""
+        if getattr(self, "_reset_nets", None) is not None:
+            return self._reset_nets
+        nl = self.nl
+        out = {b: base_name(name) for b, name in nl.in_ports.items()
+               if RESET_PORT_RE.match(base_name(name))}
+        for chain in self.sync_stages_of.values():
+            out[chain[-1].q] = nl.label(chain[-1].q)
+
+        def name(b):
+            return base_name(nl.in_ports[b]) if b in nl.in_ports \
+                else nl.label(b)
+        logic_pins = set()
+        for ff in nl.flops.values():
+            for pin in ff.reset_pins:
+                if pin in CONST:
+                    continue
+                b = nl.canon(pin)[0]
+                if b in nl.combs:
+                    logic_pins.add(b)
+                else:
+                    out.setdefault(b, name(b))
+        grew = True
+        while grew:
+            grew = False
+            for b in sorted(logic_pins - set(out)):
+                leaves, _ = nl.cone(b)
+                if leaves and leaves <= set(out):
+                    out[b] = name(b)
+                    grew = True
+        self._reset_nets = out
+        return out
+
+    def reset_sources(self, b) -> set:
+        """The input ports a reset net comes from: its cone's ports, and a
+        reset synchroniser's through the reset it synchronises."""
+        nl = self.nl
+        out, seen, todo = set(), set(), [b]
+        while todo:
+            cur = todo.pop()
+            if cur in seen:
+                continue
+            seen.add(cur)
+            leaves, _ = nl.cone(cur)
+            for leaf in leaves:
+                if leaf in nl.in_ports:
+                    out.add(leaf)
+                elif leaf in self.sync_stages_of:
+                    pin = self.sync_stages_of[leaf][-1].reset_pins[0]
+                    todo.append(pin)
+        return out
+
+    def _flop_reset_sources(self, ff: Flop) -> set:
+        """The input ports a flop's own async set/reset pins come from
+        (through reset synchronisers). A sync reset in its D cone doesn't
+        count: it acts only on a clock edge, which can catch the jump."""
+        out = set()
+        for pin in ff.reset_pins:
+            if pin not in CONST:
+                out |= self.reset_sources(pin)
+        return out
 
     def _release_status(self, leaf, ff: Flop) -> str:
         """How a source's release reaches this flop's async pin."""
@@ -986,6 +1096,9 @@ GRAY_MAX_FREE = 10       # free inputs, all 2**N values tried in each state
 GRAY_MAX_UNINIT = 8      # state flops with no async reset, started both ways
 GRAY_MAX_STATES = 1 << 14    # reachable states explored
 
+RESET_PORT_RE = re.compile(r"(?i)^(?:(?:sys|por|ext|pad|glb|global|chip|top|"
+                           r"main|async)_?)?n?[as]?(?:rst|reset)"
+                           r"(?:_?n|_?b|_ni)?$")
 _FF_TYPE = re.compile(r"^\$_(DFF|DFFE|SDFF|SDFFE|SDFFCE|DFFSR|DFFSRE|ALDFF|"
                       r"ALDFFE)_([PN01]+)_$")
 
@@ -1068,7 +1181,22 @@ def _lane_pattern(k: int, lanes: int) -> int:
     return out
 
 
-def prove_gray(nl: Netlist, bus: list) -> dict:
+def _ternary(typ_eval, ins: dict):
+    """A gate or next-state function over 0/1/X (2) inputs: 0 or 1 when
+    every value of the X inputs gives it, else X."""
+    xs = [p for p, v in ins.items() if v == 2]
+    outs = set()
+    for n in range(1 << len(xs)):
+        v = dict(ins)
+        for t, p in enumerate(xs):
+            v[p] = n >> t & 1
+        outs.add(typ_eval(v) & 1)
+        if len(outs) > 1:
+            return 2
+    return outs.pop()
+
+
+def prove_gray(nl: Netlist, bus: list, resets: dict | None = None) -> dict:
     """Whether the flops `bus` (Q bits) change at most one bit per clock, in
     every state reachable from reset. Explicit-state: the state is the flops
     on the bus's clock net and edge in its cone of influence; everything else
@@ -1081,11 +1209,25 @@ def prove_gray(nl: Netlist, bus: list) -> dict:
     modelled once running: a reset drops the bus to its reset value, which
     the receiving side has to handle anyway.
 
-    {"proven": bool, "why": str, "states": n, "example": [from, to]?}.
-    Anything it can't model (a latch, a library cell, a bus bit that is a
-    port, too many flops or inputs) is not proven, never proven."""
+    A synchronous reset (#244): `resets` is {bit: label} of the design's
+    reset nets (Analysis.reset_nets). One the cone reads that, held at one
+    value, forces every bus flop's next state to a constant whatever the
+    state and the other inputs (three-valued) is the bus's sync reset: the
+    proof starts from the state that reset leaves (flops it doesn't force
+    start both ways) and holds it inactive, so its many-bit jump to the
+    reset value is not an ordinary step; it is returned in `sync_resets`
+    ({net, active, to}) for the caller to check against the receiver's own
+    reset. A reset net that doesn't force the bus is a free input, and so
+    is any other clear (a data-path signal): its jump still fails.
+
+    {"proven": bool, "why": str, "states": n, "example": [from, to]?,
+    "sync_resets": [...]?}. Anything it can't model (a latch, a library
+    cell, a bus bit that is a port, too many flops or inputs) is not
+    proven, never proven."""
     def fail(why, **extra):
         return {"proven": False, "why": why, **extra}
+
+    resets = resets or {}
 
     if not bus:
         return fail("no bus bits")
@@ -1128,6 +1270,9 @@ def prove_gray(nl: Netlist, bus: list) -> dict:
                 if b in local_seen:
                     continue
                 local_seen.add(b)
+                if b in resets:
+                    support.add(("reset", b))
+                    continue
                 ff = nl.flops.get(b)
                 cell = nl.cells.get(b)
                 if ff is not None:
@@ -1160,16 +1305,18 @@ def prove_gray(nl: Netlist, bus: list) -> dict:
         if not cut:
             break
         forced_free |= cut
+    rst_bits = []
     for q in state:
         for s in reads[q]:
             if isinstance(s, tuple) and s not in free_set:
                 free_set.add(s)
-                free.append(s)
+                if s[0] == "reset":
+                    rst_bits.append(s[1])
+                else:
+                    free.append(s)
     if len(state) > GRAY_MAX_STATE:
         return fail(f"{len(state)} flops in its cone of influence, over "
                     f"{GRAY_MAX_STATE}")
-    if len(free) > GRAY_MAX_FREE:
-        return fail(f"{len(free)} free inputs, over {GRAY_MAX_FREE}")
 
     # comb cells in evaluation order
     order, done = [], set()
@@ -1187,16 +1334,62 @@ def prove_gray(nl: Netlist, bus: list) -> dict:
             for pin, bits in nl.cells[b][2].items():
                 if pin != "Y" and bits and bits[0] in nl.cells and \
                         bits[0] not in nl.flops and bits[0] not in done and \
+                        bits[0] not in resets and \
                         nl.cells[bits[0]][1] in _GATE_EVAL:
                     stack.append((bits[0], False))
+    models = [model(q) for q in state]
+    index = {q: j for j, q in enumerate(state)}
+
+    def tern_next(rst_val):
+        """Each state flop's next value, 0/1/X, with the state and the free
+        inputs X and each reset bit at rst_val's value (X if absent)."""
+        tv = {}
+
+        def tval(b):
+            if b == "0":
+                return 0
+            if b == "1":
+                return 1
+            if b in CONST or b in index:
+                return 2
+            if b in resets:
+                return rst_val.get(b, 2)
+            return tv.get(b, 2)
+        for b in order:
+            _, typ, conn = nl.cells[b]
+            tv[b] = _ternary(lambda v, t=typ: _GATE_EVAL[t](v, 1),
+                             {p: tval(bits[0]) for p, bits in conn.items()
+                              if p != "Y" and bits})
+        out = []
+        for j, q in enumerate(state):
+            _, _, conn, mdl = models[j]
+            ins = {p: tval(conn[p][0]) for p in mdl[0]}
+            ins["\0q"] = 2
+            out.append(_ternary(
+                lambda v, f=mdl[1]: f(v, v["\0q"], 1), ins))
+        return out
+
+    bus_idx = [index[b] for b in bus]
+    sync = {}      # reset bit -> (active 0/1, next values under it)
+    for r in rst_bits:
+        hits = []
+        for act_v in (0, 1):
+            nxt = tern_next({r: act_v})
+            if all(nxt[j] != 2 for j in bus_idx):
+                hits.append((act_v, nxt))
+        if len(hits) == 1:
+            sync[r] = hits[0]
+        else:
+            free.append(("free", r))    # not a reset of this bus
+    if len(free) > GRAY_MAX_FREE:
+        return fail(f"{len(free)} free inputs, over {GRAY_MAX_FREE}")
     lanes = 1 << len(free)
     full = (1 << lanes) - 1
     free_val = {}
     for k, s in enumerate(free):
         free_val[s] = _lane_pattern(k, lanes)
-    models = [model(q) for q in state]
-    index = {q: j for j, q in enumerate(state)}
     xbits = {s[1]: free_val[s] for s in free if s[0] == "x"}
+    held = {r: (0 if a else full) for r, (a, _) in sync.items()}
 
     def value(b, vals, owner):
         if b == "0":
@@ -1205,28 +1398,51 @@ def prove_gray(nl: Netlist, bus: list) -> dict:
             return full
         if b in ("x", "z"):
             return xbits.get(owner, 0)
+        if b in held:
+            return held[b]
         if b in index:
             return vals[b]
         if ("free", b) in free_val:
             return free_val[("free", b)]
         return vals[b]
 
-    uninit = [j for j, m in enumerate(models) if m[3][2] is None]
-    if len(uninit) > GRAY_MAX_UNINIT:
-        return fail(f"{len(uninit)} flops with no async reset in its cone, "
-                    f"over {GRAY_MAX_UNINIT}")
-    base = sum(1 << j for j, m in enumerate(models) if m[3][2] == "1")
-    start = []
-    for n in range(1 << len(uninit)):
-        st = base
-        for t, j in enumerate(uninit):
-            if n >> t & 1:
-                st |= 1 << j
-        start.append(st)
-    bus_idx = [index[b] for b in bus]
-
     def bus_value(st):
         return "".join("1" if st >> j & 1 else "0" for j in reversed(bus_idx))
+
+    def starts(fixed, what):
+        """Every state with fixed's 0/1 flops set, its X (None) ones both
+        ways."""
+        loose = [j for j, v in enumerate(fixed) if v not in (0, 1)]
+        if len(loose) > GRAY_MAX_UNINIT:
+            raise ValueError(f"{len(loose)} flops {what} in its cone, "
+                             f"over {GRAY_MAX_UNINIT}")
+        base = sum(1 << j for j, v in enumerate(fixed) if v == 1)
+        out = []
+        for n in range(1 << len(loose)):
+            st = base
+            for t, j in enumerate(loose):
+                if n >> t & 1:
+                    st |= 1 << j
+            out.append(st)
+        return out
+
+    async_init = [None if m[3][2] is None else int(m[3][2]) for m in models]
+    start = []
+    try:
+        # a sync reset: the run starts where it leaves the cone; the async
+        # reset state too when it covers the whole bus
+        if not sync or all(async_init[j] is not None for j in bus_idx):
+            start += starts(async_init, "with no async reset")
+        for r, (_, nxt) in sync.items():
+            start += starts([v if v != 2 else None for v in nxt],
+                            f"that sync reset {nl.label(r)} leaves unknown")
+    except ValueError as exc:
+        return fail(str(exc))
+    sync_rows = [{"net": resets[r], "bit": r, "active": str(a),
+                  "to": "".join(str(nxt[j]) for j in reversed(bus_idx))}
+                 for r, (a, nxt) in sorted(sync.items(),
+                                           key=lambda kv: resets[kv[0]])]
+    extra = {"sync_resets": sync_rows} if sync_rows else {}
 
     seen_st, queue = set(start), list(start)
     while queue:
@@ -1252,7 +1468,7 @@ def prove_gray(nl: Netlist, bus: list) -> dict:
             to = sum(1 << j for j in range(len(state)) if nxt[j] >> lane & 1)
             return fail("two or more bits change in one clock",
                         states=len(seen_st),
-                        example=[bus_value(st), bus_value(to)])
+                        example=[bus_value(st), bus_value(to)], **extra)
         parts = [(full, 0)]
         for j in range(len(state)):
             m = nxt[j]
@@ -1270,7 +1486,9 @@ def prove_gray(nl: Netlist, bus: list) -> dict:
                 if len(seen_st) > GRAY_MAX_STATES:
                     return fail(f"over {GRAY_MAX_STATES} reachable states")
                 queue.append(s)
+    held_why = "".join(f", sync reset {r['net']} held inactive (its step "
+                       f"to {r['to']} reported apart)" for r in sync_rows)
     return {"proven": True, "states": len(seen_st),
             "why": f"at most one bit changes per clock in all "
                    f"{len(seen_st)} reachable states ({len(state)} flops, "
-                   f"{len(free)} free inputs)"}
+                   f"{len(free)} free inputs{held_why})", **extra}
