@@ -16,7 +16,7 @@ import random
 
 import cocotb
 from cocotb.clock import Clock
-from cocotb.triggers import FallingEdge, Timer
+from cocotb.triggers import FallingEdge
 from padreset import pad_reset
 
 import rv_model as rv
@@ -73,8 +73,10 @@ class Bench:
         raise AssertionError(f"core did not halt within {max_cycles} clocks")
 
     async def peek(self, sel):
+        # din -> dout is the whole memory/register read mux: on the
+        # hardened netlist it takes ns, so read it a full clock later
         self.dut.din.value = sel
-        await Timer(1, unit="ns")
+        await FallingEdge(self.dut.clk)
         return int(self.dut.dout.value)
 
     async def read_reg(self, index):

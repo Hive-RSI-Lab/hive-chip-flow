@@ -7,7 +7,7 @@ imports nothing from tb/, so an edit to the visible bench or its model
 cannot weaken it."""
 import cocotb
 from cocotb.clock import Clock
-from cocotb.triggers import FallingEdge, Timer
+from cocotb.triggers import FallingEdge
 from padreset import pad_reset
 
 CLK_PERIOD_NS = 100  # spec.yaml clocks.period_ns; glsim runs it at ss
@@ -74,7 +74,7 @@ async def read_reg(dut, index):
     value = 0
     for k in range(4):
         dut.din.value = (index << 2) | k
-        await Timer(1, unit="ns")
+        await FallingEdge(dut.clk)  # the read mux settles within a clock
         value |= int(dut.dout.value) << (8 * k)
     return value
 
