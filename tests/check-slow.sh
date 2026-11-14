@@ -50,15 +50,16 @@ cd "$REPO_ROOT"
 # optimise together ~1220 s, rest ~670 s.
 # On CI (.github/workflows/slow.yml, #343) the runner is about twice as
 # slow: charlib hit its cap at 1800 s, so it runs as four parts there and
-# here alike - `charlib` (the fast known-answer and planted-fault tests),
-# `charlib_seq` (the dffq extract and the separate bisection bench, ~11 and
-# 5+ min on CI), `charlib_faults` (the planted setup/hold/pulse-width
-# faults, ~3.3 min each) and `optimise` (the real optimise runs). Each
+# here alike. Measured on CI: `charlib` (the known-answer and planted-fault
+# tests, 53 s, plus the separate setup/hold bisection bench, ~15 min),
+# `charlib_seq` (the dffq extract, ~11 min), `charlib_faults` (the planted
+# setup/hold/pulse-width faults, 820 s) and `optimise` (the real optimise
+# runs, 444 s); harden 644 s, rest 653 s. Each
 # charlib part picks its tests from test_charlib.py by `-k`, and `charlib`
 # takes the complement of the other two, so no test falls out of every part
 # (tests/test_corpus_faults.py checks this).
 SHARDS="harden charlib charlib_seq charlib_faults optimise rest"
-CHARLIB_SEQ="dffq_extracted or independent_bisection"
+CHARLIB_SEQ="dffq_extracted"
 CHARLIB_FAULTS="planted_constraint_fault"
 shard_files() {
   case "$1" in
