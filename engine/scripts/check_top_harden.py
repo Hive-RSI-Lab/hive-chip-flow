@@ -84,7 +84,11 @@ what its GDS draws, whichever is larger - is a `macro_too_large` finding
 (no harden runs); so is a `ua_pins` map off the analog template - an
 index used twice, a gap below the highest pad, more pads than the tile has
 (`ua_pin_off_template`, no harden runs). LibreLane failures are
-check_harden's findings, passed on. A finished harden also fails on a max
+check_harden's findings, passed on, its `qor_diff` included: the top is
+compared with the recorded top_harden (reports/recorded/gate-top_harden.json
+of this workspace, #340), never with the digital side's harden, and a
+regression is the same `qor_regression` warning (an error under the digital
+spec's harden_signoff.qor_regressions). A finished harden also fails on a max
 slew or max cap violation at any corner of the signoff STA
 (`max_slew_violation`, `max_cap_violation`, naming the pins; gates.yaml's
 top_harden_metrics, check_harden.corner_drv_metrics), so a macro liberty's
@@ -1638,10 +1642,15 @@ def run(argv=None):
             if m["instance"] in clock_nets:
                 m["clock_nets"] = clock_nets[m["instance"]]
         write_top_spec(top, spec)
-    inner, _out = check_harden.run(["--workspace", str(top)])
+    # compared with the recorded top_harden, not the digital block's harden
+    # (#340): gate.py replaces gate-top_harden.json only after this returns
+    inner, _out = check_harden.run([
+        "--workspace", str(top), "--baseline",
+        str((ws / "reports" / "recorded" / "gate-top_harden.json").resolve())])
     facts = {k: inner[k] for k in ("top", "run_tag", "resumed", "wall_s",
                                    "signoff_metrics", "connectivity",
-                                   "run_dir", "metrics", "qor") if k in inner}
+                                   "run_dir", "metrics", "qor", "qor_diff")
+             if k in inner}
     dont_touch = {f"{m['instance']}/{pin}": net for m in spec["macros"]
                   for pin, net in (m.get("dont_touch_nets") or {}).items()}
     if dont_touch:

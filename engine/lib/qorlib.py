@@ -297,9 +297,9 @@ def baseline_of(prev) -> tuple[str, dict | None]:
 
 
 _NOTHING = {
-    "none": "no baseline: the first recorded harden",
-    "unreadable": "baseline unreadable (reports/recorded/gate-harden.json is "
-                  "not a JSON object): nothing compared",
+    "none": "no baseline: the first recorded run",
+    "unreadable": "baseline unreadable (the recorded gate result is not a "
+                  "JSON object): nothing compared",
     "no_qor": "baseline has no QoR (recorded before #65): nothing compared",
     "failed_only": "baseline is a failed harden with no passing one before "
                    "it: nothing compared",
