@@ -443,11 +443,11 @@ def near_limit(pairs: list[dict], peaks, limits: dict) -> list[dict]:
 
 def stress_cells(cells: dict, pdk: Path, supply: float, slot: float,
                  out: Path, jobs: int, timeout: float,
-                 only: dict | None = None) -> tuple[list, dict]:
+                 only: dict | None = None) -> tuple[list, dict, list, int]:
     """Run every cell of `cells` ({cell: {text, pins, ins, outs, loads}}) at
     every corner and load, or the corners `only` ({cell: corners}) names.
     (rows tagged with cell, corner and load,
-    {cell: worst pair}, the fine-step repeats)."""
+    {cell: worst pair}, the fine-step repeats, the number of runs)."""
     limits = stresslib.load_limits()
     out.mkdir(parents=True, exist_ok=True)
     work = []
@@ -499,7 +499,7 @@ def stress_cells(cells: dict, pdk: Path, supply: float, slot: float,
                     have["peak_v"] - have["limit_v"]:
                 worst[job["cell"]] = {**w, "corner": job["corner"],
                                       "load": job["load"]}
-    return rows, worst, repeats
+    return rows, worst, repeats, len(work)
 
 
 def over_limit(rows: list[dict], counts: dict) -> list[dict]:
@@ -539,11 +539,11 @@ def parse_only(value: str | None, counts: dict) -> dict | None:
         return None
     only: dict = {}
     for item in value.split(","):
-        cell, _, corner = item.strip().partition("@")
+        cell, at, corner = item.strip().partition("@")
         if cell not in counts:
             raise CheckError(f"{ONLY_ENV} names {cell!r}, which the top does "
                              f"not instantiate")
-        if corner and corner not in CORNERS:
+        if at and corner not in CORNERS:
             raise CheckError(f"{ONLY_ENV} names corner {corner!r}; the gate "
                              f"runs {', '.join(CORNERS)}")
         only.setdefault(cell, set()).add(corner or None)
@@ -620,7 +620,7 @@ def run(argv=None):
                                            lib_cache, macro_libs)}
 
     work = ws / "log" / TOOL
-    rows, worst, repeats = stress_cells(cells, pdk, supply, slot, work, args.jobs,
+    rows, worst, repeats, decks_run = stress_cells(cells, pdk, supply, slot, work, args.jobs,
                                args.timeout, only)
 
     where = str(pnl.relative_to(ws))
@@ -653,15 +653,14 @@ def run(argv=None):
     for info in cells.values():
         for model, k in info["others"].items():
             others[model] = others.get(model, 0) + k
-    facts = stresslib.summarise(rows, len(LOADS) * sum(
-        len((only or {}).get(c) or CORNERS) for c, i in cells.items()
-        if i["devices"]), sum(
+    facts = stresslib.summarise(rows, decks_run, sum(
         c["devices"] for c in cells.values()), limits, others)
     # stamped with the pnl directory, the first of the gate's input kinds
     # (top_pnl): state records a result only against that kind's hash.
     payload = checklib.report(
         SCRIPT, pnl.parent, violations, top=top, vdd=float(vdd), supply_v=supply,
-        corners=list(CORNERS), temp_c=TEMP_C, edge_s=EDGE_S,
+        corners=[k for k in CORNERS if only is None or any(
+            not v or k in v for v in only.values())], temp_c=TEMP_C, edge_s=EDGE_S,
         clock_period_ns=period_ns, slot_s=slot,
         over_limit=over_limit(rows, counts),
         cells=[{"cell": c, "instances": counts[c], "inputs": i["ins"],

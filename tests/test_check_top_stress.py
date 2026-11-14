@@ -602,6 +602,8 @@ def test_a_narrowed_run_scores_only_the_cells_and_corners_it_names(
     assert sorted(ran) == sorted((BOOT, c, b) for c in ("ff", "sf")
                                  for b in ts.LOADS)
     assert payload["narrowed_to"] == {BOOT: ["ff", "sf"]}
+    assert payload["corners"] == ["ff", "sf"]
+    assert payload["stress"]["runs"] == 2 * len(ts.LOADS)
     assert [c["cell"] for c in payload["cells"]] == [BOOT]
     (v,) = payload["violations"]
     assert v["kind"] == "device_overstress"
@@ -630,6 +632,7 @@ def test_a_narrowed_run_that_finds_nothing_is_a_refusal_never_a_pass(
 @pytest.mark.parametrize("value, match", [
     (f"{LIB}__nosuch_1", "does not instantiate"),
     (f"{BOOT}@tt", "corner 'tt'"),
+    (f"{BOOT}@", "corner ''"),
 ])
 def test_a_narrowing_the_top_cannot_run_is_a_refusal(tmp_path, monkeypatch,
                                                      capsys, value, match):
