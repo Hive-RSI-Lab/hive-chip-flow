@@ -262,49 +262,113 @@ def uncertainty_tcl(applied_sdc: Path) -> str:
             f'puts "{UNCERTAINTY_END}"\n')
 
 
-def parse_clock_uncertainty(output: str) -> dict[str, float | None]:
-    """{clock: setup uncertainty ns, None when it has none} from
-    uncertainty_tcl's section. Inter-clock (-from/-to) and pin uncertainty
-    lines are not a clock's own and are left out: a budget is held to the
-    clock's own value. No closing marker is a CheckError."""
+_UNC_OBJ = re.compile(r"\[get_(clocks|pins|ports)\s+(\{[^}]*\}|[^\]]+)\]")
+_UNC_FROM = ("-from", "-rise_from", "-fall_from")
+_UNC_TO = ("-to", "-rise_to", "-fall_to")
+
+
+def _sdc_name(word: str) -> str:
+    """One SDC object name as write_sdc prints it: braces off, Tcl
+    backslash escapes (clk\\[0\\]) undone."""
+    word = word.strip()
+    if word.startswith("{") and word.endswith("}"):
+        return word[1:-1]
+    return re.sub(r"\\(.)", r"\1", word)
+
+
+def parse_clock_uncertainty(output: str) -> tuple[dict[str, float | None],
+                                                  list[tuple[str, float]]]:
+    """({clock: setup uncertainty ns, None when none applies}, [(pin or
+    port, setup uncertainty ns)]) from uncertainty_tcl's section.
+
+    OpenSTA lets an inter-clock value (-from/-to) and a pin's value take
+    precedence over a clock's own, so a clock's figure here is the lowest
+    of its own value and every inter-clock setup value that names it
+    (conservative: a path between two clocks is held to the smaller
+    budget too). Hold-only lines do not count. No closing marker is a
+    CheckError."""
     lines = [ln.strip() for ln in output.splitlines()]
     if UNCERTAINTY_BEGIN not in lines or UNCERTAINTY_END not in lines:
         raise CheckError(f"eda sta printed no {UNCERTAINTY_BEGIN}/"
                          f"{UNCERTAINTY_END} lines - the clock uncertainty "
                          "read-back never ran")
     start, end = lines.index(UNCERTAINTY_BEGIN), lines.index(UNCERTAINTY_END)
-    out: dict[str, float | None] = {}
-    sets = []
+    own: dict[str, float | None] = {}
+    inter: dict[str, list[float]] = {}
+    pins: list[tuple[str, float]] = []
     for ln in lines[start + 1:end]:
         if ln.startswith(UNCERTAINTY_CLOCK + " "):
-            out.setdefault(ln[len(UNCERTAINTY_CLOCK) + 1:].strip(), None)
-        elif ln.startswith("set_clock_uncertainty "):
-            sets.append(ln.split()[1:])
-    for words in sets:
-        if any(w in ("-from", "-to", "-rise_from", "-fall_from", "-rise_to",
-                     "-fall_to") for w in words):
+            own.setdefault(ln[len(UNCERTAINTY_CLOCK) + 1:].strip(), None)
             continue
+        if not ln.startswith("set_clock_uncertainty "):
+            continue
+        objs = []   # (flag before it, kind, [names])
+        rest = ln[len("set_clock_uncertainty "):]
+        for m in _UNC_OBJ.finditer(rest):
+            before = rest[:m.start()].split()
+            flag = before[-1] if before and before[-1].startswith("-") else None
+            names = [_sdc_name(w) for w in
+                     (m.group(2)[1:-1].split() if m.group(2).startswith("{")
+                      else m.group(2).split())]
+            objs.append((flag, m.group(1), names))
+        words = _UNC_OBJ.sub(" ", rest).split()
+        words = [w for w in words if w not in _UNC_FROM + _UNC_TO]
         side = "both"
-        if words and words[0] in ("-setup", "-hold"):
-            side, words = words[0][1:], words[1:]
-        if side == "hold" or len(words) != 2:
+        for flag in ("-setup", "-hold"):
+            if flag in words:
+                side = flag[1:]
+                words.remove(flag)
+        if side == "hold":
             continue
-        try:
-            value = float(words[0])
-        except ValueError:
+        value = None
+        for i, w in enumerate(words):
+            try:
+                value = float(w)
+            except ValueError:
+                continue
+            words = words[:i] + words[i + 1:]
+            break
+        if value is None:
             continue
-        name = words[1].strip("{}")
-        if name in out:
-            out[name] = value
-    return out
+        if any(f in _UNC_FROM + _UNC_TO for f, _, _ in objs):
+            for f, kind, names in objs:
+                if kind == "clocks":
+                    for n in names:
+                        inter.setdefault(n, []).append(value)
+        elif objs:
+            for _, kind, names in objs:
+                if kind == "clocks":
+                    for n in names:
+                        if n in own:
+                            own[n] = value
+                else:
+                    pins.extend((n, value) for n in names)
+        elif len(words) == 1:
+            name = _sdc_name(words[0])
+            if name in own:
+                own[name] = value
+    clocks: dict[str, float | None] = {}
+    for name, v in own.items():
+        vals = ([v] if v is not None else []) + inter.get(name, [])
+        if inter.get(name) and v is None:
+            vals.append(0.0)    # paths inside it the -from/-to misses
+        clocks[name] = min(vals) if vals else None
+    return clocks, pins
+
+
+def _below(have: float, need: float) -> bool:
+    # write_sdc prints four decimals
+    return round(have, 4) < round(need, 4)
 
 
 def uncertainty_violations(applied: dict, budgets: dict, top: str,
-                           corner: str) -> list[dict]:
+                           corner: str, pins=()) -> list[dict]:
     """clock_uncertainty_below_budget for each clock whose setup
     uncertainty is under its declared jitter budget (a clock with none
-    applied counts 0), clock_jitter_unknown_clock for a budget on a clock
-    the SDC never creates."""
+    applied counts 0) and, when any budget is declared, for each pin or
+    port whose own uncertainty (which OpenSTA lets override the clock's)
+    is under the largest one; clock_jitter_unknown_clock for a budget on a
+    clock the SDC never creates."""
     out = []
     for name, b in sorted(budgets.items()):
         if name not in applied:
@@ -318,17 +382,30 @@ def uncertainty_violations(applied: dict, budgets: dict, top: str,
             continue
         have = applied[name] or 0.0
         need = b.required_ns
-        # write_sdc prints four decimals
-        if have + 5e-5 < need:
+        if _below(have, need):
             out.append(checklib.violation(
                 "timing", "error", None, top, "clock_uncertainty_below_budget",
                 [name], f"corner {corner}: clock {name} has setup "
-                f"uncertainty {have:.4f} ns, under the {need:.4f} ns its "
+                f"uncertainty {have:.4f} ns (the lowest of its own and any "
+                f"-from/-to value naming it), under the {need:.4f} ns its "
                 f"declared jitter needs ({b.ps_rms:g} ps rms x {b.sigma:g} "
                 f"sigma over {b.cycles} {b.accumulation} cycle(s)) - set "
                 f"set_clock_uncertainty -setup {need:.4f} on it after "
                 "base.sdc's (CLOCK_UNCERTAINTY_CONSTRAINT), or lower the "
                 "budget with evidence", "opensta", corner=corner))
+    if budgets:
+        need = max(b.required_ns for b in budgets.values())
+        for pin, have in sorted(pins):
+            if _below(have, need):
+                out.append(checklib.violation(
+                    "timing", "error", None, top,
+                    "clock_uncertainty_below_budget", [pin],
+                    f"corner {corner}: pin/port {pin} carries its own setup "
+                    f"uncertainty {have:.4f} ns, which OpenSTA uses in place "
+                    f"of its clock's, under the {need:.4f} ns the largest "
+                    "declared jitter budget needs - drop that "
+                    "set_clock_uncertainty or raise it", "opensta",
+                    corner=corner))
     return out
 
 
@@ -336,6 +413,9 @@ def uncertainty_violations(applied: dict, budgets: dict, top: str,
 # into `-min`, so with them on a late reset release reads as a setup
 # violation. The worst-slack lines are taken with them off (setup/hold
 # only) and they are named in their own sections instead.
+# An SDC may set its own command units (set_cmd_units -time ps); the
+# slack lines and write_sdc print in them, and both are read as ns.
+UNITS_TCL = "set_cmd_units -time ns\n"
 WORST_SLACK_TCL = ("set sta_recovery_removal_checks_enabled 0\n"
                    "report_worst_slack -max\n"
                    "report_worst_slack -min\n"
@@ -601,6 +681,7 @@ def run_corner(final_dir: Path, top: str, corner: str, pdk_root: Path,
         + propagation_tcl(sdc)
         + f"read_spef {spef}\n"
         + IDEAL_TCL
+        + UNITS_TCL
         + WORST_SLACK_TCL
         + "report_check_types -max_slew -max_capacitance -max_fanout -violators\n"
         + COUNTS_TCL + SIGNOFF_TCL
@@ -629,7 +710,7 @@ def run_corner(final_dir: Path, top: str, corner: str, pdk_root: Path,
         setup_findings = parse_check_setup(output)
         signoff = parse_signoff_checks(output)
         ideal = parse_ideal_clocks(output)
-        uncertainty = parse_clock_uncertainty(output)
+        uncertainty, pin_uncertainty = parse_clock_uncertainty(output)
     except CheckError as exc:
         raise CheckError(f"corner {corner!r}: {exc} (exit {proc.returncode}): "
                          f"{output[-2000:]}") from exc
@@ -643,7 +724,8 @@ def run_corner(final_dir: Path, top: str, corner: str, pdk_root: Path,
     return {"corner": corner, "setup_ws": slacks["max"], "hold_ws": slacks["min"],
            "violators": violators, "check_setup": setup_findings,
            "signoff": signoff, "ideal_clocks": ideal,
-           "clock_uncertainty": uncertainty}
+           "clock_uncertainty": uncertainty,
+           "pin_uncertainty": pin_uncertainty}
 
 
 SIGNOFF_KINDS = {"min_pulse_width": "min_pulse_width_violation",
@@ -798,7 +880,8 @@ def run(argv=None):
                 corner=r["corner"]))
         violations.extend(signoff_violations(r, top, waived))
         violations.extend(uncertainty_violations(
-            r["clock_uncertainty"], budgets, top, r["corner"]))
+            r["clock_uncertainty"], budgets, top, r["corner"],
+            r.get("pin_uncertainty", ())))
         corners_out[r["corner"]] = {
             "setup_ws": None if "setup" in inf_sides else r["setup_ws"],
             "hold_ws": None if "hold" in inf_sides else r["hold_ws"],
