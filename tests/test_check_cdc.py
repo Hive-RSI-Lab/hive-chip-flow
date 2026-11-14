@@ -1028,14 +1028,16 @@ def test_its_data_path_clear_twin_still_fails(tmp_path):
 
 
 @pytest.mark.slow
-def test_a_sync_reset_step_the_receiver_misses_is_not_checked(tmp_path):
+def test_a_sync_reset_step_the_receiver_misses_fails(tmp_path):
+    # the receiver isn't reset with the bus: it can sample the jump
     p = run(make_ws(tmp_path, _fifo_sync("1'b0", receiver_reset=False),
                     cdc=SYNC_CDC))
+    assert kinds(p) == ["cdc_multibit_unsafe"], p["violations"]
     wg = next(b for b in p["buses"] if b["bus"] == "wgray")
-    assert wg["gray"]["proven"], wg["gray"]
+    assert not wg["gray"]["proven"]
     assert wg["gray"]["sync_resets"][0]["covered"] is False
-    assert any("wgray's synchronous reset step (wr2 -> 00000)" in n
-               and "wq" in n for n in p["not_checked"]), p["not_checked"]
+    assert "wr2 jumps it to 00000" in wg["gray"]["why"], wg["gray"]
+    assert "wq" in wg["gray"]["why"], wg["gray"]
 
 
 # two flags from clk2, synchronised separately, then {USE}
@@ -1187,7 +1189,8 @@ def test_prove_gray_holds_a_sync_reset_apart():
     r = cdclib.prove_gray(nl, [10, 11], {3: "rst_n"})
     assert r["proven"], r
     assert r["states"] == 4
-    assert r["sync_resets"] == [{"net": "rst_n", "active": "0", "to": "00"}]
+    assert r["sync_resets"] == [{"net": "rst_n", "bit": 3, "active": "0",
+                                 "to": "00"}]
     # without the reset known, 11 -> 00 is an ordinary two-bit step
     r = cdclib.prove_gray(nl, [10, 11])
     assert not r["proven"] and r["example"] == ["11", "00"]
@@ -1216,5 +1219,48 @@ def test_reset_nets_are_reset_ports_and_async_trees():
     m["ports"]["clr"] = {"direction": "input", "bits": [4]}
     an = cdclib.Analysis(m)
     assert an.reset_nets() == {3: "rst_n"}
-    assert cdclib.RESET_PORT_RE.match("sys_rst_n")
-    assert not cdclib.RESET_PORT_RE.match("burst")
+    for name in ("rst_n", "rst_ni", "arst_n", "reset", "sys_rst_n",
+                 "por_rst_n", "nreset"):
+        assert cdclib.RESET_PORT_RE.match(name), name
+    # a flush or soft clear named like a reset is still a data path
+    for name in ("burst", "fifo_rst", "soft_rst", "wr_rst_n", "clr"):
+        assert not cdclib.RESET_PORT_RE.match(name), name
+
+
+def _ffr(d, q, r):
+    return _cell("$_DFF_PN0_", C=2, R=r, D=d, Q=q)
+
+
+def test_reset_nets_take_no_data_mixed_into_an_async_tree():
+    # f0 reset by rst_n & ~clr (a data clear mixed in), f1 by rst_n &
+    # sys_rst (resets only): only the second is a reset net, and clr,
+    # though it reaches an async pin, is not one
+    m = _module([_ffr(10, 10, 20), _ffr(11, 11, 21),
+                 _cell("$_NOT_", A=4, Y=22), _cell("$_AND_", A=3, B=22, Y=20),
+                 _cell("$_AND_", A=3, B=5, Y=21)], {"f0": 10, "f1": 11})
+    m["ports"]["clr"] = {"direction": "input", "bits": [4]}
+    m["ports"]["sys_rst"] = {"direction": "input", "bits": [5, 6]}
+    assert cdclib.Analysis(m).reset_nets() == {
+        3: "rst_n", 5: "sys_rst", 6: "sys_rst", 21: "net21"}
+
+
+def test_a_reset_step_needs_every_source_on_each_receiver():
+    # the bus's sync reset comes from rst_n and sys_rst; f0 is async reset
+    # by both, f1 by rst_n alone: overlap isn't cover
+    m = _module([_ffr(10, 10, 21), _ffr(11, 11, 3),
+                 _cell("$_AND_", A=3, B=5, Y=21)], {"f0": 10, "f1": 11})
+    m["ports"]["sys_rst"] = {"direction": "input", "bits": [5]}
+    an = cdclib.Analysis(m)
+    f0, f1 = an.nl.flops[10], an.nl.flops[11]
+
+    def proof():
+        return {"proven": True, "why": "", "sync_resets": [
+            {"net": "net21", "bit": 21, "active": "0", "to": "00"}]}
+    p = proof()
+    an._cover_reset_steps(p, [f0])
+    assert p["proven"] and p["sync_resets"][0]["covered"]
+    assert "bit" not in p["sync_resets"][0]
+    p = proof()
+    an._cover_reset_steps(p, [f0, f1])
+    assert not p["proven"] and not p["sync_resets"][0]["covered"]
+    assert "f1" in p["why"] and "f0" not in p["sync_resets"][0]["why"]

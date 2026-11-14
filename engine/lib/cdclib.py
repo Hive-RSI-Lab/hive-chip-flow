@@ -731,22 +731,31 @@ class Analysis:
 
     def _cover_reset_steps(self, proof: dict, stages: list) -> None:
         """Mark each sync reset step prove_gray held apart `covered` when
-        every receiving stage is reset from the same port too (it is in
-        reset while the bus jumps), with `why` either way."""
+        every receiving stage is async reset from every port that reset
+        comes from (it is in reset while the bus jumps), with `why` either
+        way. An uncovered step is a many-bit jump the receiver can sample:
+        the proof fails on it."""
         nl = self.nl
-        rn = {v: k for k, v in self.reset_nets().items()}
+        bad = []
         for row in proof.get("sync_resets", []):
-            src = self.reset_sources(rn[row["net"]]) if row["net"] in rn \
-                else set()
+            src = self.reset_sources(row.pop("bit"))
             bare = sorted({base_name(nl.label(f.q)) for f in stages
-                           if not (self._flop_reset_sources(f) & src)})
+                           if not src <= self._flop_reset_sources(f)})
             row["covered"] = bool(src) and not bare
             ports = ", ".join(sorted(base_name(nl.in_ports[b])
                                      for b in src)) or "no port"
             row["why"] = (f"every receiving stage is reset from {ports} too"
                           if row["covered"] else
-                          f"receiving stage(s) {', '.join(bare)} not reset "
-                          f"from {ports}: they can sample the jump")
+                          f"receiving stage(s) {', '.join(bare) or 'none'} "
+                          f"not async reset from {ports}: they can sample "
+                          "the jump")
+            if not row["covered"]:
+                bad.append(row)
+        if bad and proof.get("proven"):
+            r = bad[0]
+            proof["proven"] = False
+            proof["why"] = (f"its synchronous reset {r['net']} jumps it to "
+                            f"{r['to']} in one step and {r['why']}")
 
     def crossings(self) -> tuple[list, list]:
         """(crossings, input ports with no domain). One crossing per source
@@ -865,10 +874,11 @@ class Analysis:
     def reset_nets(self) -> dict:
         """{bit: label} of the design's reset nets, for prove_gray's sync
         reset (#244): an input port named as a reset (RESET_PORT_RE: rst_n,
-        reset, sys_rst...), the last stage of a reset synchroniser, and the
-        net (through buffers and inverters) and port or synchroniser leaves
-        on any flop's async set/reset pin. A clear from anything else is a
-        data path, never a reset."""
+        sys_rst, por_rst_n...), the last stage of a reset synchroniser, and the
+        net on any flop's async set/reset pin when it is a port or flop
+        reached through buffers and inverters, or logic whose every leaf is
+        already a reset. A net that mixes in anything else (`rst_n & ~clr`)
+        and a clear from anything else are data paths, never resets."""
         if getattr(self, "_reset_nets", None) is not None:
             return self._reset_nets
         nl = self.nl
@@ -876,16 +886,28 @@ class Analysis:
                if RESET_PORT_RE.match(base_name(name))}
         for chain in self.sync_stages_of.values():
             out[chain[-1].q] = nl.label(chain[-1].q)
+
+        def name(b):
+            return base_name(nl.in_ports[b]) if b in nl.in_ports \
+                else nl.label(b)
+        logic_pins = set()
         for ff in nl.flops.values():
             for pin in ff.reset_pins:
                 if pin in CONST:
                     continue
-                leaves, _ = nl.cone(pin)
-                for b in [nl.canon(pin)[0], *leaves]:
-                    if b in nl.in_ports or b in self.sync_stages_of or \
-                            b == nl.canon(pin)[0]:
-                        out.setdefault(b, nl.in_ports.get(b) and base_name(
-                            nl.in_ports[b]) or nl.label(b))
+                b = nl.canon(pin)[0]
+                if b in nl.combs:
+                    logic_pins.add(b)
+                else:
+                    out.setdefault(b, name(b))
+        grew = True
+        while grew:
+            grew = False
+            for b in sorted(logic_pins - set(out)):
+                leaves, _ = nl.cone(b)
+                if leaves and leaves <= set(out):
+                    out[b] = name(b)
+                    grew = True
         self._reset_nets = out
         return out
 
@@ -909,19 +931,13 @@ class Analysis:
         return out
 
     def _flop_reset_sources(self, ff: Flop) -> set:
-        """Where a flop's own reset comes from: its async pins, and reset
-        nets read in its D cone (a sync reset)."""
-        nl = self.nl
+        """The input ports a flop's own async set/reset pins come from
+        (through reset synchronisers). A sync reset in its D cone doesn't
+        count: it acts only on a clock edge, which can catch the jump."""
         out = set()
         for pin in ff.reset_pins:
             if pin not in CONST:
                 out |= self.reset_sources(pin)
-        rn = self.reset_nets()
-        for pin in ff.data:
-            leaves, _ = nl.cone(pin)
-            for leaf in leaves:
-                if leaf in rn:
-                    out |= self.reset_sources(leaf)
         return out
 
     def _release_status(self, leaf, ff: Flop) -> str:
@@ -1080,7 +1096,8 @@ GRAY_MAX_FREE = 10       # free inputs, all 2**N values tried in each state
 GRAY_MAX_UNINIT = 8      # state flops with no async reset, started both ways
 GRAY_MAX_STATES = 1 << 14    # reachable states explored
 
-RESET_PORT_RE = re.compile(r"(?i)^(?:\w*_)?n?[as]?(?:rst|reset)"
+RESET_PORT_RE = re.compile(r"(?i)^(?:(?:sys|por|ext|pad|glb|global|chip|top|"
+                           r"main|async)_?)?n?[as]?(?:rst|reset)"
                            r"(?:_?n|_?b|_ni)?$")
 _FF_TYPE = re.compile(r"^\$_(DFF|DFFE|SDFF|SDFFE|SDFFCE|DFFSR|DFFSRE|ALDFF|"
                       r"ALDFFE)_([PN01]+)_$")
@@ -1421,7 +1438,7 @@ def prove_gray(nl: Netlist, bus: list, resets: dict | None = None) -> dict:
                             f"that sync reset {nl.label(r)} leaves unknown")
     except ValueError as exc:
         return fail(str(exc))
-    sync_rows = [{"net": resets[r], "active": str(a),
+    sync_rows = [{"net": resets[r], "bit": r, "active": str(a),
                   "to": "".join(str(nxt[j]) for j in reversed(bus_idx))}
                  for r, (a, nxt) in sorted(sync.items(),
                                            key=lambda kv: resets[kv[0]])]
