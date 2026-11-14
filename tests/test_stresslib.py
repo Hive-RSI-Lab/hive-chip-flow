@@ -229,6 +229,9 @@ def test_a_held_level_or_too_few_crossings_get_no_window_hint():
     t, v = _cut_clock()
     t[-3:] += 3 * PERIOD
     assert "hints" not in score((t, v))           # the last rise is off rhythm
+    t, v = _cut_clock()
+    t[-1] += 50 * PERIOD
+    assert "hints" not in score((t, v))           # on rhythm, then held for 50
 
 
 def test_a_cycle_mean_over_the_limit_by_less_than_the_floor_still_fails():

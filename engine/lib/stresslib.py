@@ -22,7 +22,7 @@ bounds with its whole length. One still over when the run ends is a failure:
 nothing shows it ever ends. When the pair had crossed the limit at a steady
 rhythm before that last excursion (a node on a clock that runs free to the run
 end), the failure carries a hint: the deck likely needs a repeating window from
-the first full clock period after startup to the run end, so the last edge is
+the first full clock period after start-up to the run end, so the last edge is
 scored as a cycle rather than as held DC.
 
 A window's cycle mean is held to the DC limit with no `floor_v`: the floor
@@ -623,11 +623,11 @@ def score_gate(t: np.ndarray, wave: np.ndarray, windows: list[Window],
     hints = []
     if spans and spans[-1][2]:
         rhythm = _toggle_period(edges)
-        if rhythm:
+        if rhythm and t[-1] - edges[-1].start <= rhythm:
             hints.append(f"crossed the limit every {rhythm:.4g} s up to the run "
                          f"end: if its clock runs free to the end, declare a "
                          f"repeating window from the first full period after "
-                         f"startup to the run end, so the last edge is scored "
+                         f"start-up to the run end, so the last edge is scored "
                          f"as a cycle, not as held DC")
     if edges:
         top = max(edges, key=lambda e: e.peak)
@@ -645,7 +645,8 @@ def score_gate(t: np.ndarray, wave: np.ndarray, windows: list[Window],
 
 def _toggle_period(edges: list[Excursion]) -> float | None:
     """The period of a pair that crossed the limit at a steady rhythm up to its
-    last (open) excursion: at least three crossings, the gaps between their
+    last (open) excursion (the caller also asks that the run end within one
+    period of that last crossing): at least three crossings, the gaps between their
     starts within 25% of their median. None otherwise."""
     if len(edges) < 3:
         return None
