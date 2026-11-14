@@ -4,7 +4,7 @@
 # yosys, verilator, mcy, cocotb). Split out of tests/check-engine.sh because
 # CLAUDE.md keeps tests/check.sh under two minutes and this set alone ran
 # past that once M3's formal/cover/synth suites landed. Not wired into
-# tests/check.sh - run this one by hand, or from a slower CI lane.
+# tests/check.sh: .github/workflows/slow.yml runs each part on CI (#343).
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
