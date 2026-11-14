@@ -225,7 +225,10 @@ def test_check_slow_parts_name_real_files_and_rest_runs_the_others():
         out = subprocess.run(
             [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider",
              "--collect-only", "-m", "slow and not harden_faults", "-k", k,
-             *files], cwd=REPO, capture_output=True, text=True).stdout
+             *files], cwd=REPO, capture_output=True, text=True,
+            # CI's PYTEST_ADDOPTS=-vv turns the id list into a tree.
+            env={k: v for k, v in os.environ.items()
+                 if k != "PYTEST_ADDOPTS"}).stdout
         return [ln for ln in out.splitlines() if "::" in ln]
 
     by_file = {}
