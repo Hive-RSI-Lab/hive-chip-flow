@@ -253,4 +253,4 @@ def test_msde_top_harden_record_loads_from_the_workspace(tmp_path):
 
 def test_top_harden_passes_the_qor_through():
     src = (REPO / "engine" / "scripts" / "check_top_harden.py").read_text()
-    assert '"run_dir", "metrics", "qor")' in src
+    assert '"run_dir", "metrics", "qor", "qor_diff")' in src

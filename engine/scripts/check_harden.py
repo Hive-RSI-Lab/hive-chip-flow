@@ -79,7 +79,8 @@ names the pins from that corner's checks.rpt. A pin in spec.yaml's
 report does not name in full cannot be excused.
 
 QoR baseline (#152): the recorded harden this run replaces
-(reports/recorded/gate-harden.json) is its baseline. `qor_diff` in the report
+(reports/recorded/gate-harden.json; check_top_harden names
+gate-top_harden.json instead) is its baseline. `qor_diff` in the report
 lists regressions, lost metrics and version changes against it, or says "no
 baseline" / "baseline has no QoR" / "nothing compared" when nothing could
 be. Only a passing record is a baseline: a failed one carries forward the
@@ -478,6 +479,9 @@ def run(argv=None):
     # metric or signoff is judged
     ap.add_argument("--to", help="stop after this LibreLane step id")
     ap.add_argument("--run-tag", default=RUN_TAG, help=argparse.SUPPRESS)
+    # the recorded run this one is compared with (#340): check_top_harden
+    # names the top's own record, reports/recorded/gate-top_harden.json
+    ap.add_argument("--baseline", help=argparse.SUPPRESS)
     args = ap.parse_args(argv)
 
     ws = Path(args.workspace).resolve()
@@ -664,7 +668,9 @@ def run(argv=None):
     # error; no baseline, or one with no QoR, says so and is never clean.
     qor_diff = None
     if qor is not None:
-        prev_path = ws / "reports" / "recorded" / "gate-harden.json"
+        prev_path = Path(args.baseline) if args.baseline else \
+            ws / "reports" / "recorded" / "gate-harden.json"
+        recorded = prev_path.stem.removeprefix("gate-")
         try:
             prev = json.loads(prev_path.read_text(encoding="utf-8")) \
                 if prev_path.is_file() else None
@@ -680,7 +686,7 @@ def run(argv=None):
             violations.append(checklib.violation(
                 "harden", sev, None, top, "qor_regression", [r["metric"]],
                 f"{r['metric']} {r['old']} -> {r['new']}{unit} against the "
-                f"recorded harden of {qor_diff['baseline_ts']} (better is "
+                f"recorded {recorded} of {qor_diff['baseline_ts']} (better is "
                 f"{r['better']})", "check_harden", **r))
 
     payload = checklib.report(SCRIPT, ws / "rtl", violations, top=top,
