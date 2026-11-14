@@ -27,6 +27,9 @@ stay uncovered, so they count as not clean, never as passed; the exit is 1.
 step_wall_s, step_cpu_s), the seed the score falls back on where its cache
 is empty: commit it only to seed a fresh cache.
 
+Under each harden step it prints that run's QoR against the record the
+block committed (facts.qor_diff, #152): regressions, or "no baseline".
+
 Exit 0 when every step passes and the table matches the probes, else 1.
 Run by bin/chip-flow (bin/eda's python, EDA_TOOLCHAIN set).
 """
@@ -63,6 +66,7 @@ def run_gate(ws: Path, skill: str, gate: str, logs: Path, tag: str,
     seconds (it and its process group are killed)."""
     out = logs / f"{tag}-{gate}.json"
     log = logs / f"{tag}-{gate}.log"
+    out.unlink(missing_ok=True)   # a reused --keep dir: never read a past run
     with log.open("w") as f:
         p = subprocess.Popen([EDA, "python", GATE, "--gate", gate, "--skill", skill,
                               "--workspace", str(ws), "--out", str(out)],
@@ -93,6 +97,21 @@ def run_gate(ws: Path, skill: str, gate: str, logs: Path, tag: str,
     msgs = [str(v.get("msg") or v.get("kind")) for v in res.get("failing") or []]
     return False, f"{status}: {res.get('failing_count', '?')} failing" + \
         "".join(f"\n      - {m[:300]}" for m in msgs[:8])
+
+
+def qor_line(logs: Path, tag: str, gate: str) -> str | None:
+    """The harden's QoR against the record it replaced (#152), from the gate
+    result's facts.qor_diff: what check-all prints under the step, or None
+    when the gate wrote no diff (not a harden, or it stopped before QoR)."""
+    try:
+        res = json.loads((logs / f"{tag}-{gate}.json").read_text())
+    except (OSError, ValueError):
+        return None
+    d = (res.get("facts") or {}).get("qor_diff") if isinstance(res, dict) else None
+    if not isinstance(d, dict):
+        return None
+    ts = f" of {d['baseline_ts']}" if d.get("baseline_ts") else ""
+    return f"qor vs recorded{ts}: {d.get('summary') or '?'}"
 
 
 def _child_cpu() -> float:
@@ -188,9 +207,15 @@ def main() -> int:
                             cpu=times[step][1])
             if not ok and waived:
                 print(f"  waived {step} ({dt:.0f} s): {why}", flush=True)
+                q = qor_line(logs, w.tag, g)
+                if q:
+                    print(f"       {q}", flush=True)
                 continue
             print(f"  {'ok  ' if ok else 'FAIL'} {step} ({dt:.0f} s){'' if ok else ': ' + why}",
                   flush=True)
+            q = qor_line(logs, w.tag, g)
+            if q:
+                print(f"       {q}", flush=True)
             failed += not ok
         if a.record and len(outcomes) == len(plan):
             record(b, sources, outcomes, times, tree)
