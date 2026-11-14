@@ -19,7 +19,16 @@ timed as stress. The time over the limit itself is still reported beside it. An 
 declared repeating window is held to the repeating bounds there, per cycle of
 the window; one that is not wholly inside a window is also held to the one-off
 bounds with its whole length. One still over when the run ends is a failure:
-nothing shows it ever ends.
+nothing shows it ever ends. When the pair had crossed the limit at a steady
+rhythm before that last excursion (a node on a clock that runs free to the run
+end), the failure carries a hint: the deck likely needs a repeating window from
+the first full clock period after startup to the run end, so the last edge is
+scored as a cycle rather than as held DC.
+
+A window's cycle mean is held to the DC limit with no `floor_v`: the floor
+keeps microvolt tails from being timed as stress events, but a cycle mean over
+the limit is the DC-equivalent stress itself, held every cycle, and the DRM
+gives no allowance on it.
 
 A one-off peak within `near_bound_v` of its bound, on either side, is too
 close for the bench's time step to settle: an edge resolved more finely can
@@ -611,6 +620,15 @@ def score_gate(t: np.ndarray, wave: np.ndarray, windows: list[Window],
                            f"limit for {1e6 * f_len:.3g} us from "
                            f"{f_start:.4g} s, bound "
                            f"{1e6 * one_off['time_over_s']:g} us")
+    hints = []
+    if spans and spans[-1][2]:
+        rhythm = _toggle_period(edges)
+        if rhythm:
+            hints.append(f"crossed the limit every {rhythm:.4g} s up to the run "
+                         f"end: if its clock runs free to the end, declare a "
+                         f"repeating window from the first full period after "
+                         f"startup to the run end, so the last edge is scored "
+                         f"as a cycle, not as held DC")
     if edges:
         top = max(edges, key=lambda e: e.peak)
         rows.append({"kind": "one_off", "peak_v": top.peak,
@@ -618,8 +636,24 @@ def score_gate(t: np.ndarray, wave: np.ndarray, windows: list[Window],
                      "time_over_s": max(f_len for _, f_len, _ in spans),
                      "time_over_rail_s": max(e.length for e in edges),
                      "events": len(edges)})
-    return {"status": "fail" if reasons else "allowance", "rows": rows,
-            "reasons": reasons}
+    found = {"status": "fail" if reasons else "allowance", "rows": rows,
+             "reasons": reasons}
+    if hints:
+        found["hints"] = hints
+    return found
+
+
+def _toggle_period(edges: list[Excursion]) -> float | None:
+    """The period of a pair that crossed the limit at a steady rhythm up to its
+    last (open) excursion: at least three crossings, the gaps between their
+    starts within 25% of their median. None otherwise."""
+    if len(edges) < 3:
+        return None
+    gaps = np.diff([e.start for e in edges])
+    period = float(np.median(gaps))
+    if period <= 0 or np.any(np.abs(gaps - period) > 0.25 * period):
+        return None
+    return period
 
 
 def score_junction(t: np.ndarray, wave: np.ndarray, breakdown: float,
@@ -781,6 +815,12 @@ def summarise(rows: list[dict], decks_run: int, devices: int,
             "share_band_only": sorted(
                 (a for a in allowance.values() if a.get("band_only")), key=order),
             "junctions_over_reference": sorted(junctions.values(), key=order)}
+
+
+def gate_detail(row: dict) -> str:
+    """A failing gate row's reasons for the violation message, then its
+    hints, each marked as one."""
+    return "; ".join(row["reasons"] + [f"hint: {h}" for h in row.get("hints", [])])
 
 
 def failures_by_pair(rows: list[dict]) -> dict:

@@ -980,7 +980,7 @@ def stress_stage(ws: Path, side: Path, block: str, work_dir: Path,
         first = bad[0]
         kind = "device_overstress" if first["class"] == "gate" \
             else "junction_over_breakdown"
-        detail = ("; ".join(first["reasons"]) if first["class"] == "gate"
+        detail = (stresslib.gate_detail(first) if first["class"] == "gate"
                   else f"peak {first['peak_v']:.3f} V at {first['t_peak_s']:.4g} s, "
                        f"breakdown {first['breakdown_v']:g} V")
         runs = sorted({f"{r['corner']} / {r['deck']}" for r in bad})
