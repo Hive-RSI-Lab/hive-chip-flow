@@ -5,11 +5,21 @@ the gate drives every cell at that supply +10% (5.5 V, the 5 V-class
 limit), so each edge's overshoot carries a gate past it. Only the spec
 moves: the cells, layout and parasitics are the ones that pass at 3.3 V.
 Refuses when the spec has no `vdd: 3.3` to raise, so a no-op edit can never
-pass as the fault."""
+pass as the fault.
+
+The gate is narrowed to one cell, and2_1, at every corner and load
+(check_top_stress.py's CHIP_FLOW_TOP_STRESS_ONLY): at 5.5 V every gate pair
+of every cell sits at its limit, so every run is repeated at the fine step
+and the whole top took 40 to 56 min on CI against 4 for the reference, which
+the gate still scores whole. and2_1 alone shows the fault, its peaks 0.24 to
+0.48 V past the limit where 0.1 V is allowed; a narrowed run can never pass,
+and faults.py restores the environment after the gate."""
+import os
 import re
 from pathlib import Path
 
 FROM_V, TO_V = "3.3", "5.0"
+ONLY = "gf180mcu_fd_sc_mcu7t5v0__and2_1"
 
 
 def plant(ws: Path) -> None:
@@ -26,3 +36,5 @@ def plant(ws: Path) -> None:
         raise RuntimeError(f"plant_top_stress.py: {spec} declares no "
                            f"supply.vdd {FROM_V} to raise")
     spec.write_text(new, encoding="utf-8")
+    import check_top_stress
+    os.environ[check_top_stress.ONLY_ENV] = ONLY

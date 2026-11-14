@@ -566,3 +566,75 @@ def test_a_planted_bootstrapped_gate_is_caught_and_the_real_cell_is_clean(
     assert cells[INV]["worst"]["peak_v"] < cells[INV]["worst"]["limit_v"]
     # nothing is left behind but the decks
     assert not list((tmp_path / "blk" / "log" / "top_stress").glob("*.raw"))
+
+
+# ------------------------------------------------- a fault plant's narrowing
+
+def _boot_fails(job):
+    dev = job["devices"][0]
+    rows = []
+    if job["cell"] == BOOT:
+        rows = [{"device": dev["name"], "label": dev["label"],
+                 "model": dev["model"], "pair": "Vgs", "class": "gate",
+                 "limit_v": 5.5, "status": "fail",
+                 "reasons": ["one-off peak 1.6 V over"],
+                 "rows": [{"kind": "repeating", "peak_v": 7.1, "share": 0.12}]}]
+    return {"rows": rows, "repeat": None,
+            "worst": {"device": dev["label"], "pair": "Vgs", "class": "gate",
+                      "peak_v": 7.1 if rows else 3.7, "limit_v": 5.5}}
+
+
+def test_a_narrowed_run_scores_only_the_cells_and_corners_it_names(
+        tmp_path, monkeypatch):
+    """The sensor_counted top_stress fault narrows the gate to one cell
+    (plant_top_stress.py): the whole top at 5.5 V took most of the
+    harden-faults job, and the reference is still scored whole."""
+    ws = _fake(tmp_path, monkeypatch)
+    ran = []
+
+    def spy(job):
+        ran.append((job["cell"], job["corner"], job["load"]))
+        return _boot_fails(job)
+    monkeypatch.setattr(ts, "run_cell", spy)
+    monkeypatch.setenv(ts.ONLY_ENV, f"{BOOT}@sf, {BOOT}@ff")
+    code, payload = _run(ws, tmp_path)
+    assert code == 1, payload
+    assert sorted(ran) == sorted((BOOT, c, b) for c in ("ff", "sf")
+                                 for b in ts.LOADS)
+    assert payload["narrowed_to"] == {BOOT: ["ff", "sf"]}
+    assert [c["cell"] for c in payload["cells"]] == [BOOT]
+    (v,) = payload["violations"]
+    assert v["kind"] == "device_overstress"
+
+
+def test_a_narrowed_cell_with_no_corner_runs_every_corner(tmp_path, monkeypatch):
+    ws = _fake(tmp_path, monkeypatch)
+    ran = []
+    monkeypatch.setattr(ts, "run_cell",
+                        lambda job: ran.append(job["corner"]) or _boot_fails(job))
+    monkeypatch.setenv(ts.ONLY_ENV, f"{BOOT}@ff,{BOOT}")
+    code, payload = _run(ws, tmp_path)
+    assert code == 1 and sorted(set(ran)) == sorted(ts.CORNERS), payload
+    assert payload["narrowed_to"] == {BOOT: list(ts.CORNERS)}
+
+
+def test_a_narrowed_run_that_finds_nothing_is_a_refusal_never_a_pass(
+        tmp_path, monkeypatch, capsys):
+    ws = _fake(tmp_path, monkeypatch)
+    monkeypatch.setattr(ts, "run_cell", _boot_fails)
+    monkeypatch.setenv(ts.ONLY_ENV, INV)
+    code, payload = _refusal(ws, capsys)
+    assert code == 2 and "never pass" in payload["error"], payload
+
+
+@pytest.mark.parametrize("value, match", [
+    (f"{LIB}__nosuch_1", "does not instantiate"),
+    (f"{BOOT}@tt", "corner 'tt'"),
+])
+def test_a_narrowing_the_top_cannot_run_is_a_refusal(tmp_path, monkeypatch,
+                                                     capsys, value, match):
+    ws = _fake(tmp_path, monkeypatch)
+    monkeypatch.setattr(ts, "run_cell", lambda job: pytest.fail("ran"))
+    monkeypatch.setenv(ts.ONLY_ENV, value)
+    code, payload = _refusal(ws, capsys)
+    assert code == 2 and match in payload["error"], payload

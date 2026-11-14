@@ -42,6 +42,13 @@ limit (`cells`). A device that breaks a bound is a device_overstress finding,
 a junction past breakdown a junction_over_breakdown one, each naming how many
 instances of the cell the top holds.
 
+A fault plant may narrow the run to the runs that decide its fault: the
+CHIP_FLOW_TOP_STRESS_ONLY variable names `CELL` or `CELL@CORNER` items,
+comma-separated (corpus/msde/sensor_counted/faults/plant_top_stress.py;
+faults.py restores the environment after the gate). A narrowed run can show
+a fault but never pass: one with no finding is a refusal, since a pass needs
+every cell at every corner. A name the top does not hold is a refusal.
+
 A cell's diodes, resistors and capacitors are listed under its
 `not_scored` with the reason; any other element that is not a rated X device
 is a refusal. A cell the PDK spice lacks, a signal pin the liberty does not
@@ -108,6 +115,8 @@ UNSCORED_ELEMENTS = {
          "scored on the drain-bulk junction of the cell driving the net",
     "r": "resistor: no limit in stress_limits.yaml",
     "c": "capacitor: no limit in stress_limits.yaml"}
+# a fault plant's narrowing to the runs that decide its fault (docstring)
+ONLY_ENV = "CHIP_FLOW_TOP_STRESS_ONLY"
 MAX_INPUTS = 8      # 2^8 states x 17 slots: past that a cell needs its own plan
 
 
@@ -433,9 +442,11 @@ def near_limit(pairs: list[dict], peaks, limits: dict) -> list[dict]:
 
 
 def stress_cells(cells: dict, pdk: Path, supply: float, slot: float,
-                 out: Path, jobs: int, timeout: float) -> tuple[list, dict]:
+                 out: Path, jobs: int, timeout: float,
+                 only: dict | None = None) -> tuple[list, dict]:
     """Run every cell of `cells` ({cell: {text, pins, ins, outs, loads}}) at
-    every corner and load. (rows tagged with cell, corner and load,
+    every corner and load, or the corners `only` ({cell: corners}) names.
+    (rows tagged with cell, corner and load,
     {cell: worst pair}, the fine-step repeats)."""
     limits = stresslib.load_limits()
     out.mkdir(parents=True, exist_ok=True)
@@ -457,7 +468,7 @@ def stress_cells(cells: dict, pdk: Path, supply: float, slot: float,
             dev["label"] = f"{cell}/{dev['name']}"
         sub_name = f"{cell}.sp"
         (out / sub_name).write_text(info["text"], encoding="utf-8")
-        for corner in CORNERS:
+        for corner in (only or {}).get(cell) or CORNERS:
             for bucket in LOADS:
                 loads = {p: v[bucket] for p, v in info["loads"].items()}
                 text, window, outer = bench(cell, sub_name, info["pins"],
@@ -520,6 +531,26 @@ def over_limit(rows: list[dict], counts: dict) -> list[dict]:
                                                 d["pair"]))
 
 
+def parse_only(value: str | None, counts: dict) -> dict | None:
+    """{cell: (corner, ...)} from ONLY_ENV's `CELL[@CORNER],...` (an empty
+    tuple: every corner), or None when it is unset. A cell the top does not
+    instantiate or a corner the gate does not run is a refusal."""
+    if value is None or not value.strip():
+        return None
+    only: dict = {}
+    for item in value.split(","):
+        cell, _, corner = item.strip().partition("@")
+        if cell not in counts:
+            raise CheckError(f"{ONLY_ENV} names {cell!r}, which the top does "
+                             f"not instantiate")
+        if corner and corner not in CORNERS:
+            raise CheckError(f"{ONLY_ENV} names corner {corner!r}; the gate "
+                             f"runs {', '.join(CORNERS)}")
+        only.setdefault(cell, set()).add(corner or None)
+    return {c: () if None in got else tuple(k for k in CORNERS if k in got)
+            for c, got in only.items()}
+
+
 def run(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--workspace", required=True, help="msde block workspace")
@@ -568,6 +599,9 @@ def run(argv=None):
         counts[cell] = counts.get(cell, 0) + 1
     if not counts:
         raise CheckError(f"{pnl.name} holds no standard cell: nothing to score")
+    only = parse_only(os.environ.get(ONLY_ENV), counts)
+    if only is not None:
+        counts = {c: n for c, n in counts.items() if c in only}
     spefs = {b: parse_spef(p.read_text(errors="replace"))
              for b, p in spef_paths.items()}
     pdk = check_lvs._pdk_root() / ttlib.PDK_NAME
@@ -587,7 +621,7 @@ def run(argv=None):
 
     work = ws / "log" / TOOL
     rows, worst, repeats = stress_cells(cells, pdk, supply, slot, work, args.jobs,
-                               args.timeout)
+                               args.timeout, only)
 
     where = str(pnl.relative_to(ws))
     violations = []
@@ -609,13 +643,19 @@ def run(argv=None):
             f"{detail} (fails in {len(runs)} run(s): {', '.join(runs[:8])}; "
             f"{n} instance(s) in the top)", SCRIPT))
 
+    if only is not None and not violations:
+        raise CheckError(
+            f"{ONLY_ENV} narrowed the run to {sorted(only)} and it found "
+            "nothing: a narrowed run can show a fault, never pass - unset it "
+            "to score every cell at every corner")
     limits = stresslib.load_limits()
     others: dict = {}
     for info in cells.values():
         for model, k in info["others"].items():
             others[model] = others.get(model, 0) + k
-    facts = stresslib.summarise(rows, len(CORNERS) * len(LOADS) * sum(
-        1 for c in cells.values() if c["devices"]), sum(
+    facts = stresslib.summarise(rows, len(LOADS) * sum(
+        len((only or {}).get(c) or CORNERS) for c, i in cells.items()
+        if i["devices"]), sum(
         c["devices"] for c in cells.values()), limits, others)
     # stamped with the pnl directory, the first of the gate's input kinds
     # (top_pnl): state records a result only against that kind's hash.
@@ -629,7 +669,9 @@ def run(argv=None):
                 "devices": i["devices"], "not_scored": i["not_scored"],
                 "worst": worst.get(c)}
                for c, i in sorted(cells.items())],
-        stress=facts, fine_repeats=repeats, report=f"log/{TOOL}")
+        stress=facts, fine_repeats=repeats, report=f"log/{TOOL}",
+        narrowed_to=None if only is None else {
+            c: list(v or CORNERS) for c, v in sorted(only.items())})
     return payload, args.out
 
 
