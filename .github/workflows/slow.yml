@@ -22,6 +22,8 @@ on:
     paths:
       - engine/**
       - corpus/**
+      - blocks/**
+      - evals/**
       - skills/**
       - bin/**
       - tests/**
@@ -54,13 +56,14 @@ jobs:
       - uses: ./.github/actions/toolchain
       - name: tests/check-slow.sh ${{ matrix.part }}
         env:
-          # -vv prints a failed assertion's whole violation.
-          PYTEST_ADDOPTS: -vv
+          # -vv prints a failed assertion's whole violation; -rs lists each
+          # skipped test and why, for the step summary.
+          PYTEST_ADDOPTS: -vv -rs
         run: |
           set +e
           start=$SECONDS
           bash tests/check-slow.sh "${{ matrix.part }}" 2>&1 | tee "$RUNNER_TEMP/part.log"
           rc=${PIPESTATUS[0]}
           echo "${{ matrix.part }}: $((SECONDS - start))s, exit $rc" | tee -a "$GITHUB_STEP_SUMMARY"
-          grep -E '^(check-slow.sh:|FAILED|ERROR)' "$RUNNER_TEMP/part.log" >> "$GITHUB_STEP_SUMMARY" || true
+          grep -E '^(check-slow.sh:|FAILED|ERROR|SKIPPED)' "$RUNNER_TEMP/part.log" >> "$GITHUB_STEP_SUMMARY" || true
           exit $rc
