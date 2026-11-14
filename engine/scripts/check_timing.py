@@ -73,6 +73,17 @@ because a design can meet setup and hold everywhere and still fail them:
     unset_propagated_clock in it -> every clock propagated, as LibreLane
     times it), then any clock with a source that is still not propagated
     is a finding. A virtual clock (no source) is skipped.
+  - clock uncertainty against a declared jitter budget (issue #73):
+    spec.yaml `clock.jitter` (engine/lib/clock_budget.py) names a clock's
+    source jitter, and each corner reads back the setup uncertainty the
+    SDC left on every clock (write_sdc of the applied constraints - OpenSTA
+    3.1.0 has no Tcl getter - between its own markers). A budgeted clock
+    whose uncertainty is below ps_rms x sigma x growth(cycles) is
+    `clock_uncertainty_below_budget`; a budget on a clock the SDC never
+    makes is `clock_jitter_unknown_clock`; a budget whose `source` file is
+    not under the workspace is `clock_jitter_source_missing`. A clock with
+    no budget keeps whatever the SDC sets; the read-back is in each
+    corner's `clock_uncertainty_ns` either way.
 
 Failure classification (the same three-way split check_harden.py uses):
   - no `harden/runs/run/final/` at all -> CheckError (harden has not run;
@@ -103,6 +114,7 @@ ENGINE = SCRIPTS.parent
 REPO = ENGINE.parent
 sys.path.insert(0, str(ENGINE / "lib"))
 import checklib  # noqa: E402
+import clock_budget  # noqa: E402
 import speclib  # noqa: E402
 import ttlib  # noqa: E402
 from checklib import CheckError  # noqa: E402
@@ -221,6 +233,103 @@ def parse_ideal_clocks(output: str) -> list[str]:
     start, end = lines.index(IDEAL_BEGIN), lines.index(IDEAL_END)
     return [ln[len(IDEAL_MARK) + 1:].strip() for ln in lines[start + 1:end]
             if ln.startswith(IDEAL_MARK + " ")]
+
+
+UNCERTAINTY_BEGIN = "chipflow_clock_uncertainty_begin"
+UNCERTAINTY_CLOCK = "chipflow_clock"
+UNCERTAINTY_END = "chipflow_clock_uncertainty_end"
+
+
+def uncertainty_tcl(applied_sdc: Path) -> str:
+    """Every clock's name, then the set_clock_uncertainty lines of the
+    constraints as OpenSTA holds them after the SDC is read (#73). OpenSTA
+    3.1.0 has no Tcl getter for a clock's uncertainty, and write_sdc is
+    how it says it: one `set_clock_uncertainty [-setup|-hold] V CLOCK`
+    line per clock that carries one (a later set overrides an earlier)."""
+    path = tcl_escape(str(applied_sdc))
+    return (f"write_sdc -no_timestamp {path}\n"
+            f'puts "{UNCERTAINTY_BEGIN}"\n'
+            "foreach chipflow_clk [all_clocks] {\n"
+            f'    puts "{UNCERTAINTY_CLOCK} [get_property $chipflow_clk full_name]"\n'
+            "}\n"
+            f"set chipflow_fh [open {path} r]\n"
+            "foreach chipflow_line [split [read $chipflow_fh] \"\\n\"] {\n"
+            "    if {[string match {set_clock_uncertainty *} $chipflow_line]} {\n"
+            "        puts $chipflow_line\n"
+            "    }\n"
+            "}\n"
+            "close $chipflow_fh\n"
+            f'puts "{UNCERTAINTY_END}"\n')
+
+
+def parse_clock_uncertainty(output: str) -> dict[str, float | None]:
+    """{clock: setup uncertainty ns, None when it has none} from
+    uncertainty_tcl's section. Inter-clock (-from/-to) and pin uncertainty
+    lines are not a clock's own and are left out: a budget is held to the
+    clock's own value. No closing marker is a CheckError."""
+    lines = [ln.strip() for ln in output.splitlines()]
+    if UNCERTAINTY_BEGIN not in lines or UNCERTAINTY_END not in lines:
+        raise CheckError(f"eda sta printed no {UNCERTAINTY_BEGIN}/"
+                         f"{UNCERTAINTY_END} lines - the clock uncertainty "
+                         "read-back never ran")
+    start, end = lines.index(UNCERTAINTY_BEGIN), lines.index(UNCERTAINTY_END)
+    out: dict[str, float | None] = {}
+    sets = []
+    for ln in lines[start + 1:end]:
+        if ln.startswith(UNCERTAINTY_CLOCK + " "):
+            out.setdefault(ln[len(UNCERTAINTY_CLOCK) + 1:].strip(), None)
+        elif ln.startswith("set_clock_uncertainty "):
+            sets.append(ln.split()[1:])
+    for words in sets:
+        if any(w in ("-from", "-to", "-rise_from", "-fall_from", "-rise_to",
+                     "-fall_to") for w in words):
+            continue
+        side = "both"
+        if words and words[0] in ("-setup", "-hold"):
+            side, words = words[0][1:], words[1:]
+        if side == "hold" or len(words) != 2:
+            continue
+        try:
+            value = float(words[0])
+        except ValueError:
+            continue
+        name = words[1].strip("{}")
+        if name in out:
+            out[name] = value
+    return out
+
+
+def uncertainty_violations(applied: dict, budgets: dict, top: str,
+                           corner: str) -> list[dict]:
+    """clock_uncertainty_below_budget for each clock whose setup
+    uncertainty is under its declared jitter budget (a clock with none
+    applied counts 0), clock_jitter_unknown_clock for a budget on a clock
+    the SDC never creates."""
+    out = []
+    for name, b in sorted(budgets.items()):
+        if name not in applied:
+            out.append(checklib.violation(
+                "timing", "error", None, top, "clock_jitter_unknown_clock",
+                [name], f"corner {corner}: spec.yaml clock.jitter names "
+                f"clock {name!r}, which the signoff SDC never creates "
+                f"(clocks: {', '.join(sorted(applied)) or 'none'}) - a "
+                "budget on no clock is checked against nothing",
+                "opensta", corner=corner))
+            continue
+        have = applied[name] or 0.0
+        need = b.required_ns
+        # write_sdc prints four decimals
+        if have + 5e-5 < need:
+            out.append(checklib.violation(
+                "timing", "error", None, top, "clock_uncertainty_below_budget",
+                [name], f"corner {corner}: clock {name} has setup "
+                f"uncertainty {have:.4f} ns, under the {need:.4f} ns its "
+                f"declared jitter needs ({b.ps_rms:g} ps rms x {b.sigma:g} "
+                f"sigma over {b.cycles} {b.accumulation} cycle(s)) - set "
+                f"set_clock_uncertainty -setup {need:.4f} on it after "
+                "base.sdc's (CLOCK_UNCERTAINTY_CONSTRAINT), or lower the "
+                "budget with evidence", "opensta", corner=corner))
+    return out
 
 
 # OpenSTA folds recovery checks into `report_worst_slack -max` and removal
@@ -494,7 +603,9 @@ def run_corner(final_dir: Path, top: str, corner: str, pdk_root: Path,
         + IDEAL_TCL
         + WORST_SLACK_TCL
         + "report_check_types -max_slew -max_capacitance -max_fanout -violators\n"
-        + COUNTS_TCL + SIGNOFF_TCL + "exit\n", encoding="utf-8")
+        + COUNTS_TCL + SIGNOFF_TCL
+        + uncertainty_tcl(work_dir / f".sta_{corner}.applied.sdc")
+        + "exit\n", encoding="utf-8")
     try:
         proc = checklib.run_tool([str(EDA_BIN), "sta", str(tcl)],
                                  stdin=subprocess.DEVNULL, capture_output=True,
@@ -518,6 +629,7 @@ def run_corner(final_dir: Path, top: str, corner: str, pdk_root: Path,
         setup_findings = parse_check_setup(output)
         signoff = parse_signoff_checks(output)
         ideal = parse_ideal_clocks(output)
+        uncertainty = parse_clock_uncertainty(output)
     except CheckError as exc:
         raise CheckError(f"corner {corner!r}: {exc} (exit {proc.returncode}): "
                          f"{output[-2000:]}") from exc
@@ -530,7 +642,8 @@ def run_corner(final_dir: Path, top: str, corner: str, pdk_root: Path,
                              f"violating pin(s){': ' + shown if shown else ''}")
     return {"corner": corner, "setup_ws": slacks["max"], "hold_ws": slacks["min"],
            "violators": violators, "check_setup": setup_findings,
-           "signoff": signoff, "ideal_clocks": ideal}
+           "signoff": signoff, "ideal_clocks": ideal,
+           "clock_uncertainty": uncertainty}
 
 
 SIGNOFF_KINDS = {"min_pulse_width": "min_pulse_width_violation",
@@ -608,6 +721,20 @@ def signoff_violations(r: dict, top: str, waived: list[str]) -> list[dict]:
     return out
 
 
+def jitter_source_violations(ws: Path, budgets: dict, top: str) -> list[dict]:
+    """A budget's `source` is its evidence and a freshness input; one that
+    is not there backs nothing."""
+    missing = sorted(b.source for b in budgets.values()
+                     if b.source and not (ws / b.source).is_file())
+    if not missing:
+        return []
+    return [checklib.violation(
+        "timing", "error", None, top, "clock_jitter_source_missing", missing,
+        f"spec.yaml clock.jitter names source file(s) not in the workspace: "
+        f"{', '.join(missing)} - write the jitter measure there or drop "
+        "`source`", "opensta")]
+
+
 def run(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--workspace", required=True, help="block workspace")
@@ -627,6 +754,10 @@ def run(argv=None):
         raise CheckError(f"{lib_dir} has no corner subdirectories")
 
     waived = unconstrained_waivers(spec)
+    try:
+        budgets = clock_budget.budgets(spec)
+    except clock_budget.ClockBudgetError as exc:
+        raise CheckError(f"spec.yaml {exc}; spec_lint names it too") from exc
     pdk_root = _pdk_root()
     sdc, env_tcl = signoff_sdc(ws, final_dir.parent, pdk_root)
     work_dir = ws / "log" / "timing_work"
@@ -666,13 +797,24 @@ def run(argv=None):
                 [], f"corner {r['corner']}: {line}", "opensta",
                 corner=r["corner"]))
         violations.extend(signoff_violations(r, top, waived))
+        violations.extend(uncertainty_violations(
+            r["clock_uncertainty"], budgets, top, r["corner"]))
         corners_out[r["corner"]] = {
             "setup_ws": None if "setup" in inf_sides else r["setup_ws"],
             "hold_ws": None if "hold" in inf_sides else r["hold_ws"],
-            "multiple_clock": r["check_setup"].get("multiple_clock", [])}
+            "multiple_clock": r["check_setup"].get("multiple_clock", []),
+            "clock_uncertainty_ns": r["clock_uncertainty"]}
 
+    violations.extend(jitter_source_violations(ws, budgets, top))
+    extra = {}
+    if budgets:
+        extra["clock_budgets"] = {
+            n: {"ps_rms": b.ps_rms, "cycles": b.cycles,
+                "accumulation": b.accumulation, "sigma": b.sigma,
+                "source": b.source, "required_ns": round(b.required_ns, 4)}
+            for n, b in sorted(budgets.items())}
     payload = checklib.report(SCRIPT, ws / "harden", violations, top=top,
-                              corners=corners_out)
+                              corners=corners_out, **extra)
     return payload, args.out
 
 

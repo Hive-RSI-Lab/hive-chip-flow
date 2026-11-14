@@ -1051,5 +1051,11 @@ def lint_spec(spec: dict, rel_path: str = "spec/spec.yaml") -> list[dict]:
                 bad("clock_bad_primary",
                    "'clock.primary' must name one of 'clock.domains' (the "
                    "domain harden's CLOCK_PORT carries)")
+            import clock_budget  # engine/lib, beside this module
+            try:
+                clock_budget.budgets(spec)
+            except clock_budget.ClockBudgetError as exc:
+                kind, _, msg = str(exc).partition(": ")
+                bad(kind, msg)
 
     return out

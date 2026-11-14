@@ -31,6 +31,11 @@ ports:
 clock:
   period_ns: 10
   domains: [clk]
+  # jitter:                            # optional - a measured source jitter
+  #   <sdc clock>: {ps_rms: N, cycles: 1, accumulation: correlated, sigma: 7,
+  #                 source: spec/jitter/<file>}   # timing then requires
+  #                                     # ps_rms*sigma*cycles/1000 ns of setup
+  #                                     # uncertainty on that clock
 
 # must_keep: [<cell_or_signal_name>]   # optional - M7's optimiser may not
 #                                        remove these

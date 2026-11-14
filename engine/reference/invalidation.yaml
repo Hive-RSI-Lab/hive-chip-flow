@@ -126,6 +126,12 @@ artifact_kinds:
   # check_cdc.py's input-port domains and waivers. Its own file so a waiver
   # re-runs cdc, not every gate that reads spec.yaml.
   cdc_waivers: {path: "spec/cdc.yaml", norm: json_canonical}
+  # the evidence a spec.yaml clock.jitter budget cites (#73,
+  # engine/lib/clock_budget.py): an analog re-measure written here stales
+  # a recorded timing pass. optional - absent hashes to None, and
+  # `optional: true` lets a timing record made before this kind existed
+  # stay fresh while the directory is still absent (statelib.gate_freshness)
+  clock_jitter:  {path: "spec/jitter", norm: dir_text, optional: true}
   # msde (M10): the nested sides an msde block's top gates read, and the
   # assembled top's hardened GDS (engine/scripts/check_top_harden.py).
   digital_rtl:   {path: "digital/rtl", norm: dir_text}
@@ -251,7 +257,9 @@ gate_inputs:
     harden:    [rtl, harden_config, harden_override, harden_sdc, harden_info,
                 spec_yaml_sans_formal, pdk_version, pdk_liberty,
                 pdk_librelane, pdk_magic, pdk_klayout, pdk_netgen]
-    timing:    [harden, spec_yaml_sans_formal, pdk_version, pdk_liberty]
+    # clock_jitter (#73): the files a clock.jitter budget's `source` names
+    timing:    [harden, spec_yaml_sans_formal, pdk_version, pdk_liberty,
+                clock_jitter]
     drc:       [harden, spec_yaml_sans_formal, pdk_version, pdk_magic,
                 pdk_klayout]
     lvs:       [harden, spec_yaml_sans_formal, pdk_version, pdk_magic,

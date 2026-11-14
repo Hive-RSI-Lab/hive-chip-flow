@@ -979,9 +979,17 @@ def view_changes(gate_entry: dict, ws: Path) -> list[str]:
             and hash_artifact(ws / v["path"], "text_eol") != v.get("sha256")))
 
 
+def optional_kinds(imap: dict) -> frozenset[str]:
+    """The artifact kinds invalidation.yaml marks `optional: true`: a gate
+    input that may be absent (gate_freshness)."""
+    return frozenset(k for k, e in imap["artifact_kinds"].items()
+                     if isinstance(e, dict) and e.get("optional") is True)
+
+
 def gate_freshness(gate_entry: dict, current: dict[str, str | None],
                    gate: str = "", strength: int = 0,
-                   views_changed: list[str] | None = None) -> dict:
+                   views_changed: list[str] | None = None,
+                   optional: frozenset[str] = frozenset()) -> dict:
     """Verdict for one recorded gate entry against current hashes and the
     gate's current `strength` (gates.yaml).
 
@@ -993,6 +1001,12 @@ def gate_freshness(gate_entry: dict, current: dict[str, str | None],
     strength_stale: present only when the record's strength is below the
                 gate's: the reason, naming the gate and both values.
     views_changed: view_changes' answer, which counts as changed inputs.
+    optional:   kinds invalidation.yaml marks `optional: true`. One the
+                record never hashed that is absent now (hashes to None) is
+                not a change: the record predates the kind, so the gate
+                that made it read nothing there, and a re-run would find
+                nothing there either (#73). Present now, it is unvouched
+                for and stale like any other.
     """
     recorded = (gate_entry.get("last") or {}).get("inputs")
     marks = gate_entry.get("stale") or []
@@ -1003,7 +1017,8 @@ def gate_freshness(gate_entry: dict, current: dict[str, str | None],
     # to the gate's row after it ran - the PDK, a side spec) is unvouched
     # for: stale, not fresh (#113/#138)
     changed = sorted({k for k, v in recorded.items() if current.get(k) != v}
-                     | (set(current) - set(recorded))
+                     | {k for k in set(current) - set(recorded)
+                        if not (k in optional and current[k] is None)}
                      | set(views_changed or ()))
     hash_valid = not changed
     verdict = {"hash_valid": hash_valid, "changed_inputs": changed,
@@ -1083,7 +1098,8 @@ def freshness_report(data: dict, ws: Path,
         current = gate_input_hashes(ws, skill, gname, imap, registry)
         verdict = gate_freshness(gentry, current, gname,
                                  gate_strength(skill, gname),
-                                 view_changes(gentry, ws))
+                                 view_changes(gentry, ws),
+                                 optional_kinds(imap))
         gates_out[gname] = {
             "status": gentry.get("status"),
             "recorded_inputs": (gentry.get("last") or {}).get("inputs"),

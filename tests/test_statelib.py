@@ -355,6 +355,31 @@ def test_gate_freshness_two_layer():
     assert stale_mark["fresh"] is False  # hash matches but a mark is present
 
 
+def test_gate_freshness_an_optional_kind_added_later_and_still_absent():
+    """#73: timing gained the optional clock_jitter input after committed
+    records were made. Absent now, the record (which never read it) holds;
+    present now, it is unvouched for; a required kind added later is stale
+    absent or not (#113/#138)."""
+    entry = {"last": {"inputs": {"rtl": "dir_text:aaa"}}}
+    opt = frozenset({"clock_jitter"})
+    absent = {"rtl": "dir_text:aaa", "clock_jitter": None}
+    assert statelib.gate_freshness(entry, absent, optional=opt)["fresh"] is True
+    present = {"rtl": "dir_text:aaa", "clock_jitter": "dir_text:ccc"}
+    v = statelib.gate_freshness(entry, present, optional=opt)
+    assert v["fresh"] is False and v["changed_inputs"] == ["clock_jitter"]
+    assert statelib.gate_freshness(entry, absent)["fresh"] is False
+    # recorded as present, now gone: a change, optional or not
+    was = {"last": {"inputs": {"rtl": "dir_text:aaa",
+                               "clock_jitter": "dir_text:ccc"}}}
+    assert statelib.gate_freshness(was, absent, optional=opt)["fresh"] is False
+
+
+def test_only_clock_jitter_is_an_optional_kind():
+    # widening `optional: true` to another kind is a freshness decision of
+    # its own: make it here, deliberately
+    assert statelib.optional_kinds(statelib.load_map()) == {"clock_jitter"}
+
+
 def test_gate_freshness_unknown_gate_never_fresh():
     verdict = statelib.gate_freshness({}, {})
     assert verdict["hash_valid"] is None
