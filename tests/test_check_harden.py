@@ -577,3 +577,120 @@ def test_two_clock_harden_and_timing_run_on_the_design_sdc(tmp_path):
     assert re.search(r"create_clock -name clk -period 20", final_sdc)
     timing, _ = check_timing.run(["--workspace", str(ws)])
     assert timing["status"] == "pass", timing
+
+
+# --- QoR baseline (#152) ---------------------------------------------------
+
+def _clean_behavior(extra_metrics):
+    """A completed flow whose final/metrics.json carries `extra_metrics`."""
+    def behavior(cwd):
+        run_dir = cwd / "runs" / "run"
+        final = run_dir / "final"
+        for fmt in check_harden.EXPECTED_FORMATS:
+            if fmt == "metrics.json":
+                final.mkdir(parents=True, exist_ok=True)
+                (final / "metrics.json").write_text(json.dumps(
+                    {"design__instance__count": 42, **CLEAN_SIGNOFF_METRICS,
+                     **extra_metrics}), encoding="utf-8")
+            else:
+                d = final / fmt
+                d.mkdir(parents=True, exist_ok=True)
+                (d / f"tt_um_counter8.{fmt}").write_text("x", encoding="utf-8")
+        (final / "odb").mkdir(parents=True, exist_ok=True)
+        (final / "odb" / "tt_um_counter8.odb").write_text("x", encoding="utf-8")
+        (run_dir / "flow.log").write_text("Flow complete.\n", encoding="utf-8")
+        return subprocess.CompletedProcess(["eda", "librelane"], 0, stdout="", stderr="")
+    return behavior
+
+
+def _harden(ws, monkeypatch, capsys, setup_ws):
+    import shutil
+    shutil.rmtree(ws / "runs", ignore_errors=True)
+    monkeypatch.setattr(check_harden.subprocess, "run", _fake_run_factory(
+        _clean_behavior({"timing__setup__ws": setup_ws})))
+    code = check_harden.main(["--workspace", str(ws)])
+    return code, json.loads(capsys.readouterr().out)
+
+
+def _record(ws, report):
+    """What gate.py's write_recorded_copy leaves: the gate result, the
+    check's extra keys under facts."""
+    rec = ws / "reports" / "recorded"
+    rec.mkdir(parents=True, exist_ok=True)
+    (rec / "gate-harden.json").write_text(json.dumps({
+        "gate": "harden", "status": "pass", "recorded_ts": "2026-11-01T00:00:00Z",
+        "facts": {"qor": report["qor"]}}), encoding="utf-8")
+
+
+def _gate(report):
+    import gate
+    return gate.evaluate("harden", gate.load_gates(gate.DEFAULT_GATES)["vde"]["harden"],
+                         report)
+
+
+def test_first_harden_says_no_baseline(tmp_path, monkeypatch, capsys):
+    ws = make_ws(tmp_path)
+    code, out = _harden(ws, monkeypatch, capsys, 1.0)
+    assert code == 0 and out["violations"] == []
+    d = out["qor_diff"]
+    assert d["baseline"] == "none" and "no baseline" in d["summary"]
+    assert "no regressions" not in d["summary"]
+
+
+def test_a_baseline_without_qor_is_not_clean(tmp_path, monkeypatch, capsys):
+    ws = make_ws(tmp_path)
+    rec = ws / "reports" / "recorded"
+    rec.mkdir(parents=True)
+    (rec / "gate-harden.json").write_text(json.dumps(
+        {"gate": "harden", "status": "pass", "facts": {}}), encoding="utf-8")
+    code, out = _harden(ws, monkeypatch, capsys, 1.0)
+    assert code == 0
+    d = out["qor_diff"]
+    assert d["baseline"] == "no_qor" and "baseline has no QoR" in d["summary"]
+    assert "regressions" not in d
+
+
+def test_rerecorded_harden_with_worse_slack_shows_the_regression(
+        tmp_path, monkeypatch, capsys):
+    ws = make_ws(tmp_path)
+    _, first = _harden(ws, monkeypatch, capsys, 1.0)
+    _record(ws, first)
+    # the same slack again: compared, clean
+    code, same = _harden(ws, monkeypatch, capsys, 1.0)
+    assert code == 0 and same["qor_diff"]["baseline"] == "recorded"
+    assert same["qor_diff"]["regressions"] == []
+    assert same["qor_diff"]["summary"] == "no regressions"
+    # worse setup slack: a regression in qor_diff, a warning that the gate
+    # passes (the report has a violation, so the check exits 1)
+    code, worse = _harden(ws, monkeypatch, capsys, 0.5)
+    d = worse["qor_diff"]
+    assert [r["metric"] for r in d["regressions"]] == ["setup_ws"]
+    assert d["regressions"][0]["old"] == 1.0 and d["regressions"][0]["new"] == 0.5
+    assert d["baseline_ts"] == "2026-11-01T00:00:00Z"
+    assert "setup_ws 1.0 -> 0.5" in d["summary"]
+    v = [x for x in worse["violations"] if x["kind"] == "qor_regression"]
+    assert len(v) == 1 and v[0]["severity"] == "warning"
+    assert code == 1
+    assert _gate(worse)["status"] == "pass"
+
+
+def test_spec_opt_in_makes_a_regression_fail(tmp_path, monkeypatch, capsys):
+    ws = make_ws(tmp_path)
+    import yaml
+    spec_path = ws / "spec" / "spec.yaml"
+    spec = yaml.safe_load(spec_path.read_text())
+    spec["harden_signoff"] = {"qor_regressions": "error"}
+    spec_path.write_text(yaml.safe_dump(spec), encoding="utf-8")
+    _, first = _harden(ws, monkeypatch, capsys, 1.0)
+    _record(ws, first)
+    code, worse = _harden(ws, monkeypatch, capsys, 0.5)
+    v = [x for x in worse["violations"] if x["kind"] == "qor_regression"]
+    assert len(v) == 1 and v[0]["severity"] == "error"
+    assert _gate(worse)["status"] != "pass"
+
+
+def test_a_bad_qor_regressions_value_is_malformed(tmp_path):
+    from speclib import harden_signoff
+    assert harden_signoff({"harden_signoff": {"qor_regressions": "warning"}}) == \
+        {"qor_regressions": "warning"}
+    assert harden_signoff({"harden_signoff": {"qor_regressions": "loud"}}) is None

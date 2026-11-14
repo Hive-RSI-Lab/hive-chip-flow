@@ -657,11 +657,14 @@ def harden_signoff(spec: dict) -> dict | None:
     """spec.yaml's optional `harden_signoff` ({} when absent), or None when
     malformed: ir_budget_pct a number in (0, 100], floating_nets_waived and
     drv_pins_waived each a mapping of net or pin name to a non-empty
-    reason."""
+    reason, qor_regressions "warning" (the default) or "error" (#152: a
+    QoR regression against the recorded harden fails the gate)."""
     hs = spec.get("harden_signoff", {}) if isinstance(spec, dict) else {}
     if not isinstance(hs, dict) \
             or set(hs) - {"ir_budget_pct", "floating_nets_waived",
-                          "drv_pins_waived"}:
+                          "drv_pins_waived", "qor_regressions"}:
+        return None
+    if hs.get("qor_regressions", "warning") not in ("warning", "error"):
         return None
     if "ir_budget_pct" in hs:
         v = hs["ir_budget_pct"]
@@ -1024,8 +1027,9 @@ def lint_spec(spec: dict, rel_path: str = "spec/spec.yaml") -> list[dict]:
     if harden_signoff(spec) is None:
         bad("bad_harden_signoff",
             "'harden_signoff' takes ir_budget_pct (a number in (0, 100]), "
-            "floating_nets_waived ({net: non-empty reason}) and "
-            "drv_pins_waived ({pin: non-empty reason}), nothing else")
+            "floating_nets_waived ({net: non-empty reason}), "
+            "drv_pins_waived ({pin: non-empty reason}) and qor_regressions "
+            "(warning or error), nothing else")
 
     clock = spec.get("clock")
     if clock is not None:

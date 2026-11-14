@@ -275,6 +275,31 @@ def test_check_all_fills_the_cache_the_score_reads(tmp_path, monkeypatch):
     assert ran == ["lint", "sim", "lint", "sim"] and score.block_share(b, {})[0] == 1
 
 
+def test_check_all_prints_a_harden_regression_against_the_record(
+        tmp_path, monkeypatch, capsys):
+    """#152: a harden re-recorded with worse slack shows the regression in
+    check-all's output, from the gate result's facts.qor_diff; a first
+    harden says "no baseline"."""
+    sys.path.insert(0, str(ROOT / "engine" / "lib"))
+    import qorlib
+    root = _repo(tmp_path, monkeypatch)
+    old = qorlib.extract({"timing__setup__ws": 1.0, "design__instance__count": 42})
+    new = qorlib.extract({"timing__setup__ws": 0.5, "design__instance__count": 42})
+    prev = {"recorded_ts": "2026-11-01T00:00:00Z", "facts": {"qor": old}}
+    diffs = {"lint": qorlib.baseline_diff(None, old),
+             "sim": qorlib.baseline_diff(prev, new)}
+
+    def gate(ws, skill, g, logs, tag, timeout=None):
+        (logs / f"{tag}-{g}.json").write_text(json.dumps(
+            {"status": "pass", "facts": {"qor_diff": diffs[g]}}))
+        return True, "pass"
+    assert _check_all(root, monkeypatch, gate) == 0
+    out = capsys.readouterr().out
+    assert "qor vs recorded: no baseline" in out
+    assert ("qor vs recorded of 2026-11-01T00:00:00Z: 1 regression(s): "
+            "setup_ws 1.0 -> 0.5") in out
+
+
 def test_a_step_cut_off_by_the_budget_is_not_clean(tmp_path, monkeypatch):
     import check_all
     root = _repo(tmp_path, monkeypatch)

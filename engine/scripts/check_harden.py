@@ -78,6 +78,13 @@ names the pins from that corner's checks.rpt. A pin in spec.yaml's
 `harden_signoff.drv_pins_waived: {pin: reason}` does not count; a count the
 report does not name in full cannot be excused.
 
+QoR baseline (#152): the recorded harden this run replaces
+(reports/recorded/gate-harden.json) is its baseline. `qor_diff` in the report
+lists regressions, lost metrics and version changes against it, or says "no
+baseline" / "baseline has no QoR" when nothing could be compared. Each
+regression is a `qor_regression` warning; `harden_signoff.qor_regressions:
+error` makes it fail the gate.
+
 Floating nets carry their names in the log of the step that counted them.
 TT's repair step counts the power nets, so every TT harden records at least
 VPWR and VGND there: a named power net does not count. A count the log does
@@ -491,7 +498,8 @@ def run(argv=None):
     if signoff is None:
         raise CheckError("spec.yaml 'harden_signoff' is malformed: it takes "
                          "ir_budget_pct (0-100), floating_nets_waived "
-                         "({net: reason}) and drv_pins_waived ({pin: reason})"
+                         "({net: reason}), drv_pins_waived ({pin: reason}) "
+                         "and qor_regressions (warning|error)"
                          " - run spec_lint and fix it")
 
     rtl_dir = ws / "rtl"
@@ -648,11 +656,33 @@ def run(argv=None):
                 "final design was checked", "check_harden",
                 resumed=resumed, wall_s=wall_s))
 
+    # The recorded harden this run replaces is its baseline (#152): gate.py
+    # overwrites reports/recorded/gate-harden.json only after this returns.
+    # A regression is a warning unless harden_signoff.qor_regressions says
+    # error; no baseline, or one with no QoR, says so and is never clean.
+    qor_diff = None
+    if qor is not None:
+        prev_path = ws / "reports" / "recorded" / "gate-harden.json"
+        try:
+            prev = json.loads(prev_path.read_text(encoding="utf-8")) \
+                if prev_path.is_file() else None
+        except (OSError, ValueError):
+            prev = {}
+        qor_diff = qorlib.baseline_diff(prev, qor)
+        sev = signoff.get("qor_regressions", "warning")
+        for r in qor_diff.get("regressions", []):
+            violations.append(checklib.violation(
+                "harden", sev, None, top, "qor_regression", [r["metric"]],
+                f"{r['metric']} {r['old']} -> {r['new']} {r['unit']} against "
+                f"the recorded harden of {qor_diff['baseline_ts']} (better is "
+                f"{r['better']})", "check_harden", **r))
+
     payload = checklib.report(SCRIPT, ws / "rtl", violations, top=top,
                               run_tag=args.run_tag, resumed=resumed,
                               wall_s=wall_s,
                               run_dir=str(run_dir), metrics=metric_subset,
-                              qor=qor, signoff_metrics=signoff_table,
+                              qor=qor, qor_diff=qor_diff,
+                              signoff_metrics=signoff_table,
                               connectivity=connectivity,
                               pad_reset=pad_reset)
     return payload, args.out

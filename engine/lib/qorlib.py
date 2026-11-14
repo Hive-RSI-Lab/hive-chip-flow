@@ -14,6 +14,10 @@ of the generated config.json and of resolved.json.
 
 `diff` compares two records against THRESHOLDS and returns regressions,
 metrics the new run lost, metrics it could not compare, and version changes.
+
+`baseline_diff` (#152) is what harden does with the run it replaces: the
+recorded gate result's QoR is the baseline, and the diff says "no baseline"
+or "baseline has no QoR" when there is nothing to compare, never clean.
 """
 from __future__ import annotations
 
@@ -255,6 +259,45 @@ def diff(old: dict, new: dict, thresholds: dict | None = None) -> dict:
             "versions_changed": versions_changed,
             "config_changed": old.get("config_sha256") != new.get("config_sha256"),
             "thresholds": th}
+
+
+def record_of(obj) -> dict | None:
+    """The QoR record in a harden report or recorded gate result (its
+    `qor` or `facts.qor`), or None."""
+    if not isinstance(obj, dict):
+        return None
+    for q in (obj.get("qor"), (obj.get("facts") or {}).get("qor")):
+        if isinstance(q, dict):
+            return q
+    return None
+
+
+def baseline_diff(prev: dict | None, new: dict,
+                  thresholds: dict | None = None) -> dict:
+    """{baseline, baseline_ts, ...diff} of a new harden's QoR against the
+    recorded run it replaces (#152). baseline is "recorded" with the diff's
+    keys, "none" (no recorded run) or "no_qor" (a record from before #65):
+    the last two compare nothing and say so."""
+    ts = prev.get("recorded_ts") if isinstance(prev, dict) else None
+    if prev is None:
+        return {"baseline": "none", "baseline_ts": None,
+                "summary": "no baseline: the first recorded harden"}
+    old = record_of(prev)
+    if old is None:
+        return {"baseline": "no_qor", "baseline_ts": ts,
+                "summary": "baseline has no QoR (recorded before #65): "
+                           "nothing compared"}
+    d = diff(old, new, thresholds)
+    parts = [f"{r['metric']} {r['old']} -> {r['new']}"
+             for r in d["regressions"]]
+    summary = (f"{len(parts)} regression(s): {'; '.join(parts)}" if parts
+               else "no regressions")
+    if d["lost"]:
+        summary += f"; lost {', '.join(d['lost'])}"
+    if d["versions_changed"]:
+        summary += f"; versions changed: {', '.join(d['versions_changed'])}"
+    return {"baseline": "recorded", "baseline_ts": ts, "summary": summary,
+            **d}
 
 
 def reproducible(rec: dict, env: dict, pdk: dict | None = None) -> list[str]:
