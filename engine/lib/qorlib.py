@@ -272,32 +272,68 @@ def record_of(obj) -> dict | None:
     return None
 
 
-def baseline_diff(prev: dict | None, new: dict,
-                  thresholds: dict | None = None) -> dict:
-    """{baseline, baseline_ts, ...diff} of a new harden's QoR against the
-    recorded run it replaces (#152). baseline is "recorded" with the diff's
-    keys, "none" (no recorded run) or "no_qor" (a record from before #65):
-    the last two compare nothing and say so."""
-    ts = prev.get("recorded_ts") if isinstance(prev, dict) else None
+def baseline_of(prev) -> tuple[str, dict | None]:
+    """(state, {recorded_ts, qor} or None): what a new harden compares with,
+    from the recorded gate result it replaces. Only a passing harden is a
+    baseline; a failed one carries forward the baseline it was judged
+    against (its facts.qor_diff.qor_baseline), so a failed attempt between two
+    passing ones hides nothing. state is "recorded", "none" (no record),
+    "unreadable", "no_qor" (a passing record from before #65) or
+    "failed_only" (only failed hardens, none carrying a baseline)."""
     if prev is None:
-        return {"baseline": "none", "baseline_ts": None,
-                "summary": "no baseline: the first recorded harden"}
-    old = record_of(prev)
-    if old is None:
-        return {"baseline": "no_qor", "baseline_ts": ts,
-                "summary": "baseline has no QoR (recorded before #65): "
-                           "nothing compared"}
-    d = diff(old, new, thresholds)
-    parts = [f"{r['metric']} {r['old']} -> {r['new']}"
-             for r in d["regressions"]]
-    summary = (f"{len(parts)} regression(s): {'; '.join(parts)}" if parts
-               else "no regressions")
+        return "none", None
+    if not isinstance(prev, dict):
+        return "unreadable", None
+    if prev.get("status") == "pass":
+        q = record_of(prev)
+        if q is None:
+            return "no_qor", None
+        return "recorded", {"recorded_ts": prev.get("recorded_ts"), "qor": q}
+    qd = prev.get("qor_diff") or (prev.get("facts") or {}).get("qor_diff")
+    carried = qd.get("qor_baseline") if isinstance(qd, dict) else None
+    if isinstance(carried, dict) and isinstance(carried.get("qor"), dict):
+        return "recorded", carried
+    return "failed_only", None
+
+
+_NOTHING = {
+    "none": "no baseline: the first recorded harden",
+    "unreadable": "baseline unreadable (reports/recorded/gate-harden.json is "
+                  "not a JSON object): nothing compared",
+    "no_qor": "baseline has no QoR (recorded before #65): nothing compared",
+    "failed_only": "baseline is a failed harden with no passing one before "
+                   "it: nothing compared",
+}
+
+
+def baseline_diff(prev, new: dict, thresholds: dict | None = None) -> dict:
+    """{baseline, baseline_ts, summary, ...diff} of a new harden's QoR
+    against the baseline_of() the recorded result it replaces (#152), plus
+    `compared` (how many metrics both runs have) and `qor_baseline` (the
+    baseline itself, carried forward by a failed run). Anything other than
+    a baseline with at least one compared metric says what is missing, never
+    "no regressions"."""
+    state, base = baseline_of(prev)
+    if base is None:
+        return {"baseline": state, "baseline_ts": None,
+                "summary": _NOTHING[state]}
+    d = diff(base["qor"], new, thresholds)
+    had = {n for n, v, _, _ in _rows(base["qor"]) if v is not None}
+    compared = sum(1 for n, nv, _, _ in _rows(new) if nv is not None and n in had)
+    parts = [f"{r['metric']} {r['old']} -> {r['new']}" for r in d["regressions"]]
+    if parts:
+        summary = f"{len(parts)} regression(s): {'; '.join(parts)}"
+    elif compared <= 0:
+        summary = "nothing compared: the baseline has no metric this run has"
+    else:
+        summary = f"no regressions in {compared} compared metric(s)"
     if d["lost"]:
         summary += f"; lost {', '.join(d['lost'])}"
     if d["versions_changed"]:
         summary += f"; versions changed: {', '.join(d['versions_changed'])}"
-    return {"baseline": "recorded", "baseline_ts": ts, "summary": summary,
-            **d}
+    return {"baseline": state, "baseline_ts": base.get("recorded_ts"),
+            "summary": summary, "compared": compared, **d,
+            "qor_baseline": base}
 
 
 def reproducible(rec: dict, env: dict, pdk: dict | None = None) -> list[str]:

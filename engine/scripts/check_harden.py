@@ -81,8 +81,10 @@ report does not name in full cannot be excused.
 QoR baseline (#152): the recorded harden this run replaces
 (reports/recorded/gate-harden.json) is its baseline. `qor_diff` in the report
 lists regressions, lost metrics and version changes against it, or says "no
-baseline" / "baseline has no QoR" when nothing could be compared. Each
-regression is a `qor_regression` warning; `harden_signoff.qor_regressions:
+baseline" / "baseline has no QoR" / "nothing compared" when nothing could
+be. Only a passing record is a baseline: a failed one carries forward the
+baseline it was judged against (qor_diff.qor_baseline). Each regression of a
+finished flow is a `qor_regression` warning; `harden_signoff.qor_regressions:
 error` makes it fail the gate.
 
 Floating nets carry their names in the log of the step that counted them.
@@ -667,14 +669,18 @@ def run(argv=None):
             prev = json.loads(prev_path.read_text(encoding="utf-8")) \
                 if prev_path.is_file() else None
         except (OSError, ValueError):
-            prev = {}
+            prev = "unreadable"
         qor_diff = qorlib.baseline_diff(prev, qor)
+        # a failed flow's partial metrics are not a design's QoR: it already
+        # has its finding, and is compared but never flagged
         sev = signoff.get("qor_regressions", "warning")
-        for r in qor_diff.get("regressions", []):
+        for r in (qor_diff.get("regressions", []) if proc.returncode == 0
+                  else []):
+            unit = f" {r['unit']}" if r["unit"] else ""
             violations.append(checklib.violation(
                 "harden", sev, None, top, "qor_regression", [r["metric"]],
-                f"{r['metric']} {r['old']} -> {r['new']} {r['unit']} against "
-                f"the recorded harden of {qor_diff['baseline_ts']} (better is "
+                f"{r['metric']} {r['old']} -> {r['new']}{unit} against the "
+                f"recorded harden of {qor_diff['baseline_ts']} (better is "
                 f"{r['better']})", "check_harden", **r))
 
     payload = checklib.report(SCRIPT, ws / "rtl", violations, top=top,

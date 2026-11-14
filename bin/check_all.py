@@ -66,6 +66,7 @@ def run_gate(ws: Path, skill: str, gate: str, logs: Path, tag: str,
     seconds (it and its process group are killed)."""
     out = logs / f"{tag}-{gate}.json"
     log = logs / f"{tag}-{gate}.log"
+    out.unlink(missing_ok=True)   # a reused --keep dir: never read a past run
     with log.open("w") as f:
         p = subprocess.Popen([EDA, "python", GATE, "--gate", gate, "--skill", skill,
                               "--workspace", str(ws), "--out", str(out)],

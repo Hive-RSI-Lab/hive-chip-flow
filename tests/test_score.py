@@ -285,7 +285,8 @@ def test_check_all_prints_a_harden_regression_against_the_record(
     root = _repo(tmp_path, monkeypatch)
     old = qorlib.extract({"timing__setup__ws": 1.0, "design__instance__count": 42})
     new = qorlib.extract({"timing__setup__ws": 0.5, "design__instance__count": 42})
-    prev = {"recorded_ts": "2026-11-01T00:00:00Z", "facts": {"qor": old}}
+    prev = {"status": "pass", "recorded_ts": "2026-11-01T00:00:00Z",
+            "facts": {"qor": old}}
     diffs = {"lint": qorlib.baseline_diff(None, old),
              "sim": qorlib.baseline_diff(prev, new)}
 

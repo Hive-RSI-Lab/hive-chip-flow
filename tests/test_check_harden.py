@@ -612,14 +612,15 @@ def _harden(ws, monkeypatch, capsys, setup_ws):
     return code, json.loads(capsys.readouterr().out)
 
 
-def _record(ws, report):
+def _record(ws, report, status="pass", ts="2026-11-01T00:00:00Z"):
     """What gate.py's write_recorded_copy leaves: the gate result, the
     check's extra keys under facts."""
     rec = ws / "reports" / "recorded"
     rec.mkdir(parents=True, exist_ok=True)
+    facts = {k: report[k] for k in ("qor", "qor_diff") if k in report}
     (rec / "gate-harden.json").write_text(json.dumps({
-        "gate": "harden", "status": "pass", "recorded_ts": "2026-11-01T00:00:00Z",
-        "facts": {"qor": report["qor"]}}), encoding="utf-8")
+        "gate": "harden", "status": status, "recorded_ts": ts,
+        "facts": facts}), encoding="utf-8")
 
 
 def _gate(report):
@@ -659,7 +660,8 @@ def test_rerecorded_harden_with_worse_slack_shows_the_regression(
     code, same = _harden(ws, monkeypatch, capsys, 1.0)
     assert code == 0 and same["qor_diff"]["baseline"] == "recorded"
     assert same["qor_diff"]["regressions"] == []
-    assert same["qor_diff"]["summary"] == "no regressions"
+    assert same["qor_diff"]["summary"].startswith("no regressions in ")
+    assert same["qor_diff"]["compared"] > 0
     # worse setup slack: a regression in qor_diff, a warning that the gate
     # passes (the report has a violation, so the check exits 1)
     code, worse = _harden(ws, monkeypatch, capsys, 0.5)
@@ -694,3 +696,50 @@ def test_a_bad_qor_regressions_value_is_malformed(tmp_path):
     assert harden_signoff({"harden_signoff": {"qor_regressions": "warning"}}) == \
         {"qor_regressions": "warning"}
     assert harden_signoff({"harden_signoff": {"qor_regressions": "loud"}}) is None
+
+
+def test_a_failed_record_carries_the_last_passing_baseline(
+        tmp_path, monkeypatch, capsys):
+    """A failed attempt between two hardens is no baseline: the next run is
+    compared with the last passing one, which the failed record carries."""
+    ws = make_ws(tmp_path)
+    _, good = _harden(ws, monkeypatch, capsys, 1.0)
+    _record(ws, good)
+    _, bad = _harden(ws, monkeypatch, capsys, 0.2)
+    _record(ws, {"qor": bad["qor"], "qor_diff": bad["qor_diff"]},
+            status="fail", ts="2026-11-02T00:00:00Z")
+    code, nxt = _harden(ws, monkeypatch, capsys, 0.5)
+    d = nxt["qor_diff"]
+    assert d["baseline_ts"] == "2026-11-01T00:00:00Z"
+    assert [(r["old"], r["new"]) for r in d["regressions"]] == [(1.0, 0.5)]
+
+
+def test_only_failed_records_compare_nothing(tmp_path, monkeypatch, capsys):
+    ws = make_ws(tmp_path)
+    _, bad = _harden(ws, monkeypatch, capsys, 0.2)
+    _record(ws, {"qor": bad["qor"]}, status="fail")
+    _, out = _harden(ws, monkeypatch, capsys, 0.5)
+    d = out["qor_diff"]
+    assert d["baseline"] == "failed_only" and "nothing compared" in d["summary"]
+    assert "regressions" not in d
+
+
+@pytest.mark.parametrize("text", ["{not json", "[1, 2]"])
+def test_an_unreadable_baseline_says_so(tmp_path, monkeypatch, capsys, text):
+    ws = make_ws(tmp_path)
+    rec = ws / "reports" / "recorded"
+    rec.mkdir(parents=True)
+    (rec / "gate-harden.json").write_text(text, encoding="utf-8")
+    _, out = _harden(ws, monkeypatch, capsys, 1.0)
+    d = out["qor_diff"]
+    assert d["baseline"] == "unreadable" and "unreadable" in d["summary"]
+
+
+def test_a_baseline_with_no_shared_metric_is_not_clean():
+    import qorlib
+    old = qorlib.extract({})
+    new = qorlib.extract({"timing__setup__ws": 0.5})
+    d = qorlib.baseline_diff({"status": "pass", "facts": {"qor": old}}, new)
+    assert d["compared"] == 0 and d["regressions"] == []
+    assert d["summary"].startswith("nothing compared")
+    assert "no regressions" not in d["summary"]
