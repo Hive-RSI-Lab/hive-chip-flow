@@ -25,9 +25,10 @@ Fetched with git, pinned at these commits (M4, docs/design.md "### M4."):
   Apache-2.0 (`LICENSE`). Kept: `tech.py` (the per-PDK LibreLane config
   `ttlib.py` imports directly - `tech_map["gf180mcuD"]` - rather than
   copying its numbers by hand), `tech/gf180mcuD/tile_sizes.yaml` (DIE_AREA
-  per tile count) and `tech/gf180mcuD/def/tt_block_1x1_pgvdd.def` (the fixed
-  IO pin placement template, the "pin constraints come from the template"
-  half), and the whole `precheck/` tool (`precheck.py` and its siblings) -
+  per tile count) and `tech/gf180mcuD/def/tt_block_<tiles>_pgvdd.def` for
+  every digital size tile_sizes.yaml lists (1x1 to 4x8: the fixed IO pin
+  placement template, the "pin constraints come from the template" half;
+  a spec's `tiles:` picks one, as corpus/vde/riscv does), and the whole `precheck/` tool (`precheck.py` and its siblings) -
   the signoff check the shuttle itself runs before accepting a submission.
   The analog tile (tt-analog-tile) adds, from the same commit,
   `tech/gf180mcuD/def/analog/tt_analog_{1x2,2x2,3x2,4x2}.def` and their

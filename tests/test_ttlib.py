@@ -41,6 +41,20 @@ def test_tile_die_area_reads_the_vendored_tile_sizes_yaml():
         ttlib.tile_die_area("9x9")
 
 
+def test_every_digital_tile_size_has_a_vendored_def_template():
+    """A spec's `tiles:` (corpus/vde/riscv uses 3x4) reaches harden as
+    FP_DEF_TEMPLATE, so every size tile_sizes.yaml lists needs its
+    tt_block_<tiles>_pgvdd.def, with the same digital pins as 1x1."""
+    import yaml
+    sizes = yaml.safe_load(ttlib.TILE_SIZES_YAML.read_text(encoding="utf-8"))
+    for tiles in sizes:
+        assert ttlib.def_template_path(tiles).is_file(), tiles
+        assert ttlib.pin_budget(tiles) == ttlib.pin_budget(), tiles
+    spec = dict(COUNTER8_SPEC, tiles="3x4")
+    assert ttlib.spec_tiles(spec) == "3x4"
+    assert ttlib.validate_tt_pins(spec) == []
+
+
 def test_clean_spec_validates_with_no_problems():
     assert ttlib.validate_tt_pins(COUNTER8_SPEC) == []
 

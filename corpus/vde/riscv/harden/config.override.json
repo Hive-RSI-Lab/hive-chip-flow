@@ -1,0 +1,5 @@
+{
+  "//": "1550 flops of register file and memory make nets with hundreds of loads; OpenROAD's repair_design buffered them with dly* delay cells (~1.7ns each, 1358 of them), which put ~20ns of pure delay on the critical path and made post-CTS timing repair run 40 minutes. Excluding them leaves the ordinary buf/clkbuf cells. At the template's 60% density, post-GRT repair could not legalise its buffers (DPL-0036); 50% leaves room.",
+  "EXTRA_EXCLUDED_CELLS": ["gf180mcu_fd_sc_mcu7t5v0__dly*"],
+  "PL_TARGET_DENSITY_PCT": 50
+}

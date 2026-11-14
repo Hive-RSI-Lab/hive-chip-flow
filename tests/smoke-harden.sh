@@ -30,6 +30,12 @@ cp "$REPO/corpus/vde/$RUNG/spec.md" "$WORK/spec/spec.md"
 cp "$REPO/corpus/vde/$RUNG/spec.yaml" "$WORK/spec/spec.yaml"
 cp "$REPO/corpus/vde/$RUNG"/rtl/*.v "$WORK/rtl/"
 cp "$REPO/corpus/vde/$RUNG"/tb/*.py "$WORK/tb/" 2>/dev/null
+# a rung's own harden/config.override.json (riscv's placement density) is a
+# harden input like its spec
+if [ -f "$REPO/corpus/vde/$RUNG/harden/config.override.json" ]; then
+  mkdir -p "$WORK/harden"
+  cp "$REPO/corpus/vde/$RUNG/harden/config.override.json" "$WORK/harden/"
+fi
 
 PASS=0
 FAIL=0
@@ -59,10 +65,13 @@ while [ "$STATUS" = running ]; do
   STATUS="$(echo "$STATUS_JSON" | "$EDA" python3 -c "import json,sys; print(json.load(sys.stdin)['jobs']['$JOB_ID']['status'])")"
   echo "  job $JOB_ID: $STATUS"
 done
-if [ "$STATUS" = done ]; then
+# a job that ran to the end is "done" whatever the gate decided; the gate's
+# verdict is the job's exit code
+EXIT_CODE="$(echo "$STATUS_JSON" | "$EDA" python3 -c "import json,sys; print((json.load(sys.stdin)['jobs']['$JOB_ID'].get('result') or {}).get('exit_code'))")"
+if [ "$STATUS" = done ] && [ "$EXIT_CODE" = 0 ]; then
   echo "harden: PASS"; PASS=$((PASS + 1))
 else
-  echo "harden: FAIL ($STATUS) - see $WORK/log/jobs/job-$JOB_ID.log"; FAIL=$((FAIL + 1))
+  echo "harden: FAIL ($STATUS, exit $EXIT_CODE) - see $WORK/log/jobs/job-$JOB_ID.log"; FAIL=$((FAIL + 1))
 fi
 
 for gate in timing drc lvs glsim precheck; do

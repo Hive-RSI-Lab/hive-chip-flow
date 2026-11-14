@@ -23,7 +23,7 @@ import rv_model as rv
 from rv_model import (EBREAK, ECALL, MEM_BYTES, Model, branch, iop, jal,
                       jalr, li, load, rop, store, to_bytes)
 
-CLK_PERIOD_NS = 40  # spec.yaml clocks.period_ns; glsim runs it at ss
+CLK_PERIOD_NS = 100  # spec.yaml clocks.period_ns; glsim runs it at ss
 CLOCKS_PER_STEP_MAX = 4  # spec.md: at most 4 clocks per instruction
 
 

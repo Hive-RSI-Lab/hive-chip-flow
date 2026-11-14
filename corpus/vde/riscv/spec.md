@@ -5,7 +5,8 @@ the RV32E register file (x0 to x15), one 128-byte memory shared by code and
 data, a byte-wide loader to fill it and a byte-wide debug port to read the
 registers and memory back once the program stops. Fourth and top rung on the
 `/vde` corpus ladder (docs/design.md section 3). Its pins fit a Tiny Tapeout
-tile, but its logic is larger than one GF180 tile holds.
+tile, but its logic is larger than one GF180 tile holds, so it hardens on a
+3x4 tile area (`tiles: 3x4` in spec.yaml).
 
 ## Behaviour
 

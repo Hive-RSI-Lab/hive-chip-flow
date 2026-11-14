@@ -10,7 +10,7 @@ from cocotb.clock import Clock
 from cocotb.triggers import FallingEdge, Timer
 from padreset import pad_reset
 
-CLK_PERIOD_NS = 40  # spec.yaml clocks.period_ns; glsim runs it at ss
+CLK_PERIOD_NS = 100  # spec.yaml clocks.period_ns; glsim runs it at ss
 EBREAK = 0x00100073
 MASK = 0xFFFFFFFF
 

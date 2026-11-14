@@ -66,11 +66,12 @@ ports:
   halted: {dir: output, width: 1}
   illegal: {dir: output, width: 1}
 clock:
-  # 40ns (25MHz): a conservative CLOCK_PERIOD for the ALU-plus-memory-mux
-  # path of a flop-based 128-byte memory, wider than uart/spi_fifo's. This
-  # rung has not been through harden or timing yet (its faults manifest
-  # does not name them), so the number is a starting point, not a result.
-  period_ns: 40
+  # 100ns (10MHz): measured, not guessed. At 40ns the hardened core missed
+  # setup by ~34ns at the slow corner (max_ss) even after timing repair -
+  # the longest path, out to dout, arrives at ~70ns
+  # there - and nominal still missed by ~2ns. 100ns leaves that path the
+  # 20% IO budget plus margin at ss.
+  period_ns: 100
   domains: [clk]
 mutate:
   size: 24
@@ -81,9 +82,12 @@ formal:
 # fills ui_in and dout fills uo_out; we/run borrow two uio_in bits as plain
 # inputs, halted/illegal ride on uio_out (their uio_oe bits driven high by
 # engine/lib/ttlib.py::generate_tt_wrapper). rst is active-high inside
-# rv_core, hence the `~`. The pins fit a tile; the logic (about 1500 flops
-# of register file and memory) is larger than one GF180 tile holds, which is
-# part of why this rung may stay red on the ladder.
+# rv_core, hence the `~`. The pins fit a tile but the logic does not: about
+# 1550 flops of register file and memory synthesise to ~258k um^2 of cells,
+# while one GF180 tile (346.64 x 160.72 um) holds ~26k at the template's 60%
+# placement density. 3x4 (1075.76 x 736.96 um, the vendored tile_sizes.yaml)
+# leaves room to route; 4x2 would sit at ~60% of its core with no margin.
+tiles: 3x4
 tt_pins:
   clk: clk
   rst: ~rst_n
