@@ -1067,3 +1067,66 @@ def test_cli_writes_one_lib_per_default_corner(tmp_path, capsys):
         zn = [p for p in lib.sub("cell")[0].sub("pin") if p.args == "ZN"][0]
         delays[name] = charlib.table(zn.sub("timing")[0].sub("cell_rise")[0])[0][0]
     assert delays["ff"] < delays["tt"] < delays["ss"]
+
+
+DRIVER = """  normalized_driver_waveform(ndw) {
+    driver_waveform_name : "driver_waveform_default_rise" ;
+    index_1("1, 2");
+    index_2("0, 0.3, 0.7, 1");
+    values("0, 0.2, 0.7, 1.5", "0, 0.4, 1.4, 3");
+  }
+  normalized_driver_waveform(ndw) {
+    driver_waveform_name : "driver_waveform_default_fall" ;
+    index_1("1, 2");
+    index_2("0, 0.3, 0.7, 1");
+    values("0, 0.1, 0.6, 1", "0, 0.2, 1.2, 2");
+  }
+"""
+
+
+def test_driver_waveform_shapes_the_edge_and_falls_back_to_the_ramp():
+    header, _ = charlib.split_library(LIBTEXT, "x__inv")
+    plain = charlib.terms_of(charlib.parse_liberty(header + "}\n"))
+    assert plain.driver == ()
+    # no waveform in the template: the linear ramp of ramp_of
+    assert charlib.driver_edge(plain, 1.0, True) == [(0.0, 0.0), (1.25, 1.0)]
+    assert charlib.driver_edge(plain, 1.0, False) == [(0.0, 1.0), (1.25, 0.0)]
+    t = charlib.terms_of(charlib.parse_liberty(header + DRIVER + "}\n"))
+    assert t.driver_fracs == (0.0, 0.3, 0.7, 1.0)
+    assert charlib.driver_edge(t, 1.0, True) == [
+        (0.0, 0.0), (0.2, 0.3), (0.7, 0.7), (1.5, 1.0)]
+    # the fall table is its own, and falls from 1 to 0
+    assert charlib.driver_edge(t, 1.0, False) == [
+        (0.0, 1.0), (0.1, 0.7), (0.6, 0.30000000000000004), (1.0, 0.0)]
+    # between rows linear, outside them the nearest row scaled by the slew
+    assert charlib.driver_edge(t, 1.5, True)[-1] == pytest.approx((2.25, 1.0))
+    assert charlib.driver_edge(t, 4.0, True)[-1] == pytest.approx((6.0, 1.0))
+    assert charlib.driver_edge(t, 0.5, True)[-1] == pytest.approx((0.75, 1.0))
+    # a waveform for one edge only, or a non-monotonic one, is refused
+    with pytest.raises(charlib.Refused):
+        charlib.terms_of(charlib.parse_liberty(
+            header + DRIVER.split("  }\n")[0] + "  }\n}\n"))
+    with pytest.raises(charlib.Refused):
+        charlib.terms_of(charlib.parse_liberty(
+            header + DRIVER.replace("0, 0.3, 0.7, 1", "0, 0.7, 0.3, 1", 1)
+            + "}\n"))
+
+
+def test_shim_turns_lctime_ramp_back_into_the_driver_shape():
+    import dataclasses
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("shim_t", charlib.SHIM)
+    try:
+        shim = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(shim)
+    except ImportError:
+        pytest.skip("lctime is not importable here (runs under eda)")
+    header, _ = charlib.split_library(LIBTEXT, "x__inv")
+    t = charlib.terms_of(charlib.parse_liberty(header + DRIVER + "}\n"))
+    back = shim._terms_of_json(json.dumps(dataclasses.asdict(t)))
+    assert back == t
+    wave = shim.driver_step_wave(t)(start_time=1e-9, polarity=True,
+                                    rise_threshold=0, fall_threshold=1,
+                                    transition_time=charlib.ramp_of(1.0, t) * 1e-9)
+    assert list(wave.x) == pytest.approx([1e-9, 1.2e-9, 1.7e-9, 2.5e-9])
+    assert list(wave.y) == pytest.approx([0, 0.3, 0.7, 1])

@@ -337,6 +337,68 @@ class Terms:
     slew_upper: float
     input_threshold: float
     output_threshold: float
+    # the template's normalized_driver_waveform, () when it has none:
+    # (rise, fall), each ((library_slew, (time_ns...)), ...), and the VDD
+    # fractions those times are at (driver_of)
+    driver: tuple = ()
+    driver_fracs: tuple = ()
+
+
+def driver_of(header: Group) -> tuple[tuple, tuple]:
+    """(driver, fracs) from the header's normalized_driver_waveform groups
+    (issue #322): the input shape the library's tables were made with. One
+    unnamed group serves both edges; a "..._rise"/"..._fall" name picks one.
+    Its index_1 is the library slew, index_2 the VDD fraction, values the
+    time (library units) at which the edge reaches it."""
+    found, fracs = {}, None
+    for g in header.groups:
+        if g.name != "normalized_driver_waveform":
+            continue
+        name = (g.attr("driver_waveform_name") or "").strip('"').lower()
+        edges = ([e for e in ("rise", "fall") if name.endswith(e)]
+                 or ["rise", "fall"])
+        slews, f = numbers(g.attr("index_1")), numbers(g.attr("index_2"))
+        rows = table(g)
+        if (fracs not in (None, f) or len(rows) != len(slews)
+                or any(len(r) != len(f) for r in rows) or f[0] != 0
+                or f[-1] != 1 or any(b <= a for a, b in zip(f, f[1:]))
+                or any(b < a for r in rows for a, b in zip(r, r[1:]))):
+            raise Refused("bad_template",
+                          f"normalized_driver_waveform {name or g.args} is "
+                          f"not one monotonic 0..1 table")
+        fracs = f
+        for e in edges:
+            found[e] = tuple((s, tuple(r)) for s, r in zip(slews, rows))
+    if not found:
+        return (), ()
+    if set(found) != {"rise", "fall"}:
+        raise Refused("bad_template", "normalized_driver_waveform has only "
+                      f"a {', '.join(found)} edge")
+    return (found["rise"], found["fall"]), tuple(fracs)
+
+
+def driver_times(t: Terms, library_slew: float, rising: bool) -> list[float]:
+    """The times (ns, from the edge's start) at which the template's driver
+    reaches t.driver_fracs for this library slew: linear between its rows,
+    and the nearest row scaled by the slew outside them."""
+    rows = t.driver[0 if rising else 1]
+    for (s0, r0), (s1, r1) in zip(rows, rows[1:]):
+        if s0 <= library_slew <= s1:
+            w = (library_slew - s0) / (s1 - s0)
+            return [a + w * (b - a) for a, b in zip(r0, r1)]
+    s, r = rows[0] if library_slew < rows[0][0] else rows[-1]
+    return [x * library_slew / s for x in r]
+
+
+def driver_edge(t: Terms, library_slew: float, rising: bool):
+    """[(t_ns, fraction_of_vdd)] of one edge from its start, the template's
+    driver shape if it has one, else the linear ramp of ramp_of."""
+    if not t.driver:
+        r = ramp_of(library_slew, t)
+        return [(0.0, 0.0), (r, 1.0)] if rising else [(0.0, 1.0), (r, 0.0)]
+    times = driver_times(t, library_slew, rising)
+    return [(x - times[0], f if rising else 1.0 - f)
+            for x, f in zip(times, t.driver_fracs)]
 
 
 def terms_of(header: Group) -> Terms:
@@ -356,7 +418,8 @@ def terms_of(header: Group) -> Terms:
                  pct("slew_upper_threshold_pct_rise",
                      "slew_upper_threshold_pct_fall"),
                  pct("input_threshold_pct_rise", "input_threshold_pct_fall"),
-                 pct("output_threshold_pct_rise", "output_threshold_pct_fall"))
+                 pct("output_threshold_pct_rise", "output_threshold_pct_fall"),
+                 *driver_of(header))
 
 
 def ramp_of(library_slew: float, t: Terms) -> float:
@@ -518,7 +581,7 @@ def model_sections(corner: dict) -> list[str]:
 
 def run_lctime(cell, lib_in: Path, netlist: Path, out: Path, work: Path, *,
                pdk: Path, corner: dict, ramps, loads, clock_ramps=None,
-               timeout: float = 1800.0) -> None:
+               terms: Terms | None = None, timeout: float = 1800.0) -> None:
     (work / cell).mkdir(parents=True, exist_ok=True)
     models, design = model_files(pdk)
     argv = [str(EDA_BIN), "python", str(SHIM), "-l", str(lib_in),
@@ -542,6 +605,10 @@ def run_lctime(cell, lib_in: Path, netlist: Path, out: Path, work: Path, *,
     env["PATH"] = f"{tool_dir}{os.pathsep}{env.get('PATH', '')}"
     widest = max(clock_ramps or ramps)
     env["CHARLIB_CLOCK_PULSE_NS"] = str(max(2.0, 4 * widest))
+    if terms is not None and terms.driver:
+        env["CHARLIB_DRIVER_JSON"] = json.dumps(dataclasses.asdict(terms))
+    else:
+        env.pop("CHARLIB_DRIVER_JSON", None)
     try:
         proc = subprocess.run(argv, cwd=str(work), capture_output=True,
                               text=True, errors="replace", timeout=timeout,
@@ -833,6 +900,18 @@ def _ramp_edges(vdd, edges, end_ns):
         level = target
     points.append((end_ns, level))
     return "PWL(" + " ".join(f"{t:.6g}n {v:g}" for t, v in points) + ")"
+
+
+def _edge_pwl(bench, t0, library_slew, rises, end_ns):
+    """(PWL(...), length_ns): one input edge starting at t0, in the template's
+    driver shape (driver_edge), held before and after it until end_ns."""
+    shape = driver_edge(bench.terms, library_slew, rises)
+    v = bench.vdd
+    points = [(0.0, shape[0][1] * v)]
+    points += [(t0 + dt, f * v) for dt, f in shape]
+    points.append((end_ns, shape[-1][1] * v))
+    return ("PWL(" + " ".join(f"{t:.6g}n {y:g}" for t, y in points) + ")",
+            shape[-1][0])
 
 
 def _when(name, node, level, edge, cross="LAST"):
@@ -1499,7 +1578,8 @@ def _comb_arc_task(cell):
                 _tables_of(timing)
 
     def stim_and_span(b, out, related, side, in_rises, i, j, slews):
-        ramp = ramp_of(slews[i], b.terms)
+        ramp = max(ramp_of(slews[i], b.terms),
+                   driver_edge(b.terms, slews[i], in_rises)[-1][0])
         out_rises = eval_function(fn_of[out], {**side, related: in_rises})
         if (out, related) not in tables:
             raise Refused("lctime_failed",
@@ -1508,8 +1588,8 @@ def _comb_arc_task(cell):
         span = _settle(tables[(out, related)], out_rises, i, j, ramp)
         t0 = 1.0
         stim = {p: f"{b.vdd if v else 0:g}" for p, v in side.items()}
-        stim[related] = _ramp_edges(b.vdd, [(t0, ramp, in_rises)],
-                                    t0 + ramp + 1)
+        stim[related] = _edge_pwl(b, t0, slews[i], in_rises,
+                                  t0 + ramp + 1)[0]
         return stim, ramp, span, t0, out_rises
     return inputs, stim_and_span
 
@@ -1581,10 +1661,11 @@ def _measure_comb_power(bench, cell, slews, loads, jobs) -> dict:
         # each edge on its own run from the DC state before it (issue #322)
         h, i, rises = task
         related, side = hidden[h]
-        ramp = ramp_of(slews[i], b.terms)
+        ramp = max(ramp_of(slews[i], b.terms),
+                   driver_edge(b.terms, slews[i], rises)[-1][0])
         g, t0 = _gap(ramp), 1.0
         stim = {p: f"{b.vdd if v else 0:g}" for p, v in side.items()}
-        stim[related] = _ramp_edges(b.vdd, [(t0, ramp, rises)], t0 + g)
+        stim[related] = _edge_pwl(b, t0, slews[i], rises, t0 + g)[0]
         return _windows_energy(b, stim, out_pin, loads[0],
                                [(t0 - 0.05, t0 + g - 0.05)],
                                max(ramp / 100.0, 0.0005))[0]
@@ -2206,7 +2287,7 @@ def characterize(cell: str, *, template_lib: Path, corners: list[dict],
         raw = work / "lctime.lib"
         run_lctime(cell, lib_in, netlist, raw, work, pdk=pdk, corner=corner,
                    ramps=ramps, loads=loads,
-                   clock_ramps=cramps)
+                   clock_ramps=cramps, terms=terms)
         head = corner_header(header_text, library, vdd, corner["temp_c"], False,
                              name)
         out_cell, out_lib = assemble_library(
