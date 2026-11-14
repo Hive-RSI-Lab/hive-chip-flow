@@ -243,7 +243,7 @@ def test_a_missing_corner_sdf_refuses(tmp_path, monkeypatch, capsys, corner):
     assert corner in out["error"]
 
 
-def test_a_failure_at_one_corner_only_is_a_violation_naming_it(
+def test_a_failure_at_ff_or_ss_is_reported_in_corner_failures(
         tmp_path, monkeypatch, capsys):
     FAIL_XML = """<?xml version="1.0"?>
 <testsuites><testsuite><testcase name="test_counter8.test_x" classname="test_counter8">
@@ -258,8 +258,12 @@ def test_a_failure_at_one_corner_only_is_a_violation_naming_it(
     ws = make_ws(tmp_path)
     _patch_pdk(monkeypatch, tmp_path)
     code, out = _run(ws, monkeypatch, capsys, Runner())
-    assert code == 1, out
-    assert [v["glsim_pass"] for v in out["violations"]] == ["sdf_ss"]
+    # report-only until the benches clock at the spec period
+    # (check_glsim.REPORT_ONLY_PASSES); the nominal pass still fails the gate
+    assert code == 0, out
+    assert out["violations"] == []
+    assert [(f["glsim_pass"], f["test"], f["msg"]) for f in out["corner_failures"]] == [
+        ("sdf_ss", "test_x", "count 3 != 2")]
     assert out["results"]["sdf"]["test_x"] is True
     assert out["results"]["sdf_ss"]["test_x"] is False
 
@@ -273,7 +277,17 @@ def test_unsupported_timing_checks_are_reported_not_implied(
         every_corner=True))
     assert code == 0, out
     for c in out["sdf"]["corners"].values():
-        assert c["timing_checks"].startswith("not simulated"), c
+        assert c["timing_checks"].startswith("not simulated (Icarus"), c
+
+
+def test_timing_checks_say_not_simulated_even_without_the_warning(
+        tmp_path, monkeypatch, capsys):
+    ws = make_ws(tmp_path)
+    _patch_pdk(monkeypatch, tmp_path)
+    code, out = _run(ws, monkeypatch, capsys, _runner_writing_logs())
+    assert code == 0, out
+    for c in out["sdf"]["corners"].values():
+        assert c["timing_checks"] == "not simulated", c
 
 
 def test_sdf_annotate_omitted_at_the_slow_corner_refuses(
