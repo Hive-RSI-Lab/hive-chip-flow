@@ -17,8 +17,8 @@ ports:
   rst: {dir: input, width: 1}
   count: {dir: output, width: 8}
 clock:
-  # 20ns (50MHz), not the 10ns the functional tb/ clocks at (tb/test_counter8.py
-  # picks its own simulation period independently): this is what M4's harden
+  # 20ns (50MHz), and tb/ and holdout/ clock at it too, since glsim runs them
+  # against the ss SDF (at 10ns the ss netlist misses the edge): this is what M4's harden
   # gate hands LibreLane as CLOCK_PERIOD, and 10ns left a -0.063ns setup
   # violation at the slow corner (max_ss_125C_3v00, GF180's mcu7t5v0 library) -
   # a generic-fallback-SDC artifact (no PNR_SDC_FILE is set), not a real path
