@@ -13,7 +13,7 @@ from cocotb.clock import Clock
 from cocotb.triggers import FallingEdge
 from padreset import pad_reset
 
-CLK_PERIOD_NS = 10
+CLK_PERIOD_NS = 20  # spec.yaml clocks.period_ns; glsim runs it at ss
 
 
 async def _reset(dut, cycles=3):

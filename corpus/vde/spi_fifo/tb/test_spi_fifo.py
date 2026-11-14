@@ -7,7 +7,7 @@ from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge
 from padreset import pad_reset
 
-CLK_PERIOD_NS = 10
+CLK_PERIOD_NS = 25  # spec.yaml clocks.period_ns; glsim runs it at ss
 SETTLE = 2  # clk edges held between every sclk/cs_n transition
 
 

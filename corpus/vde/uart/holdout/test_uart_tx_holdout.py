@@ -15,7 +15,7 @@ from cocotb.clock import Clock
 from cocotb.triggers import FallingEdge
 from padreset import pad_reset
 
-CLK_PERIOD_NS = 10
+CLK_PERIOD_NS = 20  # spec.yaml clocks.period_ns; glsim runs it at ss
 CLKS_PER_BIT = 4
 N_SLOTS = 11  # start + 8 data + parity + stop
 START_TIMEOUT = 3 * CLKS_PER_BIT  # clocks from the start pulse to tx falling

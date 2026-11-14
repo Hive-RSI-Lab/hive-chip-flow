@@ -219,8 +219,8 @@ gates:
         a register read before it is written, which only X-propagation
         exposes
       description: >-
-        Every test passes both ways (functional and nominal SDF); the ff and
-        ss SDF passes are reported in corner_failures.
+        Every test passes both ways: functional, and with SDF at the nominal,
+        ff and ss corners.
     lec:
       phase: P6
       tool: lec
