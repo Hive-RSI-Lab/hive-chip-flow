@@ -43,6 +43,9 @@ ports:
 clock:
   period_ns: N
   domains: [<clock port name>]
+  jitter:                         # optional - only from a real measurement
+    <SDC clock name>: {ps_rms: N, cycles: 1, accumulation: correlated|random,
+                       sigma: 7, source: spec/jitter/<evidence file>}
 must_keep: [<cell/signal name>]   # optional - the optimiser (M7) may not
                                    # remove these
 ```

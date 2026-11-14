@@ -22,13 +22,19 @@ import pytest  # noqa: E402
 import ttlib  # noqa: E402
 
 FIXTURES = REPO / "tests" / "fixtures" / "opensta"
+# the clock uncertainty read-back (#73) as LibreLane's base.sdc leaves it:
+# CLOCK_UNCERTAINTY_CONSTRAINT's 0.25 ns on the one clock
+CLEAN_UNCERTAINTY = ("chipflow_clock_uncertainty_begin\nchipflow_clock clk\n"
+                     "set_clock_uncertainty 0.2500 clk\n"
+                     "chipflow_clock_uncertainty_end\n")
 # check_setup and the min pulse width/min period/clock gating sections as a
 # clean OpenSTA 3.1.0 run prints them (markers only, no findings).
 CLEAN_SIGNOFF = ("chipflow_check_setup_begin\n"
                  + "".join(f"chipflow_section {s}\n"
                            for s in check_timing.SIGNOFF_SECTIONS)
                  + "chipflow_section end\n"
-                 + "chipflow_ideal_clocks_begin\nchipflow_ideal_clocks_end\n")
+                 + "chipflow_ideal_clocks_begin\nchipflow_ideal_clocks_end\n"
+                 + CLEAN_UNCERTAINTY)
 CLEAN_COUNTS = ("chipflow_violation_counts slew 0 cap 0 fanout 0\n"
                 + CLEAN_SIGNOFF)
 
@@ -464,7 +470,7 @@ def _good_slack(text: str) -> str:
     body = [ln for ln in text.splitlines() if not ln.startswith("worst slack")]
     return ("worst slack max 7.97\nworst slack min 2.23\n"
             "chipflow_ideal_clocks_begin\nchipflow_ideal_clocks_end\n"
-            + "\n".join(body) + "\n")
+            + CLEAN_UNCERTAINTY + "\n".join(body) + "\n")
 
 
 def test_parse_check_setup_reads_unclocked_and_unconstrained():
@@ -787,3 +793,229 @@ def test_real_opensta_names_recovery_and_removal(tmp_path, rst_delay, section):
     kinds = {v["kind"] for v in
              check_timing.signoff_violations(r, "tt_um_tiny3", [])}
     assert kinds == ({f"{section}_violation"} if section else set()), kinds
+
+
+# --- #73: clock uncertainty from a declared jitter budget -----------------
+
+import clock_budget  # noqa: E402
+import speclib  # noqa: E402
+
+
+def test_budget_known_answer_is_the_plls_hand_derivation():
+    """#73's known answer: 12 ps rms over 2 correlated cycles at 7 sigma is
+    0.168 ns (0.17 ns); random cycle-to-cycle jitter grows as sqrt(N)."""
+    assert clock_budget.required_uncertainty_ns(12, 2) == pytest.approx(0.168)
+    assert clock_budget.required_uncertainty_ns(
+        12, 2, "random") == pytest.approx(0.084 * 2 ** 0.5)
+    assert clock_budget.required_uncertainty_ns(50) == pytest.approx(0.35)
+    assert clock_budget.required_uncertainty_ns(10, 1, sigma=3) == pytest.approx(0.03)
+
+
+@pytest.mark.parametrize("jitter,kind", [
+    ({"clk": {"ps_rms": 0}}, "clock_jitter_bad_entry"),
+    ({"clk": {"ps_rms": 5, "cycles": 0}}, "clock_jitter_bad_entry"),
+    ({"clk": {"ps_rms": 5, "cycles": 1.5}}, "clock_jitter_bad_entry"),
+    ({"clk": {"ps_rms": 5, "accumulation": "linear"}}, "clock_jitter_bad_entry"),
+    ({"clk": {"ps_rms": 5, "sigma": -1}}, "clock_jitter_bad_entry"),
+    ({"clk": {"ps_rms": 5, "jitter_ps": 1}}, "clock_jitter_bad_entry"),
+    ({"clk": 5}, "clock_jitter_bad_entry"),
+    ([], "clock_jitter_not_a_mapping"),
+    ({"clk": {"ps_rms": 5, "source": "analog/jitter.json"}},
+     "clock_jitter_bad_source"),
+    ({"clk": {"ps_rms": 5, "source": "spec/jitter/../spec.yaml"}},
+     "clock_jitter_bad_source"),
+    ({"clk": {"ps_rms": 5, "source": "spec/jitter"}}, "clock_jitter_bad_source"),
+])
+def test_spec_lint_names_a_bad_jitter_budget(jitter, kind):
+    spec = {"top": "x", "requirements": [],
+            "clock": {"period_ns": 20, "domains": ["clk"], "jitter": jitter}}
+    assert kind in {v["kind"] for v in speclib.lint_spec(spec)}
+
+
+def test_spec_lint_takes_a_good_jitter_budget():
+    spec = {"top": "x", "requirements": [],
+            "clock": {"period_ns": 20, "domains": ["clk"], "jitter": {
+                "clk_pre": {"ps_rms": 12, "cycles": 2, "sigma": 7,
+                            "accumulation": "correlated",
+                            "source": "spec/jitter/vco.json"}}}}
+    assert not [v for v in speclib.lint_spec(spec)
+                if v["kind"].startswith("clock_")]
+
+
+def test_parse_clock_uncertainty_reads_write_sdcs_forms():
+    """The forms OpenSTA 3.1.0's write_sdc prints (see the slow real-tool
+    test): a bare clock name, -setup/-hold splits, inter-clock lines that
+    take precedence over the clock's own value, and pin/port values."""
+    text = ("chipflow_clock_uncertainty_begin\n"
+            "chipflow_clock clk\nchipflow_clock vco_out\nchipflow_clock div\n"
+            "chipflow_clock clk/div\nchipflow_clock bus[0]\n"
+            "set_clock_uncertainty -setup 0.2000 clk\n"
+            "set_clock_uncertainty -hold 0.9000 clk\n"
+            "set_clock_uncertainty 0.2500 vco_out\n"
+            "set_clock_uncertainty 0.3000 clk/div\n"
+            "set_clock_uncertainty 0.3000 bus[0]\n"
+            "set_clock_uncertainty 0.4000 div\n"
+            "set_clock_uncertainty -rise_from [get_clocks {vco_out}] "
+            "-rise_to [get_clocks {div}]  -setup 0.1000\n"
+            "set_clock_uncertainty -fall_from [get_clocks {vco_out}] "
+            "-fall_to [get_clocks {div}]  -hold 0.0000\n"
+            "set_clock_uncertainty 0.0100 [get_ports {clk}]\n"
+            "set_clock_uncertainty -hold 0.0000 [get_pins {u1/CLK}]\n"
+            "chipflow_clock_uncertainty_end\n")
+    clocks, pins, via = check_timing.parse_clock_uncertainty(text)
+    assert clocks == {"clk": 0.2, "vco_out": 0.1, "div": 0.1,
+                      "clk/div": 0.3, "bus[0]": 0.3}
+    assert pins == [("clk", 0.01)]
+    assert via == ["div", "vco_out"]
+    with pytest.raises(check_timing.CheckError):
+        check_timing.parse_clock_uncertainty(
+            text.replace("chipflow_clock_uncertainty_end\n", ""))
+
+
+def test_inter_clock_value_on_a_clock_with_none_of_its_own_counts_zero():
+    text = ("chipflow_clock_uncertainty_begin\nchipflow_clock a\n"
+            "chipflow_clock b\n"
+            "set_clock_uncertainty -from [get_clocks {a}] -to "
+            "[get_clocks {b}] -setup 0.5000\n"
+            "chipflow_clock_uncertainty_end\n")
+    assert check_timing.parse_clock_uncertainty(text)[0] == {"a": 0.0, "b": 0.0}
+
+
+def test_uncertainty_compare_rounds_to_write_sdcs_four_places():
+    assert not check_timing._below(0.1680, 12 * 7 * 2 / 1000.0)
+    assert check_timing._below(0.1679, 0.168)
+    # a need of 0.16804 ns rounds up to 0.1681, not down to 0.1680
+    assert check_timing._below(0.1680, 0.16804)
+
+
+def test_a_pin_uncertainty_under_the_budget_fails(tmp_path, monkeypatch, capsys):
+    sta = _clean_sta().replace(
+        "set_clock_uncertainty 0.2500 clk\n",
+        "set_clock_uncertainty 0.4000 clk\n"
+        "set_clock_uncertainty 0.0100 [get_ports {clk}]\n")
+    code, out = _gate(tmp_path, monkeypatch, capsys, sta, _jitter_spec(30))
+    assert code == 1, out
+    assert [(v["kind"], v["refs"]) for v in out["violations"]] == [
+        ("clock_uncertainty_below_budget", ["clk"])]
+    assert "pin/port" in out["violations"][0]["msg"]
+
+
+def _jitter_spec(ps_rms, clock="clk", extra=""):
+    return (f"clock: {{period_ns: 20, domains: [clk], jitter: "
+            f"{{{clock}: {{ps_rms: {ps_rms}{extra}}}}}}}\n")
+
+
+def _clean_sta():
+    return "worst slack max 7.97\nworst slack min 2.23\n" + CLEAN_COUNTS
+
+
+def test_uncertainty_below_the_jitter_budget_fails(tmp_path, monkeypatch, capsys):
+    """#73's planted fault, faked: 50 ps rms at 7 sigma needs 0.35 ns and
+    the SDC applies LibreLane's 0.25 ns - with every slack positive."""
+    code, out = _gate(tmp_path, monkeypatch, capsys, _clean_sta(),
+                      _jitter_spec(50))
+    assert code == 1, out
+    assert [v["kind"] for v in out["violations"]] == [
+        "clock_uncertainty_below_budget"]
+    v = out["violations"][0]
+    assert v["refs"] == ["clk"] and "0.3500" in v["msg"] and "0.2500" in v["msg"]
+    assert out["clock_budgets"]["clk"]["required_ns"] == 0.35
+
+
+def test_uncertainty_covering_the_budget_passes(tmp_path, monkeypatch, capsys):
+    # 30 ps rms x 7 = 0.21 ns, under the 0.25 ns applied
+    code, out = _gate(tmp_path, monkeypatch, capsys, _clean_sta(),
+                      _jitter_spec(30))
+    assert code == 0, out
+    corner = next(iter(out["corners"].values()))
+    assert corner["clock_uncertainty_ns"] == {"clk": 0.25}
+
+
+def test_no_jitter_declared_keeps_the_generic_uncertainty(tmp_path, monkeypatch, capsys):
+    sta = _clean_sta().replace("set_clock_uncertainty 0.2500 clk\n", "")
+    code, out = _gate(tmp_path, monkeypatch, capsys, sta)
+    assert code == 0, out
+    assert "clock_budgets" not in out
+
+
+def test_a_clock_with_no_uncertainty_counts_zero(tmp_path, monkeypatch, capsys):
+    sta = _clean_sta().replace("set_clock_uncertainty 0.2500 clk\n", "")
+    code, out = _gate(tmp_path, monkeypatch, capsys, sta, _jitter_spec(1))
+    assert code == 1, out
+    assert [v["kind"] for v in out["violations"]] == [
+        "clock_uncertainty_below_budget"]
+
+
+def test_a_budget_on_a_clock_the_sdc_never_makes_fails(tmp_path, monkeypatch, capsys):
+    code, out = _gate(tmp_path, monkeypatch, capsys, _clean_sta(),
+                      _jitter_spec(1, clock="clk_pre"))
+    assert code == 1, out
+    assert [v["kind"] for v in out["violations"]] == [
+        "clock_jitter_unknown_clock"]
+
+
+def test_a_missing_jitter_source_fails(tmp_path, monkeypatch, capsys):
+    extra = ", source: spec/jitter/vco.json"
+    code, out = _gate(tmp_path, monkeypatch, capsys, _clean_sta(),
+                      _jitter_spec(1, extra=extra))
+    assert code == 1, out
+    assert [v["kind"] for v in out["violations"]] == [
+        "clock_jitter_source_missing"]
+
+
+def test_a_bad_jitter_budget_refuses(tmp_path, monkeypatch, capsys):
+    code, out = _gate(tmp_path, monkeypatch, capsys, _clean_sta(),
+                      _jitter_spec(-3))
+    assert code == 2, out
+    assert "clock_jitter_bad_entry" in out["error"]
+
+
+def test_uncertainty_read_back_missing_refuses(tmp_path, monkeypatch, capsys):
+    sta = _clean_sta().replace("chipflow_clock_uncertainty_end\n", "")
+    code, out = _gate(tmp_path, monkeypatch, capsys, sta)
+    assert code == 2, out
+    assert check_timing.UNCERTAINTY_END in out["error"]
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("extra_sdc,want,pins", [
+    ("", {"clk": None}, []),
+    ("set_clock_uncertainty 0.25 [get_clocks clk]\n", {"clk": 0.25}, []),
+    ("set_clock_uncertainty 0.25 [get_clocks clk]\n"
+     "set_clock_uncertainty -setup 0.4 [get_clocks clk]\n"
+     "set_clock_uncertainty -hold 0.1 [get_clocks clk]\n", {"clk": 0.4}, []),
+    # an inter-clock value overrides the clock's own in OpenSTA
+    ("set_clock_uncertainty 0.4 [get_clocks clk]\n"
+     "set_clock_uncertainty -from [get_clocks clk] -to [get_clocks clk] "
+     "-setup 0.0\n", {"clk": 0.0}, []),
+    ("set_clock_uncertainty 0.4 [get_clocks clk]\n"
+     "set_clock_uncertainty 0.01 [get_ports clk]\n", {"clk": 0.4},
+     [("clk", 0.01)]),
+    # the SDC's own units do not leak into the ns read-back
+    ("set_cmd_units -time ps\nset_clock_uncertainty 400 [get_clocks clk]\n",
+     {"clk": 0.4}, []),
+    ("create_generated_clock -name {clk/div} -source [get_ports clk] "
+     "-divide_by 2 [get_ports a]\n"
+     "set_clock_uncertainty 0.3 [get_clocks clk/div]\n"
+     "set_clock_uncertainty 0.2 [get_clocks clk]\n",
+     {"clk": 0.2, "clk/div": 0.3}, []),
+])
+def test_real_opensta_reads_back_each_clocks_uncertainty(tmp_path, extra_sdc,
+                                                         want, pins):
+    """Real OpenSTA: the read-back gives the setup uncertainty the SDC left
+    on each clock (none, one value for both sides, a later -setup
+    overriding it, an inter-clock value taking precedence, a generated
+    clock, ps command units) and any pin/port value."""
+    final = tmp_path / "final"
+    for sub in ("nl", "sdc", "spef/nom"):
+        (final / sub).mkdir(parents=True)
+    (final / "nl" / "tt_um_tiny.nl.v").write_text(TINY_NETLIST, encoding="utf-8")
+    (final / "sdc" / "tt_um_tiny.sdc").write_text(TINY_SDC + extra_sdc, encoding="utf-8")
+    (final / "spef" / "nom" / "tt_um_tiny.nom.spef").write_text(TINY_SPEF, encoding="utf-8")
+    r = check_timing.run_corner(final, "tt_um_tiny", "nom_tt_025C_3v30",
+                                check_timing._pdk_root(), tmp_path,
+                                final / "sdc" / "tt_um_tiny.sdc", "")
+    assert r["clock_uncertainty"] == want, r
+    assert r["pin_uncertainty"] == pins, r
+    # with ps units the slack line must still read in ns
+    assert 1.0 < r["setup_ws"] < 100.0, r

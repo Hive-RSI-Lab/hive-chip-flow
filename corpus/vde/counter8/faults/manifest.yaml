@@ -61,6 +61,11 @@ faults:
     gate: timing
     plant: plant_timing_corner_sdc.py
     expect: {status: fail, kind: setup_violation}
+  # #73: a declared jitter budget the SDC's uncertainty does not cover
+  - name: timing_jitter_above_uncertainty
+    gate: timing
+    plant: plant_timing_jitter.py
+    expect: {status: fail, kind: clock_uncertainty_below_budget}
   # #195: a reset that releases off the pad with no synchroniser
   # (recovery: a removal miss would stop harden at its own hold checker)
   - name: timing_reset_release_unsynchronised

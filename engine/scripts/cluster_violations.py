@@ -215,6 +215,13 @@ FIXER_HINTS: dict[str, str] = {
     # as cdc's rdc_unsynced_release), not a harden setting - "rtl".
     "recovery_violation": "rtl",
     "removal_violation": "rtl",
+    # clock uncertainty against spec.yaml's clock.jitter (#73): the SDC's
+    # uncertainty is harden's (CLOCK_UNCERTAINTY_CONSTRAINT in its
+    # override); a budget on a clock no SDC makes, or citing evidence that
+    # is not there, is the spec's - "review".
+    "clock_uncertainty_below_budget": "harden",
+    "clock_jitter_unknown_clock": "review",
+    "clock_jitter_source_missing": "review",
 
     # drc (check_drc.py)
     "magic_drc_violation": "harden",
