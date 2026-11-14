@@ -218,24 +218,29 @@ def test_check_slow_parts_name_real_files_and_rest_runs_the_others():
     assert named and all((REPO / f).is_file() for f in named), named
     assert rest[0] == "tests/"
     assert sorted(rest[1:]) == sorted(f"--ignore={f}" for f in named), rest
-    # Parts sharing a file split it by -k: every test there must land in
-    # exactly one of them, or it never runs (or runs twice).
-    from _pytest.mark.expression import Expression
+    # Parts sharing a file split it by -k: every slow test there must land
+    # in exactly one of them, or it never runs (or runs twice). Ask pytest
+    # itself, so -k matches as it does in check-slow.sh.
+    def collect(files, k):
+        out = subprocess.run(
+            [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider",
+             "--collect-only", "-m", "slow and not harden_faults", "-k", k,
+             *files], cwd=REPO, capture_output=True, text=True).stdout
+        return [ln for ln in out.splitlines() if "::" in ln]
 
     by_file = {}
     for p in parts[:-1]:
-        for f in sh("shard_files", p).split():
-            by_file.setdefault(f, []).append(sh("shard_k", p).strip())
-    for f, ks in by_file.items():
+        by_file.setdefault(sh("shard_files", p).strip(), []).append(
+            sh("shard_k", p).strip())
+    for files, ks in by_file.items():
         if len(ks) == 1:
-            assert ks == [""], (f, ks)
+            assert ks == [""], (files, ks)
             continue
-        assert "" not in ks, (f, ks)
-        names = re.findall(r"^def (test_\w+)", (REPO / f).read_text(), re.M)
-        for n in names:
-            hits = [k for k in ks
-                    if Expression.compile(k).evaluate(lambda w, n=n: w in n)]
-            assert len(hits) == 1, (f, n, hits)
+        assert "" not in ks, (files, ks)
+        everything = collect(files.split(), "")
+        picked = [t for k in ks for t in collect(files.split(), k)]
+        assert everything and sorted(picked) == sorted(everything), (
+            files, ks, sorted(set(everything) ^ set(picked)))
 
 
 def test_ci_matrix_runs_every_corpus_shard():

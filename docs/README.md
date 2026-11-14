@@ -101,7 +101,8 @@ fails while a row and its probe disagree.
   reference passing and each plant caught by its gate
   (`tests/test_corpus_faults.py`, real tools). Upstream's other real-tool
   sets still run by hand: `tests/check.sh` (a smoke per tool),
-  `tests/check-slow.sh`, `tests/check-harden-faults.sh <rung>`, each with
+  `tests/check-slow.sh` (also on Actions, one job per part, from
+  `.github/workflows/slow.yml`), `tests/check-harden-faults.sh <rung>`, each with
   `EDA_TOOLCHAIN` set (`eval "$(chip-flow env)"`). The harden-faults rungs
   also run on Actions, one job per rung, from
   `.github/workflows/harden-faults.yml` (on dispatch and on changes to

@@ -42,12 +42,12 @@ cd "$REPO_ROOT"
 # 2532 s, with the harden proof failing early rather than taking its
 # ~815 s. So it runs in parts, each under its own 1800 s cap, as
 # bin/chip-flow test splits the corpus step: `harden` (the real LibreLane
-# harden tests), `charlib` (cell characterisation; split below with
-# `optimise`, the real optimise runs), and `rest` (every other slow file, so a new file is never left
-# out). `check-slow.sh PART` runs one part; no argument runs every part.
+# harden tests), cell characterisation and the real optimise runs (four
+# parts since #343, below), and `rest` (every other slow file, so a new
+# file is never left out). `check-slow.sh PART` runs one part; no argument runs every part.
 # Measured there: harden ~640 s with the proof failing early, ~555 s with
-# it passing (it now runs cdc and lec too) on a quieter box; charlib
-# ~1220 s, rest ~670 s.
+# it passing (it now runs cdc and lec too) on a quieter box; charlib and
+# optimise together ~1220 s, rest ~670 s.
 # On CI (.github/workflows/slow.yml, #343) the runner is about twice as
 # slow: charlib hit its cap at 1800 s, so it runs as four parts there and
 # here alike - `charlib` (the fast known-answer and planted-fault tests),
