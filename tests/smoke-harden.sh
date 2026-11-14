@@ -30,8 +30,8 @@ cp "$REPO/corpus/vde/$RUNG/spec.md" "$WORK/spec/spec.md"
 cp "$REPO/corpus/vde/$RUNG/spec.yaml" "$WORK/spec/spec.yaml"
 cp "$REPO/corpus/vde/$RUNG"/rtl/*.v "$WORK/rtl/"
 cp "$REPO/corpus/vde/$RUNG"/tb/*.py "$WORK/tb/" 2>/dev/null
-# a rung's own harden/config.override.json (riscv's placement density) is a
-# harden input like its spec
+# a rung's own harden/config.override.json (riscv's delay-cell exclusion
+# and placement density) is a harden input like its spec
 if [ -f "$REPO/corpus/vde/$RUNG/harden/config.override.json" ]; then
   mkdir -p "$WORK/harden"
   cp "$REPO/corpus/vde/$RUNG/harden/config.override.json" "$WORK/harden/"
