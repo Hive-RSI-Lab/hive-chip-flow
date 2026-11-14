@@ -853,7 +853,7 @@ def test_parse_clock_uncertainty_reads_write_sdcs_forms():
             "set_clock_uncertainty -hold 0.9000 clk\n"
             "set_clock_uncertainty 0.2500 vco_out\n"
             "set_clock_uncertainty 0.3000 clk/div\n"
-            "set_clock_uncertainty 0.3000 bus\\[0\\]\n"
+            "set_clock_uncertainty 0.3000 bus[0]\n"
             "set_clock_uncertainty 0.4000 div\n"
             "set_clock_uncertainty -rise_from [get_clocks {vco_out}] "
             "-rise_to [get_clocks {div}]  -setup 0.1000\n"
@@ -862,10 +862,11 @@ def test_parse_clock_uncertainty_reads_write_sdcs_forms():
             "set_clock_uncertainty 0.0100 [get_ports {clk}]\n"
             "set_clock_uncertainty -hold 0.0000 [get_pins {u1/CLK}]\n"
             "chipflow_clock_uncertainty_end\n")
-    clocks, pins = check_timing.parse_clock_uncertainty(text)
+    clocks, pins, via = check_timing.parse_clock_uncertainty(text)
     assert clocks == {"clk": 0.2, "vco_out": 0.1, "div": 0.1,
                       "clk/div": 0.3, "bus[0]": 0.3}
     assert pins == [("clk", 0.01)]
+    assert via == ["div", "vco_out"]
     with pytest.raises(check_timing.CheckError):
         check_timing.parse_clock_uncertainty(
             text.replace("chipflow_clock_uncertainty_end\n", ""))
@@ -883,6 +884,8 @@ def test_inter_clock_value_on_a_clock_with_none_of_its_own_counts_zero():
 def test_uncertainty_compare_rounds_to_write_sdcs_four_places():
     assert not check_timing._below(0.1680, 12 * 7 * 2 / 1000.0)
     assert check_timing._below(0.1679, 0.168)
+    # a need of 0.16804 ns rounds up to 0.1681, not down to 0.1680
+    assert check_timing._below(0.1680, 0.16804)
 
 
 def test_a_pin_uncertainty_under_the_budget_fails(tmp_path, monkeypatch, capsys):
