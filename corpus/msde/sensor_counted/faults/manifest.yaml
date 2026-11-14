@@ -67,7 +67,8 @@ faults:
     plant: plant_top_erc.py
     expect: {status: fail, kind: floating_gate}
   # the same top with its supply declared at 5 V: every cell's edges
-  # overshoot the 5 V-class limit (#328, #329)
+  # overshoot the 5 V-class limit (#328, #329); the plant narrows the gate
+  # to and2_1, which decides it (the whole top at 5.5 V took 40-56 min)
   - name: top_stress_supply_past_cell_limit
     gate: top_stress
     plant: plant_top_stress.py
