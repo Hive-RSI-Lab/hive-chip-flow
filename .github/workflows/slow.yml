@@ -2,7 +2,7 @@
 # which no other workflow runs: test.yml's bin/chip-flow test covers
 # check-engine.sh and tests/test_corpus_faults.py, harden-faults.yml the
 # harden rungs. Without this a slow test can break on main unseen (#315 did,
-# #343). One job per part (harden, charlib, rest), so one part's timeout or
+# #343). One job per part (SHARDS in check-slow.sh), so one part's timeout or
 # failure never hides another's, each under check-slow.sh's own unchanged
 # 1800 s cap. A fast test (tests/test_slow_ci.py) keeps the matrix equal to
 # check-slow.sh's SHARDS. A gate that cannot run fails the job.
@@ -48,7 +48,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        part: [harden, charlib, rest]
+        part: [harden, charlib, charlib_seq, charlib_faults, optimise, rest]
     steps:
       - uses: actions/checkout@v4
         with:
