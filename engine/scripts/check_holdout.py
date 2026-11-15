@@ -93,6 +93,8 @@ def run(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--workspace", required=True, help="block workspace")
     ap.add_argument("--out", help="write result JSON here instead of stdout")
+    ap.add_argument("--seed", type=int, help="cocotb random seed, overriding "
+                    "spec sim.seed and the one drawn from the bench (replay)")
     args = ap.parse_args(argv)
 
     ws = Path(args.workspace)
@@ -106,6 +108,8 @@ def run(argv=None):
     modules = cocotblib.test_modules(holdout_dir)
     if not modules:
         raise CheckError(f"no test_*.py modules under {holdout_dir}")
+    seed = cocotblib.sim_seed(spec, holdout_dir, args.seed)
+    replay = cocotblib.replay_command(SCRIPT, seed)
     tags = cocotblib.scan_requirement_tags(holdout_dir)
 
     build_dir = ws / BUILD_SUBDIR
@@ -119,7 +123,7 @@ def run(argv=None):
         sources, hdl_top = sources + frame[0], frame[1]
     results_xml = ws / "log" / RESULTS_NAME
     xml_path = cocotblib.run_cocotb(build_dir, holdout_dir, sources, hdl_top,
-                                    modules, results_xml)
+                                    modules, results_xml, seed=seed)
     results = cocotblib.parse_results_xml(xml_path)
     if not results:
         raise CheckError(f"cocotb produced no test cases in {xml_path}")
@@ -127,7 +131,7 @@ def run(argv=None):
     if frame:
         ignored = cocotblib.ignore_pad_latency(
             results, build_dir, holdout_dir, block_sources, top, modules,
-            [holdout_dir, ws / "tb"])
+            [holdout_dir, ws / "tb"], seed=seed)
 
     violations = []
     for name, res in sorted(results.items()):
@@ -168,7 +172,8 @@ def run(argv=None):
             continue
         violations.append(checklib.violation(
             "holdout", "error", None, None, "holdout_failed", refs,
-            f"a held-out test for requirement(s) {', '.join(refs)} failed",
+            f"a held-out test for requirement(s) {', '.join(refs)} failed "
+            f"at seed {seed} (replay: {replay})",
             "cocotb"))
 
     # stamp() hashes exactly this path as input_digest; gate.py's own
@@ -178,7 +183,8 @@ def run(argv=None):
     payload = checklib.report(SCRIPT, ws / "rtl", violations, top=top,
                               tests_run=sorted(results),
                               tests_passed=sum(1 for r in results.values()
-                                               if r["passed"]))
+                                               if r["passed"]),
+                              seed=seed, replay=replay)
     return payload, args.out
 
 

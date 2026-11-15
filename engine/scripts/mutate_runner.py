@@ -152,6 +152,8 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--tb", required=True, help="the visible tb/ directory")
     ap.add_argument("--top", required=True, help="top module name")
+    ap.add_argument("--seed", type=int, help="cocotb random seed "
+                    "(check_mutate passes the block's sim seed)")
     args = ap.parse_args(argv)
 
     taskdir = Path.cwd()
@@ -200,7 +202,8 @@ def main(argv=None) -> int:
         results_xml = taskdir / f"results_{idx}.xml"
         try:
             xml_path = cocotblib.run_cocotb(build_dir, tb_dir, [mutated_v],
-                                            args.top, modules, results_xml)
+                                            args.top, modules, results_xml,
+                                            seed=args.seed)
             parsed = cocotblib.parse_results_xml(xml_path)
             killed = (not parsed) or any(not r["passed"]
                                          for r in parsed.values())

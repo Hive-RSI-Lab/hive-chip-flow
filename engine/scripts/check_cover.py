@@ -111,7 +111,8 @@ def load_excludes(ws: Path) -> dict[str, dict]:
     return out
 
 
-def run_coverage(ws: Path, top: str, sources: list[Path]) -> Path:
+def run_coverage(ws: Path, top: str, sources: list[Path],
+                 seed: int | None = None) -> Path:
     """cocotb over the verilator simulator, --coverage instrumented.
     `runner.test()`'s own `test_dir` is where the compiled simulation
     binary actually RUNS (proved empirically - not `ws`, whatever cwd this
@@ -167,7 +168,7 @@ def run_coverage(ws: Path, top: str, sources: list[Path]) -> Path:
             runner.test(hdl_toplevel=top, test_module=modules,
                        test_dir=str(tb_dir), build_dir=str(build_dir),
                        results_xml=str(ws / "log" / RESULTS_NAME),
-                       log_file=log_file)
+                       log_file=log_file, seed=seed)
         except Exception as exc:  # noqa: BLE001 - a build/launcher crash
             raise CheckError(f"cocotb-over-verilator coverage run failed: "
                              f"{type(exc).__name__}: {exc}") from exc
@@ -230,6 +231,8 @@ def run(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--workspace", required=True, help="block workspace")
     ap.add_argument("--out", help="write result JSON here instead of stdout")
+    ap.add_argument("--seed", type=int, help="cocotb random seed, overriding "
+                    "spec sim.seed and the one drawn from the bench (replay)")
     args = ap.parse_args(argv)
 
     # Resolved to absolute FIRST (M5, found by actually running this gate
@@ -251,7 +254,9 @@ def run(argv=None):
     toggle_min = float(cover_cfg.get("toggle_min", DEFAULT_TOGGLE_MIN))
     excludes = load_excludes(ws)
 
-    info_path = run_coverage(ws, top, sources)
+    # the same bench as sim, so coverage counts sim's own draw
+    seed = cocotblib.sim_seed(spec, ws / "tb", args.seed)
+    info_path = run_coverage(ws, top, sources, seed)
     per_file = parse_info(info_path)
     rtl_names = {f.name for f in sources}
 
@@ -259,7 +264,8 @@ def run(argv=None):
                                         line_min, toggle_min)
 
     payload = checklib.report(
-        SCRIPT, ws / "rtl", violations, top=top,
+        SCRIPT, ws / "rtl", violations, top=top, seed=seed,
+        replay=cocotblib.replay_command(SCRIPT, seed),
         line_pct=checklib.rnd(counts["line_pct"]),
         toggle_pct=checklib.rnd(counts["toggle_pct"]),
         line_covered=counts["line_covered"], line_total=counts["line_total"],

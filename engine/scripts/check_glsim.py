@@ -401,7 +401,8 @@ def _cell_sources(pdk_root: Path) -> list[Path]:
 def run_pass(name: str, ws: Path, spec: dict, final_dir: Path,
             cell_sources: list[Path], build_dir: Path,
             functional: bool, sdf: Path | None,
-            delay_selection: str = "typ") -> dict:
+            delay_selection: str = "typ",
+            seed: int | None = None) -> dict:
     top = spec["top"]
     dut_module = ttlib.wrapper_name(spec)
     nl = (final_dir / "nl" / f"{dut_module}.nl.v" if sdf is not None
@@ -456,7 +457,7 @@ def run_pass(name: str, ws: Path, spec: dict, final_dir: Path,
     try:
         runner.test(hdl_toplevel=top, test_module=modules, test_dir=str(tb_dir),
                    build_dir=str(pass_build_dir), results_xml=str(results_xml),
-                   waves=False, log_file=str(sim_log))
+                   waves=False, log_file=str(sim_log), seed=seed)
     except SystemExit:
         pass
     waived = (check_sdf_logs(name, sdf, build_log, sim_log)
@@ -484,6 +485,8 @@ def run(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--workspace", required=True, help="block workspace")
     ap.add_argument("--out", help="write result JSON here instead of stdout")
+    ap.add_argument("--seed", type=int, help="cocotb random seed, overriding "
+                    "spec sim.seed and the one drawn from the bench (replay)")
     args = ap.parse_args(argv)
 
     ws = Path(args.workspace).resolve()
@@ -493,6 +496,9 @@ def run(argv=None):
         raise CheckError("spec.yaml has no non-empty 'top' - run spec_lint first")
     if not spec.get("tt_pins"):
         raise CheckError("spec.yaml has no 'tt_pins' mapping")
+    # the same bench as sim, so the same draw unless --seed says otherwise
+    seed = cocotblib.sim_seed(spec, ws / "tb", args.seed)
+    replay = cocotblib.replay_command(SCRIPT, seed)
 
     final_dir = ws / "harden" / "runs" / "run" / "final"
     if not final_dir.is_dir():
@@ -523,7 +529,7 @@ def run(argv=None):
     ):
         results, sdf_notes = run_pass(name, ws, spec, final_dir, cell_sources,
                                       build_root, functional, sdf_path,
-                                      sel or "typ")
+                                      sel or "typ", seed=seed)
         if name == "sdf":
             notes = dict(sdf_notes)
         if sdf_path is not None:
@@ -536,8 +542,9 @@ def run(argv=None):
             kind = "test_skipped" if res.get("skipped") else "test_failed"
             violations.append(checklib.violation(
                 "glsim", "error", None, tname, kind, [],
-                f"[{name}] {tname}: "
-                f"{res['message'] or f'see log/glsim_build/sim_{name}.log'}",
+                f"[{name}] {tname} at seed {seed}: "
+                f"{res['message'] or f'see log/glsim_build/sim_{name}.log'}"
+                f" (replay: {replay})",
                 "cocotb", glsim_pass=name))
 
     nl = final_dir / "nl" / f"{dut_module}.nl.v"
@@ -550,7 +557,7 @@ def run(argv=None):
             f"the powered netlist is not the netlist with power pins: {differs}",
             "check_glsim"))
     payload = checklib.report(SCRIPT, ws / "harden", violations, top=top,
-                              results=all_results,
+                              results=all_results, seed=seed, replay=replay,
                               sdf={**notes, "corners": corners},
                               netlists={"nl_sha256": ttship._sha256(nl),
                                         "pnl_sha256": ttship._sha256(pnl)})
