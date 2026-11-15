@@ -2,12 +2,12 @@
 no cocotb: tb/test_rv_core.py runs every program here first and compares
 the core's registers and memory against this model's afterwards.
 
-The model follows spec.md literally: 15 registers plus x0, 128 bytes of
-memory with addresses taken modulo 128, pc as a word index modulo 32, the
+The model follows spec.md literally: 15 registers plus x0, 64 bytes of
+memory with addresses taken modulo 64, pc as a word index modulo 16, the
 low two bits of a jump or branch target dropped, and the RV32E decode rules
 (a register field of 16 or more is illegal)."""
 MASK = 0xFFFFFFFF
-MEM_BYTES = 128
+MEM_BYTES = 64
 MEM_WORDS = MEM_BYTES // 4
 
 

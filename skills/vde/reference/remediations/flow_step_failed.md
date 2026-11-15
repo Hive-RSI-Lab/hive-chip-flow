@@ -17,3 +17,11 @@ die area and core margins are the tile's and the override refuses them),
 not an RTL one -
 do not start cutting logic out of the design before checking whether a
 floorplan knob fixes it first.
+
+**Trap:** a large design whose post-CTS timing repair runs for tens of
+minutes and whose worst path is a chain of `dly*` cells has had its
+high-fanout nets buffered with delay cells (~1.7 ns each) by
+repair_design. Exclude them in `harden/config.override.json`
+(`"EXTRA_EXCLUDED_CELLS": ["gf180mcu_fd_sc_mcu7t5v0__dly*"]`, as
+corpus/vde/riscv does) before relaxing the clock; count them with
+`grep -c dly` on the step's DEF.

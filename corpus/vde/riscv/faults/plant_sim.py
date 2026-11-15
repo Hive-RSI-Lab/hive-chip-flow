@@ -2,8 +2,8 @@
 visible loop and branch tests catch it directly."""
 from pathlib import Path
 
-OLD = "OP_BRANCH: pc <= take ? pc + off_b : pc_next[4:0];"
-NEW = "OP_BRANCH: pc <= take ? pc + off_b + 5'd1 : pc_next[4:0];"
+OLD = "OP_BRANCH: pc <= take ? pc + off_b : pc_next[3:0];"
+NEW = "OP_BRANCH: pc <= take ? pc + off_b + 4'd1 : pc_next[3:0];"
 
 
 def plant(ws: Path) -> None:

@@ -6,9 +6,9 @@ requirements:
       counting up; run high starts execution at byte address 0
     check: sim
   - id: REQ-READBACK
-    text: while halted, dout shows byte din[1:0] of memory word din[6:2]
+    text: while halted, dout shows byte din[1:0] of memory word din[5:2]
       when din[7] is 1, or byte din[1:0] of register din[5:2] when din[7]
-      is 0; while not halted dout is 0
+      is 0 (din[6] ignored); while not halted dout is 0
     check: sim
   - id: REQ-ALU
     text: ADD SUB SLL SLT SLTU XOR SRL SRA OR AND and ADDI SLTI SLTIU XORI
@@ -26,11 +26,11 @@ requirements:
   - id: REQ-JUMP
     text: JAL and JALR write the address of the following instruction to
       rd and jump (JALR to (rs1+imm) with bit 0 cleared); a target's low two
-      bits are dropped and the program counter wraps at 128 bytes
+      bits are dropped and the program counter wraps at 64 bytes
     check: sim
   - id: REQ-MEM
-    text: LB LH LW LBU LHU and SB SH SW access the 128-byte little-endian
-      memory at (rs1+imm) modulo 128, halfword accesses ignoring address
+    text: LB LH LW LBU LHU and SB SH SW access the 64-byte little-endian
+      memory at (rs1+imm) modulo 64, halfword accesses ignoring address
       bit 0 and word accesses bits 1:0, loads sign- or zero-extending as
       RV32I defines
     check: sim
@@ -66,11 +66,13 @@ ports:
   halted: {dir: output, width: 1}
   illegal: {dir: output, width: 1}
 clock:
-  # 40ns (25MHz): a conservative CLOCK_PERIOD for the ALU-plus-memory-mux
-  # path of a flop-based 128-byte memory, wider than uart/spi_fifo's. This
-  # rung has not been through harden or timing yet (its faults manifest
-  # does not name them), so the number is a starting point, not a result.
-  period_ns: 40
+  # 150ns (6.7MHz): measured, not guessed. At 100ns and 125ns the hardened
+  # core missed setup at the slow corners (max_ss): the longest paths run
+  # through the memory and register-file read muxes, and their long, heavily
+  # loaded nets are slow at ss. 150ns closes setup with margin at every
+  # corner, and leaves the repair room to hold post-route slew under the
+  # 3ns limit.
+  period_ns: 150
   domains: [clk]
 mutate:
   size: 24
@@ -81,9 +83,13 @@ formal:
 # fills ui_in and dout fills uo_out; we/run borrow two uio_in bits as plain
 # inputs, halted/illegal ride on uio_out (their uio_oe bits driven high by
 # engine/lib/ttlib.py::generate_tt_wrapper). rst is active-high inside
-# rv_core, hence the `~`. The pins fit a tile; the logic (about 1500 flops
-# of register file and memory) is larger than one GF180 tile holds, which is
-# part of why this rung may stay red on the ladder.
+# rv_core, hence the `~`. The pins fit a tile but the logic does not: about
+# 1045 flops of register file and 64-byte memory harden to ~291k um^2 of
+# placed cells, while one GF180 tile (346.64 x 160.72 um) holds ~26k at the
+# template's 60% placement density. 3x4 (1075.76 x 736.96 um, the vendored
+# tile_sizes.yaml) sits at 37% utilisation, which leaves Metal3 (the only
+# horizontal signal layer) room to route long nets without detours.
+tiles: 3x4
 tt_pins:
   clk: clk
   rst: ~rst_n
