@@ -107,6 +107,11 @@ fails while a row and its probe disagree.
   `.github/workflows/harden-faults.yml` (on dispatch and on changes to
   `engine/`, `corpus/` or the fault tests); when one times out or fails the
   script names the fault it was on.
+  riscv, the largest corpus rung and no harden-faults rung, runs its whole
+  `tests/smoke-harden.sh riscv` (harden through precheck, glsim at every
+  corner) weekly and on dispatch from
+  `.github/workflows/smoke-harden-riscv.yml`; its harden alone takes about
+  40 min, too long for every PR.
   It runs on GitHub Actions, not on the Hive's machine: `.github/workflows/test.yml`,
   on every pull request and every push to main, splits it into four
   parallel `shard` jobs, `bin/chip-flow test SHARD`: `engine` (the engine
