@@ -18,6 +18,13 @@ sys.path.insert(0, str(ENGINE / "lib"))
 import xmonlib  # noqa: E402
 
 
+def test_monitor_samples_falling_edges_once_the_pad_latency_is_out():
+    p = xmonlib.plan(_spec(PORTS))
+    v = xmonlib.monitor_verilog(p, "tt_frame", latency=2)
+    assert "negedge tt_frame.clk" in v and "quiet >= 2" in v
+    assert "quiet >= 1" in xmonlib.monitor_verilog(p, "top", latency=0)
+
+
 def _spec(ports: dict, **extra) -> dict:
     return {"top": "top", "clock": {"domains": ["clk"]},
             "ports": {n: {"dir": d, "width": w} for n, (d, w) in ports.items()},
@@ -82,8 +89,10 @@ def test_read_hits_names_the_running_test(tmp_path):
     log = tmp_path / "sim.log"
     log.write_text(
         "     0.00ns INFO  cocotb.regression  running test_top.test_a (1/2)\n"
+        "    50.00ns INFO  cocotb.regression  running test_top.test_b (2/2)\n"
+        # Icarus' stdout and cocotb's log buffer apart: a hit can land
+        # after the next test's line; its sim time still names test_a
         "CF_XMON port=q t_ps=25000 value=xxxx\n"
-        "     9.00ns INFO  cocotb.regression  running test_top.test_b (2/2)\n"
         "CF_XMON port=q t_ps=95000 value=zzzz\n", encoding="utf-8")
     hits = xmonlib.read_hits(log)
     assert [(h["port"], h["test"], h["t_ps"]) for h in hits] == [

@@ -126,7 +126,8 @@ def run(argv=None):
     # the X/Z output monitor (xmonlib, #84): Icarus' optimistic X would
     # hide an output register no reset reaches until gate-level sim
     xmon, xmon_src, xmon_args = xmonlib.write_monitor(
-        spec, hdl_top, build_dir / "xmon")
+        spec, hdl_top, build_dir / "xmon",
+        latency=ttlib.pad_reset_latency(spec) if frame else 0)
     sources = sources + xmon_src
     xml_path = cocotblib.run_cocotb(build_dir, holdout_dir, sources, hdl_top,
                                     modules, results_xml, seed=seed,
