@@ -48,11 +48,31 @@ endmodule
 """
 
 
-def make_ws(tmp_path: Path, rtl_text: str, top: str = "top") -> Path:
+# #91: legal SV that verilator and slang both accept but iverilog - the sim
+# gate's compiler - refuses ("sorry: \"inside\" expressions not supported").
+INSIDE_SV = """\
+module top (input logic [3:0] a, output logic b);
+  assign b = a inside {4'd1, 4'd3, 4'd5};
+endmodule
+"""
+
+# #91: two always_ff driving one variable - verilator only warns
+# (MULTIDRIVEN, allowlist-able); slang's -Wmultiple-always-assigns is an
+# error no allowlist can silence.
+TWOFF_SV = """\
+module top (input logic clk, input logic a, output logic b);
+  always_ff @(posedge clk) b <= a;
+  always_ff @(posedge clk) b <= ~a;
+endmodule
+"""
+
+
+def make_ws(tmp_path: Path, rtl_text: str, top: str = "top",
+            name: str = "top.v") -> Path:
     ws = tmp_path / "ws"
     (ws / "rtl").mkdir(parents=True)
     (ws / "spec").mkdir(parents=True)
-    (ws / "rtl" / "top.v").write_text(rtl_text, encoding="utf-8")
+    (ws / "rtl" / name).write_text(rtl_text, encoding="utf-8")
     (ws / "spec" / "spec.yaml").write_text(
         f"top: {top}\nrequirements: []\n", encoding="utf-8")
     return ws
@@ -156,3 +176,101 @@ def test_no_rtl_files_is_an_error(tmp_path, capsys):
     out = json.loads(capsys.readouterr().out)
     assert code == 2
     assert "no .v/.sv files" in out["remediation"]
+
+
+def _lint(ws, capsys):
+    code = check_lint.main(["--workspace", str(ws)])
+    return code, json.loads(capsys.readouterr().out)
+
+
+@pytest.mark.slow
+def test_sv_iverilog_rejects_fails_at_lint_naming_the_construct(
+        tmp_path, capsys):
+    ws = make_ws(tmp_path, INSIDE_SV, name="top.sv")
+    code, out = _lint(ws, capsys)
+    assert code == 1, out
+    hits = [v for v in out["violations"] if v["source"] == "iverilog"]
+    assert hits and hits[0]["kind"] == "sim_unsupported", out
+    assert hits[0]["severity"] == "error"
+    assert "inside" in hits[0]["msg"]
+    assert gate.evaluate("lint", _lint_gate_row(), out)["status"] == "fail"
+
+
+@pytest.mark.slow
+def test_slang_error_survives_a_verilator_allowlist(tmp_path, capsys):
+    ws = make_ws(tmp_path, TWOFF_SV, name="top.sv")
+    (ws / "rtl" / "lint_allow.yaml").write_text(
+        "- rule: MULTIDRIVEN\n  reason: test - verilator's warning only\n"
+        "- rule: slang_multiple-always-assigns\n  reason: errors are never "
+        "allowlist-able\n", encoding="utf-8")
+    code, out = _lint(ws, capsys)
+    sev = {(v["source"], v["kind"]): v["severity"] for v in out["violations"]}
+    assert sev[("verilator", "MULTIDRIVEN")] == "info", out
+    assert sev[("slang", "slang_multiple-always-assigns")] == "error", out
+    assert gate.evaluate("lint", _lint_gate_row(), out)["status"] == "fail"
+
+
+def test_slang_and_iverilog_line_parsing(tmp_path, monkeypatch):
+    """Hermetic: the two new parsers read their tools' real line formats
+    (captured from the eda image) and skip echoed source and caret lines."""
+    import subprocess as sp
+    outputs = {
+        "slang": (1, "rtl/top.sv:3:9: error: redefinition of 't' "
+                     "[-Wredefinition]\n  logic t;\n        ^\n"
+                     "rtl/top.sv:2:9: note: previous definition here\n"
+                     "rtl/top.sv:4:3: warning: unused [-Wunused-net]\n"),
+        "iverilog": (2, "rtl/top.sv:2: sorry: \"inside\" expressions not "
+                        "supported yet.\nrtl/top.sv:3:      : It was "
+                        "declared here as a variable.\n"),
+    }
+
+    def fake(cmd, wall, **kw):
+        rc, text = outputs[cmd[1]]
+        return sp.CompletedProcess(cmd, rc, text, "")
+    monkeypatch.setattr(check_lint.checklib, "run_tool", fake)
+    ws = tmp_path
+    files = [ws / "rtl" / "top.sv"]
+    sl = check_lint.run_slang(ws, "top", files,
+                              {"slang_unused-net": "reserved"})
+    assert [(v["kind"], v["severity"], v["line"]) for v in sl] == [
+        ("slang_redefinition", "error", 3),
+        ("slang_unused-net", "info", 4)]
+    iv = check_lint.run_iverilog(ws, "top", files)
+    assert [(v["kind"], v["line"]) for v in iv] == [("sim_unsupported", 2)]
+    assert all(v["source"] == "iverilog" for v in iv)
+
+
+def test_iverilog_nonzero_with_nothing_parsed_is_an_error(
+        tmp_path, monkeypatch):
+    import subprocess as sp
+    monkeypatch.setattr(
+        check_lint.checklib, "run_tool",
+        lambda cmd, wall, **kw: sp.CompletedProcess(cmd, 127, "", "nope"))
+    with pytest.raises(check_lint.CheckError, match="127"):
+        check_lint.run_iverilog(tmp_path, "top", [tmp_path / "rtl/top.sv"])
+    with pytest.raises(check_lint.CheckError, match="127"):
+        check_lint.run_slang(tmp_path, "top", [tmp_path / "rtl/top.sv"], {})
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("design", [
+    "corpus/vde/counter8", "corpus/vde/riscv", "corpus/vde/spi_fifo",
+    "corpus/vde/uart", "corpus/msde/dac_tile/digital",
+    "corpus/msde/sensor_counted/digital", "tests/fixtures/sv_fsm"])
+def test_corpus_and_sv_fsm_clean_under_slang_and_iverilog(
+        tmp_path, capsys, design):
+    """#91's second and third parsers add no finding to any shipped design
+    (sensor_counted keeps its one verilator SYNCASYNCNET, as before)."""
+    import shutil
+    src = REPO / design
+    ws = tmp_path / "ws"
+    shutil.copytree(src / "rtl", ws / "rtl")
+    (ws / "spec").mkdir()
+    spec = src / "spec.yaml" if (src / "spec.yaml").is_file() \
+        else src / "spec" / "spec.yaml"
+    shutil.copy(spec, ws / "spec" / "spec.yaml")
+    _, out = _lint(ws, capsys)
+    assert out["status"] in ("pass", "violations"), out
+    extra = [v for v in out["violations"]
+             if v["source"] in ("slang", "iverilog")]
+    assert extra == [], extra

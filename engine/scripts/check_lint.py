@@ -25,6 +25,28 @@ elevated to fail, not merely surfaced at "warning"); an allowlisted warning
 is downgraded to "info" (visible in the report, never counted). Fault this
 gate must catch: "an always @* missing an else (latch)" - verilator's own
 LATCH rule, live under plain -Wall, with no reason to allowlist it.
+
+Two more parsers read the same files after verilator (#91), because
+verilator alone lets through SystemVerilog the rest of the flow cannot use:
+
+- slang (`bin/eda slang --quiet --top <top>`), a strict IEEE 1800 front
+  end. Its errors (a name declared twice in one scope, a variable driven
+  from two always_ff blocks, an always_comb variable also assigned
+  elsewhere) are findings of kind `slang_<name>` for slang's own
+  `[-W<name>]` (`slang_redefinition`, `slang_multiple-always-assigns`;
+  `slang_error` when it names none), severity error, source `slang`, never
+  allowlist-able. Its warnings go through the same allowlist as
+  verilator's, keyed by that same `slang_<name>` kind.
+- iverilog (`bin/eda iverilog -g2012 -t null -s <top>`), the parser the sim
+  gate compiles with (cocotb's Icarus runner, -g2012). Plenty of SV both
+  verilator and slang accept is a "sorry: ... not supported" or a syntax
+  error to it (`inside`, streaming operators, unpacked structs, `let`,
+  concurrent assertions); without this pass such a design passed lint and
+  first failed at sim, three gates later. Only a nonzero exit counts (it
+  prints non-fatal "sorry" lines on designs it then compiles fine); each
+  failing line is a finding of kind `sim_unsupported` (a "sorry") or
+  `sim_compile_error`, severity error, source `iverilog`, and is never
+  allowlist-able: sim cannot run that design at all.
 """
 from __future__ import annotations
 
@@ -111,6 +133,85 @@ def run_verilator(ws: Path, top: str, files: list[Path]) -> str:
     return output
 
 
+# file:line:col: error|warning: message [-Wname]   (slang, --quiet)
+SLANG_RE = re.compile(
+    r"^(?P<file>[^\s:][^:]*):(?P<line>\d+):(?P<col>\d+): "
+    r"(?P<sev>error|warning): (?P<msg>.*?)(?: \[(?P<rule>-W[\w-]+)\])?$")
+# file:line: [error: |sorry: |syntax error] message   (iverilog)
+IVL_RE = re.compile(
+    r"^(?P<file>[^\s:][^:]*):(?P<line>\d+):\s*(?P<msg>(?P<kind>sorry|error|"
+    r"syntax error)\b.*)$")
+
+
+def _rel(ws: Path, files: list[Path]) -> list[str]:
+    return [str(f.relative_to(ws)) for f in files]
+
+
+def _run_eda(ws: Path, args: list[str], what: str):
+    try:
+        proc = checklib.run_tool(
+            [str(EDA_BIN), *args], cwd=str(ws), capture_output=True,
+            text=True, encoding="utf-8", errors="replace", wall=TIMEOUT_S)
+    except subprocess.TimeoutExpired as exc:
+        raise CheckError(f"{what} {checklib.timeout_why(exc)}: {exc}") from exc
+    return proc, (proc.stdout or "") + (proc.stderr or "")
+
+
+def run_slang(ws: Path, top: str, files: list[Path],
+              allow: dict[str, str]) -> list[dict]:
+    proc, output = _run_eda(
+        ws, ["slang", "--quiet", "--top", top, *_rel(ws, files)], "slang")
+    violations = []
+    for line in output.splitlines():
+        m = SLANG_RE.match(line.rstrip())
+        if not m:
+            continue  # the echoed source line, the caret line, a note
+        rule = m.group("rule")
+        kind = ("slang_" + rule[2:] if rule
+                else f"slang_{m.group('sev')}")
+        if m.group("sev") == "error":
+            sev_out, reason = "error", None
+        else:
+            reason = allow.get(kind)
+            sev_out = "info" if reason is not None else "error"
+        extras = {"reason": reason} if reason is not None else {}
+        violations.append(checklib.violation(
+            "lint", sev_out, m.group("file"), None, kind, [],
+            m.group("msg").strip(), "slang", line=int(m.group("line")),
+            **extras))
+    if proc.returncode != 0 and not any(
+            v["severity"] == "error" for v in violations):
+        raise CheckError(
+            f"slang exited {proc.returncode} with no error line to explain "
+            f"it (the launcher likely never reached slang): {output[-2000:]}")
+    return violations
+
+
+def run_iverilog(ws: Path, top: str, files: list[Path]) -> list[dict]:
+    proc, output = _run_eda(
+        ws, ["iverilog", "-g2012", "-t", "null", "-s", top,
+             *_rel(ws, files)], "iverilog")
+    if proc.returncode == 0:
+        return []  # a "sorry" it compiled past anyway is not a finding
+    violations = []
+    for line in output.splitlines():
+        m = IVL_RE.match(line.rstrip())
+        if not m:
+            continue
+        kind = ("sim_unsupported" if m.group("kind") == "sorry"
+                else "sim_compile_error")
+        violations.append(checklib.violation(
+            "lint", "error", m.group("file"), None, kind, [],
+            "iverilog (the sim gate's compiler) rejects this: "
+            + m.group("msg").strip(), "iverilog", line=int(m.group("line"))))
+    if not violations:
+        raise CheckError(
+            f"iverilog exited {proc.returncode} with no file:line error to "
+            f"explain it (the launcher likely never reached iverilog): "
+            f"{output[-2000:]}")
+    return violations
+
+
 def parse_violations(output: str, allow: dict[str, str]) -> list[dict]:
     violations = []
     for line in output.splitlines():
@@ -155,6 +256,8 @@ def run(argv=None):
     allow = load_allowlist(ws)
     output = run_verilator(ws, top, files)
     violations = parse_violations(output, allow)
+    violations += run_slang(ws, top, files, allow)
+    violations += run_iverilog(ws, top, files)
     # stamp() hashes exactly this path as input_digest; gate.py's own
     # record_gate cross-checks that against invalidation.yaml's gate_inputs
     # kinds[0] for this gate ("rtl" for lint) - the whole workspace would
