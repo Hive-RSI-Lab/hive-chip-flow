@@ -20,6 +20,7 @@ cannot silently stand in for a real pass.
 from __future__ import annotations
 
 import ast
+import hashlib
 import os
 import re
 import signal
@@ -27,6 +28,49 @@ import threading
 import time
 import xml.etree.ElementTree as ET
 from pathlib import Path
+
+
+SEED_MAX = 2**31 - 1
+
+
+def sim_seed(spec: dict, test_dir: Path, override: int | None = None) -> int:
+    """The random seed a cocotb run gets as COCOTB_RANDOM_SEED (#83). Left
+    unset, cocotb seeds Python's `random` from the clock, so a seed-dependent
+    failure reads as a flake and a recorded pass cannot be replayed. In order:
+    `override` (a gate's --seed, the replay), spec `sim.seed`, else one drawn
+    from the bench's own bytes, so it changes exactly when the bench does and
+    every gate that runs the same bench (sim, glsim, cover, mutate) runs the
+    same draw. Always in [0, 2**31-1]."""
+    from checklib import CheckError
+    if override is not None:
+        seed, where = override, "--seed"
+    else:
+        sim = spec.get("sim")
+        seed = sim.get("seed") if isinstance(sim, dict) else None
+        where = "spec sim.seed"
+    if seed is not None:
+        if isinstance(seed, bool) or not isinstance(seed, int) \
+                or not 0 <= seed <= SEED_MAX:
+            raise CheckError(f"{where} must be an integer from 0 to "
+                             f"{SEED_MAX}, got {seed!r}")
+        return seed
+    h = hashlib.sha256()
+    test_dir = Path(test_dir)
+    for p in sorted(test_dir.rglob("*")):
+        # what a run leaves in the bench dir (bytecode, the cover gate's
+        # coverage.dat while it runs) is not the bench
+        if (not p.is_file() or "__pycache__" in p.parts
+                or p.suffix == ".pyc" or p.name == "coverage.dat"):
+            continue
+        h.update(p.relative_to(test_dir).as_posix().encode() + b"\0")
+        h.update(p.read_bytes() + b"\0")
+    return int.from_bytes(h.digest()[:4], "big") & SEED_MAX
+
+
+def replay_command(script: str, seed: int, flag: str = "--seed") -> str:
+    """The one line that reruns a gate on the same random draw."""
+    return (f"bin/eda python engine/scripts/{script}.py --workspace <ws> "
+            f"{flag} {seed}")
 
 
 class CocotbTimeout(RuntimeError):
@@ -113,7 +157,8 @@ def run_cocotb(build_dir: Path, test_dir: Path, sources: list[Path],
               timescale: tuple[str, str] = ("1ns", "1ps"),
               timeout_s: float | None = None, waves: bool = False,
               stall_s: float | None = None,
-              build_args: list[str] | None = None) -> Path:
+              build_args: list[str] | None = None,
+              seed: int | None = None) -> Path:
     """Build the design then run every module in test_modules_ as one cocotb
     regression over Icarus. Returns the results.xml path (results_xml is
     pinned explicitly - concurrent callers, e.g. check_mutate.py running one
@@ -168,7 +213,10 @@ def run_cocotb(build_dir: Path, test_dir: Path, sources: list[Path],
     is the one caller, and converts it with `eda fst2vcd`.
 
     build_args go to the Icarus compile: a gate-level run with SDF needs
-    -gspecify -ginterconnect, or $sdf_annotate has no delays to write."""
+    -gspecify -ginterconnect, or $sdf_annotate has no delays to write.
+
+    seed, if given, is cocotb's COCOTB_RANDOM_SEED (sim_seed picks it for
+    the gates); None leaves cocotb's own clock-drawn seed."""
     from cocotb_tools.runner import get_runner
     build_dir = Path(build_dir).resolve()
     test_dir = Path(test_dir).resolve()
@@ -218,7 +266,7 @@ def run_cocotb(build_dir: Path, test_dir: Path, sources: list[Path],
             return runner.test(hdl_toplevel=hdl_toplevel, test_module=test_modules_,
                                test_dir=str(test_dir), build_dir=str(build_dir),
                                results_xml=str(results_xml), waves=waves,
-                               log_file=log_file)
+                               log_file=log_file, seed=seed)
         except SystemExit:
             return Path(results_xml)
     finally:
@@ -336,7 +384,8 @@ def reads_pad_reset_latency(modules: list[str], dirs: list[Path]) -> bool:
 
 def ignore_pad_latency(results: dict, build_dir: Path, test_dir: Path,
                        block_sources: list[Path], top: str,
-                       modules: list[str], search_dirs: list[Path]) -> set[str]:
+                       modules: list[str], search_dirs: list[Path],
+                       seed: int | None = None) -> set[str]:
     """The failing tests of a run through the pad frame that fail because
     their bench never waits out the pad's reset latency: the bench doesn't
     read it (reads_pad_reset_latency) and the same test passes driving the
@@ -351,6 +400,6 @@ def ignore_pad_latency(results: dict, build_dir: Path, test_dir: Path,
     direct_dir = Path(build_dir) / "no_pad"
     direct_dir.mkdir(parents=True, exist_ok=True)
     xml_path = run_cocotb(direct_dir, test_dir, block_sources, top, modules,
-                          direct_dir / "results.xml")
+                          direct_dir / "results.xml", seed=seed)
     direct = parse_results_xml(xml_path)
     return {name for name in failed if direct.get(name, {}).get("passed")}

@@ -54,6 +54,8 @@ def run(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--workspace", required=True, help="block workspace")
     ap.add_argument("--out", help="write result JSON here instead of stdout")
+    ap.add_argument("--seed", type=int, help="cocotb random seed, overriding "
+                    "spec sim.seed and the one drawn from the bench (replay)")
     args = ap.parse_args(argv)
 
     ws = Path(args.workspace)
@@ -67,6 +69,8 @@ def run(argv=None):
     modules = cocotblib.test_modules(tb_dir)
     if not modules:
         raise CheckError(f"no test_*.py modules under {tb_dir}")
+    seed = cocotblib.sim_seed(spec, tb_dir, args.seed)
+    replay = cocotblib.replay_command(SCRIPT, seed)
     tags = cocotblib.scan_requirement_tags(tb_dir)
     tagged_ids: set[str] = set().union(*tags.values()) if tags else set()
     required = cocotblib.required_ids(spec, checks=("sim", "both"))
@@ -90,14 +94,15 @@ def run(argv=None):
         sources, hdl_top = sources + frame[0], frame[1]
     results_xml = ws / "log" / RESULTS_NAME
     xml_path = cocotblib.run_cocotb(build_dir, tb_dir, sources, hdl_top, modules,
-                                    results_xml)
+                                    results_xml, seed=seed)
     results = cocotblib.parse_results_xml(xml_path)
     if not results:
         raise CheckError(f"cocotb produced no test cases in {xml_path}")
     ignored = set()
     if frame:
         ignored = cocotblib.ignore_pad_latency(
-            results, build_dir, tb_dir, block_sources, top, modules, [tb_dir])
+            results, build_dir, tb_dir, block_sources, top, modules, [tb_dir],
+            seed=seed)
 
     for name, res in sorted(results.items()):
         if res["passed"]:
@@ -121,7 +126,8 @@ def run(argv=None):
             continue
         violations.append(checklib.violation(
             "sim", "error", None, name, "test_failed", refs,
-            f"{name} failed: {res['message'] or 'see the sim log'}",
+            f"{name} failed at seed {seed}: "
+            f"{res['message'] or 'see the sim log'} (replay: {replay})",
             "cocotb"))
 
     # stamp() hashes exactly this path as input_digest; gate.py's own
@@ -131,7 +137,8 @@ def run(argv=None):
     payload = checklib.report(SCRIPT, ws / "rtl", violations, top=top,
                               tests_run=sorted(results),
                               tests_passed=sum(1 for r in results.values()
-                                               if r["passed"]))
+                                               if r["passed"]),
+                              seed=seed, replay=replay)
     return payload, args.out
 
 

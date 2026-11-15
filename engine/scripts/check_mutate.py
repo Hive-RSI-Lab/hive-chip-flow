@@ -166,7 +166,7 @@ def collect_sources(ws: Path) -> list[Path]:
 
 
 def write_config(mcy_dir: Path, rtl_files: list[Path], top: str, tb_dir: Path,
-                 size: int, seed: int) -> None:
+                 size: int, seed: int, sim_seed: int) -> None:
     # -nosynthesis: yosys defines SYNTHESIS by default, but the sim gate
     # (Icarus, no define) tests the `else` side of an `ifdef SYNTHESIS`. A
     # PDK cell kept under SYNTHESIS (a gf180mcu delay cell, say) would
@@ -194,7 +194,7 @@ else:
 [test sim]
 maxbatchsize 1
 expect PASS FAIL
-run python3 {MUTATE_RUNNER} --tb {tb_dir.resolve()} --top {top}
+run python3 {MUTATE_RUNNER} --tb {tb_dir.resolve()} --top {top} --seed {sim_seed}
 
 [report]
 print(f"mutants={{tags()}} killed={{tags('KILLED')}} survived={{tags('SURVIVED')}}")
@@ -728,6 +728,9 @@ def parse_args(argv=None) -> argparse.Namespace:
                     f"(default {DEFAULT_SIZE}, or spec.yaml mutate.size)")
     ap.add_argument("--seed", type=int, help="override the RNG seed "
                     f"(default {DEFAULT_SEED}, or spec.yaml mutate.seed)")
+    ap.add_argument("--sim-seed", type=int, help="override the cocotb "
+                    "random seed every mutant's sim runs at (default: "
+                    "spec.yaml sim.seed, else a digest of tb/)")
     ap.add_argument("--jobs", type=int, help="parallel mutant runs "
                     "(default: cpu count)")
     ap.add_argument("--pdr-timeout", type=float, default=PDR_TIMEOUT_S,
@@ -757,6 +760,7 @@ def run(argv=None):
     size = args.size or mutate_cfg.get("size") or DEFAULT_SIZE
     seed = (args.seed if args.seed is not None
            else mutate_cfg.get("seed", DEFAULT_SEED))
+    sim_seed = cocotblib.sim_seed(spec, tb_dir, args.sim_seed)
     nproc = args.jobs or os.cpu_count() or 1
     output_ports = {name for name, p in (spec.get("ports") or {}).items()
                    if isinstance(p, dict) and p.get("dir") == "output"}
@@ -769,7 +773,7 @@ def run(argv=None):
     mcy_dir = ws / MCY_SUBDIR
     shutil.rmtree(mcy_dir, ignore_errors=True)
     mcy_dir.mkdir(parents=True)
-    write_config(mcy_dir, rtl_files, top, tb_dir, size, seed)
+    write_config(mcy_dir, rtl_files, top, tb_dir, size, seed, sim_seed)
 
     t0 = time.monotonic()
     run_mcy(mcy_dir, mcy_real, nproc)
@@ -807,6 +811,9 @@ def run(argv=None):
         equivalent_by={str(k): v for k, v in sorted(equivalent_by.items())},
         unproven_survivors={str(k): v for k, v in sorted(proofs.items())
                             if k not in equivalent},
+        sim_seed=sim_seed,
+        sim_replay=cocotblib.replay_command("check_mutate", sim_seed,
+                                          "--sim-seed"),
         wall_s=round(wall_s, 2))
     return payload, args.out
 
