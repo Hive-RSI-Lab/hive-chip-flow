@@ -48,6 +48,7 @@ import checklib  # noqa: E402
 import cocotblib  # noqa: E402
 import speclib  # noqa: E402
 import ttlib  # noqa: E402
+import xmonlib  # noqa: E402
 from checklib import CheckError  # noqa: E402
 
 SCRIPT = "check_holdout"
@@ -122,11 +123,20 @@ def run(argv=None):
     if frame:
         sources, hdl_top = sources + frame[0], frame[1]
     results_xml = ws / "log" / RESULTS_NAME
+    # the X/Z output monitor (xmonlib, #84): Icarus' optimistic X would
+    # hide an output register no reset reaches until gate-level sim
+    xmon, xmon_src, xmon_args = xmonlib.write_monitor(
+        spec, hdl_top, build_dir / "xmon",
+        latency=ttlib.pad_reset_latency(spec) if frame else 0)
+    sources = sources + xmon_src
     xml_path = cocotblib.run_cocotb(build_dir, holdout_dir, sources, hdl_top,
-                                    modules, results_xml, seed=seed)
+                                    modules, results_xml, seed=seed,
+                                    build_args=xmon_args)
     results = cocotblib.parse_results_xml(xml_path)
     if not results:
         raise CheckError(f"cocotb produced no test cases in {xml_path}")
+    x_found = xmonlib.findings(build_dir / "sim.log", "holdout",
+                               name_test=False)
     ignored = set()
     if frame:
         ignored = cocotblib.ignore_pad_latency(
@@ -176,6 +186,8 @@ def run(argv=None):
             f"at seed {seed} (replay: {replay})",
             "cocotb"))
 
+    violations += x_found
+
     # stamp() hashes exactly this path as input_digest; gate.py's own
     # record_gate cross-checks that against invalidation.yaml's gate_inputs
     # kinds[0] for this gate ("rtl" for holdout) - the whole workspace would
@@ -184,7 +196,8 @@ def run(argv=None):
                               tests_run=sorted(results),
                               tests_passed=sum(1 for r in results.values()
                                                if r["passed"]),
-                              seed=seed, replay=replay)
+                              seed=seed, replay=replay,
+                              x_monitor=xmonlib.facts(xmon))
     return payload, args.out
 
 
