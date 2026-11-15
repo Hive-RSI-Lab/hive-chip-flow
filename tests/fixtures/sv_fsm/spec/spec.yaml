@@ -1,0 +1,22 @@
+top: sv_fsm
+requirements:
+  - id: REQ-RUN
+    text: a start pulse while idle makes busy high for ten clocks, counting 0
+      to 9 (count reads 10 on the last), then done high for one clock
+    check: sim
+  - id: REQ-FORMAL-EXCL
+    text: busy and done are never high together, and count never exceeds 10
+    check: formal
+    property: REQ_FORMAL_EXCL
+ports:
+  clk: {dir: input, width: 1}
+  rst: {dir: input, width: 1}
+  start: {dir: input, width: 1}
+  busy: {dir: output, width: 1}
+  done: {dir: output, width: 1}
+  count: {dir: output, width: 4}
+clock:
+  period_ns: 20
+  domains: [clk]
+formal:
+  depth: 24

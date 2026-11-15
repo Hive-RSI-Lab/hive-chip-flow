@@ -288,7 +288,7 @@ def collect_sources(ws: Path, sub: str, exts=(".v", ".sv")) -> list[Path]:
     files = sorted(f for ext in exts for f in d.glob(f"*{ext}"))
     if not files:
         raise CheckError(f"no {'/'.join('*' + e for e in exts)} files under {d}")
-    return files
+    return checklib.order_sources(files)
 
 
 def formal_requirements(spec: dict) -> dict[str, str]:

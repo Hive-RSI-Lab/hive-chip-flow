@@ -450,3 +450,26 @@ def timeout_why(exc: subprocess.TimeoutExpired) -> str:
                 f"in disk wait) for "
                 f"{exc.timeout:g}s after {exc.elapsed:.0f}s")
     return f"timed out at its {exc.timeout:g}s wall ceiling"
+
+
+_PACKAGE_RE = re.compile(r"^\s*package\s+\w+\s*;", re.M)
+
+
+def order_sources(files):
+    """Put the SystemVerilog files that declare a `package` first (#91), so
+    every tool that reads files in order (verilator, iverilog, yosys) sees a
+    package before the modules that import it. Stable otherwise, and a
+    design with no .sv package keeps its order exactly, so the Verilog
+    corpus reads as it always has."""
+    files = list(files)
+
+    def has_package(f):
+        if f.suffix != ".sv":
+            return False
+        try:
+            return bool(_PACKAGE_RE.search(f.read_text(errors="replace")))
+        except OSError:
+            return False
+
+    pk = [f for f in files if has_package(f)]
+    return pk + [f for f in files if f not in pk]

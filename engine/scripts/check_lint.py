@@ -81,7 +81,7 @@ def collect_sources(ws: Path) -> list[Path]:
     files = sorted(rtl_dir.glob("*.v")) + sorted(rtl_dir.glob("*.sv"))
     if not files:
         raise CheckError(f"no .v/.sv files under {rtl_dir}")
-    return files
+    return checklib.order_sources(files)
 
 
 def run_verilator(ws: Path, top: str, files: list[Path]) -> str:
