@@ -124,3 +124,63 @@ def test_spec_seed_and_digest_seed_are_recorded(tmp_path):
     a, b = run_sim(ws2), run_sim(ws2)
     assert a[1]["seed"] == b[1]["seed"] == want
     assert a[0] == b[0]
+
+
+# --- #83b: multi-seed regression (spec sim.seeds / --seeds) ---
+
+def test_seed_count_comes_from_override_then_spec_then_zero():
+    assert cocotblib.sim_seeds({}) == 0
+    assert cocotblib.sim_seeds({"sim": {"seed": 3}}) == 0
+    assert cocotblib.sim_seeds({"sim": {"seeds": 5}}) == 5
+    assert cocotblib.sim_seeds({"sim": {"seeds": 5}}, 0) == 0
+    assert cocotblib.sim_seeds({}, 2) == 2
+
+
+@pytest.mark.parametrize("bad", [-1, cocotblib.SEEDS_MAX + 1, "4", 2.0, True])
+def test_bad_seed_count_is_an_error(bad):
+    with pytest.raises(CheckError, match="sim.seeds"):
+        cocotblib.sim_seeds({"sim": {"seeds": bad}})
+    with pytest.raises(CheckError, match="--seeds"):
+        cocotblib.sim_seeds({}, bad)
+
+
+def test_extra_seeds_are_pinned_distinct_and_skip_the_base():
+    a = cocotblib.extra_seeds(7, 20)
+    assert a == cocotblib.extra_seeds(7, 20), "same base, other seeds"
+    assert len(set(a)) == 20 and 7 not in a
+    assert all(0 <= s <= cocotblib.SEED_MAX for s in a)
+    assert cocotblib.extra_seeds(7, 3) == a[:3], "K+1 only adds a seed"
+    assert cocotblib.extra_seeds(8, 3) != a[:3]
+    assert cocotblib.extra_seeds(7, 0) == []
+
+
+@pytest.mark.slow
+def test_a_failure_only_some_seeds_reach_fails_with_k_and_passes_without(
+        tmp_path):
+    from test_check_sim import RTL_GOOD, SPEC_ONE_REQ, make_ws
+    # drawn through randlib, as tb-writer is told to: seed 2 draws even
+    # (passes); with 4 extra seeds some draw odd
+    tb = TB_DRAW.replace("import random\n", "from randlib import bounded\n") \
+        .replace("random.getrandbits(32)", "bounded(0, 2**32 - 1)")
+    assert "bounded(" in tb
+    ws = make_ws(tmp_path, RTL_GOOD,
+                 SPEC_ONE_REQ + "sim:\n  seed: 2\n  seeds: 4\n", tb)
+    code, out = run_sim(ws, "--seeds", "0")
+    assert code == 0 and out["extra_seeds"] == [], out
+
+    code, out = run_sim(ws)
+    assert code == 1, out
+    assert out["seed"] == 2 and out["extra_seeds"] == \
+        cocotblib.extra_seeds(2, 4)
+    bad = [v for v in out["violations"] if v["kind"] == "test_failed"]
+    assert bad and sorted(out["seed_failures"]) == sorted(
+        str(s) for s in out["extra_seeds"]
+        if str(s) in out["seed_failures"])
+    assert len(bad) == len(out["seed_failures"])
+    for v in bad:
+        s = next(k for k in out["seed_failures"] if f"seed {k}:" in v["msg"])
+        assert "passed at seed 2" in v["msg"]
+        assert v["msg"].endswith(f"--seed {s})"), v["msg"]
+        # the named seed replays the failure as a single run
+        rc, rep = run_sim(ws, "--seed", s)
+        assert rc == 1 and rep["seed"] == int(s) and rep["extra_seeds"] == []

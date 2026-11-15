@@ -84,6 +84,16 @@ JSON out, exit 0/1/2. Keep output ASCII. **No web tools.**
      rejected 0 always became 4 (faces 32/32/64/63/32/32 over the 255 phases).
      Take the value from bits the shift and taps mix, or step two clocks per
      rejection, and brute-force the bit choices in a few lines of Python.
+   - Random stimulus: for every requirement on a protocol (a bus, a
+     FIFO, a frame), add one randomized-transaction test that drives many
+     random transactions and checks each against the reference model.
+     Draw with `from randlib import chance, bounded, weighted, fields`
+     (constraints: weighted fields, bounded ranges, `edge=` to hit the
+     range ends), never with your own `random.Random(...)`: the gate seeds
+     `random` and replays a failure by seed, and a private generator draws
+     the same under every seed. Set `sim: {seeds: K}` in the spec (say 8)
+     when a bug could need a rare pattern (five writes back to back); the
+     gate then runs K more seeds and names any seed that fails.
 4. Write `holdout/test_<block>_holdout.py`: tests that exercise a case the
    VISIBLE suite deliberately does not - the corner the spec implies but a
    surface reading of the requirements might skip (a one-clock reset

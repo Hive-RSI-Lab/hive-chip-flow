@@ -20,6 +20,12 @@ bug a real test catches) and, named separately in M2's done criteria, "a
 requirement without a test fails sim". A bench that ignores the pad's reset
 latency fails too, as `tb_ignores_pad_latency` rather than `test_failed`, so
 it reaches the tb-writer and not the rtl fixer (cocotblib.ignore_pad_latency).
+
+Seeds (#83): every run is at one pinned seed (--seed, else spec sim.seed,
+else a digest of the bench). Spec `sim.seeds: K` (or --seeds K) then runs
+the same build at K more seeds (cocotblib.extra_seeds); a test that passed
+at the pinned seed and fails at another is `test_failed`, naming that seed
+and its replay line. --seed alone is a replay: one run, no extra seeds.
 """
 from __future__ import annotations
 
@@ -57,6 +63,9 @@ def run(argv=None):
     ap.add_argument("--out", help="write result JSON here instead of stdout")
     ap.add_argument("--seed", type=int, help="cocotb random seed, overriding "
                     "spec sim.seed and the one drawn from the bench (replay)")
+    ap.add_argument("--seeds", type=int, help="extra seeds to run after the "
+                    "pinned one, overriding spec sim.seeds (default: 0 with "
+                    "--seed, so a replay is one run)")
     args = ap.parse_args(argv)
 
     ws = Path(args.workspace)
@@ -72,6 +81,9 @@ def run(argv=None):
         raise CheckError(f"no test_*.py modules under {tb_dir}")
     seed = cocotblib.sim_seed(spec, tb_dir, args.seed)
     replay = cocotblib.replay_command(SCRIPT, seed)
+    n_extra = cocotblib.sim_seeds(
+        spec, 0 if args.seed is not None and args.seeds is None
+        else args.seeds)
     tags = cocotblib.scan_requirement_tags(tb_dir)
     tagged_ids: set[str] = set().union(*tags.values()) if tags else set()
     required = cocotblib.required_ids(spec, checks=("sim", "both"))
@@ -142,6 +154,34 @@ def run(argv=None):
 
     violations += x_found
 
+    # multi-seed regression (#83, spec sim.seeds): the same build at K more
+    # seeds. A test that passed at the pinned seed and fails at another is
+    # a failure only some draws reach; each is reported with its seed and
+    # the line that replays it. Tests already failing above are not
+    # repeated.
+    extra = cocotblib.extra_seeds(seed, n_extra)
+    seed_failures: dict[str, list[str]] = {}
+    for s in extra:
+        xml_s = cocotblib.run_cocotb(
+            build_dir, tb_dir, sources, hdl_top, modules,
+            build_dir / "seeds" / f"results_{s}.xml", seed=s,
+            build_args=xmon_args)
+        res_s = cocotblib.parse_results_xml(xml_s)
+        if not res_s:
+            raise CheckError(f"cocotb produced no test cases at seed {s} "
+                             f"in {xml_s}")
+        for name, res in sorted(res_s.items()):
+            if res["passed"] or res.get("skipped") \
+                    or not results.get(name, {}).get("passed"):
+                continue
+            seed_failures.setdefault(str(s), []).append(name)
+            violations.append(checklib.violation(
+                "sim", "error", None, name, "test_failed",
+                sorted(tags.get(name, [])),
+                f"{name} passed at seed {seed} and failed at extra seed "
+                f"{s}: {res['message'] or 'see the sim log'} (replay: "
+                f"{cocotblib.replay_command(SCRIPT, s)})", "cocotb"))
+
     # stamp() hashes exactly this path as input_digest; gate.py's own
     # record_gate cross-checks that against invalidation.yaml's gate_inputs
     # kinds[0] for this gate ("rtl" for sim) - the whole workspace would
@@ -151,6 +191,7 @@ def run(argv=None):
                               tests_passed=sum(1 for r in results.values()
                                                if r["passed"]),
                               seed=seed, replay=replay,
+                              extra_seeds=extra, seed_failures=seed_failures,
                               x_monitor=xmonlib.facts(xmon))
     return payload, args.out
 

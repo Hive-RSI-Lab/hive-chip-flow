@@ -23,3 +23,9 @@ tb-writer, never silently edit `tb/` from the rtl domain).
 timing assumption mismatch (registered vs. combinational reset release) -
 check exactly which edge the RTL's reset takes effect on against exactly
 which edge the test samples.
+
+**Failed at an extra seed:** a message saying the test "passed at seed A
+and failed at extra seed B" comes from spec `sim.seeds`: only some random
+draws reach the bug. Replay it as one run with the `--seed B` line in the
+message and debug that draw; a fix is done when the full multi-seed run
+passes, not just seed B.
