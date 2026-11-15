@@ -1,10 +1,10 @@
 {
-  "//": "1040 flops of register file and 64-byte memory make nets with hundreds of loads. repair_design buffered them with dly* delay cells (~1.7ns each), which put ~20ns of pure delay on the critical path; buf_1 drove long nets past the 3ns ss slew limit. With both excluded, a 45% density and 300um wire caps for repair, and 30% slew/cap margins after global routing (35% overflows routing), post-route slew stays inside the limit at every ss corner. CTS clusters of 10 sinks with 250um wires keep the clock tree's own slew down.",
+  "//": "1040 flops of register file and 64-byte memory make nets with hundreds of loads. repair_design buffered them with dly* delay cells (~1.7ns each), which put ~20ns of pure delay on the critical path; buf_1 drove long nets past the 3ns ss slew limit. With both excluded, a 40% density and 300um wire caps for repair, and 30% slew/cap margins after global routing (35% overflows routing), post-route slew stays inside the limit at every ss corner. At 45% density local Metal3 congestion (Metal3 is the only horizontal signal layer below the power metal) made the final reroute detour a repaired net past the limit. CTS clusters of 10 sinks with 250um wires keep the clock tree's own slew down.",
   "EXTRA_EXCLUDED_CELLS": [
     "gf180mcu_fd_sc_mcu7t5v0__dly*",
     "gf180mcu_fd_sc_mcu7t5v0__buf_1"
   ],
-  "PL_TARGET_DENSITY_PCT": 45,
+  "PL_TARGET_DENSITY_PCT": 40,
   "CTS_SINK_CLUSTERING_SIZE": 10,
   "CTS_CLK_MAX_WIRE_LENGTH": 250,
   "DESIGN_REPAIR_MAX_WIRE_LENGTH": 300,

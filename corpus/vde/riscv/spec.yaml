@@ -84,10 +84,11 @@ formal:
 # inputs, halted/illegal ride on uio_out (their uio_oe bits driven high by
 # engine/lib/ttlib.py::generate_tt_wrapper). rst is active-high inside
 # rv_core, hence the `~`. The pins fit a tile but the logic does not: about
-# 1550 flops of register file and memory synthesise to ~258k um^2 of cells,
-# while one GF180 tile (346.64 x 160.72 um) holds ~26k at the template's 60%
-# placement density. 3x4 (1075.76 x 736.96 um, the vendored tile_sizes.yaml)
-# leaves room to route; 4x2 would sit at ~60% of its core with no margin.
+# 1045 flops of register file and 64-byte memory harden to ~291k um^2 of
+# placed cells, while one GF180 tile (346.64 x 160.72 um) holds ~26k at the
+# template's 60% placement density. 3x4 (1075.76 x 736.96 um, the vendored
+# tile_sizes.yaml) sits at 37% utilisation, which leaves Metal3 (the only
+# horizontal signal layer) room to route long nets without detours.
 tiles: 3x4
 tt_pins:
   clk: clk
