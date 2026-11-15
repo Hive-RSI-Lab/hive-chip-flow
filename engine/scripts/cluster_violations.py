@@ -113,6 +113,9 @@ FIXER_HINTS: dict[str, str] = {
     # slang_<-W name> (KIND_PREFIX_HINTS below); iverilog's are these two.
     "sim_unsupported": "rtl",
     "sim_compile_error": "rtl",
+    # #92a: rtl/lint_allow.yaml is an rtl-domain file (fixer.md).
+    "lint_stale_waiver": "rtl",
+    "lint_broad_waiver": "rtl",
 
     # sim (check_sim.py)
     "test_failed": "rtl",

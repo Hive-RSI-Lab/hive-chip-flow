@@ -9,4 +9,5 @@ skeleton when a corpus rung isn't a close enough match.
   each `check` kind.
 - `rtl_lint_allow.yaml.template` - an allowlist entry needs a `rule` AND a
   `reason`; an entry missing either is refused by `check_lint.py`, not
-  silently dropped.
+  silently dropped. Give it a `file` and `signal` (or `line`) too: a
+  rule-only entry is reported as broad, and one that matches nothing fails.

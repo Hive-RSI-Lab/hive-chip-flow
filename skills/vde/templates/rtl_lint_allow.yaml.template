@@ -1,9 +1,13 @@
 # Copy into rtl/lint_allow.yaml (optional - only when a warning is real and
 # justified; see skills/vde/reference/remediations/LATCH.md before reaching
 # for this file on a LATCH finding specifically - allowlisting one is
-# almost never the right call). Every entry needs BOTH fields;
+# almost never the right call). Every entry needs `rule` and `reason`;
 # check_lint.py refuses an entry missing either, it does not silently drop
-# it.
+# it. Narrow it with `file` and `signal` (or `line`): a rule-only entry
+# waives that rule everywhere and is reported as `lint_broad_waiver`, and an
+# entry that matches no warning fails lint as `lint_stale_waiver`.
 
 - rule: <VERILATOR_RULE_NAME>
+  file: rtl/<file>.v
+  signal: <the name the warning quotes>
   reason: <why this specific warning is not a defect here>
