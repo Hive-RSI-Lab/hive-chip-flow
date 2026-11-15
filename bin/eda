@@ -537,10 +537,17 @@ case "$TOOL" in
     exec "$SHIM/$TOOL" "$@"
     ;;
 
-  iverilog-vpi|ghdl|verible*|slang|nvc)
+  iverilog-vpi|ghdl|verible*|slang|slang-tidy|slang-hier|nvc)
     real="$T/foss/tools/${TOOL%%-*}/bin/$TOOL"
     [ -e "$real" ] || real="$T/foss/tools/iverilog/bin/$TOOL"
     run_elf "$real" "$@"
+    ;;
+
+  # SystemVerilog helpers (#91): sv2v lowers SV to plain Verilog (a cross-
+  # check on the slang frontend, and a way in for tools that read only
+  # Verilog); it ships with the pulp tools, not under a dir of its own name.
+  sv2v)
+    run_elf "$T/foss/tools/pulp/bin/sv2v" "$@"
     ;;
 
   # gtkwave's fst2vcd needs libfst.so.1 from gtkwave's own lib dir, which is

@@ -179,7 +179,7 @@ def collect_sources(ws: Path) -> list[Path]:
     files = sorted(rtl_dir.glob("*.v")) + sorted(rtl_dir.glob("*.sv"))
     if not files:
         raise CheckError(f"no .v/.sv files under {rtl_dir}")
-    return files
+    return checklib.order_sources(files)
 
 
 def toolchain_root(timeout: float = 30.0) -> Path:
@@ -192,19 +192,47 @@ def toolchain_root(timeout: float = 30.0) -> Path:
     return Path(proc.stdout.strip())
 
 
+SLANG_SO = "foss/tools/slang-yosys-plugin/slang.so"
+
+
+def pick_frontend(rtl_files: list[Path], root_fn=None) -> tuple[str, Path | None]:
+    """("slang", plugin .so) when rtl/ holds any .sv file, else ("verilog",
+    None) - one front end per design (#91). yosys's own read_verilog cannot
+    read a package import (and `-sv` still fails on one), so SystemVerilog
+    goes through yosys-slang; an all-.v design keeps read_verilog, so the
+    Verilog corpus synthesizes exactly as it did. A .sv design with no
+    plugin in the toolchain is a refusal, never a quiet fall back."""
+    if not any(f.suffix == ".sv" for f in rtl_files):
+        return "verilog", None
+    so = (root_fn or toolchain_root)() / SLANG_SO
+    if not so.is_file():
+        raise CheckError(f"rtl/ holds SystemVerilog but the toolchain has no "
+                         f"yosys-slang plugin at {SLANG_SO}")
+    return "slang", so
+
+
+def read_lines(ws: Path, top: str, rtl_files: list[Path],
+               slang_so: Path | None) -> str:
+    rel = [str(f.relative_to(ws)) for f in rtl_files]
+    if slang_so is None:
+        return chr(10).join(f'read_verilog {f}' for f in rel)
+    return f"plugin -i {slang_so}\nread_slang --top {top} {' '.join(rel)}"
+
+
 def run_yosys(ws: Path, top: str, rtl_files: list[Path], liberty: Path,
-             out_v: Path) -> tuple[str, list[tuple[str, str]]]:
+             out_v: Path, slang_so: Path | None = None
+             ) -> tuple[str, list[tuple[str, str]]]:
     """(yosys output, missing) - `missing` lists (cell, module) pairs
     `hierarchy` refused because the liberty does not define that cell;
-    when it is non-empty yosys stopped there and the output is partial."""
-    rel = [str(f.relative_to(ws)) for f in rtl_files]
+    when it is non-empty yosys stopped there and the output is partial.
+    `slang_so` reads the design through yosys-slang (pick_frontend)."""
     script = ws / "log" / "synth.ys"
     script.parent.mkdir(parents=True, exist_ok=True)
     out_v.parent.mkdir(parents=True, exist_ok=True)
     out_v.with_suffix(".json").unlink(missing_ok=True)
     script.write_text(f"""\
 read_liberty -lib {liberty}
-{chr(10).join(f'read_verilog {f}' for f in rel)}
+{read_lines(ws, top, rtl_files, slang_so)}
 hierarchy -top {top}
 synth -flatten -top {top}
 dfflibmap -liberty {liberty}
@@ -314,7 +342,8 @@ def run(argv=None):
     std_cell["liberty"] = liberty.name
 
     out_v = ws / "synth" / f"{top}.v"
-    output, missing = run_yosys(ws, top, rtl_files, liberty, out_v)
+    frontend, slang_so = pick_frontend(rtl_files)
+    output, missing = run_yosys(ws, top, rtl_files, liberty, out_v, slang_so)
 
     violations = []
     for cell, mod in missing:
@@ -326,7 +355,7 @@ def run(argv=None):
     if missing:
         payload = checklib.report(SCRIPT, ws / "rtl", violations, top=top,
                                   std_cell=std_cell, cells={}, area=None,
-                                  netlist=None)
+                                  netlist=None, frontend=frontend)
         return payload, args.out
 
     loop_mods = sorted(set(LOOP_RE.findall(output)))
@@ -393,7 +422,7 @@ def run(argv=None):
         # totals a `check: measure` bound can name (measurelib.py, #89)
         cell_count=sum(cells.values()),
         non_liberty_cells=sum(v for n, v in cells.items() if n not in known),
-        netlist=str(out_v.relative_to(ws)))
+        netlist=str(out_v.relative_to(ws)), frontend=frontend)
     return payload, args.out
 
 
