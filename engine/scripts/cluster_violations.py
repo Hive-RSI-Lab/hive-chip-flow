@@ -109,6 +109,10 @@ FIXER_HINTS: dict[str, str] = {
     "BLKSEQ": "rtl",
     "COMBDLY": "rtl",
     "SYNCASYNCNET": "rtl",
+    # check_lint's second and third parsers (#91): slang's own kinds are
+    # slang_<-W name> (KIND_PREFIX_HINTS below); iverilog's are these two.
+    "sim_unsupported": "rtl",
+    "sim_compile_error": "rtl",
 
     # sim (check_sim.py)
     "test_failed": "rtl",
@@ -317,6 +321,7 @@ FIXER_HINTS: dict[str, str] = {
 # bench's instantiation of it) to fix, never a bound to widen.
 KIND_PREFIX_HINTS: tuple[tuple[str, str], ...] = (
     ("sim_engine_error_", "netlist"),
+    ("slang_", "rtl"),
 )
 
 # Last resort before 'review', keyed by the finding's own `check` (the gate's
