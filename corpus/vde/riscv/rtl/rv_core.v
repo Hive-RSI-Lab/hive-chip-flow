@@ -52,7 +52,10 @@ module rv_core (
   wire [4:0] rs2    = ir[24:20];
   wire [6:0] f7     = ir[31:25];
 
-  wire [31:0] a = (rs1[3:0] == 4'd0) ? 32'd0 : rf[rs1[3:0]];
+  // rs1's read port doubles as the debug register read while halted (no
+  // instruction executes then), so the register file has two read ports.
+  wire [3:0]  ra_idx = halted ? din[5:2] : rs1[3:0];
+  wire [31:0] a = (ra_idx == 4'd0) ? 32'd0 : rf[ra_idx];
   wire [31:0] b = (rs2[3:0] == 4'd0) ? 32'd0 : rf[rs2[3:0]];
 
   wire [31:0] imm_i = {{20{ir[31]}}, ir[31:20]};
@@ -126,7 +129,12 @@ module rv_core (
 
   // ---- loads and stores (addresses wrap at 128 bytes) -----------------
   wire [6:0]  addr    = alu_y[6:0];
-  wire [31:0] word    = mem[addr[6:2]];
+  // ONE 32:1 memory read port, shared by fetch (pc), loads in EXEC
+  // (addr) and the debug read-back while halted (din): three separate
+  // 32-bit read muxes were most of the core's cells and wiring.
+  wire [4:0]  rd_index = halted ? din[6:2]
+                       : (state == S_FETCH ? pc : addr[6:2]);
+  wire [31:0] word    = mem[rd_index];
   wire [7:0]  ld_byte = word[{addr[1:0], 3'b000} +: 8];
   wire [15:0] ld_half = addr[1] ? word[31:16] : word[15:0];
   reg  [31:0] ld_val;
@@ -214,7 +222,7 @@ module rv_core (
             state <= S_FETCH;
         end
         S_FETCH: begin
-          ir    <= mem[pc];
+          ir    <= word;
           state <= S_EXEC;
         end
         S_EXEC: begin
@@ -241,7 +249,6 @@ module rv_core (
   // ---- debug read-back while halted -----------------------------------
   // din[7]=1: memory byte din[1:0] of word din[6:2]; din[7]=0: byte din[1:0]
   // of register din[5:2] (din[6] ignored). Zero whenever not halted.
-  wire [31:0] dbg_reg  = (din[5:2] == 4'd0) ? 32'd0 : rf[din[5:2]];
-  wire [31:0] dbg_word = din[7] ? mem[din[6:2]] : dbg_reg;
+  wire [31:0] dbg_word = din[7] ? word : a;  // shared read ports, above
   assign dout = halted ? dbg_word[{din[1:0], 3'b000} +: 8] : 8'h00;
 endmodule
