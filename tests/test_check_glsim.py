@@ -259,8 +259,11 @@ def test_a_failure_at_one_corner_only_is_a_violation_naming_it(
     _patch_pdk(monkeypatch, tmp_path)
     code, out = _run(ws, monkeypatch, capsys, Runner())
     assert code == 1, out
+    seed = out["seed"]
+    assert out["replay"].endswith(f"--seed {seed}")
     assert [(v["glsim_pass"], v["msg"]) for v in out["violations"]] == [
-        ("sdf_ss", "[sdf_ss] test_x: count 3 != 2")]
+        ("sdf_ss", f"[sdf_ss] test_x at seed {seed}: count 3 != 2 "
+                   f"(replay: {out['replay']})")]
     assert out["results"]["sdf"]["test_x"] is True
     assert out["results"]["sdf_ss"]["test_x"] is False
 
