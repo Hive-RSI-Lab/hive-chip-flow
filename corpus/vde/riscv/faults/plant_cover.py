@@ -8,16 +8,16 @@ OLD = "          end else if (opcode == OP_SYSTEM) begin\n"
 NEW = """          end else if (!legal && opcode == OP_SYSTEM) begin
             // unreachable: every !legal word took the branch above
             illegal <= 1'b0;
-            pc      <= 5'd0;
-            ld_ptr  <= 7'd0;
+            pc      <= 4'd0;
+            ld_ptr  <= 6'd0;
             state   <= S_IDLE;
           end else if (!legal && opcode == OP_LOAD) begin
             illegal <= 1'b0;
-            pc      <= pc_next[4:0];
+            pc      <= pc_next[3:0];
             state   <= S_FETCH;
           end else if (!legal && opcode == OP_STORE) begin
             illegal <= 1'b0;
-            pc      <= pc_next[4:0];
+            pc      <= pc_next[3:0];
             state   <= S_FETCH;
           end else if (opcode == OP_SYSTEM) begin
 """

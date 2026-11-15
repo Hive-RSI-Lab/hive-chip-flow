@@ -1,6 +1,6 @@
 """Visible tests for rv_core (docs/design.md section 2). Every program runs
 on tb/rv_model.py first; the core's registers (and, where a test stores to
-memory, all 128 bytes of memory) are then read back through the debug port
+memory, all 64 bytes of memory) are then read back through the debug port
 and compared with the model's.
 
 Inputs are driven on the falling edge, the same discipline as corpus/vde/
@@ -23,7 +23,7 @@ import rv_model as rv
 from rv_model import (EBREAK, ECALL, MEM_BYTES, Model, branch, iop, jal,
                       jalr, li, load, rop, store, to_bytes)
 
-CLK_PERIOD_NS = 100  # spec.yaml clocks.period_ns; glsim runs it at ss
+CLK_PERIOD_NS = 150  # spec.yaml clocks.period_ns; glsim runs it at ss
 CLOCKS_PER_STEP_MAX = 4  # spec.md: at most 4 clocks per instruction
 
 
@@ -93,11 +93,14 @@ class Bench:
         run to the halt, and compare the core against the model."""
         image = bytearray(self.mem)
         prog = to_bytes(words)
+        # a longer program would wrap the loader onto its own first words
+        assert len(prog) <= MEM_BYTES, f"{what}: {len(prog)}-byte program"
         image[:len(prog)] = prog
         end = len(prog)
         for addr, blob in (data or {}).items():
             image[addr:addr + len(blob)] = blob
             end = max(end, addr + len(blob))
+        assert len(image) == MEM_BYTES, f"{what}: data past the memory"
         model = Model(bytes(image))
         model.regs = list(self.regs)
         model.run()
@@ -223,9 +226,9 @@ async def test_random_alu_programs(dut):
     bench = Bench(dut)
     await bench.start()
     rng = random.Random(2)
-    for n in range(28):
-        words = straight_line(rng, bench.regs, n_ops=rng.randrange(14, 22),
-                              n_seed=rng.randrange(2, 5))
+    for n in range(48):  # 16-word memory: shorter programs, more of them
+        words = straight_line(rng, bench.regs, n_ops=rng.randrange(8, 12),
+                              n_seed=rng.randrange(1, 3))
         await bench.run(words, what=f"alu program {n}")
 
 
@@ -247,14 +250,14 @@ async def test_alu_directed(dut):
         words.append(EBREAK)
         await bench.run(words, what=f"r-ops {a:#x},{b:#x}")
     for imm in (-2048, -1, 0, 1, 2047):
-        words = li(1, 0x00000800) + li(2, 0xFFFFF7FF)
-        rd = 3
-        for name in rv.I_OPS:
-            words.append(iop(name, rd, 1, imm))
-            words.append(iop(name, rd + 6, 2, imm))
-            rd += 1
-        words.append(EBREAK)
-        await bench.run(words, what=f"i-ops imm={imm}")
+        for src, value in ((1, 0x00000800), (2, 0xFFFFF7FF)):
+            words = li(src, value)
+            rd = 3 if src == 1 else 9
+            for name in rv.I_OPS:
+                words.append(iop(name, rd, src, imm))
+                rd += 1
+            words.append(EBREAK)
+            await bench.run(words, what=f"i-ops x{src} imm={imm}")
 
 
 # req: REQ-UPPER
@@ -342,21 +345,21 @@ async def test_jumps(dut):
 # req: REQ-UPPER
 @cocotb.test()
 async def test_top_of_memory_wraps(dut):
-    """pc wraps from word 31 to word 0, and a link taken at word 31 is 128."""
+    """pc wraps from word 15 to word 0, and a link taken at word 15 is 64."""
     bench = Bench(dut)
     await bench.start()
-    words = [jal(0, 116), EBREAK] + [EBREAK] * 27 + [
-        iop("addi", 4, 0, 1),     # 29
-        rv.auipc(5, 0),           # 30: x5 = 120
-        jal(6, 8)]                # 31: to word 1 (wraps), x6 = 128
+    words = [jal(0, 52), EBREAK] + [EBREAK] * 11 + [
+        iop("addi", 4, 0, 1),     # 13
+        rv.auipc(5, 0),           # 14: x5 = 56
+        jal(6, 8)]                # 15: to word 1 (wraps), x6 = 64
     model, _ = await bench.run(words, what="wrap")
-    assert model.regs[5] == 120 and model.regs[6] == 128
-    # falling through word 31 lands on word 0 (x8 is 0 after start())
+    assert model.regs[5] == 56 and model.regs[6] == 64
+    # falling through word 15 lands on word 0 (x8 is 0 after start())
     words = [branch("bne", 8, 0, 8),       # 0: second pass -> 2
-             jal(0, 120),                  # 1: first pass -> 31
+             jal(0, 56),                   # 1: first pass -> 15
              iop("addi", 7, 0, 5),         # 2:
-             EBREAK] + [EBREAK] * 27 + [
-             iop("addi", 8, 0, 6)]         # 31: then on to word 0
+             EBREAK] + [EBREAK] * 11 + [
+             iop("addi", 8, 0, 6)]         # 15: then on to word 0
     model, _ = await bench.run(words, what="fall-through")
     assert model.regs[7] == 5 and model.regs[8] == 6
 
@@ -367,25 +370,25 @@ async def test_random_loads_stores(dut):
     bench = Bench(dut)
     await bench.start()
     rng = random.Random(3)
-    for n in range(16):
+    for n in range(40):  # 16-word memory: short programs, more of them
         words = []
-        for r in (2, 3, 4, 5):
+        for r in (2, 3):
             words += li(r, rand_value(rng))
-        words += li(1, 112)                      # base: data area 96..127
+        words.append(iop("addi", 1, 0, 56))      # base: data area 48..63
         body = []
-        for _ in range(11):
+        for _ in range(6):
             if rng.random() < 0.5:
                 name = rng.choice(list(rv.STORES))
-                body.append(store(name, rng.randrange(2, 6), 1,
-                                  rng.randrange(-16, 16)))
+                body.append(store(name, rng.randrange(1, 4), 1,
+                                  rng.randrange(-8, 8)))
             else:
                 name = rng.choice(list(rv.LOADS))
                 # loads may also reach below the data area, and wrap
                 base = rng.choice([1, 1, 1, 0])
-                imm = rng.randrange(-16, 16) if base else rng.randrange(-2048, 2048)
+                imm = rng.randrange(-8, 8) if base else rng.randrange(-2048, 2048)
                 body.append(load(name, rng.randrange(6, 16), base, imm))
         words += body + [EBREAK]
-        data = {96: bytes(rng.getrandbits(8) for _ in range(32))}
+        data = {48: bytes(rng.getrandbits(8) for _ in range(16))}
         await bench.run(words, data=data, check_mem=True,
                         what=f"mem program {n}")
 
@@ -395,21 +398,28 @@ async def test_random_loads_stores(dut):
 async def test_sign_extension_and_lanes(dut):
     bench = Bench(dut)
     await bench.start()
-    words = [iop("addi", 1, 0, 96)]
+    # loads (the 16-word memory holds the loads or the stores, not both)
+    words = [iop("addi", 1, 0, 52)]
     for off in range(4):
-        words += [load("lb", 2 + off, 1, off), load("lbu", 6 + off, 1, off)]
-    words += [load("lh", 10, 1, 0), load("lh", 11, 1, 2),
+        words.append(load("lb", 2 + off, 1, off))
+    words += [load("lbu", 6, 1, 0), load("lbu", 7, 1, 1),
+              load("lh", 10, 1, 0), load("lh", 11, 1, 2),
               load("lhu", 12, 1, 3), load("lw", 13, 1, 1),
-              store("sb", 13, 1, 9), store("sh", 13, 1, 14),
-              store("sh", 13, 1, 17), store("sw", 13, 1, 23),
               EBREAK]
-    data = {96: bytes([0x80, 0x7F, 0xFF, 0x01, 0, 0, 0, 0,
-                       0, 0, 0, 0, 0, 0, 0, 0,
-                       0, 0, 0, 0, 0, 0, 0, 0])}
+    data = {52: bytes([0x80, 0x7F, 0xFF, 0x01, 0, 0, 0, 0,
+                       0, 0, 0, 0])}
     model, _ = await bench.run(words, data=data, check_mem=True,
-                               what="lanes")
+                               what="lanes: loads")
     assert model.regs[2] == 0xFFFFFF80 and model.regs[6] == 0x80
     assert model.regs[11] == 0x000001FF and model.regs[12] == 0x000001FF
+    assert model.regs[13] == 0x01FF7F80
+    # stores of x13 into each lane, carried over from the loads
+    words = [iop("addi", 1, 0, 40),
+             store("sb", 13, 1, 1), store("sb", 13, 1, 6),
+             store("sh", 13, 1, 10), store("sh", 13, 1, 13),
+             store("sw", 13, 1, 19), EBREAK]
+    data = {40: bytes(24)}
+    await bench.run(words, data=data, check_mem=True, what="lanes: stores")
 
 
 # req: REQ-MEM
@@ -420,23 +430,23 @@ async def test_programs(dut):
     await bench.start()
     fib = [iop("addi", 1, 0, 0),           # 0: a = 0
            iop("addi", 2, 0, 1),           # 1: b = 1
-           iop("addi", 3, 0, 80),          # 2: p = 80
-           iop("addi", 4, 0, 12),          # 3: n = 12
-           store("sw", 1, 3, 0),           # 4: *p = a
+           iop("addi", 3, 0, 48),          # 2: p = 48
+           iop("addi", 4, 0, 8),           # 3: n = 8
+           store("sh", 1, 3, 0),           # 4: *p = a (halfwords)
            rop("add", 5, 1, 2),            # 5: t = a + b
            iop("addi", 1, 2, 0),           # 6: a = b
            iop("addi", 2, 5, 0),           # 7: b = t
-           iop("addi", 3, 3, 4),           # 8: p += 4
+           iop("addi", 3, 3, 2),           # 8: p += 2
            iop("addi", 4, 4, -1),          # 9: n -= 1
            branch("blt", 0, 4, -24),       # 10: while n > 0 -> 4
            EBREAK]
     model, _ = await bench.run(fib, check_mem=True, what="fibonacci")
-    got = [int.from_bytes(model.mem[80 + 4 * i:84 + 4 * i], "little")
-           for i in range(12)]
-    assert got == [0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89]
-    copy = [iop("addi", 1, 0, 64),         # 0: src
-            iop("addi", 2, 0, 96),         # 1: dst
-            iop("addi", 3, 0, 20),         # 2: count
+    got = [int.from_bytes(model.mem[48 + 2 * i:50 + 2 * i], "little")
+           for i in range(8)]
+    assert got == [0, 1, 1, 2, 3, 5, 8, 13]
+    copy = [iop("addi", 1, 0, 40),         # 0: src
+            iop("addi", 2, 0, 52),         # 1: dst
+            iop("addi", 3, 0, 10),         # 2: count
             load("lbu", 4, 1, 0),          # 3:
             store("sb", 4, 2, 0),          # 4:
             iop("addi", 1, 1, 1),          # 5:
@@ -444,10 +454,10 @@ async def test_programs(dut):
             iop("addi", 3, 3, -1),         # 7:
             branch("bne", 3, 0, -20),      # 8: -> 3
             EBREAK]
-    src = bytes(range(200, 220))
-    model, _ = await bench.run(copy, data={64: src}, check_mem=True,
+    src = bytes(range(200, 210))
+    model, _ = await bench.run(copy, data={40: src}, check_mem=True,
                                what="byte copy")
-    assert bytes(model.mem[96:116]) == src
+    assert bytes(model.mem[52:62]) == src
 
 
 # req: REQ-HALT

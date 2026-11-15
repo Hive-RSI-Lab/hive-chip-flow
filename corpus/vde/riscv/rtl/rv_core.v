@@ -9,13 +9,13 @@ module rv_core (
     output reg        illegal
 );
   // A multi-cycle RV32E subset core (spec.md): 15 general registers plus a
-  // hard-wired x0, one 32-word (128-byte) memory shared by code and data, a
+  // hard-wired x0, one 16-word (64-byte) memory shared by code and data, a
   // byte-wide loader in front of it and a byte-wide debug read-back behind
   // it. Two clocks per instruction: FETCH latches the word at pc into ir,
   // EXEC decodes, computes and writes back.
   //
-  // pc is a 5-bit WORD index, never a 32-bit byte address: the memory has
-  // 32 words, so every higher pc bit would be a register that can never
+  // pc is a 4-bit WORD index, never a 32-bit byte address: the memory has
+  // 16 words, so every higher pc bit would be a register that can never
   // change (dead toggle surface for the `cover` gate and dead area for the
   // tile). Byte-address values the ISA exposes (auipc, jal/jalr's link) are
   // rebuilt from it where they are written back.
@@ -36,10 +36,10 @@ module rv_core (
   localparam OP_SYSTEM = 7'b1110011;
 
   reg [1:0]  state;
-  reg [4:0]  pc;
-  reg [6:0]  ld_ptr;
+  reg [3:0]  pc;
+  reg [5:0]  ld_ptr;
   reg [31:0] ir;
-  reg [31:0] mem [0:31];
+  reg [31:0] mem [0:15];
   reg [31:0] rf  [1:15];
 
   assign halted = (state == S_HALT);
@@ -60,10 +60,10 @@ module rv_core (
 
   wire [31:0] imm_i = {{20{ir[31]}}, ir[31:20]};
   wire [31:0] imm_s = {{20{ir[31]}}, ir[31:25], ir[11:7]};
-  // branch/jump offsets only ever move a 5-bit word pc, so only bits [6:2]
+  // branch/jump offsets only ever move a 4-bit word pc, so only bits [5:2]
   // of the byte offset matter (bit 1 is dropped, spec.md "Addresses").
-  wire [4:0]  off_b = {ir[26:25], ir[11:9]};
-  wire [4:0]  off_j = ir[26:22];
+  wire [3:0]  off_b = {ir[25], ir[11:9]};
+  wire [3:0]  off_j = ir[25:22];
 
   reg legal;
   always @* begin
@@ -127,13 +127,13 @@ module rv_core (
     endcase
   end
 
-  // ---- loads and stores (addresses wrap at 128 bytes) -----------------
-  wire [6:0]  addr    = alu_y[6:0];
-  // ONE 32:1 memory read port, shared by fetch (pc), loads in EXEC
+  // ---- loads and stores (addresses wrap at 64 bytes) -----------------
+  wire [5:0]  addr    = alu_y[5:0];
+  // ONE 16:1 memory read port, shared by fetch (pc), loads in EXEC
   // (addr) and the debug read-back while halted (din): three separate
   // 32-bit read muxes were most of the core's cells and wiring.
-  wire [4:0]  rd_index = halted ? din[6:2]
-                       : (state == S_FETCH ? pc : addr[6:2]);
+  wire [3:0]  rd_index = halted ? din[5:2]
+                       : (state == S_FETCH ? pc : addr[5:2]);
   wire [31:0] word    = mem[rd_index];
   wire [7:0]  ld_byte = word[{addr[1:0], 3'b000} +: 8];
   wire [15:0] ld_half = addr[1] ? word[31:16] : word[15:0];
@@ -173,7 +173,7 @@ module rv_core (
     endcase
   end
 
-  wire [4:0]  wr_index = ld_write ? ld_ptr[6:2] : addr[6:2];
+  wire [3:0]  wr_index = ld_write ? ld_ptr[5:2] : addr[5:2];
   wire [3:0]  wr_lanes = ld_write ? (4'b0001 << ld_ptr[1:0])
                        : (st_write ? st_lanes : 4'b0000);
   wire [31:0] wr_data  = ld_write ? {4{din}} : st_data;
@@ -184,15 +184,15 @@ module rv_core (
         mem[wr_index][8*lane +: 8] <= wr_data[8*lane +: 8];
 
   // ---- register write-back -------------------------------------------
-  wire [5:0] pc_next = {1'b0, pc} + 6'd1;  // link: (pc + 4) as a word count
+  wire [4:0] pc_next = {1'b0, pc} + 5'd1;  // link: (pc + 4) as a word count
   reg        wb_en;
   reg [31:0] wb_val;
   always @* begin
     wb_en  = 1'b1;
     case (opcode)
       OP_LUI:           wb_val = {ir[31:12], 12'd0};
-      OP_AUIPC:         wb_val = {ir[31:12], 5'd0, pc, 2'b00};
-      OP_JAL, OP_JALR:  wb_val = {24'd0, pc_next, 2'b00};
+      OP_AUIPC:         wb_val = {ir[31:12], 6'd0, pc, 2'b00};
+      OP_JAL, OP_JALR:  wb_val = {25'd0, pc_next, 2'b00};
       OP_LOAD:          wb_val = ld_val;
       OP_IMM, OP_OP:    wb_val = alu_y;
       default: begin
@@ -210,14 +210,14 @@ module rv_core (
   always @(posedge clk) begin
     if (rst) begin
       state   <= S_IDLE;
-      pc      <= 5'd0;
-      ld_ptr  <= 7'd0;
+      pc      <= 4'd0;
+      ld_ptr  <= 6'd0;
       illegal <= 1'b0;
     end else begin
       case (state)
         S_IDLE: begin
           if (we)
-            ld_ptr <= ld_ptr + 7'd1;
+            ld_ptr <= ld_ptr + 6'd1;
           if (run)
             state <= S_FETCH;
         end
@@ -235,9 +235,9 @@ module rv_core (
             state <= S_FETCH;
             case (opcode)
               OP_JAL:    pc <= pc + off_j;
-              OP_JALR:   pc <= alu_y[6:2];
-              OP_BRANCH: pc <= take ? pc + off_b : pc_next[4:0];
-              default:   pc <= pc_next[4:0];
+              OP_JALR:   pc <= alu_y[5:2];
+              OP_BRANCH: pc <= take ? pc + off_b : pc_next[3:0];
+              default:   pc <= pc_next[3:0];
             endcase
           end
         end
@@ -247,8 +247,8 @@ module rv_core (
   end
 
   // ---- debug read-back while halted -----------------------------------
-  // din[7]=1: memory byte din[1:0] of word din[6:2]; din[7]=0: byte din[1:0]
-  // of register din[5:2] (din[6] ignored). Zero whenever not halted.
+  // din[7]=1: memory byte din[1:0] of word din[5:2]; din[7]=0: byte din[1:0]
+  // of register din[5:2] (din[6] ignored either way). Zero whenever not halted.
   wire [31:0] dbg_word = din[7] ? word : a;  // shared read ports, above
   assign dout = halted ? dbg_word[{din[1:0], 3'b000} +: 8] : 8'h00;
 endmodule

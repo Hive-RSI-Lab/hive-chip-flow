@@ -4,8 +4,8 @@ read as halted after it. sim/holdout are not exercised by this manifest
 entry - see corpus/vde/counter8/faults/plant_formal.py's own note."""
 from pathlib import Path
 
-OLD = "      state   <= S_IDLE;\n      pc      <= 5'd0;"
-NEW = "      pc      <= 5'd0;"
+OLD = "      state   <= S_IDLE;\n      pc      <= 4'd0;"
+NEW = "      pc      <= 4'd0;"
 
 
 def plant(ws: Path) -> None:

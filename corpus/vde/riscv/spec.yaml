@@ -6,9 +6,9 @@ requirements:
       counting up; run high starts execution at byte address 0
     check: sim
   - id: REQ-READBACK
-    text: while halted, dout shows byte din[1:0] of memory word din[6:2]
+    text: while halted, dout shows byte din[1:0] of memory word din[5:2]
       when din[7] is 1, or byte din[1:0] of register din[5:2] when din[7]
-      is 0; while not halted dout is 0
+      is 0 (din[6] ignored); while not halted dout is 0
     check: sim
   - id: REQ-ALU
     text: ADD SUB SLL SLT SLTU XOR SRL SRA OR AND and ADDI SLTI SLTIU XORI
@@ -26,11 +26,11 @@ requirements:
   - id: REQ-JUMP
     text: JAL and JALR write the address of the following instruction to
       rd and jump (JALR to (rs1+imm) with bit 0 cleared); a target's low two
-      bits are dropped and the program counter wraps at 128 bytes
+      bits are dropped and the program counter wraps at 64 bytes
     check: sim
   - id: REQ-MEM
-    text: LB LH LW LBU LHU and SB SH SW access the 128-byte little-endian
-      memory at (rs1+imm) modulo 128, halfword accesses ignoring address
+    text: LB LH LW LBU LHU and SB SH SW access the 64-byte little-endian
+      memory at (rs1+imm) modulo 64, halfword accesses ignoring address
       bit 0 and word accesses bits 1:0, loads sign- or zero-extending as
       RV32I defines
     check: sim
@@ -66,12 +66,13 @@ ports:
   halted: {dir: output, width: 1}
   illegal: {dir: output, width: 1}
 clock:
-  # 100ns (10MHz): measured, not guessed. At 40ns the hardened core missed
-  # setup by ~34ns at the slow corner (max_ss) even after timing repair -
-  # the longest path, out to dout, arrives at ~70ns
-  # there - and nominal still missed by ~2ns. 100ns leaves that path the
-  # 20% IO budget plus margin at ss.
-  period_ns: 100
+  # 150ns (6.7MHz): measured, not guessed. At 100ns and 125ns the hardened
+  # core missed setup at the slow corners (max_ss): the longest paths run
+  # through the memory and register-file read muxes, and their long, heavily
+  # loaded nets are slow at ss. 150ns closes setup with margin at every
+  # corner, and leaves the repair room to hold post-route slew under the
+  # 3ns limit.
+  period_ns: 150
   domains: [clk]
 mutate:
   size: 24
