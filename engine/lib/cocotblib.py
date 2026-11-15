@@ -67,6 +67,44 @@ def sim_seed(spec: dict, test_dir: Path, override: int | None = None) -> int:
     return int.from_bytes(h.digest()[:4], "big") & SEED_MAX
 
 
+SEEDS_MAX = 100
+
+
+def sim_seeds(spec: dict, override: int | None = None) -> int:
+    """How many extra seeds the sim gate runs after its pinned one (#83):
+    `override` (the gate's --seeds), else spec `sim.seeds`, else 0. A
+    bench that draws random stimulus covers one draw per seed, so K > 0
+    runs K more draws and a failure that only some seeds reach still
+    fails the gate, named with the seed that reaches it."""
+    from checklib import CheckError
+    if override is not None:
+        k, where = override, "--seeds"
+    else:
+        sim = spec.get("sim")
+        k = sim.get("seeds", 0) if isinstance(sim, dict) else 0
+        where = "spec sim.seeds"
+    if isinstance(k, bool) or not isinstance(k, int) \
+            or not 0 <= k <= SEEDS_MAX:
+        raise CheckError(f"{where} must be an integer from 0 to "
+                         f"{SEEDS_MAX}, got {k!r}")
+    return k
+
+
+def extra_seeds(base: int, k: int) -> list[int]:
+    """The k seeds a multi-seed run adds to `base`: drawn from base alone,
+    so one pinned seed always means the same regression, all distinct and
+    none equal to base."""
+    out: list[int] = []
+    i = 0
+    while len(out) < k:
+        d = hashlib.sha256(f"{base}/{i}".encode()).digest()
+        s = int.from_bytes(d[:4], "big") & SEED_MAX
+        if s != base and s not in out:
+            out.append(s)
+        i += 1
+    return out
+
+
 def replay_command(script: str, seed: int, flag: str = "--seed") -> str:
     """The one line that reruns a gate on the same random draw."""
     return (f"bin/eda python engine/scripts/{script}.py --workspace <ws> "
