@@ -1,0 +1,44 @@
+# The riscv corpus rung's full M4 pipeline: tests/smoke-harden.sh riscv runs
+# harden, timing, drc, lvs, glsim (functional, sdf, sdf_ff, sdf_ss) and
+# precheck on the real toolchain. riscv is the largest vde rung (a 3x4 tile,
+# ~1045 flops) and the one closest to its timing and slew limits, so a flow
+# change that costs it a gate shows here first. It is not one of
+# harden-faults' rungs: it has no planted harden fault, and its harden alone
+# takes about 40 min, too long to run on every PR. A weekly run on main and
+# workflow_dispatch (any branch, by hand) keep its 6/6 from breaking unseen.
+name: smoke-harden-riscv
+
+on:
+  schedule:
+    - cron: "17 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: smoke-harden-riscv-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke-harden-riscv:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/toolchain
+      - name: tests/smoke-harden.sh riscv
+        env:
+          # under the job's own limit, so the harden gate (not the runner)
+          # ends a hang and reports it
+          CHIP_FLOW_HARDEN_TIMEOUT_S: "7200"
+        run: |
+          set +e
+          start=$SECONDS
+          bash tests/smoke-harden.sh riscv 2>&1 | tee "$RUNNER_TEMP/smoke.log"
+          rc=${PIPESTATUS[0]}
+          echo "riscv: $((SECONDS - start))s, exit $rc" | tee -a "$GITHUB_STEP_SUMMARY"
+          grep -E '^[a-z_]+: (PASS|FAIL)|^smoke-harden.sh' "$RUNNER_TEMP/smoke.log" >> "$GITHUB_STEP_SUMMARY" || true
+          exit $rc
