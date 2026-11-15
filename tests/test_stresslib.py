@@ -200,6 +200,51 @@ def test_an_excursion_held_to_the_end_of_the_run_fails_however_small():
     assert any("when the run ends" in r for r in found["reasons"])
 
 
+def _cut_clock(count=9):
+    """`count` whole pulses, then one more that is still up when the run
+    ends 5 ns after it rises: a free-running clock cut mid-pulse."""
+    t, v = pulses(0.02, 10 * NS, count=count, end=(count + 0.2) * PERIOD)
+    rise = (count + 0.25) * PERIOD
+    return (np.append(t, [rise, rise + 1e-15, rise + 5 * NS]),
+            np.append(v, [3.3, DC + 0.02, DC + 0.02]))
+
+
+def test_a_clock_cut_by_the_run_end_fails_with_the_window_hint():
+    found = score(_cut_clock())
+    assert found["status"] == "fail"
+    assert any("when the run ends" in r for r in found["reasons"])
+    assert "repeating window" in found["hints"][0]
+    assert f"every {PERIOD:.4g} s" in found["hints"][0]
+    assert not any("repeating window" in r for r in found["reasons"])
+    detail = stresslib.gate_detail(found)
+    assert detail.index("when the run ends") < detail.index("hint: crossed")
+
+
+def test_a_held_level_or_too_few_crossings_get_no_window_hint():
+    t = np.array([0, 1e-6, 1e-6 + 1e-12, 1.2e-6])
+    assert "hints" not in score((t, np.array([3.3, 3.3, 3.64, 3.64])))
+    assert "hints" not in score(_cut_clock(count=1))
+    found = score(_cut_clock(count=2))
+    assert found["status"] == "fail" and "hints" in found
+    t, v = _cut_clock()
+    t[-3:] += 3 * PERIOD
+    assert "hints" not in score((t, v))           # the last rise is off rhythm
+    t, v = _cut_clock()
+    t[-1] += 50 * PERIOD
+    assert "hints" not in score((t, v))           # on rhythm, then held for 50
+
+
+def test_a_cycle_mean_over_the_limit_by_less_than_the_floor_still_fails():
+    t = np.linspace(0, PERIOD, 801)
+    v = np.full(801, DC + 0.2e-3)
+    v[100:180] = DC + 3e-3
+    win = stresslib.Window("w", 0.0, PERIOD, PERIOD)
+    found = score((t, v), [win])
+    mean = found["rows"][0]["cycle_mean_v"]
+    assert DC < mean < DC + LIMITS["gate_oxide"]["floor_v"]
+    assert any("cycle average" in r for r in found["reasons"])
+
+
 def test_a_repeating_window_does_not_excuse_an_excursion_outside_it():
     win = stresslib.Window("late", 40 * PERIOD, 50 * PERIOD, PERIOD)
     assert "one-off peak" in score(pulses(0.31, 1 * NS), [win])["reasons"][0]

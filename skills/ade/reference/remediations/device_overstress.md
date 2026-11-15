@@ -62,4 +62,9 @@ A watch is a tighter bound than the allowance, never a looser one.
 A bench is the post-layout bench form: the tokens `{pdk}`, `{extracted}`,
 `{corner}`, `{res_corner}`, `{mim_corner}`, `{temp_c}` and `{vdd}`, an `xdut`
 instance of the top cell, a `.tran` line and no `.control`. Run it past its
-last window: an excursion the run cuts off reads as held.
+last window: an excursion the run cuts off reads as held. A bench whose clock
+runs free to the run end always has its last edge cut off, so declare a
+`repeating` window from the first full period after start-up to the run end;
+without one the gate fails that edge as held, and its detail carries a hint
+naming the period it saw. A cycle mean is held to the DC limit with no
+floor: it is the DC-equivalent stress, held every cycle.
