@@ -16,7 +16,7 @@ error (a bad literal `%Error:` line with no rule, never allowlist-able).
 
 Pass criteria (gates.yaml `lint` row): no errors; warnings only from an
 allowlist with reasons. The allowlist is `rtl/lint_allow.yaml` (optional; a
-list of `{rule, reason}`) - it lives inside rtl/ on purpose, not as a
+list of `{rule, reason, file?, signal?, line?}`) - it lives inside rtl/ on purpose, not as a
 separate artifact kind, so the existing `rtl` dir_text hash already covers
 an allowlist edit (docs/design.md 1.6). A warning whose rule is not on the
 list is reported at severity "error" (gates.yaml's fail_severities is
@@ -25,6 +25,18 @@ elevated to fail, not merely surfaced at "warning"); an allowlisted warning
 is downgraded to "info" (visible in the report, never counted). Fault this
 gate must catch: "an always @* missing an else (latch)" - verilator's own
 LATCH rule, live under plain -Wall, with no reason to allowlist it.
+
+Waivers are narrow and go stale (#92a). An entry's optional `file` (the
+finding's path, e.g. `rtl/top.v`, or just its basename), `signal` (a name
+the warning quotes, e.g. verilator's "Signal is not used: 'x'") and `line`
+narrow it to the findings that match all of them as well as `rule`. A
+rule-only entry still works, but it waives that rule everywhere, so each
+one is reported as a `lint_broad_waiver` finding at "info" (visible, never
+counted). An entry that matched no finding at all is a `lint_stale_waiver`
+error: the warning it was written for is gone (or the entry never matched
+what it was meant to), and a stale waiver would silently cover the next,
+unrelated warning of that rule. An unknown key (a typo such as `singal`)
+is refused rather than read as a broader waiver.
 
 Two more parsers read the same files after verilator (#91), because
 verilator alone lets through SystemVerilog the rest of the flow cannot use:
@@ -81,21 +93,115 @@ LINE_RE = re.compile(
     r"(?:(?P<file>\S+?):(?P<line>\d+):(?P<col>\d+):\s*)?(?P<msg>.*)$")
 
 
-def load_allowlist(ws: Path) -> dict[str, str]:
+ALLOW_KEYS = {"rule", "reason", "file", "signal", "line"}
+QUOTED_RE = re.compile(r"'([^']+)'")
+
+
+class Allowlist:
+    """rtl/lint_allow.yaml's entries, each counting the findings it waived.
+
+    `match` returns the waiving entry's reason (or None); `findings` then
+    reports the broad (rule-only) entries at info and the ones that matched
+    nothing at error. A plain `{rule: reason}` dict is accepted too (every
+    entry rule-only) for callers and tests that build one by hand.
+    """
+
+    def __init__(self, entries=None):
+        if isinstance(entries, dict):
+            entries = [{"rule": r, "reason": why} for r, why in entries.items()]
+        self.entries = [dict(e, hits=0) for e in (entries or [])]
+
+    def __bool__(self):
+        return bool(self.entries)
+
+    @staticmethod
+    def _file_ok(want, got):
+        if want is None:
+            return True
+        if not got:
+            return False
+        want, got = want.replace("\\", "/"), got.replace("\\", "/")
+        return got == want or got.endswith("/" + want.removeprefix("./")) \
+            or Path(got).name == want
+
+    @staticmethod
+    def _signal_ok(want, msg):
+        if want is None:
+            return True
+        for name in QUOTED_RE.findall(msg or ""):
+            if name == want or name.rsplit(".", 1)[-1] == want:
+                return True
+        return False
+
+    def match(self, kind, file_, line, msg):
+        for e in self.entries:
+            if e["rule"] != kind:
+                continue
+            if not self._file_ok(e.get("file"), file_):
+                continue
+            if not self._signal_ok(e.get("signal"), msg):
+                continue
+            if e.get("line") is not None and e["line"] != line:
+                continue
+            e["hits"] += 1
+            return e["reason"]
+        return None
+
+    def findings(self):
+        out = []
+        for i, e in enumerate(self.entries):
+            where = ", ".join(f"{k}={e[k]}" for k in ("file", "signal", "line")
+                              if e.get(k) is not None)
+            label = f"{ALLOW_REL}[{i}] rule {e['rule']}" + (
+                f" ({where})" if where else "")
+            if not e["hits"]:
+                out.append(checklib.violation(
+                    "lint", "error", ALLOW_REL, None, "lint_stale_waiver", [],
+                    f"{label} matches no lint finding: the warning it waived "
+                    "is gone (or the entry never matched it); delete or "
+                    "narrow it", "check_lint", line=None))
+            elif not where:
+                out.append(checklib.violation(
+                    "lint", "info", ALLOW_REL, None, "lint_broad_waiver", [],
+                    f"{label} waives every {e['rule']} warning in the design "
+                    f"({e['hits']} now); give it a file and signal (or line) "
+                    "so a new one is not silently covered", "check_lint",
+                    line=None))
+        return out
+
+
+def load_allowlist(ws: Path) -> Allowlist:
     p = ws / ALLOW_REL
     if not p.is_file():
-        return {}
+        return Allowlist()
     data = yaml.safe_load(p.read_text(encoding="utf-8")) or []
     if not isinstance(data, list):
-        raise CheckError(f"{p} must be a YAML list of {{rule, reason}}")
-    allow: dict[str, str] = {}
+        raise CheckError(f"{p} must be a YAML list of {{rule, reason, file?, "
+                         "signal?, line?}}")
+    entries = []
     for i, entry in enumerate(data):
         if not isinstance(entry, dict) or not entry.get("rule") \
                 or not entry.get("reason"):
             raise CheckError(f"{p}[{i}] must have a non-empty 'rule' and "
                              "'reason'")
-        allow[str(entry["rule"])] = str(entry["reason"])
-    return allow
+        extra = set(entry) - ALLOW_KEYS
+        if extra:
+            raise CheckError(f"{p}[{i}] has unknown key(s) {sorted(extra)}; "
+                             f"allowed: {sorted(ALLOW_KEYS)}")
+        e = {"rule": str(entry["rule"]), "reason": str(entry["reason"])}
+        for k in ("file", "signal"):
+            if entry.get(k) is not None:
+                if not isinstance(entry[k], str) or not entry[k].strip():
+                    raise CheckError(f"{p}[{i}] '{k}' must be a non-empty "
+                                     "string")
+                e[k] = entry[k].strip()
+        if entry.get("line") is not None:
+            if isinstance(entry["line"], bool) or not isinstance(
+                    entry["line"], int) or entry["line"] < 1:
+                raise CheckError(f"{p}[{i}] 'line' must be a positive integer")
+            e["line"] = entry["line"]
+        entries.append(e)
+    return Allowlist(entries)
 
 
 def collect_sources(ws: Path) -> list[Path]:
@@ -158,7 +264,9 @@ def _run_eda(ws: Path, args: list[str], what: str):
 
 
 def run_slang(ws: Path, top: str, files: list[Path],
-              allow: dict[str, str]) -> list[dict]:
+              allow) -> list[dict]:
+    if not isinstance(allow, Allowlist):
+        allow = Allowlist(allow)
     proc, output = _run_eda(
         ws, ["slang", "--quiet", "--top", top, *_rel(ws, files)], "slang")
     violations = []
@@ -172,7 +280,8 @@ def run_slang(ws: Path, top: str, files: list[Path],
         if m.group("sev") == "error":
             sev_out, reason = "error", None
         else:
-            reason = allow.get(kind)
+            reason = allow.match(kind, m.group("file"),
+                                 int(m.group("line")), m.group("msg"))
             sev_out = "info" if reason is not None else "error"
         extras = {"reason": reason} if reason is not None else {}
         violations.append(checklib.violation(
@@ -212,7 +321,9 @@ def run_iverilog(ws: Path, top: str, files: list[Path]) -> list[dict]:
     return violations
 
 
-def parse_violations(output: str, allow: dict[str, str]) -> list[dict]:
+def parse_violations(output: str, allow) -> list[dict]:
+    if not isinstance(allow, Allowlist):
+        allow = Allowlist(allow)
     violations = []
     for line in output.splitlines():
         m = LINE_RE.match(line.strip())
@@ -231,7 +342,7 @@ def parse_violations(output: str, allow: dict[str, str]) -> list[dict]:
             continue
         # Warning: allowlisted -> info (visible, never counted); otherwise
         # elevated to error (fail_severities: [error] is what gate.py counts).
-        reason = allow.get(rule) if rule else None
+        reason = allow.match(rule, file_, line_no, msg) if rule else None
         sev_out = "info" if reason is not None else "error"
         extras = {"reason": reason} if reason is not None else {}
         violations.append(checklib.violation(
@@ -258,6 +369,7 @@ def run(argv=None):
     violations = parse_violations(output, allow)
     violations += run_slang(ws, top, files, allow)
     violations += run_iverilog(ws, top, files)
+    violations += allow.findings()
     # stamp() hashes exactly this path as input_digest; gate.py's own
     # record_gate cross-checks that against invalidation.yaml's gate_inputs
     # kinds[0] for this gate ("rtl" for lint) - the whole workspace would

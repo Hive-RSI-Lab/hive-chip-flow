@@ -133,6 +133,9 @@ def test_allowlisted_warning_downgrades_to_info_and_gate_passes(tmp_path, capsys
     assert severities == {"info"}
     reasons = {v["kind"]: v.get("reason") for v in out["violations"]}
     assert reasons["WIDTHTRUNC"]
+    # #92a: both entries are rule-only, so each is reported as broad
+    broad = [v for v in out["violations"] if v["kind"] == "lint_broad_waiver"]
+    assert len(broad) == 2, out
 
     gate_result = gate.evaluate("lint", _lint_gate_row(), out)
     assert gate_result["status"] == "pass"   # gate level: no "error" severity
@@ -274,3 +277,88 @@ def test_corpus_and_sv_fsm_clean_under_slang_and_iverilog(
     extra = [v for v in out["violations"]
              if v["source"] in ("slang", "iverilog")]
     assert extra == [], extra
+
+
+# #92a: two unused signals; a waiver naming one must not cover the other.
+TWO_UNUSED_V = """\
+module top (input wire clk, input wire [3:0] spare_a, input wire [3:0] spare_b,
+            output reg [3:0] q);
+  always @(posedge clk) q <= 4'd0;
+endmodule
+"""
+
+
+@pytest.mark.slow
+def test_narrow_waiver_covers_one_signal_and_stale_one_fails(tmp_path, capsys):
+    ws = make_ws(tmp_path, TWO_UNUSED_V)
+    allow = ws / "rtl" / "lint_allow.yaml"
+    allow.write_text(
+        "- rule: UNUSEDSIGNAL\n  file: rtl/top.v\n  signal: spare_a\n"
+        "  reason: reserved input, tied off at the next level\n",
+        encoding="utf-8")
+    code, out = _lint(ws, capsys)
+    unused = {}
+    for v in out["violations"]:
+        if v["kind"] == "UNUSEDSIGNAL":
+            name = "spare_a" if "spare_a" in v["msg"] else (
+                "spare_b" if "spare_b" in v["msg"] else v["msg"])
+            unused[name] = v["severity"]
+    assert unused == {"spare_a": "info", "spare_b": "error"}, out
+    kinds = {v["kind"] for v in out["violations"]}
+    assert not kinds & {"lint_broad_waiver", "lint_stale_waiver"}, out
+    assert gate.evaluate("lint", _lint_gate_row(), out)["status"] == "fail"
+
+    # waive both by name: the gate passes
+    allow.write_text(allow.read_text(encoding="utf-8") +
+                     "- rule: UNUSEDSIGNAL\n  signal: spare_b\n  reason: "
+                     "reserved too\n", encoding="utf-8")
+    code, out = _lint(ws, capsys)
+    assert gate.evaluate("lint", _lint_gate_row(), out)["status"] == "pass", out
+
+    # a waiver that matches nothing (a signal that no longer exists) fails
+    allow.write_text(allow.read_text(encoding="utf-8") +
+                     "- rule: UNUSEDSIGNAL\n  signal: spare_gone\n  reason: "
+                     "was reserved\n", encoding="utf-8")
+    code, out = _lint(ws, capsys)
+    stale = [v for v in out["violations"] if v["kind"] == "lint_stale_waiver"]
+    assert len(stale) == 1 and stale[0]["severity"] == "error", out
+    assert "spare_gone" in stale[0]["msg"]
+    assert stale[0]["file"] == "rtl/lint_allow.yaml"
+    assert gate.evaluate("lint", _lint_gate_row(), out)["status"] == "fail"
+
+
+def test_waiver_matching_broad_and_stale_hermetic(tmp_path):
+    """Hermetic: file/signal/line narrow a waiver, a rule-only entry is
+    reported as broad (info), an unmatched one as stale (error), and an
+    unknown key or a bad line is refused."""
+    out = ("%Warning-UNUSEDSIGNAL: rtl/top.v:2:10: Signal is not used: 'a'\n"
+           "%Warning-UNUSEDSIGNAL: rtl/top.v:3:10: Signal is not used: 'b'\n"
+           "%Warning-WIDTHTRUNC: rtl/sub.v:7:5: Operator ASSIGN expects 4 "
+           "bits\n")
+    al = check_lint.Allowlist([
+        {"rule": "UNUSEDSIGNAL", "reason": "r", "file": "top.v",
+         "signal": "a"},
+        {"rule": "WIDTHTRUNC", "reason": "r", "file": "rtl/sub.v", "line": 7},
+        {"rule": "WIDTHTRUNC", "reason": "r", "line": 99},
+        {"rule": "LATCH", "reason": "r"},
+    ])
+    vs = check_lint.parse_violations(out, al)
+    assert [(v["kind"], v["severity"]) for v in vs] == [
+        ("UNUSEDSIGNAL", "info"), ("UNUSEDSIGNAL", "error"),
+        ("WIDTHTRUNC", "info")]
+    extra = [(v["kind"], v["severity"]) for v in al.findings()]
+    assert extra == [("lint_stale_waiver", "error"),
+                     ("lint_stale_waiver", "error")]
+    al2 = check_lint.Allowlist({"UNUSEDSIGNAL": "r"})
+    check_lint.parse_violations(out, al2)
+    assert [(v["kind"], v["severity"]) for v in al2.findings()] == [
+        ("lint_broad_waiver", "info")]
+
+    ws = make_ws(tmp_path, CLEAN_V)
+    p = ws / "rtl" / "lint_allow.yaml"
+    for bad in ("- rule: X\n  reason: r\n  singal: a\n",
+                "- rule: X\n  reason: r\n  line: zero\n",
+                "- rule: X\n  reason: r\n  signal: ''\n"):
+        p.write_text(bad, encoding="utf-8")
+        with pytest.raises(check_lint.CheckError):
+            check_lint.load_allowlist(ws)

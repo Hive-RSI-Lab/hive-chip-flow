@@ -73,7 +73,7 @@ Digital (`/vde`):
 | gate | tool | passes when | planted fault it must catch |
 |---|---|---|---|
 | spec_lint | speclib | every requirement has an id, a check kind and, for `measure`, bounds that each name a recorded `source` (`<gate>.<facts path>`, measurelib; release fails a bound out of limits or never recorded); tt_pins fit the tile | a requirement with no way to check it |
-| lint | verilator --lint-only -Wall, then slang and iverilog -g2012 (sim's compiler) over the same files (#91) | no errors; warnings only from an allowlist with reasons; nothing iverilog refuses | an `always @*` missing an else (latch); SV that iverilog rejects (`inside`) |
+| lint | verilator --lint-only -Wall, then slang and iverilog -g2012 (sim's compiler) over the same files (#91) | no errors; warnings only from an allowlist with reasons, each entry naming its file and signal (or line) - a rule-only one is reported, one that matches nothing fails (#92a); nothing iverilog refuses | an `always @*` missing an else (latch); SV that iverilog rejects (`inside`) |
 | sim | cocotb 2 on Icarus | every test passes and every requirement id has a test tagged with it | counter wraps one early |
 | holdout | cocotb on `holdout/` | every held-out test passes; the result names requirement ids only | UART parity inverted where the visible tests do not look |
 | mutate | yosys mutate via mcy, fixed seed, N mutants | kill rate at or above 0.9; no survivor in the must-kill classes (reset removed, output stuck, condition inverted); a survivor proven equivalent or ruled so one by one in `spec/mutant_rulings.yaml` is left out | a testbench that asserts nothing |
