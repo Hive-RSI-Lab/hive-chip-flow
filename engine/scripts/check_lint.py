@@ -59,6 +59,17 @@ verilator alone lets through SystemVerilog the rest of the flow cannot use:
   failing line is a finding of kind `sim_unsupported` (a "sorry") or
   `sim_compile_error`, severity error, source `iverilog`, and is never
   allowlist-able: sim cannot run that design at all.
+- slang again, on the synthesis view (`-DSYNTHESIS`, as yosys defines it,
+  so code under `ifdef SIM` or `ifndef SYNTHESIS` is out), dumping its
+  elaborated AST (`--ast-json`) for four sim/synth mismatches that all
+  three parsers above accept (#92b): `lint_incomplete_sensitivity` (an
+  `always @(a)` that reads b: sim re-runs it on a only, synthesis builds
+  @*), `lint_initial_block`, `lint_delay` (`#n`) and `lint_x_assign` (an x
+  on an assignment's right side). Source `slang-synth`, severity error,
+  allowlist-able like any warning (narrowly, by file and signal). A
+  synthesis view that does not compile reports slang's errors with the
+  same `slang_<name>` kinds. Blocking assignment in a clocked block and a
+  latch from a case without default are verilator's BLKSEQ and LATCH.
 """
 from __future__ import annotations
 
@@ -296,6 +307,240 @@ def run_slang(ws: Path, top: str, files: list[Path],
     return violations
 
 
+# #92b: rules for code that simulates one way and synthesizes another, read
+# from slang's elaborated AST of the synthesis view (-DSYNTHESIS, which
+# yosys defines too, so `ifdef SIM` and `ifndef SYNTHESIS` code is out).
+SYNTH_RULES = {
+    "lint_incomplete_sensitivity":
+        "an always block with a sensitivity list that leaves out a signal "
+        "it reads; synthesis builds it as @*, so sim and netlist differ",
+    "lint_initial_block":
+        "an initial block in synthesized RTL; synthesis drops it, so the "
+        "netlist powers up with whatever the sim never saw",
+    "lint_delay":
+        "a #delay in synthesized RTL; synthesis ignores it",
+    "lint_x_assign":
+        "an x assigned in synthesized RTL; sim propagates x where the "
+        "netlist picks 0 or 1",
+}
+SIGNAL_KINDS = frozenset({"Net", "Variable"})
+
+
+def _sym(ref):
+    """'5716874311624 a' -> ('5716874311624', 'a')."""
+    addr, _, name = str(ref).partition(" ")
+    return addr, name
+
+
+def _walk(node):
+    if isinstance(node, dict):
+        if node.get("isUninstantiated"):
+            return  # a generate branch not taken: never synthesized
+        yield node
+        for v in node.values():
+            yield from _walk(v)
+    elif isinstance(node, list):
+        for v in node:
+            yield from _walk(v)
+
+
+def _reads(node, kinds, out):
+    """Signals an expression or statement reads (an assignment's target
+    is not a read, but its index expressions are)."""
+    if isinstance(node, list):
+        for v in node:
+            _reads(v, kinds, out)
+        return
+    if not isinstance(node, dict):
+        return
+    k = node.get("kind")
+    if k == "Assignment":
+        _target_reads(node.get("left"), kinds, out)
+        _reads(node.get("right"), kinds, out)
+        return
+    if k == "NamedValue":
+        addr, name = _sym(node.get("symbol"))
+        if kinds.get(addr) in SIGNAL_KINDS:
+            out[addr] = name
+        return
+    for v in node.values():
+        _reads(v, kinds, out)
+
+
+def _target_reads(node, kinds, out):
+    if not isinstance(node, dict):
+        return
+    k = node.get("kind")
+    if k == "NamedValue":
+        return
+    if k in ("ElementSelect", "RangeSelect", "MemberAccess"):
+        _target_reads(node.get("value"), kinds, out)
+        for key in ("selector", "left", "right"):
+            _reads(node.get(key), kinds, out)
+        return
+    if k == "Concatenation":
+        for op in node.get("operands") or []:
+            _target_reads(op, kinds, out)
+        return
+    _reads(node, kinds, out)
+
+
+def _targets(node):
+    """Names an assignment subtree writes, with their symbol addrs."""
+    out = {}
+    for n in _walk(node):
+        if n.get("kind") != "Assignment":
+            continue
+        stack = [n.get("left")]
+        while stack:
+            t = stack.pop()
+            if not isinstance(t, dict):
+                continue
+            if t.get("kind") == "NamedValue":
+                addr, name = _sym(t.get("symbol"))
+                out[addr] = name
+            elif t.get("kind") == "Concatenation":
+                stack.extend(t.get("operands") or [])
+            else:
+                stack.append(t.get("value"))
+    return out
+
+
+def _is_x(lit):
+    v = str(lit.get("value", ""))
+    if "'" not in v:
+        return False
+    tail = v.split("'", 1)[1].lstrip("sS")
+    if tail[:1] in ("b", "B", "o", "O", "d", "D", "h", "H"):
+        tail = tail[1:]
+    return "x" in tail.lower()
+
+
+def _loc(node):
+    return (node.get("source_file") or node.get("source_file_start"),
+            node.get("source_line") or node.get("source_line_start"))
+
+
+def _quoted(names):
+    return ", ".join(f"'{n}'" for n in sorted(set(names)))
+
+
+def synth_rule_findings(ast: dict) -> list[tuple]:
+    """(rule, file, line, msg) for each sim/synth mismatch in the AST."""
+    kinds = {}
+    for n in _walk(ast):
+        if "addr" in n and "kind" in n:
+            kinds[str(n["addr"])] = n["kind"]
+    found = []
+    for n in _walk(ast):
+        k = n.get("kind")
+        if k == "ProceduralBlock" and n.get("procedureKind") == "Initial":
+            f, ln = _loc(n)
+            names = list(_targets(n.get("body")).values())
+            found.append(("lint_initial_block", f, ln,
+                          "initial block" + (f" assigns {_quoted(names)}"
+                                             if names else "") +
+                          " in the synthesis view: synthesis drops it; reset "
+                          "the value instead, or put it under `ifdef SIM`"))
+        elif k == "ProceduralBlock" and n.get("procedureKind") == "Always":
+            body = n.get("body") or {}
+            if body.get("kind") != "Timed":
+                continue
+            timing = body.get("timing") or {}
+            events = (timing.get("events") if timing.get("kind") == "EventList"
+                      else [timing])
+            if not events or any(
+                    not isinstance(e, dict) or e.get("kind") != "SignalEvent"
+                    or e.get("edge") != "None" for e in events):
+                continue  # @*, clocked, or a mix: not a plain comb list
+            listed = {}
+            for e in events:
+                _reads(e.get("expr"), kinds, listed)
+            read = {}
+            _reads(body.get("stmt"), kinds, read)
+            written = _targets(body.get("stmt"))
+            missing = [name for addr, name in read.items()
+                       if addr not in listed and addr not in written]
+            if missing:
+                f, ln = _loc(n)
+                found.append(("lint_incomplete_sensitivity", f, ln,
+                              f"always block reads {_quoted(missing)} but "
+                              "its sensitivity list leaves it out: sim "
+                              "re-runs it only on the listed signals, while "
+                              "synthesis builds it as @*; use always @* "
+                              "(or always_comb)"))
+        elif k in ("Delay", "Delay3"):
+            f, ln = _loc(n)
+            found.append(("lint_delay", f, ln,
+                          "#delay in the synthesis view: synthesis ignores "
+                          "it, so sim timing is not the netlist's; drop it "
+                          "or put it under `ifdef SIM`"))
+        elif k in ("Assignment",):
+            if any(x.get("kind") in ("IntegerLiteral",
+                                     "UnbasedUnsizedIntegerLiteral")
+                   and _is_x(x) for x in _walk(n.get("right"))):
+                f, ln = _loc(n)
+                names = list(_targets(n).values())
+                found.append(("lint_x_assign", f, ln,
+                              f"assigns x to {_quoted(names)} in the "
+                              "synthesis view: sim propagates x, while "
+                              "synthesis picks 0 or 1 as it likes; assign "
+                              "a real value"))
+    seen, out = set(), []
+    for item in found:
+        if item not in seen:
+            seen.add(item)
+            out.append(item)
+    return out
+
+
+def run_synth_rules(ws: Path, top: str, files: list[Path],
+                    allow) -> list[dict]:
+    if not isinstance(allow, Allowlist):
+        allow = Allowlist(allow)
+    try:
+        proc = checklib.run_tool(
+            [str(EDA_BIN), "slang", "--quiet", "--top", top, "-DSYNTHESIS",
+             "--ast-json", "-", "--ast-json-source-info", *_rel(ws, files)],
+            cwd=str(ws), capture_output=True, text=True, encoding="utf-8",
+            errors="replace", wall=TIMEOUT_S)
+    except subprocess.TimeoutExpired as exc:
+        raise CheckError(f"slang --ast-json {checklib.timeout_why(exc)}: "
+                         f"{exc}") from exc
+    violations = []
+    if proc.returncode != 0:
+        # the synthesis view does not compile (code under `ifdef
+        # SYNTHESIS` the plain view never saw): its errors are findings.
+        for line in (proc.stderr or "").splitlines() + \
+                (proc.stdout or "").splitlines():
+            m = SLANG_RE.match(line.rstrip())
+            if m and m.group("sev") == "error":
+                rule = m.group("rule")
+                violations.append(checklib.violation(
+                    "lint", "error", m.group("file"), None,
+                    "slang_" + rule[2:] if rule else "slang_error", [],
+                    "with SYNTHESIS defined: " + m.group("msg").strip(),
+                    "slang-synth", line=int(m.group("line"))))
+        if not violations:
+            raise CheckError(
+                f"slang --ast-json exited {proc.returncode} with no error "
+                f"line to explain it: {(proc.stderr or '')[-2000:]}")
+        return violations
+    try:
+        import json
+        ast = json.loads(proc.stdout or "")
+    except ValueError as exc:
+        raise CheckError(f"slang --ast-json printed no JSON ({exc}): "
+                         f"{(proc.stdout or '')[:500]}") from exc
+    for rule, file_, line, msg in synth_rule_findings(ast):
+        reason = allow.match(rule, file_, line, msg)
+        extras = {"reason": reason} if reason is not None else {}
+        violations.append(checklib.violation(
+            "lint", "info" if reason is not None else "error", file_, None,
+            rule, [], msg, "slang-synth", line=line, **extras))
+    return violations
+
+
 def run_iverilog(ws: Path, top: str, files: list[Path]) -> list[dict]:
     proc, output = _run_eda(
         ws, ["iverilog", "-g2012", "-t", "null", "-s", top,
@@ -368,6 +613,7 @@ def run(argv=None):
     output = run_verilator(ws, top, files)
     violations = parse_violations(output, allow)
     violations += run_slang(ws, top, files, allow)
+    violations += run_synth_rules(ws, top, files, allow)
     violations += run_iverilog(ws, top, files)
     violations += allow.findings()
     # stamp() hashes exactly this path as input_digest; gate.py's own

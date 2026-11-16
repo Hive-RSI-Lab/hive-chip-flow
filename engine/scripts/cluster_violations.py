@@ -116,6 +116,11 @@ FIXER_HINTS: dict[str, str] = {
     # #92a: rtl/lint_allow.yaml is an rtl-domain file (fixer.md).
     "lint_stale_waiver": "rtl",
     "lint_broad_waiver": "rtl",
+    # #92b: sim/synth mismatches from slang's AST of the synthesis view.
+    "lint_incomplete_sensitivity": "rtl",
+    "lint_initial_block": "rtl",
+    "lint_delay": "rtl",
+    "lint_x_assign": "rtl",
 
     # sim (check_sim.py)
     "test_failed": "rtl",
