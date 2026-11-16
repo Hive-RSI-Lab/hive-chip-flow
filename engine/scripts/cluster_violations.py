@@ -121,6 +121,9 @@ FIXER_HINTS: dict[str, str] = {
     "lint_initial_block": "rtl",
     "lint_delay": "rtl",
     "lint_x_assign": "rtl",
+    # #92c: sim, synthesis and formal views build different ports/flops.
+    "lint_ifdef_divergence": "rtl",
+    "lint_ifdef_formal_port": "rtl",
 
     # sim (check_sim.py)
     "test_failed": "rtl",
