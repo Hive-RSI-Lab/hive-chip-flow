@@ -70,6 +70,14 @@ verilator alone lets through SystemVerilog the rest of the flow cannot use:
   synthesis view that does not compile reports slang's errors with the
   same `slang_<name>` kinds. Blocking assignment in a clocked block and a
   latch from a case without default are verilator's BLKSEQ and LATCH.
+- slang once per define set the flow uses, when a source branches on
+  SYNTHESIS or FORMAL (#92c): none (sim, lint), SYNTHESIS (yosys) and
+  SYNTHESIS+FORMAL (formal). Every port of every instance all three views
+  share, and every flip-flop (a variable an edge-triggered always block
+  writes, or the net on a library flop cell's output), must be the same
+  in all three, or it is `lint_ifdef_divergence` (source `slang-ifdef`,
+  error, waivable by file and signal). An output port only the FORMAL view
+  has is the harness's observation point: `lint_ifdef_formal_port`, info.
 """
 from __future__ import annotations
 
@@ -494,23 +502,21 @@ def synth_rule_findings(ast: dict) -> list[tuple]:
     return out
 
 
-def run_synth_rules(ws: Path, top: str, files: list[Path],
-                    allow) -> list[dict]:
-    if not isinstance(allow, Allowlist):
-        allow = Allowlist(allow)
+def _slang_ast(ws: Path, top: str, files: list[Path], defines, label):
+    """(ast, []) for one define set, or (None, findings) when that view
+    does not compile: its errors are findings, `slang_<name>` kinds."""
     try:
         proc = checklib.run_tool(
-            [str(EDA_BIN), "slang", "--quiet", "--top", top, "-DSYNTHESIS",
+            [str(EDA_BIN), "slang", "--quiet", "--top", top,
+             *(f"-D{d}" for d in defines),
              "--ast-json", "-", "--ast-json-source-info", *_rel(ws, files)],
             cwd=str(ws), capture_output=True, text=True, encoding="utf-8",
             errors="replace", wall=TIMEOUT_S)
     except subprocess.TimeoutExpired as exc:
         raise CheckError(f"slang --ast-json {checklib.timeout_why(exc)}: "
                          f"{exc}") from exc
-    violations = []
     if proc.returncode != 0:
-        # the synthesis view does not compile (code under `ifdef
-        # SYNTHESIS` the plain view never saw): its errors are findings.
+        violations = []
         for line in (proc.stderr or "").splitlines() + \
                 (proc.stdout or "").splitlines():
             m = SLANG_RE.match(line.rstrip())
@@ -519,26 +525,232 @@ def run_synth_rules(ws: Path, top: str, files: list[Path],
                 violations.append(checklib.violation(
                     "lint", "error", m.group("file"), None,
                     "slang_" + rule[2:] if rule else "slang_error", [],
-                    "with SYNTHESIS defined: " + m.group("msg").strip(),
+                    f"with {label} defined: " + m.group("msg").strip(),
                     "slang-synth", line=int(m.group("line"))))
         if not violations:
             raise CheckError(
-                f"slang --ast-json exited {proc.returncode} with no error "
-                f"line to explain it: {(proc.stderr or '')[-2000:]}")
-        return violations
+                f"slang --ast-json ({label}) exited {proc.returncode} with "
+                f"no error line to explain it: {(proc.stderr or '')[-2000:]}")
+        return None, violations
     try:
         import json
-        ast = json.loads(proc.stdout or "")
+        return json.loads(proc.stdout or ""), []
     except ValueError as exc:
         raise CheckError(f"slang --ast-json printed no JSON ({exc}): "
                          f"{(proc.stdout or '')[:500]}") from exc
-    for rule, file_, line, msg in synth_rule_findings(ast):
-        reason = allow.match(rule, file_, line, msg)
-        extras = {"reason": reason} if reason is not None else {}
-        violations.append(checklib.violation(
-            "lint", "info" if reason is not None else "error", file_, None,
-            rule, [], msg, "slang-synth", line=line, **extras))
-    return violations
+
+
+def _allowed(allow, rule, file_, line, msg, source, base="error"):
+    reason = allow.match(rule, file_, line, msg)
+    extras = {"reason": reason} if reason is not None else {}
+    return checklib.violation(
+        "lint", "info" if reason is not None else base, file_, None, rule,
+        [], msg, source, line=line, **extras)
+
+
+def run_synth_rules(ws: Path, top: str, files: list[Path],
+                    allow) -> list[dict]:
+    if not isinstance(allow, Allowlist):
+        allow = Allowlist(allow)
+    ast, errors = _slang_ast(ws, top, files, ("SYNTHESIS",), "SYNTHESIS")
+    if ast is None:
+        # the synthesis view does not compile (code under `ifdef
+        # SYNTHESIS` the plain view never saw): its errors are findings.
+        return errors
+    return [_allowed(allow, rule, file_, line, msg, "slang-synth")
+            for rule, file_, line, msg in synth_rule_findings(ast)]
+
+
+# #92c: the same RTL read with each define set the flow uses must build the
+# same design: sim and lint see no define, yosys synthesis SYNTHESIS, and
+# formal FORMAL on top of it (yosys defines SYNTHESIS there too). Compared:
+# every port of every instance all views share, and every flip-flop (a
+# variable written in an edge-triggered always block, or the net on the
+# output of a library flop cell instance, as hand-placed cells under
+# `ifdef SYNTHESIS` are). Only designs whose sources branch on SYNTHESIS
+# or FORMAL pay for the extra elaborations.
+DIVERGE_VIEWS = (("no define", ()), ("SYNTHESIS", ("SYNTHESIS",)),
+                 ("FORMAL", ("SYNTHESIS", "FORMAL")))
+IFDEF_RE = re.compile(r"^[ \t]*`(?:ifdef|ifndef|elsif)[ \t]+(?:SYNTHESIS|FORMAL)\b",
+                      re.M)
+# a library flop or latch: gf180 dffq/dffrnq/sdffq/latq, sky130 dfxtp/
+# dfrtp/edfxtp/sdfxtp/dlxtp; not a delay cell (dly*).
+FLOP_CELL_RE = re.compile(r"^(?:s|e|sed)?(?:df|dl(?!y)|lat)", re.I)
+LEAF_KINDS = frozenset({"Port", "Net", "Variable", "Parameter",
+                        "TypeParameter", "TransparentMember", "Attribute"})
+
+
+def _bodies(ast):
+    return {str(n["addr"]): n for n in _walk(ast)
+            if n.get("kind") == "InstanceBody" and "addr" in n}
+
+
+def _body_of(inst, bodies):
+    b = inst.get("body")
+    if isinstance(b, dict):
+        return b
+    addr, name = _sym(b)
+    return bodies.get(addr) or {"name": name, "members": None}
+
+
+def _view(ast):
+    """(ports, ffs) of one elaborated view: ports maps (path, name) to
+    (direction, type, file, line) for every instance's ports; ffs maps
+    'path.name' to (file, line); paths lists every instance path."""
+    bodies = _bodies(ast)
+    ports, ffs, paths = {}, {}, set()
+
+    def flop_q(inst, path):
+        for c in inst.get("connections") or []:
+            port = c.get("port") or {}
+            if port.get("direction") not in ("Out", "InOut"):
+                continue
+            for n in _walk(c.get("expr")):
+                if n.get("kind") == "NamedValue":
+                    ffs.setdefault(f"{path}.{_sym(n['symbol'])[1]}"
+                                   if path else _sym(n["symbol"])[1],
+                                   _loc(inst))
+                    break
+
+    def visit(members, path, kinds):
+        for m in members or []:
+            if not isinstance(m, dict) or m.get("isUninstantiated"):
+                continue
+            k = m.get("kind")
+            name = m.get("name") or ""
+            sub = f"{path}.{name}" if path else name
+            if k == "Instance":
+                body = _body_of(m, bodies)
+                mem = body.get("members")
+                leaf = mem is not None and all(
+                    isinstance(x, dict) and x.get("kind") in LEAF_KINDS
+                    for x in mem)
+                if mem is None or leaf:
+                    # a cell or blackbox stub: compare its ports, and it
+                    # is a flop if its name says so
+                    record_ports(body, sub)
+                    cell = str(body.get("name") or "").rsplit("__", 1)[-1]
+                    if FLOP_CELL_RE.match(cell):
+                        flop_q(m, path)
+                    continue
+                enter(body, sub)
+            elif k in ("GenerateBlock", "GenerateBlockArray"):
+                visit(m.get("members"), sub if name else path, kinds)
+            elif k == "ProceduralBlock" and m.get("procedureKind") in (
+                    "Always", "AlwaysFF"):
+                body = m.get("body") or {}
+                if body.get("kind") != "Timed":
+                    continue
+                timing = body.get("timing") or {}
+                events = (timing.get("events")
+                          if timing.get("kind") == "EventList" else [timing])
+                if any(isinstance(e, dict) and e.get("edge") in (
+                        "PosEdge", "NegEdge", "BothEdges") for e in events):
+                    for nm in _targets(body.get("stmt")).values():
+                        ffs.setdefault(f"{path}.{nm}" if path else nm,
+                                       _loc(m))
+
+    def record_ports(body, path):
+        paths.add(path)
+        for m in body.get("members") or []:
+            if isinstance(m, dict) and m.get("kind") == "Port":
+                ports[(path, m.get("name"))] = (
+                    m.get("direction"), m.get("type"), *_loc(m))
+
+    def enter(body, path):
+        record_ports(body, path)
+        visit(body.get("members"), path, None)
+
+    for top in (ast.get("design") or ast).get("members") or []:
+        if isinstance(top, dict) and top.get("kind") == "Instance":
+            enter(_body_of(top, bodies), "")
+    return ports, ffs, paths
+
+
+def ifdef_divergence_findings(views: dict) -> list[tuple]:
+    """(rule, file, line, msg) per port or FF that differs between views
+    ({label: ast}). An output port only the FORMAL view has is the formal
+    harness's observation point: reported as info, never counted."""
+    shapes = {lbl: _view(ast) for lbl, ast in views.items()}
+    labels = list(shapes)
+    common = set.intersection(*(s[2] for s in shapes.values()))
+    found = []
+
+    def where(key, idx):
+        for lbl in labels:
+            if key in shapes[lbl][idx]:
+                return lbl, shapes[lbl][idx][key]
+        return None, None
+
+    keys = sorted({k for s in shapes.values() for k in s[0]
+                   if k[0] in common})
+    for key in keys:
+        have = {lbl: shapes[lbl][0].get(key) for lbl in labels}
+        sigs = {lbl: v[:2] for lbl, v in have.items() if v is not None}
+        if len(sigs) == len(labels) and len(set(sigs.values())) == 1:
+            continue
+        path, name = key
+        qual = f"{path}.{name}" if path else name
+        lbl0, v = where(key, 0)
+        missing = [lbl for lbl in labels if have[lbl] is None]
+        if missing:
+            only = [lbl for lbl in labels if have[lbl] is not None]
+            rule = ("lint_ifdef_formal_port"
+                    if only == ["FORMAL"] and v[0] == "Out"
+                    else "lint_ifdef_divergence")
+            tail = (": an output only formal sees, for its harness"
+                    if rule == "lint_ifdef_formal_port" else
+                    ": sim, synthesis and formal must build the same "
+                    "ports; move the `ifdef inside the module")
+            found.append((rule, v[2], v[3],
+                          f"port '{qual}' exists with "
+                          f"{', '.join(only)} but not with "
+                          f"{', '.join(missing)}{tail}"))
+        else:
+            desc = "; ".join(f"{lbl}: {d.lower()} {t}"
+                             for lbl, (d, t) in sigs.items())
+            found.append(("lint_ifdef_divergence", v[2], v[3],
+                          f"port '{qual}' differs by define ({desc})"))
+    ff_keys = sorted({k for s in shapes.values() for k in s[1]})
+    for key in ff_keys:
+        have = [lbl for lbl in labels if key in shapes[lbl][1]]
+        if len(have) == len(labels):
+            continue
+        _, (f, ln) = where(key, 1)
+        missing = [lbl for lbl in labels if lbl not in have]
+        found.append(("lint_ifdef_divergence", f, ln,
+                      f"flip-flop '{key}' exists with {', '.join(have)} but "
+                      f"not with {', '.join(missing)}: sim, synthesis and "
+                      "formal must build the same registers"))
+    return found
+
+
+def run_ifdef_divergence(ws: Path, top: str, files: list[Path],
+                         allow) -> list[dict]:
+    if not isinstance(allow, Allowlist):
+        allow = Allowlist(allow)
+    if not any(IFDEF_RE.search(f.read_text(encoding="utf-8",
+                                           errors="replace")) for f in files):
+        return []
+    views, errors = {}, []
+    for label, defines in DIVERGE_VIEWS:
+        ast, errs = _slang_ast(ws, top, files, defines, label)
+        if ast is None:
+            # plain and SYNTHESIS failures are reported by run_slang and
+            # run_synth_rules already; FORMAL's are new.
+            if label == "FORMAL":
+                errors += errs
+            views = None
+        elif views is not None:
+            views[label] = ast
+    if views is None:
+        return errors
+    out = []
+    for rule, file_, line, msg in ifdef_divergence_findings(views):
+        out.append(_allowed(allow, rule, file_, line, msg, "slang-ifdef",
+                            base="info" if rule == "lint_ifdef_formal_port"
+                            else "error"))
+    return out
 
 
 def run_iverilog(ws: Path, top: str, files: list[Path]) -> list[dict]:
@@ -614,6 +826,7 @@ def run(argv=None):
     violations = parse_violations(output, allow)
     violations += run_slang(ws, top, files, allow)
     violations += run_synth_rules(ws, top, files, allow)
+    violations += run_ifdef_divergence(ws, top, files, allow)
     violations += run_iverilog(ws, top, files)
     violations += allow.findings()
     # stamp() hashes exactly this path as input_digest; gate.py's own

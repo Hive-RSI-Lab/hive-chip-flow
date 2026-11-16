@@ -259,7 +259,8 @@ def test_iverilog_nonzero_with_nothing_parsed_is_an_error(
 @pytest.mark.parametrize("design", [
     "corpus/vde/counter8", "corpus/vde/riscv", "corpus/vde/spi_fifo",
     "corpus/vde/uart", "corpus/msde/dac_tile/digital",
-    "corpus/msde/sensor_counted/digital", "tests/fixtures/sv_fsm"])
+    "corpus/msde/sensor_counted/digital", "tests/fixtures/sv_fsm",
+    "blocks/pll/digital"])
 def test_corpus_and_sv_fsm_clean_under_slang_and_iverilog(
         tmp_path, capsys, design):
     """#91's second and third parsers add no finding to any shipped design
@@ -275,8 +276,18 @@ def test_corpus_and_sv_fsm_clean_under_slang_and_iverilog(
     _, out = _lint(ws, capsys)
     assert out["status"] in ("pass", "violations"), out
     extra = [v for v in out["violations"]
-             if v["source"] in ("slang", "iverilog")]
+             if v["source"] in ("slang", "iverilog")
+             or v["source"].startswith("slang-") and v["severity"] != "info"]
     assert extra == [], extra
+    if design == "blocks/pll/digital":
+        # #92c: three views of the PLL (sim, synth with hand-placed cells,
+        # formal) build the same ports and flip-flops; the one formal-only
+        # output is the harness's observation point, reported as info.
+        ifdef = [(v["kind"], v["severity"]) for v in out["violations"]
+                 if v["source"] == "slang-ifdef"]
+        assert ifdef == [("lint_ifdef_formal_port", "info")], out
+        assert gate.evaluate("lint", _lint_gate_row(), out)["status"] == \
+            "pass"
 
 
 # #92a: two unused signals; a waiver naming one must not cover the other.
@@ -456,3 +467,104 @@ def test_synth_rules_hermetic_edges():
     assert check_lint._is_x({"value": "'x"})
     assert not check_lint._is_x({"value": "8'hff"})
     assert not check_lint._is_x({"value": "4'bzzzz"})
+
+
+# #92c: the same file read with each define set the flow uses (none for sim
+# and lint, SYNTHESIS for yosys, FORMAL on top of it for formal).
+DIVERGE_V = """\
+module top (input wire clk, input wire a, output reg q
+`ifdef SYNTHESIS
+  , output wire dbg
+`endif
+`ifdef FORMAL
+  , output wire seen, input wire f_in
+`endif
+);
+  always @(posedge clk) q <= a;
+`ifndef SYNTHESIS
+  reg shadow;
+  always @(posedge clk) shadow <= q;
+`endif
+`ifdef SYNTHESIS
+  assign dbg = q;
+`endif
+`ifdef FORMAL
+  assign seen = q ^ f_in;
+`endif
+  sub u_sub (.d(a));
+endmodule
+
+module sub (
+`ifdef SYNTHESIS
+  input wire [1:0] d
+`else
+  input wire [3:0] d
+`endif
+);
+endmodule
+"""
+
+
+@pytest.mark.slow
+def test_ifdef_divergence_fails_each_port_and_flop(tmp_path, capsys):
+    ws = make_ws(tmp_path, DIVERGE_V)
+    code, out = _lint(ws, capsys)
+    got = sorted((v["kind"], v["line"], v["severity"])
+                 for v in out["violations"] if v["source"] == "slang-ifdef")
+    assert got == [
+        ("lint_ifdef_divergence", 3, "error"),    # dbg: synth+formal only
+        ("lint_ifdef_divergence", 6, "error"),    # f_in: a formal-only input
+        ("lint_ifdef_divergence", 12, "error"),   # shadow: sim-only flop
+        ("lint_ifdef_divergence", 27, "error"),   # sub.d: width by define
+        ("lint_ifdef_formal_port", 6, "info"),    # seen: formal's own output
+    ], out
+    msgs = {v["msg"].split("'")[1] for v in out["violations"]
+            if v["source"] == "slang-ifdef"}
+    assert msgs == {"dbg", "f_in", "shadow", "seen", "u_sub.d"}, msgs
+    assert gate.evaluate("lint", _lint_gate_row(), out)["status"] == "fail"
+
+    # a narrow waiver covers its one flop and nothing else
+    (ws / "rtl" / "lint_allow.yaml").write_text(
+        "- rule: lint_ifdef_divergence\n  file: top.v\n  signal: shadow\n"
+        "  reason: test - a sim-only checker register\n"
+        "- rule: UNUSEDSIGNAL\n  file: top.v\n  signal: shadow\n"
+        "  reason: test - read by nobody in the plain view\n",
+        encoding="utf-8")
+    code, out = _lint(ws, capsys)
+    sev = {v["msg"].split("'")[1]: v["severity"] for v in out["violations"]
+           if v["source"] == "slang-ifdef"}
+    assert sev["shadow"] == "info" and sev["dbg"] == "error", sev
+
+
+def test_ifdef_divergence_hermetic(tmp_path, monkeypatch):
+    """Hermetic: no SYNTHESIS/FORMAL branch means no extra elaboration; a
+    FORMAL view that does not compile reports its errors (and only those,
+    since the plain and SYNTHESIS views report their own elsewhere)."""
+    ws = tmp_path
+    (ws / "rtl").mkdir()
+    f = ws / "rtl" / "t.v"
+    f.write_text("module t; `ifdef SIM\n`endif\nendmodule\n")
+
+    def boom(*a, **k):
+        raise AssertionError("elaborated a design with no such branch")
+    monkeypatch.setattr(check_lint, "_slang_ast", boom)
+    assert check_lint.run_ifdef_divergence(ws, "t", [f], {}) == []
+
+    f.write_text("module t;\n  `ifdef FORMAL\n  `endif\nendmodule\n")
+    calls = []
+
+    def fake(ws_, top, files, defines, label):
+        calls.append(label)
+        if label == "FORMAL":
+            return None, [{"kind": "slang_undeclared", "label": label}]
+        return {"members": []}, []
+    monkeypatch.setattr(check_lint, "_slang_ast", fake)
+    got = check_lint.run_ifdef_divergence(ws, "t", [f], {})
+    assert calls == ["no define", "SYNTHESIS", "FORMAL"]
+    assert got == [{"kind": "slang_undeclared", "label": "FORMAL"}]
+    assert check_lint.FLOP_CELL_RE.match("dffrnq_2")
+    assert check_lint.FLOP_CELL_RE.match("dfxtp_1")
+    assert check_lint.FLOP_CELL_RE.match("sdffq_1")
+    assert check_lint.FLOP_CELL_RE.match("dlxtp_1")
+    assert not check_lint.FLOP_CELL_RE.match("dlya_1")
+    assert not check_lint.FLOP_CELL_RE.match("clkbuf_8")
