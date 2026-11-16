@@ -362,3 +362,97 @@ def test_waiver_matching_broad_and_stale_hermetic(tmp_path):
         p.write_text(bad, encoding="utf-8")
         with pytest.raises(check_lint.CheckError):
             check_lint.load_allowlist(ws)
+
+
+# #92b: issue 92's probe - four sim/synth mismatches that verilator -Wall,
+# slang and iverilog all pass - plus the same constructs where synthesis
+# never sees them (`ifdef SIM`, `ifndef SYNTHESIS`) and the clean forms.
+MISMATCH_V = """\
+module top (input wire clk, input wire a, input wire b, output reg y,
+            output reg q, output wire z, output reg c, output reg d);
+  always @(a) y = a & b;
+  initial q = 1'b0;
+  always @(posedge clk) q <= #1 ~q;
+  assign z = 1'bx;
+  always @(*) c = a & b;
+  always @(a or b) begin : t
+    reg tmp;
+    tmp = a;
+    d = tmp | b;
+  end
+`ifdef SIM
+  initial $display("sim only");
+`endif
+`ifndef SYNTHESIS
+  initial #5 $display("not for synthesis");
+`endif
+endmodule
+"""
+
+
+@pytest.mark.slow
+def test_sim_synth_mismatches_each_fail_with_their_own_rule(tmp_path, capsys):
+    ws = make_ws(tmp_path, MISMATCH_V)
+    code, out = _lint(ws, capsys)
+    got = sorted((v["kind"], v["line"]) for v in out["violations"]
+                 if v["source"] == "slang-synth")
+    assert got == [("lint_delay", 5), ("lint_incomplete_sensitivity", 3),
+                   ("lint_initial_block", 4), ("lint_x_assign", 6)], out
+    assert all(v["severity"] == "error" for v in out["violations"]
+               if v["source"] == "slang-synth")
+    sens = next(v for v in out["violations"]
+                if v["kind"] == "lint_incomplete_sensitivity")
+    assert "'b'" in sens["msg"] and "'a'" not in sens["msg"]
+    assert gate.evaluate("lint", _lint_gate_row(), out)["status"] == "fail"
+
+    # a narrow waiver covers its one finding and nothing else
+    (ws / "rtl" / "lint_allow.yaml").write_text(
+        "- rule: lint_x_assign\n  file: rtl/top.v\n  signal: z\n"
+        "  reason: test - a don't-care the netlist may pick\n",
+        encoding="utf-8")
+    code, out = _lint(ws, capsys)
+    sev = {v["kind"]: v["severity"] for v in out["violations"]
+           if v["source"] == "slang-synth"}
+    assert sev["lint_x_assign"] == "info"
+    assert sev["lint_initial_block"] == "error"
+
+
+def test_synth_rules_hermetic_edges():
+    """Hermetic: an uninstantiated generate branch is skipped, a clocked or
+    @* block is never 'incomplete', and a signal written in the block
+    before it is read is not missing from the list."""
+    def nv(addr, name):
+        return {"kind": "NamedValue", "symbol": f"{addr} {name}"}
+
+    def asg(lhs, rhs, line):
+        return {"kind": "Assignment", "left": lhs, "right": rhs,
+                "source_line_start": line, "source_file_start": "rtl/t.v"}
+
+    def always(events, stmt, line):
+        return {"kind": "ProceduralBlock", "procedureKind": "Always",
+                "source_file": "rtl/t.v", "source_line": line,
+                "body": {"kind": "Timed", "timing": events, "stmt": stmt}}
+    sym = [{"kind": "Variable", "addr": i, "name": n}
+           for i, n in ((1, "a"), (2, "b"), (3, "y"), (4, "t"))]
+    ev_a = {"kind": "SignalEvent", "edge": "None", "expr": nv(1, "a")}
+    clk = {"kind": "SignalEvent", "edge": "PosEdge", "expr": nv(1, "a")}
+    ast = {"members": sym + [
+        always(ev_a, {"kind": "List", "list": [
+            asg(nv(4, "t"), nv(1, "a"), 10),
+            asg(nv(3, "y"), {"kind": "BinaryOp", "left": nv(4, "t"),
+                             "right": nv(2, "b")}, 11)]}, 10),
+        always(clk, asg(nv(3, "y"), nv(2, "b"), 20), 20),
+        always({"kind": "ImplicitEvent"}, asg(nv(3, "y"), nv(2, "b"), 30),
+               30),
+        {"kind": "GenerateBlock", "isUninstantiated": True, "members": [
+            {"kind": "ProceduralBlock", "procedureKind": "Initial",
+             "source_line": 40, "body": asg(nv(3, "y"), nv(1, "a"), 40)}]},
+    ]}
+    got = check_lint.synth_rule_findings(ast)
+    assert [(r, ln) for r, _, ln, _ in got] == [
+        ("lint_incomplete_sensitivity", 10)]
+    assert "'b'" in got[0][3] and "'t'" not in got[0][3]
+    assert check_lint._is_x({"value": "4'b10x1"})
+    assert check_lint._is_x({"value": "'x"})
+    assert not check_lint._is_x({"value": "8'hff"})
+    assert not check_lint._is_x({"value": "4'bzzzz"})
