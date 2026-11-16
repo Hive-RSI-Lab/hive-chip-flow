@@ -30,6 +30,7 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -203,16 +204,46 @@ def test_corpus_rungs_run_in_chip_flow_test_not_check_slow():
 
 def test_check_slow_parts_name_real_files_and_rest_runs_the_others():
     # A part naming a file that moved would run nothing and still pass.
-    def part(name):
+    def sh(fn, name):
         return subprocess.run(
-            ["bash", "-c", 'eval "$(sed -n "/^shard_files()/,/^}/p" '
-             'tests/check-slow.sh)"; shard_files "$1"', "-", name],
-            cwd=REPO, capture_output=True, text=True, check=True).stdout.split()
-    named = part("harden") + part("charlib")
-    rest = part("rest")
+            ["bash", "-c", 'eval "$(sed -n "/^CHARLIB_SEQ=/,/^}/p;'
+             '/^shard_k()/,/^}/p" tests/check-slow.sh)"; ' + fn + ' "$1"',
+             "-", name],
+            cwd=REPO, capture_output=True, text=True, check=True).stdout
+    slow = (REPO / "tests" / "check-slow.sh").read_text()
+    parts = re.search(r'^SHARDS="([^"]+)"', slow, re.M).group(1).split()
+    assert parts[-1] == "rest", parts
+    named = sorted({f for p in parts[:-1] for f in sh("shard_files", p).split()})
+    rest = sh("shard_files", "rest").split()
     assert named and all((REPO / f).is_file() for f in named), named
     assert rest[0] == "tests/"
     assert sorted(rest[1:]) == sorted(f"--ignore={f}" for f in named), rest
+    # Parts sharing a file split it by -k: every slow test there must land
+    # in exactly one of them, or it never runs (or runs twice). Ask pytest
+    # itself, so -k matches as it does in check-slow.sh.
+    def collect(files, k):
+        out = subprocess.run(
+            [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider",
+             "--collect-only", "-m", "slow and not harden_faults", "-k", k,
+             *files], cwd=REPO, capture_output=True, text=True,
+            # CI's PYTEST_ADDOPTS=-vv turns the id list into a tree.
+            env={k: v for k, v in os.environ.items()
+                 if k != "PYTEST_ADDOPTS"}).stdout
+        return [ln for ln in out.splitlines() if "::" in ln]
+
+    by_file = {}
+    for p in parts[:-1]:
+        by_file.setdefault(sh("shard_files", p).strip(), []).append(
+            sh("shard_k", p).strip())
+    for files, ks in by_file.items():
+        if len(ks) == 1:
+            assert ks == [""], (files, ks)
+            continue
+        assert "" not in ks, (files, ks)
+        everything = collect(files.split(), "")
+        picked = [t for k in ks for t in collect(files.split(), k)]
+        assert everything and sorted(picked) == sorted(everything), (
+            files, ks, sorted(set(everything) ^ set(picked)))
 
 
 def test_ci_matrix_runs_every_corpus_shard():
