@@ -386,14 +386,24 @@ def kind_of(v: dict) -> str | None:
 
 def cluster(violations: list[dict], *_ignored) -> list[dict]:
     """Group by (file, module, kind) - the whole clustering key (docs/
-    design.md 1.3). Extra positional args (radius) are accepted and ignored
-    so callers written against the PCB-era spatial signature still work."""
+    design.md 1.3) - except that a finding carrying a failure `signature`
+    (check_sim's test_failed, #93: the assert's file:line and its message
+    with numbers masked) groups by (file, signature, kind) instead, so one
+    assert failing in several tests is one cluster, its `module` the one
+    test they share or None. Extra positional args (radius) are accepted
+    and ignored so callers written against the PCB-era spatial signature
+    still work."""
     by_key: dict[tuple, list] = {}
     for v in violations:
-        key = (v.get("file"), v.get("module"), kind_of(v))
+        sig = v.get("signature")
+        key = ((v.get("file"), None, kind_of(v), sig) if sig
+               else (v.get("file"), v.get("module"), kind_of(v), None))
         by_key.setdefault(key, []).append(v)
     clusters: list[dict] = []
-    for (file, module, kind), group in by_key.items():
+    for (file, module, kind, sig), group in by_key.items():
+        if sig:
+            mods = {g.get("module") for g in group}
+            module = mods.pop() if len(mods) == 1 else None
         sev = max((g.get("severity", "info") for g in group),
                   key=lambda s: SEV_RANK.get(s, 0))
         kinds = sorted({k for g in group if (k := kind_of(g))})
@@ -409,6 +419,8 @@ def cluster(violations: list[dict], *_ignored) -> list[dict]:
             "severity": sev, "count": len(group), "fixer": fixer,
             "violations": group,
         })
+        if sig:
+            clusters[-1]["signature"] = sig
     clusters.sort(key=lambda c: (-SEV_RANK.get(c["severity"], 0), -c["count"]))
     for i, c in enumerate(clusters):
         c["id"] = i

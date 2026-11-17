@@ -120,6 +120,8 @@ def test_clean_design_all_requirements_covered_passes(tmp_path, capsys):
     assert code == 0, out
     assert out["status"] == "pass"
     assert out["tests_passed"] == 1
+    # a passing run re-runs nothing with waves on (#93)
+    assert not (ws / "log" / "sim_build" / "waves").exists()
 
 
 @pytest.mark.slow
@@ -226,3 +228,101 @@ def test_relative_workspace_does_not_pollute_tb(tmp_path, capsys, monkeypatch):
                if p.name not in ("test_top.py", "__pycache__")]
     assert leftover == [], \
         f"a relative --workspace polluted tb/ with: {leftover}"
+
+
+# --- #93: a failing test's finding carries a waves window and a signature
+
+
+def _load(path: Path, name: str):
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(name, path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+@pytest.mark.slow
+def test_counter8_wrap_fault_window_shows_254_then_0(tmp_path, capsys):
+    """The corpus counter8 with its planted sim fault (wraps at 254): the
+    test_failed finding's window ends ... 254 then 0 at the failure, and
+    every edge row agrees with pyvcd's reading of the same dump."""
+    import faults
+    import test_wavelib
+    ws = faults.make_scratch_workspace(tmp_path, REPO / "corpus/vde/counter8",
+                                       "vde", "counter8")
+    _load(REPO / "corpus/vde/counter8/faults/plant_sim.py",
+          "plant_sim_counter8").plant(ws)
+    code = check_sim.main(["--workspace", str(ws)])
+    out = json.loads(capsys.readouterr().out)
+    assert code == 1, out
+    fails = [v for v in out["violations"] if v["kind"] == "test_failed"]
+    assert fails, out
+    v = next(v for v in fails if v.get("window") and "count" in v["window"])
+    assert v["signature"].startswith("test_counter8.py:")
+    import wavelib
+    dump = Path(v["waves"])
+    assert dump.is_file() and dump.suffix == ".vcd"
+    vcd = wavelib.parse_vcd(dump)
+    scope = wavelib.block_scope(vcd, ["clk", "rst", "count"])
+    win = wavelib.window(vcd, scope, "clk", ["count"],
+                         v["failure_ns"] * 1000.0, cycles=4)
+    counts = [r["count"] for r in win["rows"]]
+    assert counts[-2:] == ["254", "0"], wavelib.format_window(win)
+    test_wavelib.cross_check(dump, win)
+    last = v["window"].splitlines()[-1]
+    assert last.endswith("<- failure") and " 0 " in f" {last} "
+
+
+TB_THREE_SHARE_ONE_ASSERT = """\
+import cocotb
+from cocotb.clock import Clock
+from cocotb.triggers import RisingEdge
+
+
+async def run_and_check(dut, cycles):
+    cocotb.start_soon(Clock(dut.clk, 10, unit="ns").start())
+    dut.rst.value = 1
+    await RisingEdge(dut.clk)
+    dut.rst.value = 0
+    await RisingEdge(dut.clk)
+    prev = int(dut.count.value)
+    for _ in range(cycles):
+        await RisingEdge(dut.clk)
+        cur = int(dut.count.value)
+        assert cur == (prev + 1) % 4, f"expected {(prev + 1) % 4} got {cur}"
+        prev = cur
+
+# req: REQ-WRAP
+@cocotb.test()
+async def test_a(dut):
+    await run_and_check(dut, 8)
+
+# req: REQ-WRAP
+@cocotb.test()
+async def test_b(dut):
+    await run_and_check(dut, 9)
+
+# req: REQ-WRAP
+@cocotb.test()
+async def test_c(dut):
+    await run_and_check(dut, 10)
+"""
+
+
+@pytest.mark.slow
+def test_three_tests_failing_one_assert_cluster_as_one(tmp_path, capsys):
+    import cluster_violations
+    ws = make_ws(tmp_path, RTL_BUGGY, SPEC_ONE_REQ, TB_THREE_SHARE_ONE_ASSERT)
+    code = check_sim.main(["--workspace", str(ws)])
+    out = json.loads(capsys.readouterr().out)
+    assert code == 1, out
+    fails = [v for v in out["violations"] if v["kind"] == "test_failed"]
+    assert {v["module"] for v in fails} >= {"test_a", "test_b", "test_c"}
+    sigs = {v["signature"] for v in fails}
+    assert len(sigs) == 1, sigs
+    assert next(iter(sigs)).startswith("test_top.py:16: expected N got N")
+    for v in fails:
+        assert v.get("window") or v.get("window_note"), v
+    cl = [c for c in cluster_violations.cluster(out["violations"])
+          if "test_failed" in c["kinds"]]
+    assert len(cl) == 1 and cl[0]["count"] >= 3, cl

@@ -29,3 +29,16 @@ and failed at extra seed B" comes from spec `sim.seeds`: only some random
 draws reach the bug. Replay it as one run with the `--seed B` line in the
 message and debug that draw; a fix is done when the full multi-seed run
 passes, not just seed B.
+
+**Read the waves before re-running anything (#93):** the finding carries
+`window`, a text table of the block's ports and the signals the failing
+test reads, sampled just before each of the last 16 rising clock edges,
+with a last row at the failure time (`<- failure`). A counter that wraps
+one early reads `253, 254, 0` down its column. `waves` is the whole dump
+(VCD) and `failure_ns` the failure time: widen the window or add an
+internal register with `chip-flow wave <waves> --signals count,dut.u_x.state
+--at <failure_ns> --window 64`. `signature` is the assert's tb file:line
+with its numbers masked; several tests with one signature are one bug,
+clustered as one, so fix it once. `window_note` says why a finding has no
+window (for example, the test passes when run alone, so the failure needs
+the tests before it).

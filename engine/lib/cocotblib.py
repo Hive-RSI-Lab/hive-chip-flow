@@ -196,7 +196,8 @@ def run_cocotb(build_dir: Path, test_dir: Path, sources: list[Path],
               timeout_s: float | None = None, waves: bool = False,
               stall_s: float | None = None,
               build_args: list[str] | None = None,
-              seed: int | None = None) -> Path:
+              seed: int | None = None,
+              testcase: list[str] | None = None) -> Path:
     """Build the design then run every module in test_modules_ as one cocotb
     regression over Icarus. Returns the results.xml path (results_xml is
     pinned explicitly - concurrent callers, e.g. check_mutate.py running one
@@ -254,7 +255,10 @@ def run_cocotb(build_dir: Path, test_dir: Path, sources: list[Path],
     -gspecify -ginterconnect, or $sdf_annotate has no delays to write.
 
     seed, if given, is cocotb's COCOTB_RANDOM_SEED (sim_seed picks it for
-    the gates); None leaves cocotb's own clock-drawn seed."""
+    the gates); None leaves cocotb's own clock-drawn seed.
+
+    testcase, if given, runs only those test functions (check_sim's waves
+    re-run of the failing tests, #93); None runs every test."""
     from cocotb_tools.runner import get_runner
     build_dir = Path(build_dir).resolve()
     test_dir = Path(test_dir).resolve()
@@ -304,7 +308,8 @@ def run_cocotb(build_dir: Path, test_dir: Path, sources: list[Path],
             return runner.test(hdl_toplevel=hdl_toplevel, test_module=test_modules_,
                                test_dir=str(test_dir), build_dir=str(build_dir),
                                results_xml=str(results_xml), waves=waves,
-                               log_file=log_file, seed=seed)
+                               log_file=log_file, seed=seed,
+                               testcase=list(testcase) if testcase else None)
         except SystemExit:
             return Path(results_xml)
     finally:
@@ -336,6 +341,20 @@ def _watch_stall(stall_s: float, stop: threading.Event, stalled: list,
                     except OSError:
                         pass
             return
+
+
+_TIME_NS = {"fs": 1e-6, "ps": 1e-3, "ns": 1.0, "us": 1e3, "ms": 1e6,
+            "s": 1e9}
+
+
+def _sim_time_ns(tc) -> float | None:
+    props = {p.attrib.get("name"): p.attrib.get("value")
+             for p in tc.iter("property")}
+    try:
+        return float(props["sim_time_stop"]) * _TIME_NS[
+            props.get("sim_time_unit") or "ns"]
+    except (KeyError, TypeError, ValueError):
+        return None
 
 
 def parse_results_xml(xml_path: Path) -> dict[str, dict]:
@@ -378,6 +397,10 @@ def parse_results_xml(xml_path: Path) -> dict[str, dict]:
             # stimulus-fault split; never put in a finding as they stand.
             "type": bad.attrib.get("type") if bad is not None else None,
             "traceback": (bad.text or "") if bad is not None else "",
+            # when the test stopped, in ns (cocotb's sim_time_stop
+            # property): a failing test's failure time, for its waves
+            # window (#93)
+            "sim_time_ns": _sim_time_ns(tc),
         }
     return out
 
