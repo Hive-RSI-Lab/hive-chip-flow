@@ -170,6 +170,11 @@ FIXER_HINTS: dict[str, str] = {
     # zero init is a bench that leans on one simulator's behaviour.
     "reset_dependent": "rtl",
     "verilator_baseline_failed": "testbench",
+    # xprop (check_xprop.py, #84): an output X after reset is the RTL's to
+    # reset; an unproven run needs a deeper formal.depth, which the formal
+    # fixer owns (as for bounded_not_proven).
+    "output_x_after_reset": "rtl",
+    "xprop_unproven": "formal",
 
     # synth (check_synth.py)
     "combinational_loop": "rtl",

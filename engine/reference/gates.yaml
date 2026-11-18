@@ -148,6 +148,18 @@ gates:
       description: >-
         The visible tests pass on Verilator with every register at random
         power-up values (3 init seeds) wherever they pass at zero init.
+    xprop:
+      phase: P4
+      tool: xprop
+      strength: 0
+      fail_severities: [error]
+      max_count: 0
+      fault: "a register with no reset whose x only reaches the output through an if"
+      description: >-
+        Proven with yosys xprop and SymbiYosys: once the reset has been held
+        for formal.reset_cycles clocks, no output outside sim.x_ok can be X
+        for any input sequence; memories and registers in formal.x_init_ok
+        start arbitrary but defined.
     synth:
       phase: P5
       tool: synth

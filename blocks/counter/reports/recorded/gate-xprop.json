@@ -1,0 +1,44 @@
+{
+ "script": "gate",
+ "gate": "xprop",
+ "phase": "P4",
+ "tool": "xprop",
+ "input_digest": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
+ "status": "pass",
+ "criteria": {
+  "fail_severities": [
+   "error"
+  ],
+  "max_count": 0
+ },
+ "counts": {
+  "total": 0,
+  "by_severity": {},
+  "by_source": {}
+ },
+ "failing_count": 0,
+ "failing": [],
+ "violations": [],
+ "facts": {
+  "top": "ece298a_counter",
+  "sby_status": "PASS",
+  "proven": true,
+  "watched": [
+   "uo_out",
+   "uio_out",
+   "uio_oe"
+  ],
+  "x_ok": {},
+  "x_init_ok": {},
+  "reset": "rst_n",
+  "reset_cycles": 2,
+  "depth": 8
+ },
+ "inputs_at_start": {
+  "rtl": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
+  "spec_yaml": "json_canonical:969b0fe1155ae8e297f5db8ca34afc10e02ba481ea588d4287af70b8e371a5b7"
+ },
+ "strength_at_start": 0,
+ "recorded_ts": "2026-11-18T16:17:12",
+ "attempts": 1
+}

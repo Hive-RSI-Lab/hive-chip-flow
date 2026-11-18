@@ -40,6 +40,11 @@ faults:
     gate: reset_indep
     plant: plant_reset_indep.py
     expect: {status: fail, kind: reset_dependent}
+  # #84 c: the same plant, proven: xprop's counterexample names `count`.
+  - name: xprop_unreset_mode
+    gate: xprop
+    plant: plant_reset_indep.py
+    expect: {status: fail, kind: output_x_after_reset}
   - name: synth_combinational_loop
     gate: synth
     plant: plant_synth.py

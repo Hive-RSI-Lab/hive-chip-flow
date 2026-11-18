@@ -126,6 +126,10 @@ verbs:
         why: "the visible tests again on Verilator at random power-up
               values; a test that passes at zero init and fails here is a
               register the reset never sets, and routes to rtl-writer"
+      - gate: xprop
+        why: "a proof that no output can be X once reset has been held,
+              for any inputs; a counterexample names the port and routes
+              to rtl-writer"
       - note: "Any gate above failing: the fix loop (SKILL.md) - budget,
                snapshot, fix_dispatch.py, one fixer per work order, declare
                the edit, re-run. Do not advance past a fail."
@@ -410,8 +414,8 @@ verbs:
       and mutate.
     doc: skills/vde/reference/recipes/optimise.md
     workspace: required
-    gates: [lint, sim, holdout, mutate, formal, cover, reset_indep, synth,
-            cdc]
+    gates: [lint, sim, holdout, mutate, formal, cover, reset_indep, xprop,
+            synth, cdc]
     human_hold: 0
     preconditions: [workspace, gates_fresh:synth]
     args:
