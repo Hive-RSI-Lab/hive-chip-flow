@@ -204,9 +204,11 @@ def run_cocotb(build_dir: Path, test_dir: Path, sources: list[Path],
               stall_s: float | None = None,
               build_args: list[str] | None = None,
               seed: int | None = None,
-              testcase: list[str] | None = None) -> Path:
+              testcase: list[str] | None = None,
+              simulator: str = "icarus") -> Path:
     """Build the design then run every module in test_modules_ as one cocotb
-    regression over Icarus. Returns the results.xml path (results_xml is
+    regression over Icarus (or `simulator`, a cocotb runner name: cover's
+    simdiff runs the same tests on both, #86). Returns the results.xml path (results_xml is
     pinned explicitly - concurrent callers, e.g. check_mutate.py running one
     mutant per task, must never share cocotb's own default path).
 
@@ -271,7 +273,7 @@ def run_cocotb(build_dir: Path, test_dir: Path, sources: list[Path],
     test_dir = Path(test_dir).resolve()
     sources = [Path(s).resolve() for s in sources]
     results_xml = Path(results_xml).resolve()
-    runner = get_runner("icarus")
+    runner = get_runner(simulator)
     log_file = str(build_dir / "sim.log")
 
     stalled: list[float] = []
@@ -411,8 +413,18 @@ def parse_results_xml(xml_path: Path) -> dict[str, dict]:
             # when it started (sim_time_start): where its slice of a
             # run-long output record begins (simrecord, #360)
             "sim_start_ns": _sim_time_ns(tc, "sim_time_start"),
+            # the test's own wall time, in seconds (JUnit `time`): cover's
+            # simdiff reports it per test per simulator (#86)
+            "wall_s": _wall_s(tc),
         }
     return out
+
+
+def _wall_s(tc) -> float | None:
+    try:
+        return float(tc.attrib["time"])
+    except (KeyError, ValueError):
+        return None
 
 
 def reads_pad_reset_latency(modules: list[str], dirs: list[Path]) -> bool:
