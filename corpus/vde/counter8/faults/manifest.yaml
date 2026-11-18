@@ -34,6 +34,12 @@ faults:
     gate: cover
     plant: plant_cover.py
     expect: {status: fail, kind: line_coverage_below_threshold}
+  # #84: Icarus reads the unreset register's x as false and sim passes;
+  # Verilator at random power-up values sticks the counter.
+  - name: reset_indep_unreset_mode
+    gate: reset_indep
+    plant: plant_reset_indep.py
+    expect: {status: fail, kind: reset_dependent}
   - name: synth_combinational_loop
     gate: synth
     plant: plant_synth.py

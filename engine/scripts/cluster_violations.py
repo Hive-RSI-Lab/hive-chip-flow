@@ -165,6 +165,12 @@ FIXER_HINTS: dict[str, str] = {
     "line_not_covered": "testbench",
     "toggle_not_covered": "testbench",
 
+    # reset_indep (check_reset_indep.py, #84): a register the reset never
+    # sets is the RTL's to reset. A test that fails on Verilator even at
+    # zero init is a bench that leans on one simulator's behaviour.
+    "reset_dependent": "rtl",
+    "verilator_baseline_failed": "testbench",
+
     # synth (check_synth.py)
     "combinational_loop": "rtl",
     # cdc: the RTL's to fix. A waiver is the person's, never a fixer's.

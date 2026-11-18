@@ -1,0 +1,41 @@
+{
+ "script": "gate",
+ "gate": "reset_indep",
+ "phase": "P4",
+ "tool": "reset_indep",
+ "input_digest": "dir_text:5b5e3748612f45afdfaedc1d7e6daa228ca0e64c09072bc4ac8b8b6275a6d995",
+ "status": "pass",
+ "criteria": {
+  "fail_severities": [
+   "error"
+  ],
+  "max_count": 0
+ },
+ "counts": {
+  "total": 0,
+  "by_severity": {},
+  "by_source": {}
+ },
+ "failing_count": 0,
+ "failing": [],
+ "violations": [],
+ "facts": {
+  "top": "r2r_dac_digital",
+  "seed": 1143272811,
+  "init_seeds": [
+   1,
+   2,
+   3
+  ],
+  "replay": "bin/eda python engine/scripts/check_reset_indep.py --workspace <ws> --seed 1143272811",
+  "tests": 8
+ },
+ "inputs_at_start": {
+  "rtl": "dir_text:5b5e3748612f45afdfaedc1d7e6daa228ca0e64c09072bc4ac8b8b6275a6d995",
+  "tb": "dir_text:04af66bc6eb7fca3a2248c8ba77586ee3233d41be6fc978dfde7a7fb936be615",
+  "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119"
+ },
+ "strength_at_start": 0,
+ "recorded_ts": "2026-11-18T14:49:59",
+ "attempts": 2
+}

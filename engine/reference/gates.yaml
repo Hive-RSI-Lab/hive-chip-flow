@@ -138,6 +138,16 @@ gates:
       description: >-
         Line at or above 95%, toggle at or above 90% on the DUT; exclusions
         carry reasons.
+    reset_indep:
+      phase: P4
+      tool: reset_indep
+      strength: 0
+      fail_severities: [error]
+      max_count: 0
+      fault: "a register with no reset whose x only reaches the output through an if"
+      description: >-
+        The visible tests pass on Verilator with every register at random
+        power-up values (3 init seeds) wherever they pass at zero init.
     synth:
       phase: P5
       tool: synth

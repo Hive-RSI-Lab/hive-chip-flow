@@ -41,8 +41,30 @@
     "test_slow_prescale": true,
     "test_sine_table_all_entries": true,
     "test_random_mode_switching_against_model": true
+   },
+   "sdf_ff": {
+    "test_reset_clears": true,
+    "test_register_capture": true,
+    "test_registered_output": true,
+    "test_hold_keeps_captured_code": true,
+    "test_ramp_all_codes_and_wrap": true,
+    "test_slow_prescale": true,
+    "test_sine_table_all_entries": true,
+    "test_random_mode_switching_against_model": true
+   },
+   "sdf_ss": {
+    "test_reset_clears": true,
+    "test_register_capture": true,
+    "test_registered_output": true,
+    "test_hold_keeps_captured_code": true,
+    "test_ramp_all_codes_and_wrap": true,
+    "test_slow_prescale": true,
+    "test_sine_table_all_entries": true,
+    "test_random_mode_switching_against_model": true
    }
   },
+  "seed": 1143272811,
+  "replay": "bin/eda python engine/scripts/check_glsim.py --workspace <ws> --seed 1143272811",
   "sdf": {
    "zero_interconnects_dropped": 574,
    "sdf_unannotated": [
@@ -57,7 +79,67 @@
     "_514_ (gf180mcu_fd_sc_mcu7t5v0__mux2_2)",
     "_558_ (gf180mcu_fd_sc_mcu7t5v0__mux2_2)"
    ],
-   "instances_renamed": {}
+   "instances_renamed": {},
+   "timing_checks": "not simulated (Icarus: \"Timing checks are not supported\")",
+   "corners": {
+    "sdf": {
+     "corner": "nom_tt_025C_3v30",
+     "delay_selection": "typ",
+     "zero_interconnects_dropped": 574,
+     "sdf_unannotated": [
+      "_403_ (gf180mcu_fd_sc_mcu7t5v0__xor2_1)",
+      "_410_ (gf180mcu_fd_sc_mcu7t5v0__xnor2_2)",
+      "_411_ (gf180mcu_fd_sc_mcu7t5v0__xor2_1)",
+      "_438_ (gf180mcu_fd_sc_mcu7t5v0__xor2_1)",
+      "_450_ (gf180mcu_fd_sc_mcu7t5v0__xor2_2)",
+      "_484_ (gf180mcu_fd_sc_mcu7t5v0__mux2_2)",
+      "_490_ (gf180mcu_fd_sc_mcu7t5v0__mux2_2)",
+      "_502_ (gf180mcu_fd_sc_mcu7t5v0__mux2_2)",
+      "_514_ (gf180mcu_fd_sc_mcu7t5v0__mux2_2)",
+      "_558_ (gf180mcu_fd_sc_mcu7t5v0__mux2_2)"
+     ],
+     "instances_renamed": {},
+     "timing_checks": "not simulated (Icarus: \"Timing checks are not supported\")"
+    },
+    "sdf_ff": {
+     "corner": "min_ff_n40C_3v60",
+     "delay_selection": "min",
+     "zero_interconnects_dropped": 590,
+     "sdf_unannotated": [
+      "_403_ (gf180mcu_fd_sc_mcu7t5v0__xor2_1)",
+      "_410_ (gf180mcu_fd_sc_mcu7t5v0__xnor2_2)",
+      "_411_ (gf180mcu_fd_sc_mcu7t5v0__xor2_1)",
+      "_438_ (gf180mcu_fd_sc_mcu7t5v0__xor2_1)",
+      "_450_ (gf180mcu_fd_sc_mcu7t5v0__xor2_2)",
+      "_484_ (gf180mcu_fd_sc_mcu7t5v0__mux2_2)",
+      "_490_ (gf180mcu_fd_sc_mcu7t5v0__mux2_2)",
+      "_502_ (gf180mcu_fd_sc_mcu7t5v0__mux2_2)",
+      "_514_ (gf180mcu_fd_sc_mcu7t5v0__mux2_2)",
+      "_558_ (gf180mcu_fd_sc_mcu7t5v0__mux2_2)"
+     ],
+     "instances_renamed": {},
+     "timing_checks": "not simulated (Icarus: \"Timing checks are not supported\")"
+    },
+    "sdf_ss": {
+     "corner": "max_ss_125C_3v00",
+     "delay_selection": "max",
+     "zero_interconnects_dropped": 554,
+     "sdf_unannotated": [
+      "_403_ (gf180mcu_fd_sc_mcu7t5v0__xor2_1)",
+      "_410_ (gf180mcu_fd_sc_mcu7t5v0__xnor2_2)",
+      "_411_ (gf180mcu_fd_sc_mcu7t5v0__xor2_1)",
+      "_438_ (gf180mcu_fd_sc_mcu7t5v0__xor2_1)",
+      "_450_ (gf180mcu_fd_sc_mcu7t5v0__xor2_2)",
+      "_484_ (gf180mcu_fd_sc_mcu7t5v0__mux2_2)",
+      "_490_ (gf180mcu_fd_sc_mcu7t5v0__mux2_2)",
+      "_502_ (gf180mcu_fd_sc_mcu7t5v0__mux2_2)",
+      "_514_ (gf180mcu_fd_sc_mcu7t5v0__mux2_2)",
+      "_558_ (gf180mcu_fd_sc_mcu7t5v0__mux2_2)"
+     ],
+     "instances_renamed": {},
+     "timing_checks": "not simulated (Icarus: \"Timing checks are not supported\")"
+    }
+   }
   },
   "netlists": {
    "nl_sha256": "3b6088332492a67a4efe4f97a4e22e76e6a7a1126531d037ba02daba9e5a0437",
@@ -71,6 +153,6 @@
   "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2"
  },
  "strength_at_start": 0,
- "recorded_ts": "2026-11-06T23:49:33",
- "attempts": 14
+ "recorded_ts": "2026-11-18T14:57:29",
+ "attempts": 15
 }

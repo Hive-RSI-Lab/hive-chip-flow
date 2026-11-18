@@ -239,6 +239,9 @@ gate_inputs:
     # edit left their passes fresh. cover takes the whole file, so a
     # `formal:` edit stales it too (spec_formal_edit's own set).
     cover:     [rtl, tb, spec_yaml]
+    # reset_indep reads `top` and the sim seed from spec.yaml, as sim does
+    # (#84); a `formal:` edit leaves it fresh.
+    reset_indep: [rtl, tb, spec_yaml_sans_formal]
     synth:     [rtl, spec_yaml_sans_formal, pdk_version, pdk_liberty]
     # cdc reads `top`, clock and std_cell from spec.yaml; liberty for the
     # cells RTL instantiates and its OpenSTA cross-check.
@@ -436,14 +439,15 @@ edit_classes:
       # must rewrite" (1.6)
       mutates: [spec_yaml, spec_md]
       stale_artifacts: [holdout]
-      gates: [spec_lint, lint, sim, holdout, mutate, formal, cover, synth,
-              cdc, harden, timing, drc, lvs, glsim, lec, precheck, release]
+      gates: [spec_lint, lint, sim, holdout, mutate, formal, cover,
+              reset_indep, synth, cdc, harden, timing, drc, lvs, glsim, lec,
+              precheck, release]
       human_hold: 2
     rtl_edit:
       mutates: [rtl]
       stale_artifacts: []
-      gates: [lint, sim, holdout, mutate, formal, cover, synth, cdc, harden,
-              timing, drc, lvs, glsim, lec, precheck, release]
+      gates: [lint, sim, holdout, mutate, formal, cover, reset_indep, synth,
+              cdc, harden, timing, drc, lvs, glsim, lec, precheck, release]
       human_hold: 1
     cdc_waiver_edit:
       # spec/cdc.yaml: a waiver is a claim a crossing is safe, so it holds 2
@@ -455,7 +459,7 @@ edit_classes:
     tb_edit:
       mutates: [tb]
       stale_artifacts: []
-      gates: [sim, mutate, cover]
+      gates: [sim, mutate, cover, reset_indep]
       human_hold: 1
     formal_edit:
       mutates: [formal]
