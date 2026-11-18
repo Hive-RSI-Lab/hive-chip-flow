@@ -237,7 +237,7 @@ On gate fail (exit 1, result JSON has `failing` with a `kind`/`file`/
    | testbench | tb_edit | tb/ moved - re-run sim, mutate, cover |
    | holdout_stimulus | holdout_stimulus_edit | holdout/ stimulus moved; `--baseline pre-fix-holdout-a<attempt>` is required, and the edit is refused if an assert, bound or expected value moved (check_holdout_edit.py) |
    | formal | formal_edit | formal/ moved - re-run formal, mutate |
-   | formal | spec_formal_edit | only spec.yaml's `formal:` key moved (depth, cover_depth) - re-run formal, cover; declare both classes when formal/ moved too |
+   | formal | spec_formal_edit | only spec.yaml's `formal:` key moved (depth, cover_depth) - re-run formal, cover, xprop, mutate; declare both classes when formal/ moved too |
    | synth | rtl_edit | a synth finding is almost always an RTL fix (fix_dispatch's own guidance) - the edit still lands in rtl/ |
    | cdc | rtl_edit, or cdc_waiver_edit for `spec/cdc.yaml` | add the synchroniser or fix the gate in rtl/; a waiver or a port's domain is a design claim for the person, hold 2 |
    | harden | harden_config_edit | `harden/config.override.json` moved (M4+; config.json/info.yaml are regenerated each run) |

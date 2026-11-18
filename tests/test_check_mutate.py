@@ -6,6 +6,7 @@ whole file stays well under tests/check.sh's budget."""
 from __future__ import annotations
 
 import json
+import shutil
 import sys
 from pathlib import Path
 
@@ -817,3 +818,125 @@ below_spread:
     out = json.loads(capsys.readouterr().out)
     assert code == 2, out
     assert "below_spread" in out["error"] and sent == []
+
+
+# --- formal kills: a survivor of the tests run against formal/*.sv --------
+
+def test_formal_fail_kills_a_survivor_and_records_killed_by():
+    ms = [_mutant(2, "stuck_other", True), _mutant(3, "output_stuck", False),
+          _mutant(4, "stuck_other", False)]
+    check_mutate.apply_formal_kills(ms, {3: "FAIL", 4: "PASS"}, {})
+    assert [m["killed_by"] for m in ms] == ["sim", "formal", None]
+    assert ms[1]["killed"] and not ms[1]["survived"]
+    assert ms[2]["survived"] and not ms[2]["killed"]
+
+
+def test_timeout_or_error_is_not_a_formal_kill():
+    ms = [_mutant(2, "stuck_other", False), _mutant(3, "stuck_other", False)]
+    check_mutate.apply_formal_kills(ms, {2: "TIMEOUT", 3: "ERROR: x"}, {})
+    assert all(m["survived"] and m["killed_by"] is None for m in ms)
+
+
+def test_a_ruled_mutant_a_formal_assert_kills_is_refused():
+    ms = [_mutant(11, "output_stuck", False)]
+    with pytest.raises(check_mutate.CheckError, match="stale ruling"):
+        check_mutate.apply_formal_kills(ms, {11: "FAIL"}, {11: "owner"})
+
+
+def test_formal_kills_skip_says_why(tmp_path):
+    ws = make_ws(tmp_path, TB_STRONG)
+    ms = [_mutant(2, "stuck_other", False)]
+    spec = {"top": "top", "formal": {"depth": 4}}
+    il = tmp_path / "design.il"
+    kills = lambda s: check_mutate.formal_kills(ws, s, il, ms, tmp_path / "w", 1)
+    assert kills(spec) == ({}, f"no formal/*.sv in {ws}")
+    (ws / "formal").mkdir()
+    (ws / "formal" / "top_formal.sv").write_text("module top_formal; endmodule\n")
+    assert kills({"top": "top"})[1] == "spec.yaml has no formal.depth"
+    cut = {"top": "top", "formal": {"depth": 4, "async_reset_cuts": [
+        {"signal": "dut.q", "why": "x"}]}}
+    assert "async_reset_cuts" in kills(cut)[1]
+    # nothing survived the tests: formal is never set up at all
+    assert check_mutate.formal_kills(ws, spec, il, [_mutant(2, "x", True)],
+                                     tmp_path / "w", 1) == ({}, None)
+
+
+def test_a_formal_kill_raises_the_kill_rate(tmp_path, monkeypatch, capsys):
+    ms = _nine_killed_plus(_mutant(11, "output_stuck", False))
+    ws, sent = make_stubbed_run(tmp_path, monkeypatch, ms, None)
+    monkeypatch.setattr(check_mutate, "formal_kills",
+                        lambda *a: ({11: "FAIL"}, None))
+    code = check_mutate.main(["--workspace", str(ws)])
+    out = json.loads(capsys.readouterr().out)
+    assert code == 0, out
+    assert sent == [] and out["kill_rate"] == 1.0
+    assert out["formal_kills"] == 1 and out["killed_by"]["11"] == "formal"
+    assert out["killed_by"]["2"] == "sim" and out["formal_skipped"] is None
+
+
+def make_counter8_ws(tmp_path: Path, tb_text: str | None = None) -> Path:
+    src = ENGINE.parent / "corpus" / "vde" / "counter8"
+    ws = tmp_path / "counter8"
+    for sub in ("rtl", "tb", "formal"):
+        shutil.copytree(src / sub, ws / sub)
+    (ws / "spec").mkdir()
+    shutil.copy(src / "spec.yaml", ws / "spec" / "spec.yaml")
+    (ws / "log").mkdir()
+    if tb_text is not None:
+        (ws / "tb" / "test_counter8.py").write_text(tb_text, encoding="utf-8")
+    return ws
+
+
+# checks only count[0]: every mutant of the reset path above bit 0 passes
+# it, and REQ_FORMAL_RESET in formal/counter8_formal.sv fails on it
+TB_COUNTER8_LSB_ONLY = """\
+import cocotb
+from cocotb.clock import Clock
+from cocotb.triggers import FallingEdge
+from padreset import pad_reset
+
+
+# req: REQ-WRAP
+@cocotb.test()
+async def test_lsb_toggles(dut):
+    cocotb.start_soon(Clock(dut.clk, 20, unit="ns").start())
+    await FallingEdge(dut.clk)
+    await pad_reset(dut, dut.rst, 3)
+    prev = int(dut.count.value) & 1
+    for _ in range(300):
+        await FallingEdge(dut.clk)
+        cur = int(dut.count.value) & 1
+        assert cur == prev ^ 1, f"count[0] stuck at {cur}"
+        prev = cur
+"""
+
+
+@pytest.mark.slow
+def test_a_mutant_the_tests_miss_is_killed_by_a_formal_assert(tmp_path, capsys):
+    ws = make_counter8_ws(tmp_path, TB_COUNTER8_LSB_ONLY)
+    check_mutate.main(["--workspace", str(ws), "--pdr-timeout", "60"])
+    out = json.loads(capsys.readouterr().out)
+    assert out["formal_skipped"] is None, out
+    formal = [k for k, v in out["killed_by"].items() if v == "formal"]
+    assert formal and out["formal_kills"] == len(formal), out
+    assert out["killed"] == sum(1 for v in out["killed_by"].values() if v)
+
+
+@pytest.mark.slow
+def test_counter8_kill_rate_holds_with_formal_kills(tmp_path, capsys):
+    ws = make_counter8_ws(tmp_path)
+    check_mutate.main(["--workspace", str(ws), "--pdr-timeout", "60"])
+    out = json.loads(capsys.readouterr().out)
+    assert out["formal_skipped"] is None, out
+    assert out["kill_rate"] == 1.0, out
+    assert not out["survivors_by_class"], out
+
+
+def test_a_ruling_on_a_mutant_a_formal_assert_kills_is_an_error(tmp_path, monkeypatch, capsys):
+    ms = _nine_killed_plus(_mutant(11, "output_stuck", False))
+    ws, sent = make_stubbed_run(tmp_path, monkeypatch, ms, RULE_11)
+    monkeypatch.setattr(check_mutate, "formal_kills",
+                        lambda *a: ({11: "FAIL"}, None))
+    code = check_mutate.main(["--workspace", str(ws)])
+    out = json.loads(capsys.readouterr().out)
+    assert code == 2 and "stale ruling" in out["error"], out

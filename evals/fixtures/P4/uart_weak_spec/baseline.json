@@ -1,5 +1,5 @@
 {
- "composite": 0.9937,
+ "composite": 0.9952,
  "gates": {
   "lint": {
    "status": "pass",
@@ -7,7 +7,7 @@
    "failing": 0,
    "kinds": [],
    "metrics": {},
-   "wall_s": 0.29
+   "wall_s": 0.49
   },
   "sim": {
    "status": "pass",
@@ -17,7 +17,7 @@
    "metrics": {
     "tests_passed": 3
    },
-   "wall_s": 2.65
+   "wall_s": 0.83
   },
   "holdout": {
    "status": "pass",
@@ -27,7 +27,7 @@
    "metrics": {
     "tests_passed": 4
    },
-   "wall_s": 1.85
+   "wall_s": 0.76
   },
   "mutate": {
    "status": "fail",
@@ -42,7 +42,7 @@
     "killed": 13,
     "survived": 2
    },
-   "wall_s": 7.01
+   "wall_s": 2.87
   },
   "formal": {
    "status": "pass",
@@ -50,7 +50,7 @@
    "failing": 0,
    "kinds": [],
    "metrics": {},
-   "wall_s": 2.22
+   "wall_s": 1.31
   },
   "cover": {
    "status": "pass",
@@ -61,8 +61,24 @@
     "line_pct": 100.0,
     "toggle_pct": 98.2759
    },
-   "wall_s": 3.55
+   "wall_s": 2.51
+  },
+  "reset_indep": {
+   "status": "pass",
+   "score": 1.0,
+   "failing": 0,
+   "kinds": [],
+   "metrics": {},
+   "wall_s": 3.04
+  },
+  "xprop": {
+   "status": "pass",
+   "score": 1.0,
+   "failing": 0,
+   "kinds": [],
+   "metrics": {},
+   "wall_s": 0.33
   }
  },
- "written": "2026-11-06"
+ "written": "2026-11-18"
 }

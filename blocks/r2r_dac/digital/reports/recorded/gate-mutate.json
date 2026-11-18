@@ -31,15 +31,46 @@
   "survivors_by_class": {},
   "equivalent_by": {},
   "unproven_survivors": {},
-  "wall_s": 5.99
+  "killed_by": {
+   "2": "sim",
+   "3": "sim",
+   "4": "sim",
+   "5": "sim",
+   "6": "sim",
+   "7": "sim",
+   "8": "sim",
+   "9": "sim",
+   "10": "sim",
+   "11": "sim",
+   "12": "sim",
+   "13": "sim",
+   "14": "sim",
+   "15": "sim",
+   "16": "sim",
+   "17": "sim",
+   "18": "sim",
+   "19": "sim",
+   "20": "sim",
+   "21": "sim",
+   "22": "sim",
+   "23": "sim",
+   "24": "sim"
+  },
+  "formal_kills": 0,
+  "formal_skipped": null,
+  "formal_survivors": {},
+  "sim_seed": 1143272811,
+  "sim_replay": "bin/eda python engine/scripts/check_mutate.py --workspace <ws> --sim-seed 1143272811",
+  "wall_s": 2.84
  },
  "inputs_at_start": {
   "rtl": "dir_text:5b5e3748612f45afdfaedc1d7e6daa228ca0e64c09072bc4ac8b8b6275a6d995",
   "tb": "dir_text:04af66bc6eb7fca3a2248c8ba77586ee3233d41be6fc978dfde7a7fb936be615",
-  "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119",
+  "formal": "dir_text:08afbef661d005669823e3e3ad631918a42bfd611bd5042ac8b6ed3fe5e6ce46",
+  "spec_yaml": "json_canonical:316aabe3e699eb67a766fb42296b9a90d765394b6deefb2d5178cc8865c08bbf",
   "mutant_rulings": null
  },
  "strength_at_start": 0,
- "recorded_ts": "2026-11-05T19:27:37",
- "attempts": 11
+ "recorded_ts": "2026-11-18T18:23:12",
+ "attempts": 12
 }
