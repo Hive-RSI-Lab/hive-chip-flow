@@ -79,6 +79,13 @@ mutate:
   seed: 4
 formal:
   depth: 8
+  # xprop (#84): what the core may see at power-up without it being X.
+  x_init_ok:
+    mem: "the 16-word memory has no reset; run before the loader has
+      filled it executes whatever the RAM powered up with, which the spec
+      leaves undefined but is never X in silicon"
+    rf: "x1-x15 have no reset, as in RV32E; a program that reads a register
+      before writing it sees its power-up value"
 # M4 (docs/design.md "### M4."): the Tiny Tapeout GF180 tile pin map. din
 # fills ui_in and dout fills uo_out; we/run borrow two uio_in bits as plain
 # inputs, halted/illegal ride on uio_out (their uio_oe bits driven high by

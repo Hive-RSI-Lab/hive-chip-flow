@@ -151,8 +151,12 @@ module rv_core (
   // ---- one memory write port with byte lanes: the loader while idle,
   // stores in EXEC. Lane enables rather than a read-modify-write of the
   // whole word, so no extra 32-bit read port is spent on either writer.
-  wire        exec_ok  = (state == S_EXEC) && legal;
-  wire        ld_write = (state == S_IDLE) && we;
+  // No memory or register write while rst is held: on the first reset
+  // clock `state` still has its power-up value, and a write then would
+  // land a loader byte or a write-back no program asked for (the xprop
+  // gate's counterexample, #84).
+  wire        exec_ok  = !rst && (state == S_EXEC) && legal;
+  wire        ld_write = !rst && (state == S_IDLE) && we;
   wire        st_write = exec_ok && (opcode == OP_STORE);
   reg  [3:0]  st_lanes;
   reg  [31:0] st_data;

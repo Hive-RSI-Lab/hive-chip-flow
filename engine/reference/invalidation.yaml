@@ -242,6 +242,9 @@ gate_inputs:
     # reset_indep reads `top` and the sim seed from spec.yaml, as sim does
     # (#84); a `formal:` edit leaves it fresh.
     reset_indep: [rtl, tb, spec_yaml_sans_formal]
+    # xprop reads ports, sim.reset and sim.x_ok AND formal.reset_cycles,
+    # depth and x_init_ok (#84), so it takes the whole file.
+    xprop:     [rtl, spec_yaml]
     synth:     [rtl, spec_yaml_sans_formal, pdk_version, pdk_liberty]
     # cdc reads `top`, clock and std_cell from spec.yaml; liberty for the
     # cells RTL instantiates and its OpenSTA cross-check.
@@ -440,13 +443,14 @@ edit_classes:
       mutates: [spec_yaml, spec_md]
       stale_artifacts: [holdout]
       gates: [spec_lint, lint, sim, holdout, mutate, formal, cover,
-              reset_indep, synth, cdc, harden, timing, drc, lvs, glsim, lec,
+              reset_indep, xprop, synth, cdc, harden, timing, drc, lvs, glsim, lec,
               precheck, release]
       human_hold: 2
     rtl_edit:
       mutates: [rtl]
       stale_artifacts: []
-      gates: [lint, sim, holdout, mutate, formal, cover, reset_indep, synth,
+      gates: [lint, sim, holdout, mutate, formal, cover, reset_indep, xprop,
+              synth,
               cdc, harden, timing, drc, lvs, glsim, lec, precheck, release]
       human_hold: 1
     cdc_waiver_edit:
@@ -472,7 +476,7 @@ edit_classes:
       # a spec_edit; the hash layer still stales every gate reading the rest.
       mutates: [spec_yaml]
       stale_artifacts: []
-      gates: [formal, cover]
+      gates: [formal, cover, xprop]
       human_hold: 1
     holdout_edit:
       # held-out tests are the check the designer never sees (section 2),
