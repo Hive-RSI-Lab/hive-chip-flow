@@ -29,7 +29,13 @@ the starting RTL as trial 0 (refused if it fails a constraint). `trial`:
 reverts every changed path but the target (ENGINE_OUTPUTS are left alone),
 re-hashes the evaluator and aborts the loop on a mismatch, then in a scratch
 workspace built from the frozen copies runs the constraints - lint, sim,
-formal at depth <= FAST_FORMAL_DEPTH - and, if they pass, the metric: yosys
+formal at depth <= FAST_FORMAL_DEPTH, then seq_equiv (#85: seqequivlib
+proves the trial's RTL sequentially equivalent to the baseline RTL `start`
+froze into optimise/evaluator/baseline_rtl/, at the spec's ports from
+reset; a counterexample rejects the trial and its port, clock and VCD go in
+the detail; a proof that times out or cannot model the design is
+`unproven`, and the trial stands on the tests alone) - and, if they pass,
+the metric: yosys
 with the frozen script for cell area, the netlist's ports against the
 locked list, every `must_keep` cell still present, OpenSTA with the frozen
 SDC for worst slack and for power from the VCD the testbench wrote. Slack
@@ -686,7 +692,13 @@ RTL_SUFFIXES = (".v", ".sv")
 RTL_OBJECTIVES = ("area", "slack", "power", "score")
 # section 4: "trial, timestamp, target sha, each constraint's result, area,
 # slack, power, score, kept, and the agent's one-line note".
-CONSTRAINTS = ("lint", "sim", "formal", "synth", "ports", "must_keep", "timing")
+CONSTRAINTS = ("lint", "sim", "formal", "seq_equiv", "synth", "ports",
+               "must_keep", "timing")
+# seq_equiv's own result when the prover ran out of time or could not
+# model the design: the trial stands on the tests alone, and says so.
+UNPROVEN = "unproven"
+SEQ_EQUIV_TIMEOUT_S = 300.0
+BASELINE_RTL = "baseline_rtl"
 RTL_TSV_FIELDS = (["trial", "timestamp", "target_sha"] + list(CONSTRAINTS)
                   + ["area", "slack", "power", "score", "kept", "note"])
 FAST_FORMAL_DEPTH = 10
@@ -956,9 +968,15 @@ def run_rtl_start(argv=None):
         if (ws / "holdout").is_dir() else None
     (ev / "holdout.json").write_text(json.dumps(
         {"dir_sha": holdout_sha}), encoding="utf-8")
+    # #85: the starting RTL, frozen, is what every trial is proved
+    # sequentially equivalent to
+    (ev / BASELINE_RTL / "rtl").mkdir(parents=True)
+    for rel in rtl_rels:
+        shutil.copy2(ws / rel, ev / BASELINE_RTL / rel)
     (ev / "profile.json").write_text(json.dumps(
         {"objective": args.objective, "target": target_rel, "top": top,
-         "rtl": rtl_rels, "fast_formal_depth": FAST_FORMAL_DEPTH},
+         "rtl": rtl_rels, "fast_formal_depth": FAST_FORMAL_DEPTH,
+         "seq_equiv_timeout_s": SEQ_EQUIV_TIMEOUT_S},
         indent=1), encoding="utf-8")
 
     meta = {"kind": "rtl", "target": target_rel, "objective": args.objective,
@@ -1195,6 +1213,38 @@ def objective_score(objective: str, r: dict, baseline: dict | None) -> float | N
     return -0.5 * (r["area"] / base["area"] + r["power"] / base["power"])
 
 
+def _ok(status: str) -> bool:
+    """A constraint that lets a trial stand."""
+    return status in ("pass", UNPROVEN)
+
+
+def run_seq_equiv(ew: Path, ev: Path, profile: dict, detail: list) -> str:
+    """#85: the trial's RTL against the frozen baseline, sequentially, at
+    the spec's ports from reset (seqequivlib). pass: proved equivalent;
+    fail: a counterexample (its port, clock and trace go on `detail`);
+    UNPROVEN: the prover could not decide, so the tests alone stand."""
+    import yaml
+    import seqequivlib
+    base = ev / BASELINE_RTL
+    if not base.is_dir():
+        detail.append("seq_equiv: no frozen baseline RTL (an evaluator "
+                      "from before #85) - not proved, tests alone")
+        return UNPROVEN
+    spec = yaml.safe_load((ev / "spec.yaml").read_text(encoding="utf-8"))
+    ref = [base / r for r in profile["rtl"] if (base / r).is_file()]
+    uut = [ew / r for r in profile["rtl"] if (ew / r).is_file()]
+    v = seqequivlib.prove(
+        spec, profile["top"], ref, uut, ew / "log" / "seq_equiv",
+        float(profile.get("seq_equiv_timeout_s", SEQ_EQUIV_TIMEOUT_S)))
+    if v["verdict"] == "equivalent":
+        return "pass"
+    if v["verdict"] == "different":
+        detail.append(f"seq_equiv: {v['why']}")
+        return "fail"
+    detail.append(f"seq_equiv: {v['why']} - tests alone")
+    return UNPROVEN
+
+
 def evaluate_rtl(ws: Path, meta: dict) -> dict:
     """Constraints, then (only if they pass) the metric. `passed` means
     every constraint passed; correctness is never a weighted term."""
@@ -1208,6 +1258,11 @@ def evaluate_rtl(ws: Path, meta: dict) -> dict:
     result = {"constraints": cons, "area": None, "slack": None, "power": None,
               "score": None, "detail": detail, "passed": False}
     if any(cons[c] != "pass" for c in ("lint", "sim", "formal")):
+        return result
+    # trial 0 is the baseline itself
+    cons["seq_equiv"] = ("pass" if meta.get("baseline") is None
+                         else run_seq_equiv(ew, ev, profile, detail))
+    if not _ok(cons["seq_equiv"]):
         return result
     objective = meta["objective"]
     try:
@@ -1225,7 +1280,7 @@ def evaluate_rtl(ws: Path, meta: dict) -> dict:
     result.update(area=m["area"], slack=m["slack"], power=m["power"],
                   detail=detail + m["detail"])
     result["score"] = objective_score(objective, m, meta.get("baseline"))
-    result["passed"] = all(cons[c] == "pass" for c in CONSTRAINTS) \
+    result["passed"] = all(_ok(cons[c]) for c in CONSTRAINTS) \
         and result["score"] is not None
     return result
 
@@ -1315,7 +1370,8 @@ def run_trial(argv=None):
         meta["since_improved"] += 1
         if changed and not result["passed"]:
             failing = [c for c in CONSTRAINTS
-                       if result["constraints"][c] not in ("pass", "skipped")]
+                       if result["constraints"][c] not in ("pass", "skipped",
+                                                           UNPROVEN)]
             note = f"rejected ({', '.join(failing)}); {note}"
     if reverted:
         note += f" [reverted outside target: {', '.join(reverted)}]"
