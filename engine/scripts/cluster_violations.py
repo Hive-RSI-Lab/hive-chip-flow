@@ -164,6 +164,10 @@ FIXER_HINTS: dict[str, str] = {
     "toggle_coverage_below_threshold": "testbench",
     "line_not_covered": "testbench",
     "toggle_not_covered": "testbench",
+    # cover's simdiff (#86): a test whose result differs between Icarus and
+    # Verilator hangs on event order - almost always an RTL race (a
+    # blocking write read by another always block on the same edge)
+    "sim_mismatch": "rtl",
 
     # reset_indep (check_reset_indep.py, #84): a register the reset never
     # sets is the RTL's to reset. A test that fails on Verilator even at

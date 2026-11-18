@@ -94,6 +94,14 @@ def test_full_coverage_passes(tmp_path, capsys):
     assert out["status"] == "pass"
     assert out["line_pct"] == 100.0
     assert out["toggle_pct"] == 100.0
+    # simdiff (#86): both simulators ran the one test and agree
+    sd = out["simdiff"]
+    assert sd["agree"] is True
+    assert {s: r["result"] for s, r in
+            sd["tests"]["test_counts_every_cycle"].items()} == {
+        "icarus": "pass", "verilator": "pass"}
+    assert all(sd["runs"][s]["wall_s"] > 0 and sd["runs"][s]["cpu_s"] > 0
+               for s in ("icarus", "verilator"))
     # coverage.dat must never linger in tb/ - it would flip tb's own
     # dir_text hash (invalidation.yaml) for sim/mutate/holdout too.
     assert not (ws / "tb" / "coverage.dat").exists()
@@ -233,3 +241,89 @@ def test_relative_workspace_reaches_full_coverage(tmp_path, capsys,
     assert code == 0, out
     assert out["status"] == "pass"
     assert out["line_pct"] == 100.0
+
+
+# simdiff (#86): a blocking write `a` read by a block on a buffered copy of
+# the clock. Icarus runs the copy-clocked block a delta later, so b sees the
+# new a; Verilator runs it in source order, so b sees the old one.
+RTL_RACE = """\
+module top (input wire clk, input wire rst, output reg [3:0] count,
+            output reg [3:0] prev);
+  wire clk_b = clk;
+  always @(posedge clk_b) if (rst) prev = 4'd0; else prev = count;
+  always @(posedge clk) if (rst) count = 4'd0; else count = count + 4'd1;
+endmodule
+"""
+
+TB_RACE = """\
+import cocotb
+from cocotb.clock import Clock
+from cocotb.triggers import FallingEdge
+
+@cocotb.test()
+async def test_prev_lags_count(dut):
+    cocotb.start_soon(Clock(dut.clk, 10, unit="ns").start())
+    dut.rst.value = 1
+    await FallingEdge(dut.clk)
+    dut.rst.value = 0
+    for _ in range(20):
+        await FallingEdge(dut.clk)
+        assert int(dut.prev.value) == (int(dut.count.value) - 1) % 16
+"""
+
+
+def _res(passed, skipped=False, wall=0.5):
+    return {"passed": passed, "skipped": skipped, "wall_s": wall}
+
+
+def test_simdiff_agreeing_runs_have_no_findings():
+    vs, table = check_cover.simdiff({
+        "icarus": {"t_a": _res(True), "t_b": _res(False)},
+        "verilator": {"t_a": _res(True, wall=0.2), "t_b": _res(False)}})
+    assert vs == []
+    assert table["t_a"] == {"icarus": {"result": "pass", "wall_s": 0.5},
+                            "verilator": {"result": "pass", "wall_s": 0.2}}
+    assert table["t_b"]["icarus"]["result"] == "fail"
+
+
+def test_simdiff_names_each_test_that_differs():
+    vs, _ = check_cover.simdiff({
+        "icarus": {"t_a": _res(True), "t_b": _res(False), "t_c": _res(True)},
+        "verilator": {"t_a": _res(True), "t_b": _res(True)}})
+    assert [(v["kind"], v["module"], v["severity"]) for v in vs] == [
+        ("sim_mismatch", "t_b", "error"), ("sim_mismatch", "t_c", "error")]
+    assert vs[0]["results"] == {"icarus": "fail", "verilator": "pass"}
+    assert vs[1]["results"] == {"icarus": "pass", "verilator": "missing"}
+    assert "t_b" in vs[0]["msg"]
+
+
+def test_simdiff_skipped_against_pass_is_a_mismatch():
+    vs, _ = check_cover.simdiff({"icarus": {"t": _res(False, True)},
+                                 "verilator": {"t": _res(True)}})
+    assert [v["kind"] for v in vs] == ["sim_mismatch"]
+
+
+def test_simdiff_with_no_tests_is_an_error():
+    with pytest.raises(check_cover.CheckError):
+        check_cover.simdiff({"icarus": {}, "verilator": {}})
+
+
+def test_sim_mismatch_routes_to_rtl_and_has_a_remediation():
+    import cluster_violations
+    assert cluster_violations.fixer_for("sim_mismatch") == "rtl"
+    assert (REPO / "skills" / "vde" / "reference" / "remediations"
+            / "sim_mismatch.md").is_file()
+
+
+@pytest.mark.slow
+def test_blocking_race_is_a_sim_mismatch_naming_the_test(tmp_path, capsys):
+    ws = make_ws(tmp_path, RTL_RACE)
+    (ws / "tb" / "test_top.py").write_text(TB_RACE, encoding="utf-8")
+    code = check_cover.main(["--workspace", str(ws)])
+    out = json.loads(capsys.readouterr().out)
+    assert code == 1, out
+    errs = [v for v in out["violations"] if v["severity"] == "error"]
+    assert [(v["kind"], v["module"]) for v in errs] == [
+        ("sim_mismatch", "test_prev_lags_count")], out
+    assert errs[0]["results"] == {"icarus": "fail", "verilator": "pass"}
+    assert out["simdiff"]["agree"] is False

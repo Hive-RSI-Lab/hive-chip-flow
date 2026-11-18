@@ -43,14 +43,27 @@ carry reasons" (gates.yaml) mirrors check_lint.py's own `lint_allow.yaml`.
 Fault this gate must catch (gates.yaml): "an unreachable state" - a branch
 or line the visible tb/ suite never reaches, dragging line coverage below
 `line_min`.
+
+simdiff (#86): the same tests, same seed, same sources and top, are run
+once more over Icarus, and each test's pass/fail must match the Verilator
+run's. A test that passes on one simulator and fails (or is missing) on the
+other is a `sim_mismatch` error naming the test: the result hangs on the
+simulator's event order, which is a race (a blocking write another
+always block reads on the same edge, say) and gate-level sim and silicon
+won't pick one order for you. The report's `simdiff` carries each test's
+pass/fail and wall seconds per simulator, and each simulator's whole run
+(build plus tests) wall and CPU seconds. CPU is not per test: cocotb runs
+every test inside one simulator process.
 """
 from __future__ import annotations
 
 import argparse
 import re
+import resource
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 SCRIPTS = Path(__file__).resolve().parent
@@ -68,6 +81,9 @@ SCRIPT = "check_cover"
 EDA_BIN = REPO / "bin" / "eda"
 BUILD_SUBDIR = "log/cover_build"
 RESULTS_NAME = "cover_results.xml"
+ICARUS_BUILD_SUBDIR = "log/cover_icarus_build"
+ICARUS_RESULTS_NAME = "cover_icarus_results.xml"
+SIMULATORS = ("icarus", "verilator")
 INFO_NAME = "log/coverage.info"
 EXCLUDE_REL = "rtl/cover_exclude.yaml"
 DEFAULT_LINE_MIN = 95.0
@@ -183,6 +199,70 @@ def run_coverage(ws: Path, top: str, sources: list[Path],
         coverage_dat.unlink(missing_ok=True)
 
 
+def timed(fn, *args, **kwargs):
+    """(fn's result, {"wall_s", "cpu_s"}): CPU is the user+system time of
+    the child processes fn waited on (the simulator build and run), which
+    is where cocotb's work happens."""
+    r0 = resource.getrusage(resource.RUSAGE_CHILDREN)
+    t0 = time.monotonic()
+    out = fn(*args, **kwargs)
+    r1 = resource.getrusage(resource.RUSAGE_CHILDREN)
+    cpu = (r1.ru_utime - r0.ru_utime) + (r1.ru_stime - r0.ru_stime)
+    return out, {"wall_s": checklib.rnd(time.monotonic() - t0),
+                 "cpu_s": checklib.rnd(cpu)}
+
+
+def run_icarus(ws: Path, top: str, sources: list[Path],
+               seed: int | None) -> Path:
+    """The same tests over Icarus, with the same sources, top and seed as
+    run_coverage's Verilator run, for simdiff. Its results never decide
+    sim's verdict: sim runs its own (framed, monitored) bench."""
+    tb_dir = ws / "tb"
+    build_dir = ws / ICARUS_BUILD_SUBDIR
+    shutil.rmtree(build_dir, ignore_errors=True)
+    try:
+        return cocotblib.run_cocotb(
+            build_dir, tb_dir, sources, top, cocotblib.test_modules(tb_dir),
+            ws / "log" / ICARUS_RESULTS_NAME, seed=seed, simulator="icarus")
+    except Exception as exc:  # noqa: BLE001 - a build/launcher crash
+        raise CheckError(f"cocotb-over-icarus simdiff run failed: "
+                         f"{type(exc).__name__}: {exc}") from exc
+
+
+def _state(res: dict | None) -> str:
+    if res is None:
+        return "missing"
+    if res.get("skipped"):
+        return "skipped"
+    return "pass" if res.get("passed") else "fail"
+
+
+def simdiff(results: dict[str, dict[str, dict]]) -> tuple[list[dict], dict]:
+    """results: {simulator: parse_results_xml output}. Returns (findings,
+    {test: {simulator: {"result", "wall_s"}}}): a `sim_mismatch` error per
+    test whose result differs between simulators (missing counts)."""
+    names = sorted(set().union(*(r.keys() for r in results.values())))
+    if not names:
+        raise CheckError("simdiff: neither simulator ran any test")
+    table: dict[str, dict] = {}
+    violations = []
+    for name in names:
+        row = {sim: {"result": _state(res.get(name)),
+                     "wall_s": (res.get(name) or {}).get("wall_s")}
+               for sim, res in results.items()}
+        table[name] = row
+        states = {sim: r["result"] for sim, r in row.items()}
+        if len(set(states.values())) > 1:
+            said = ", ".join(f"{s} {v}" for s, v in states.items())
+            violations.append(checklib.violation(
+                "cover", "error", None, name, "sim_mismatch", [name],
+                f"test {name} gives a different result on each simulator "
+                f"({said}): its outcome hangs on event order - a race, such "
+                "as a blocking write another always block reads on the same "
+                "edge", "simdiff", test=name, results=states))
+    return violations, table
+
+
 def write_coverage_info(ws: Path, coverage_dat: Path) -> Path:
     """`verilator_coverage --write-info` on its own - split out from
     run_coverage() so a launcher failure here (bin/eda missing, exit 127,
@@ -256,12 +336,18 @@ def run(argv=None):
 
     # the same bench as sim, so coverage counts sim's own draw
     seed = cocotblib.sim_seed(spec, ws / "tb", args.seed)
-    info_path = run_coverage(ws, top, sources, seed)
+    info_path, verilator_cost = timed(run_coverage, ws, top, sources, seed)
     per_file = parse_info(info_path)
     rtl_names = {f.name for f in sources}
 
     violations, counts = count_coverage(per_file, rtl_names, excludes,
                                         line_min, toggle_min)
+
+    icarus_xml, icarus_cost = timed(run_icarus, ws, top, sources, seed)
+    diffs, per_test = simdiff({
+        "icarus": cocotblib.parse_results_xml(icarus_xml),
+        "verilator": cocotblib.parse_results_xml(ws / "log" / RESULTS_NAME)})
+    violations += diffs
 
     payload = checklib.report(
         SCRIPT, ws / "rtl", violations, top=top, seed=seed,
@@ -270,7 +356,10 @@ def run(argv=None):
         toggle_pct=checklib.rnd(counts["toggle_pct"]),
         line_covered=counts["line_covered"], line_total=counts["line_total"],
         toggle_covered=counts["toggle_covered"],
-        toggle_total=counts["toggle_total"])
+        toggle_total=counts["toggle_total"],
+        simdiff={"agree": not diffs, "tests": per_test,
+                 "runs": {"icarus": icarus_cost,
+                          "verilator": verilator_cost}})
     return payload, args.out
 
 
