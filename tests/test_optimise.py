@@ -694,8 +694,22 @@ def make_rtl_ws(tmp_path: Path, monkeypatch) -> Path:
                 "must_keep": "fail" if missing else "pass",
                 "detail": [f"must_keep {n} removed" for n in missing]}
 
+    def fake_seq_equiv(ew, ev, profile, detail):
+        # the real prover is tests/test_seqequiv.py's (slow) business
+        text = (ew / "rtl" / "blk.v").read_text(encoding="utf-8")
+        if "SEQDIFF" in text:
+            detail.append("seq_equiv: differs from the baseline at output q,"
+                          " 3 clocks after reset release; counterexample "
+                          "log/seq_equiv/run/engine_0/trace.vcd")
+            return "fail"
+        if "SEQUNKNOWN" in text:
+            detail.append("seq_equiv: not proved: sby UNKNOWN - tests alone")
+            return optimise.UNPROVEN
+        return "pass"
+
     monkeypatch.setattr(optimise, "run_constraints", fake_constraints)
     monkeypatch.setattr(optimise, "run_metric", fake_metric)
+    monkeypatch.setattr(optimise, "run_seq_equiv", fake_seq_equiv)
     return ws
 
 
@@ -831,6 +845,42 @@ def test_rtl_trial_failing_sim_is_logged_not_kept(tmp_path, monkeypatch):
     assert "SIMFAIL" not in (ws / "rtl" / "blk.v").read_text()
 
 
+def test_rtl_start_freezes_the_baseline_rtl_for_seq_equiv(tmp_path, monkeypatch):
+    ws = make_rtl_ws(tmp_path, monkeypatch)
+    rtl_start(ws)
+    frozen = ws / "optimise" / "evaluator" / "baseline_rtl" / "rtl" / "blk.v"
+    assert frozen.read_text() == RTL_BASE
+    assert tsv_rows(ws)[0]["seq_equiv"] == "pass"
+
+
+def test_rtl_trial_not_equivalent_to_baseline_is_rejected(tmp_path, monkeypatch):
+    """#85: a smaller trial that passes every test but is not sequentially
+    equivalent to the baseline is rejected, with the counterexample."""
+    ws = make_rtl_ws(tmp_path, monkeypatch)
+    rtl_start(ws)
+    edit_target(ws, "  // pad 1\n  // pad 2\n", "  // SEQDIFF\n")
+    payload = rtl_trial(ws, "smaller, passes the tests, differs")
+    assert payload["kept"] is False
+    assert payload["constraints"]["sim"] == "pass"
+    assert payload["constraints"]["seq_equiv"] == "fail"
+    assert payload["constraints"]["synth"] == "skipped"
+    assert any("counterexample" in d for d in payload["detail"])
+    row = tsv_rows(ws)[-1]
+    assert row["seq_equiv"] == "fail" and "rejected (seq_equiv)" in row["note"]
+    assert "SEQDIFF" not in (ws / "rtl" / "blk.v").read_text()
+
+
+def test_rtl_trial_seq_equiv_unproven_stands_on_the_tests(tmp_path, monkeypatch):
+    ws = make_rtl_ws(tmp_path, monkeypatch)
+    rtl_start(ws)
+    edit_target(ws, "  // pad 1\n  // pad 2\n", "  // SEQUNKNOWN\n")
+    payload = rtl_trial(ws, "smaller, prover gave up")
+    assert payload["kept"] is True
+    assert payload["constraints"]["seq_equiv"] == optimise.UNPROVEN
+    assert any("tests alone" in d for d in payload["detail"])
+    assert tsv_rows(ws)[-1]["seq_equiv"] == "unproven"
+
+
 def test_rtl_trial_removing_must_keep_cell_is_rejected(tmp_path, monkeypatch):
     """M7 done-criterion: a trial removing a `must_keep` cell is rejected,
     even though it is smaller and passes sim."""
@@ -960,6 +1010,8 @@ def test_real_uart_loop_keeps_area_win_rejects_sim_fail_and_winner_passes(tmp_pa
     target.write_text(text, encoding="utf-8")
     t2 = rtl_trial(ws, "drop bits_left; end on shift[10:1] == 0")
     assert t2["kept"] is True, t2
+    # #85: and proven the same machine as the baseline, not just tested
+    assert t2["constraints"]["seq_equiv"] == "pass", t2
     assert t2["area"] < base["area"] and t2["slack"] >= 0, t2
 
     done, _ = optimise.run_finish(["--workspace", str(ws)])
