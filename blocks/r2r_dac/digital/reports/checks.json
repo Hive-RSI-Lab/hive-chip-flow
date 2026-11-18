@@ -1,7 +1,7 @@
 {
  "skill": "vde",
  "block": "r2r_dac",
- "ts": "2026-11-06T23:51:02",
+ "ts": "2026-11-18T15:00:02",
  "pdk": {
   "name": "gf180mcuD",
   "open_pdks": "1689ac3f2dc763876eaf967227c7dfe831b031ae",
@@ -52,8 +52,8 @@
    "tool": "drc",
    "version": 1,
    "status": "pass",
-   "attempts": 13,
-   "ts": "2026-11-06T23:47:52",
+   "attempts": 14,
+   "ts": "2026-11-18T14:56:42",
    "inputs": {
     "harden": "harden_signoff:857853e12358b7137b1d3595ab578ac6079a9d2e0161f7469c877da78139ad68",
     "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119",
@@ -88,8 +88,8 @@
    "tool": "glsim",
    "version": 1,
    "status": "pass",
-   "attempts": 14,
-   "ts": "2026-11-06T23:49:33",
+   "attempts": 15,
+   "ts": "2026-11-18T14:57:29",
    "inputs": {
     "harden": "harden_signoff:857853e12358b7137b1d3595ab578ac6079a9d2e0161f7469c877da78139ad68",
     "tb": "dir_text:04af66bc6eb7fca3a2248c8ba77586ee3233d41be6fc978dfde7a7fb936be615",
@@ -106,8 +106,8 @@
    "tool": "harden",
    "version": 1,
    "status": "pass",
-   "attempts": 25,
-   "ts": "2026-11-06T23:46:52",
+   "attempts": 26,
+   "ts": "2026-11-18T14:55:46",
    "inputs": {
     "rtl": "dir_text:5b5e3748612f45afdfaedc1d7e6daa228ca0e64c09072bc4ac8b8b6275a6d995",
     "harden_config": "json_canonical_sans_roots:ab14269c69db89715552ce0dd70eaa0b41c7bb91ada8983289e759db57718239",
@@ -149,8 +149,8 @@
    "tool": "lec",
    "version": 1,
    "status": "pass",
-   "attempts": 14,
-   "ts": "2026-11-06T23:49:04",
+   "attempts": 15,
+   "ts": "2026-11-18T14:57:58",
    "inputs": {
     "harden": "harden_signoff:857853e12358b7137b1d3595ab578ac6079a9d2e0161f7469c877da78139ad68",
     "rtl": "dir_text:5b5e3748612f45afdfaedc1d7e6daa228ca0e64c09072bc4ac8b8b6275a6d995",
@@ -184,8 +184,8 @@
    "tool": "lvs",
    "version": 1,
    "status": "pass",
-   "attempts": 13,
-   "ts": "2026-11-06T23:47:58",
+   "attempts": 14,
+   "ts": "2026-11-18T14:56:53",
    "inputs": {
     "harden": "harden_signoff:857853e12358b7137b1d3595ab578ac6079a9d2e0161f7469c877da78139ad68",
     "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119",
@@ -221,8 +221,8 @@
    "tool": "precheck",
    "version": 1,
    "status": "pass",
-   "attempts": 12,
-   "ts": "2026-11-06T23:50:30",
+   "attempts": 13,
+   "ts": "2026-11-18T14:59:26",
    "inputs": {
     "harden": "harden_signoff:857853e12358b7137b1d3595ab578ac6079a9d2e0161f7469c877da78139ad68",
     "harden_info": "json_canonical:e722bc7d8de703255711480061816e03c2199ce2ea6dff004d19c5a958436590",
@@ -230,6 +230,23 @@
     "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
     "pdk_magic": "dir_text:bb3dc892a68f0253f6cd043a405d7983abc93e0f57633146709166d8ea0c3604",
     "pdk_klayout": "dir_text:876da90e8aab65b830b36eca12bd720adfe8240a0952872419d9f2b4abda605d"
+   },
+   "reason": null
+  },
+  {
+   "gate": "reset_indep",
+   "applies": true,
+   "ran": true,
+   "ok": true,
+   "tool": "reset_indep",
+   "version": 1,
+   "status": "pass",
+   "attempts": 2,
+   "ts": "2026-11-18T14:49:59",
+   "inputs": {
+    "rtl": "dir_text:5b5e3748612f45afdfaedc1d7e6daa228ca0e64c09072bc4ac8b8b6275a6d995",
+    "tb": "dir_text:04af66bc6eb7fca3a2248c8ba77586ee3233d41be6fc978dfde7a7fb936be615",
+    "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119"
    },
    "reason": null
   },
@@ -291,13 +308,14 @@
    "tool": "timing",
    "version": 1,
    "status": "pass",
-   "attempts": 23,
-   "ts": "2026-11-06T23:46:56",
+   "attempts": 24,
+   "ts": "2026-11-18T14:55:50",
    "inputs": {
     "harden": "harden_signoff:857853e12358b7137b1d3595ab578ac6079a9d2e0161f7469c877da78139ad68",
     "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119",
     "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2",
-    "pdk_liberty": "dir_bytes:f09377f057ab484ec9e5a45b205c99a5de399e2bdca886531bf9eefa57783f32"
+    "pdk_liberty": "dir_bytes:f09377f057ab484ec9e5a45b205c99a5de399e2bdca886531bf9eefa57783f32",
+    "clock_jitter": null
    },
    "reason": null
   }
@@ -328,7 +346,7 @@
    "librelane_pdk": "f6eeac7dad085ffcc829ccfd721f7b4ce39edcf7",
    "tt_support_tools": "9d13ff3e3e6202090740110438c6a10c1d62ca0f",
    "gds": "harden/runs/run/final/gds/tt_um_r2r_dac_digital.gds",
-   "gds_sha256": "60a68e25843b6f0b2f6946568a2e42958584992761a96d0dad1ed77d145bb6d7",
+   "gds_sha256": "b2f8f333870688af61e42e594b7a8fae1e23b91dc926a88d97473658b512913e",
    "lef": "harden/runs/run/final/lef/tt_um_r2r_dac_digital.lef",
    "lef_sha256": "6182f566d93304f88698ec2c46832da1d2fbd8e3c2350cf541950bee17ba3a03",
    "gl": "harden/runs/run/final/pnl/tt_um_r2r_dac_digital.pnl.v",
@@ -344,7 +362,7 @@
     "top_module": "tt_um_r2r_dac_digital",
     "pdk": "gf180mcuD",
     "gds_path": "gds/tt_um_r2r_dac_digital.gds",
-    "gds_sha256": "60a68e25843b6f0b2f6946568a2e42958584992761a96d0dad1ed77d145bb6d7",
+    "gds_sha256": "b2f8f333870688af61e42e594b7a8fae1e23b91dc926a88d97473658b512913e",
     "lef_path": "lef/tt_um_r2r_dac_digital.lef",
     "lef_sha256": "6182f566d93304f88698ec2c46832da1d2fbd8e3c2350cf541950bee17ba3a03",
     "verilog_path": "gl/tt_um_r2r_dac_digital.v",
@@ -353,7 +371,7 @@
    }
   ],
   "manifest": "release/manifest.json",
-  "manifest_sha256": "8019cf9796ec851c813129d2f0360e8a1b8b62e8075fcc47513f21e39491df3d"
+  "manifest_sha256": "34e97bb9cd45b822c9d330e0e314ce793a59b22de55a9535cd72e46e14e31970"
  },
- "attestation_sha256": "1d3a353a6d5521b24cb8e2d3cdcb91b4d98574ae40b6b660957eb8808bce4d5f"
+ "attestation_sha256": "c7211abbbe8be8431f420bd07ff8c7565ec6aa07256360f81647409576104cf6"
 }

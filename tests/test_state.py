@@ -210,8 +210,9 @@ def test_ws_empty_init_edit_freshness_resume(tmp_path):
     # result to distrust); only `lint` was recorded above.
     assert marked == {"lint"}
     assert set(r3["edit"]["gates"]) == {
-        "lint", "sim", "holdout", "mutate", "formal", "cover", "synth",
-        "cdc", "harden", "timing", "drc", "lvs", "glsim", "lec", "precheck", "release"}
+        "lint", "sim", "holdout", "mutate", "formal", "cover", "reset_indep",
+        "synth", "cdc", "harden", "timing", "drc", "lvs", "glsim", "lec",
+        "precheck", "release"}
 
     r4, _ = state_mod.run(["freshness", "--workspace", str(ws)])
     assert r4["gates"]["lint"]["fresh"] is False  # hash valid, but marked
@@ -357,7 +358,7 @@ def test_m4_gate_hash_covers_a_spec_yaml_period_edit(tmp_path, gate):
 
 
 VDE_GATES = ["spec_lint", "lint", "sim", "holdout", "mutate", "formal",
-             "cover", "synth", "cdc", "harden", "timing", "drc", "lvs", "glsim", "lec",
+             "cover", "reset_indep", "synth", "cdc", "harden", "timing", "drc", "lvs", "glsim", "lec",
              "precheck", "release"]
 VDE_SPEC = ("top: counter8\nrequirements: []\nclock: {period_ns: 20}\n"
             "cover: {line_min: 95}\nformal:\n  depth: 20\n")

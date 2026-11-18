@@ -23,7 +23,7 @@
   "top": "r2r_dac_digital",
   "run_tag": "run",
   "resumed": false,
-  "wall_s": 67.24,
+  "wall_s": 64.47,
   "run_dir": "harden/runs/run",
   "metrics": {
    "design__instance__count": 2095,
@@ -220,8 +220,190 @@
     }
    },
    "config_sha256": "ab14269c69db89715552ce0dd70eaa0b41c7bb91ada8983289e759db57718239",
-   "resolved_sha256": "f387d1640e90d20a1b573a47a4fca3d77267cf563a9727736c4e4263256aca42",
-   "wall_s": 67.24
+   "resolved_sha256": "0c1fb9d7eab5aa07b38af90e8e98673d6e18b92ad7c6a13bedfd511adf6c4a19",
+   "wall_s": 64.47
+  },
+  "qor_diff": {
+   "baseline": "recorded",
+   "baseline_ts": "2026-11-06T23:46:52",
+   "summary": "no regressions in 124 compared metric(s)",
+   "compared": 124,
+   "regressions": [],
+   "lost": [],
+   "not_compared": [],
+   "deltas": [],
+   "versions_changed": {},
+   "config_changed": false,
+   "thresholds": {
+    "ns_abs": 0.05,
+    "rel": 0.02,
+    "count_abs": 0
+   },
+   "qor_baseline": {
+    "recorded_ts": "2026-11-06T23:46:52",
+    "qor": {
+     "metrics": {
+      "die_area": 55712,
+      "core_area": 51967,
+      "stdcell_area": 15021.8,
+      "utilization": 0.289063,
+      "instance_count": 2095,
+      "stdcell_count": 885,
+      "setup_buffer_count": 0,
+      "hold_buffer_count": 0,
+      "setup_ws": 2.822361091389232,
+      "setup_tns": 0,
+      "setup_vio_count": 0,
+      "hold_ws": 0.17864504825529,
+      "hold_tns": 0,
+      "hold_vio_count": 0,
+      "skew_setup": 0.28010500267619265,
+      "skew_hold": -0.3690880205933054,
+      "power_total": 0.0014242494944483042,
+      "power_leakage": 8.578479793186489e-08,
+      "power_switching": 0.0003073697444051504,
+      "power_internal": 0.0011167939519509673,
+      "route_drc_errors": 0,
+      "magic_drc_errors": 0,
+      "lvs_errors": 0,
+      "antenna_nets": 0,
+      "antenna_pins": 0,
+      "route_antenna_violations": 0,
+      "max_slew_violations": 0,
+      "max_cap_violations": 0,
+      "max_fanout_violations": 0,
+      "floating_nets": 2,
+      "wirelength": 15552,
+      "grt_wirelength": 25762,
+      "vias": 2858,
+      "ir_drop_worst": 0.000203
+     },
+     "corners": {
+      "max_ff_n40C_3v60": {
+       "setup_ws": 13.617914292778476,
+       "setup_tns": 0,
+       "setup_vio_count": 0,
+       "hold_ws": 0.17864504825529,
+       "hold_tns": 0,
+       "hold_vio_count": 0,
+       "skew_setup": 0.2820796731592141,
+       "skew_hold": -0.372663493945232,
+       "max_slew_violations": 0,
+       "max_cap_violations": 0
+      },
+      "max_ss_125C_3v00": {
+       "setup_ws": 2.822361091389232,
+       "setup_tns": 0,
+       "setup_vio_count": 0,
+       "hold_ws": 1.360881668096819,
+       "hold_tns": 0,
+       "hold_vio_count": 0,
+       "skew_setup": 0.3535428438963101,
+       "skew_hold": -0.6397156319073222,
+       "max_slew_violations": 0,
+       "max_cap_violations": 0
+      },
+      "max_tt_025C_3v30": {
+       "setup_ws": 11.37472015440094,
+       "setup_tns": 0,
+       "setup_vio_count": 0,
+       "hold_ws": 0.5258587047982397,
+       "hold_tns": 0,
+       "hold_vio_count": 0,
+       "skew_setup": 0.30371997443378346,
+       "skew_hold": -0.4536668669138985,
+       "max_slew_violations": 0,
+       "max_cap_violations": 0
+      },
+      "min_ff_n40C_3v60": {
+       "setup_ws": 13.642625193470245,
+       "setup_tns": 0,
+       "setup_vio_count": 0,
+       "hold_ws": 0.18095325749991756,
+       "hold_tns": 0,
+       "hold_vio_count": 0,
+       "skew_setup": 0.28010500267619265,
+       "skew_hold": -0.3690880205933054,
+       "max_slew_violations": 0,
+       "max_cap_violations": 0
+      },
+      "min_ss_125C_3v00": {
+       "setup_ws": 3.2257468720298066,
+       "setup_tns": 0,
+       "setup_vio_count": 0,
+       "hold_ws": 1.3678591979593213,
+       "hold_tns": 0,
+       "hold_vio_count": 0,
+       "skew_setup": 0.3457148831728932,
+       "skew_hold": -0.6288313381329756,
+       "max_slew_violations": 0,
+       "max_cap_violations": 0
+      },
+      "min_tt_025C_3v30": {
+       "setup_ws": 11.583164977258747,
+       "setup_tns": 0,
+       "setup_vio_count": 0,
+       "hold_ws": 0.5294718147117655,
+       "hold_tns": 0,
+       "hold_vio_count": 0,
+       "skew_setup": 0.29960348938665615,
+       "skew_hold": -0.44785362797024914,
+       "max_slew_violations": 0,
+       "max_cap_violations": 0
+      },
+      "nom_ff_n40C_3v60": {
+       "setup_ws": 13.631348879934816,
+       "setup_tns": 0,
+       "setup_vio_count": 0,
+       "hold_ws": 0.17990132115433444,
+       "hold_tns": 0,
+       "hold_vio_count": 0,
+       "skew_setup": 0.2807233136516691,
+       "skew_hold": -0.3707277090247479,
+       "max_slew_violations": 0,
+       "max_cap_violations": 0
+      },
+      "nom_ss_125C_3v00": {
+       "setup_ws": 3.0416328094893874,
+       "setup_tns": 0,
+       "setup_vio_count": 0,
+       "hold_ws": 1.3646848481975362,
+       "hold_tns": 0,
+       "hold_vio_count": 0,
+       "skew_setup": 0.34925682778852785,
+       "skew_hold": -0.6338119097846068,
+       "max_slew_violations": 0,
+       "max_cap_violations": 0
+      },
+      "nom_tt_025C_3v30": {
+       "setup_ws": 11.488728515934865,
+       "setup_tns": 0,
+       "setup_vio_count": 0,
+       "hold_ws": 0.5278266861873486,
+       "hold_tns": 0,
+       "hold_vio_count": 0,
+       "skew_setup": 0.3014668877638875,
+       "skew_hold": -0.45051649797012366,
+       "max_slew_violations": 0,
+       "max_cap_violations": 0
+      }
+     },
+     "missing": [],
+     "versions": {
+      "librelane": "3.1.0.dev3",
+      "yosys": "0.69",
+      "openroad": "26Q3-2443-g50432012f",
+      "pdk": {
+       "name": "gf180mcuD",
+       "open_pdks": "1689ac3f2dc763876eaf967227c7dfe831b031ae",
+       "ciel": "1689ac3f2dc763876eaf967227c7dfe831b031ae"
+      }
+     },
+     "config_sha256": "ab14269c69db89715552ce0dd70eaa0b41c7bb91ada8983289e759db57718239",
+     "resolved_sha256": "f387d1640e90d20a1b573a47a4fca3d77267cf563a9727736c4e4263256aca42",
+     "wall_s": 67.24
+    }
+   }
   },
   "signoff_metrics": {
    "antenna__violating__nets": {
@@ -301,6 +483,6 @@
   "pdk_netgen": "dir_text:8164f65bb7d1bef6e27af4c13b1c6ede50973cec7aec482556abb23881aceb04"
  },
  "strength_at_start": 1,
- "recorded_ts": "2026-11-06T23:46:52",
- "attempts": 25
+ "recorded_ts": "2026-11-18T14:55:46",
+ "attempts": 26
 }

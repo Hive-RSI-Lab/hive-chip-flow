@@ -45,12 +45,65 @@
     "test_load_beats_count": true,
     "test_load_ignored_while_driving": true,
     "test_unused_inputs": true
+   },
+   "sdf_ff": {
+    "test_async_reset": true,
+    "test_release_lags_two_edges": true,
+    "test_sync_load": true,
+    "test_count_up_from_loaded_value": true,
+    "test_count_enable_holds": true,
+    "test_wraparound": true,
+    "test_tristate_bus": true,
+    "test_load_beats_count": true,
+    "test_load_ignored_while_driving": true,
+    "test_unused_inputs": true
+   },
+   "sdf_ss": {
+    "test_async_reset": true,
+    "test_release_lags_two_edges": true,
+    "test_sync_load": true,
+    "test_count_up_from_loaded_value": true,
+    "test_count_enable_holds": true,
+    "test_wraparound": true,
+    "test_tristate_bus": true,
+    "test_load_beats_count": true,
+    "test_load_ignored_while_driving": true,
+    "test_unused_inputs": true
    }
   },
+  "seed": 889066098,
+  "replay": "bin/eda python engine/scripts/check_glsim.py --workspace <ws> --seed 889066098",
   "sdf": {
    "zero_interconnects_dropped": 98,
    "sdf_unannotated": [],
-   "instances_renamed": {}
+   "instances_renamed": {},
+   "timing_checks": "not simulated (Icarus: \"Timing checks are not supported\")",
+   "corners": {
+    "sdf": {
+     "corner": "nom_tt_025C_3v30",
+     "delay_selection": "typ",
+     "zero_interconnects_dropped": 98,
+     "sdf_unannotated": [],
+     "instances_renamed": {},
+     "timing_checks": "not simulated (Icarus: \"Timing checks are not supported\")"
+    },
+    "sdf_ff": {
+     "corner": "min_ff_n40C_3v60",
+     "delay_selection": "min",
+     "zero_interconnects_dropped": 103,
+     "sdf_unannotated": [],
+     "instances_renamed": {},
+     "timing_checks": "not simulated (Icarus: \"Timing checks are not supported\")"
+    },
+    "sdf_ss": {
+     "corner": "max_ss_125C_3v00",
+     "delay_selection": "max",
+     "zero_interconnects_dropped": 94,
+     "sdf_unannotated": [],
+     "instances_renamed": {},
+     "timing_checks": "not simulated (Icarus: \"Timing checks are not supported\")"
+    }
+   }
   },
   "netlists": {
    "nl_sha256": "b2dec901f28a11149e2b6651597c7ddc08b60a9886fb2ca1f772018985293fa3",
@@ -64,6 +117,6 @@
   "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2"
  },
  "strength_at_start": 0,
- "recorded_ts": "2026-11-06T23:43:37",
- "attempts": 9
+ "recorded_ts": "2026-11-18T14:51:32",
+ "attempts": 10
 }
