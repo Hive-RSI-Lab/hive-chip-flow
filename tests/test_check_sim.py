@@ -326,3 +326,92 @@ def test_three_tests_failing_one_assert_cluster_as_one(tmp_path, capsys):
     cl = [c for c in cluster_violations.cluster(out["violations"])
           if "test_failed" in c["kinds"]]
     assert len(cl) == 1 and cl[0]["count"] >= 3, cl
+
+
+# --- #360: a failing test names the first edge its outputs left the
+# --- record of its last passing run
+
+
+def _sim_json(ws, capsys):
+    code = check_sim.main(["--workspace", str(ws)])
+    return code, json.loads(capsys.readouterr().out)
+
+
+def _counter8(tmp_path):
+    import faults
+    return faults.make_scratch_workspace(
+        tmp_path, REPO / "corpus/vde/counter8", "vde", "counter8")
+
+
+def _plant_counter8(ws):
+    _load(REPO / "corpus/vde/counter8/faults/plant_sim.py",
+          "plant_sim_counter8").plant(ws)
+
+
+@pytest.mark.slow
+def test_counter8_pass_then_wrap_fault_names_first_divergence(tmp_path,
+                                                              capsys):
+    """counter8 passes and keeps a record per test; the wraps-one-early
+    plant then fails, and first_divergence is the edge after which count
+    reads 0 where the passing run read 255, with the window row that
+    first shows it marked."""
+    ws = _counter8(tmp_path)
+    code, out = _sim_json(ws, capsys)
+    assert code == 0, out
+    rec = out["output_record"]
+    assert rec["on"] and rec["outputs"] == ["count"], rec
+    assert rec["saved"] == len(out["tests_run"]), rec
+    for name in out["tests_run"]:
+        body = json.loads((ws / "log/sim_record" /
+                           f"{name}@{out['seed']}.json").read_text())
+        assert body["tb"] and body["rtl"] and body["rows"], body
+
+    _plant_counter8(ws)
+    code, out = _sim_json(ws, capsys)
+    assert code == 1, out
+    fails = [v for v in out["violations"] if v["kind"] == "test_failed"]
+    assert fails, out
+    v = fails[0]
+    fd = v["first_divergence"]
+    assert (fd["signal"], fd["was"], fd["now"]) == ("count", "255", "0"), fd
+    assert fd["t_ns"] <= v["failure_ns"], (fd, v["failure_ns"])
+    marked = [ln for ln in v["window"].splitlines()
+              if "first divergence" in ln]
+    assert len(marked) == 1 and " 0 " in f" {marked[0]} ", v["window"]
+    assert out["output_record"]["diverged"] == 1, out["output_record"]
+
+
+@pytest.mark.slow
+def test_failure_with_no_earlier_pass_has_no_first_divergence(tmp_path,
+                                                              capsys):
+    ws = _counter8(tmp_path)
+    _plant_counter8(ws)
+    code, out = _sim_json(ws, capsys)
+    assert code == 1, out
+    fails = [v for v in out["violations"] if v["kind"] == "test_failed"]
+    assert fails and all("first_divergence" not in v for v in fails), fails
+    rec = out["output_record"]
+    assert rec["compared"] == 0 and "error" not in rec, rec
+
+
+@pytest.mark.slow
+def test_record_from_another_bench_version_is_not_used(tmp_path, capsys):
+    """A pass, then the bench changes (one comment line), then the plant
+    fails: the old record was made by another testbench, so no field. The
+    seed is pinned so the edit cannot move it."""
+    import yaml
+    ws = _counter8(tmp_path)
+    spec_path = ws / "spec" / "spec.yaml"
+    spec = yaml.safe_load(spec_path.read_text())
+    spec.setdefault("sim", {})["seed"] = 12345
+    spec_path.write_text(yaml.safe_dump(spec, sort_keys=False))
+    code, out = _sim_json(ws, capsys)
+    assert code == 0 and out["output_record"]["saved"], out
+    tb = ws / "tb" / "test_counter8.py"
+    tb.write_text(tb.read_text() + "\n# a later bench version\n")
+    _plant_counter8(ws)
+    code, out = _sim_json(ws, capsys)
+    assert code == 1, out
+    fails = [v for v in out["violations"] if v["kind"] == "test_failed"]
+    assert fails and all("first_divergence" not in v for v in fails), fails
+    assert out["output_record"]["compared"] == 0, out["output_record"]
