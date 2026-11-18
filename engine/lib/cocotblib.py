@@ -54,6 +54,13 @@ def sim_seed(spec: dict, test_dir: Path, override: int | None = None) -> int:
             raise CheckError(f"{where} must be an integer from 0 to "
                              f"{SEED_MAX}, got {seed!r}")
         return seed
+    return int.from_bytes(bench_digest(test_dir)[:4], "big") & SEED_MAX
+
+
+def bench_digest(test_dir: Path) -> bytes:
+    """sha256 over the bench's files (paths and bytes): what sim_seed draws
+    from, and the testbench version a check_sim output record is kept
+    under (simrecord, #360)."""
     h = hashlib.sha256()
     test_dir = Path(test_dir)
     for p in sorted(test_dir.rglob("*")):
@@ -64,7 +71,7 @@ def sim_seed(spec: dict, test_dir: Path, override: int | None = None) -> int:
             continue
         h.update(p.relative_to(test_dir).as_posix().encode() + b"\0")
         h.update(p.read_bytes() + b"\0")
-    return int.from_bytes(h.digest()[:4], "big") & SEED_MAX
+    return h.digest()
 
 
 SEEDS_MAX = 100
@@ -347,11 +354,11 @@ _TIME_NS = {"fs": 1e-6, "ps": 1e-3, "ns": 1.0, "us": 1e3, "ms": 1e6,
             "s": 1e9}
 
 
-def _sim_time_ns(tc) -> float | None:
+def _sim_time_ns(tc, prop: str = "sim_time_stop") -> float | None:
     props = {p.attrib.get("name"): p.attrib.get("value")
              for p in tc.iter("property")}
     try:
-        return float(props["sim_time_stop"]) * _TIME_NS[
+        return float(props[prop]) * _TIME_NS[
             props.get("sim_time_unit") or "ns"]
     except (KeyError, TypeError, ValueError):
         return None
@@ -401,6 +408,9 @@ def parse_results_xml(xml_path: Path) -> dict[str, dict]:
             # property): a failing test's failure time, for its waves
             # window (#93)
             "sim_time_ns": _sim_time_ns(tc),
+            # when it started (sim_time_start): where its slice of a
+            # run-long output record begins (simrecord, #360)
+            "sim_start_ns": _sim_time_ns(tc, "sim_time_start"),
         }
     return out
 

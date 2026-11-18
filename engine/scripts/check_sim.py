@@ -36,6 +36,17 @@ before the failure (wavelib.py), plus `waves` (the VCD) and `failure_ns`
 also gets `signature`: the assert's file:line and its message with numbers
 masked, so cluster_violations groups one assert failing in several tests.
 A passing run writes no waves. --window N sets the edges (0: no re-run).
+
+Output record (#360): a second monitor writes the block's outputs at each
+rising clock edge whenever one changed (simrecord.py). Each test that
+passes keeps its slice in log/sim_record/<test>@<seed>.json with the bench
+digest; when the same test fails later at the same seed on the same bench,
+its finding gets `first_divergence` {t_ns, test_ns, signal, was, now}: the
+edge after which an output reads otherwise than in its last passing run
+(`waves_ns` too, and the window row that first shows it marked, when the
+re-run's window reaches back that far). No
+earlier pass, or one from another bench version: no field. It never
+changes a verdict.
 """
 from __future__ import annotations
 
@@ -49,6 +60,7 @@ sys.path.insert(0, str(ENGINE / "lib"))
 import checklib  # noqa: E402
 import cocotblib  # noqa: E402
 import speclib  # noqa: E402
+import simrecord  # noqa: E402
 import ttlib  # noqa: E402
 import wavelib  # noqa: E402
 import xmonlib  # noqa: E402
@@ -129,12 +141,21 @@ def run(argv=None):
         spec, hdl_top, build_dir / "xmon",
         latency=ttlib.pad_reset_latency(spec) if frame else 0)
     sources = sources + xmon_src
+    # the output record (simrecord, #360): outputs per edge, kept per test
+    # that passes, so a later failure names where it first went otherwise
+    rec, rec_src, rec_args, rec_file = simrecord.write_monitor(
+        spec, hdl_top, build_dir / "record")
+    sources = sources + rec_src
+    xmon_args = xmon_args + rec_args
+    n_out = len(rec.get("outputs") or [])
     xml_path = cocotblib.run_cocotb(build_dir, tb_dir, sources, hdl_top, modules,
                                     results_xml, seed=seed,
                                     build_args=xmon_args)
     results = cocotblib.parse_results_xml(xml_path)
     if not results:
         raise CheckError(f"cocotb produced no test cases in {xml_path}")
+    runs = {seed: (results, simrecord.take(rec_file, n_out)
+                   if rec_file else [])}
     x_found = xmonlib.findings(build_dir / "sim.log", "sim",
                                name_test=True)
     ignored = set()
@@ -189,6 +210,8 @@ def run(argv=None):
         if not res_s:
             raise CheckError(f"cocotb produced no test cases at seed {s} "
                              f"in {xml_s}")
+        runs[s] = (res_s, simrecord.take(rec_file, n_out)
+                   if rec_file else [])
         for name, res in sorted(res_s.items()):
             if res["passed"] or res.get("skipped") \
                     or not results.get(name, {}).get("passed"):
@@ -205,6 +228,7 @@ def run(argv=None):
 
     for s, name, v, res in failing:
         v["signature"] = failure_signature(name, res, tb_dir)
+    record = output_record(ws, rec, tb_dir, runs, failing)
     if failing and args.window > 0:
         attach_waves(failing, spec, build_dir / "waves", tb_dir, sources,
                      hdl_top, modules, xmon_args, args.window)
@@ -219,8 +243,62 @@ def run(argv=None):
                                                if r["passed"]),
                               seed=seed, replay=replay,
                               extra_seeds=extra, seed_failures=seed_failures,
-                              x_monitor=xmonlib.facts(xmon))
+                              x_monitor=xmonlib.facts(xmon),
+                              output_record=record)
     return payload, args.out
+
+
+def output_record(ws: Path, rec: dict, tb_dir: Path, runs: dict,
+                  failing) -> dict:
+    """Put `first_divergence` on each failing test that has a record from
+    an earlier pass (same test, seed and bench), then save the record of
+    every test that passed in this run. Returns the report's
+    output_record entry. Never raises and never changes a finding's
+    verdict: a record that cannot be read or written is said in the
+    entry, not failed on."""
+    if not rec["on"]:
+        return {"on": False, "why": rec["why"]}
+    facts = {"on": True, "clock": rec["clock"],
+             "outputs": [n for n, _ in rec["outputs"]],
+             "dir": simrecord.RECORD_SUBDIR, "compared": 0, "diverged": 0,
+             "saved": 0}
+    try:
+        tb = cocotblib.bench_digest(tb_dir).hex()
+        rtl = simrecord.digest(ws / "rtl")
+        for s, name, v, res in failing:
+            old = simrecord.load(ws, name, s, rec, tb)
+            if old is None:
+                continue
+            changes = runs.get(s, ({}, []))[1]
+            start, stop = res.get("sim_start_ns"), res.get("sim_time_ns")
+            now = simrecord.slice_test(changes, start, stop)
+            if not now:
+                continue
+            facts["compared"] += 1
+            until = min(int(round((stop - start) * 1000.0)),
+                        int(old.get("duration_ps") or 0))
+            fd = simrecord.first_divergence(old["rows"], now,
+                                            rec["outputs"], until)
+            if fd is None:
+                continue
+            facts["diverged"] += 1
+            v["first_divergence"] = {
+                "t_ns": round(start + fd["test_ns"], 3), **fd,
+                "record_rtl": old.get("rtl")}
+        for s, (res_s, changes) in runs.items():
+            for name, res in res_s.items():
+                if not res["passed"] or res.get("skipped"):
+                    continue
+                start, stop = res.get("sim_start_ns"), res.get("sim_time_ns")
+                rows = simrecord.slice_test(changes, start, stop)
+                if rows is None:
+                    continue
+                simrecord.save(ws, name, s, rec, tb, rtl, rows,
+                               int(round((stop - start) * 1000.0)))
+                facts["saved"] += 1
+    except (OSError, ValueError, TypeError, KeyError) as exc:
+        facts["error"] = f"{type(exc).__name__}: {exc}"
+    return facts
 
 
 def failure_signature(name: str, res: dict, tb_dir: Path) -> str:
@@ -323,6 +401,17 @@ def _waves_for_seed(items, s, d, ports, clock, tb_dir, sources, hdl_top,
         sigs += list(dict.fromkeys(extra))[:EXTRA_SIGNALS]
         win = wavelib.window(vcd, scope, clock, sigs,
                              r["sim_time_ns"] * 1000.0, cycles)
+        fd = v.get("first_divergence")
+        if fd and r.get("sim_start_ns") is not None:
+            # the same edge in the re-run's own timeline. A window row is
+            # sampled just before its edge, so the first row to show the
+            # value that edge set is the next one (or the failure row)
+            at = round(r["sim_start_ns"] + fd["test_ns"], 3)
+            fd["waves_ns"] = at
+            row = next((w for w in win["rows"] if w["t_ns"] > at + 1e-3),
+                       None)
+            if row is not None and win["rows"][0]["t_ns"] <= at + 1e-3:
+                row["first_divergence"] = True
         v["window"] = wavelib.format_window(win)
         v["waves"] = str(vcd_path)
         v["failure_ns"] = win["failure_ns"]

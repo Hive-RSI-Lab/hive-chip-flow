@@ -42,3 +42,13 @@ with its numbers masked; several tests with one signature are one bug,
 clustered as one, so fix it once. `window_note` says why a finding has no
 window (for example, the test passes when run alone, so the failure needs
 the tests before it).
+
+**First divergence (#360):** a test that once passed at the same seed with
+the same testbench carries `first_divergence`: the first rising edge after
+which one of the block's outputs went another way than on that passing
+run (`signal`, `was`, `now`, `t_ns`, and `record_rtl`, the RTL digest it
+passed on). That edge is usually the bug's cause and the failure its
+symptom, often many cycles later; the window row after it is marked
+`<- first divergence`. Start there. Records live in `log/sim_record/`,
+one per test and seed, refreshed on every pass; a testbench edit retires
+them, so no field means no comparable passing run, not no divergence.

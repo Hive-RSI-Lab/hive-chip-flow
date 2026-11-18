@@ -209,8 +209,14 @@ def window(vcd: VCD, scope: str, clock: str, signals, at_ps: float,
 def format_window(win: dict) -> str:
     """The window as a fixed-width table, one row per edge."""
     cols = ["t_ns"] + list(win["signals"])
-    cells = [[str(r.get(c, "")) for c in cols] + (["<- failure"] if r.get(
-        "at_failure") else [""]) for r in win["rows"]]
+    def mark(r):
+        # check_sim's first_divergence (#360): the first row showing an
+        # output that differs from the test's last passing run
+        marks = (["failure"] if r.get("at_failure") else []) + (
+            ["first divergence"] if r.get("first_divergence") else [])
+        return "<- " + ", ".join(marks) if marks else ""
+    cells = [[str(r.get(c, "")) for c in cols] + [mark(r)]
+             for r in win["rows"]]
     widths = [max(len(c), *(len(x[i]) for x in cells))
               for i, c in enumerate(cols)]
     line = lambda xs: "  ".join(x.rjust(w) for x, w in zip(xs, widths))  # noqa: E731
