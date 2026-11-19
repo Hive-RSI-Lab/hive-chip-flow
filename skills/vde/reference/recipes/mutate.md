@@ -33,6 +33,18 @@ change in `tb/`:
 `causes_skipped` is set when the coverage run itself failed (every
 survivor is then traced instead). A cause never changes the verdict.
 
+## A mutant that hangs the tests
+
+A test that waits for something with no bound of its own (`while
+dut.valid.value != 1: await RisingEdge(dut.clk)`) waits forever on a
+mutant that never raises it. Each mutant gets a time limit set from the
+unmutated run's own time (facts `baseline_sim_s`, `sim_limit_s`: ten times
+it, at least 60 s); one that runs past it is stopped and reported as
+`timeout_<class>` (facts `timeouts`, `timeout_ids`). A timeout is never a
+kill, so it lowers the kill rate. The fix is in `tb/`: wrap the wait in
+`cocotb.triggers.with_timeout` (or count cycles and assert), so the test
+fails on that mutant instead of hanging.
+
 ## This is the one gate whose failure is never the design's fault
 
 A `mutate` failure means the TESTBENCH did not notice the design could be
@@ -63,11 +75,13 @@ real RTL or testbench change.
   ruling in `spec/mutant_rulings.yaml` (id, ruling, evidence); a ruled mutant
   skips the prover. An agent does not write its own ruling: escalate with the
   evidence and ask the block's owner.
-- Each abc pdr proof can grow to about 2 GB, and the gate runs as many in
-  parallel as it has mutate jobs. With a shared memory slice already busy
-  (a harden running alongside) the job was killed for memory. Until the jobs
-  cap covers the proof phase (issue #192), run `mutate` alone, not next to
-  harden or another long job, and rerun it if it was killed.
+- Each abc pdr proof can grow past 3.5 GB (sensor_counted, a 1024-cycle
+  window counter, in 90 s). The gate runs at most one proof per
+  PROOF_MEM_MB (4 GB) of memory headroom: the least of MemAvailable and
+  every cgroup limit above it. A slice that is nearly full therefore runs
+  the proofs one at a time, slowly but without being killed. Run `mutate`
+  alone, not next to harden or another long job, and rerun it if it was
+  killed anyway.
 - A design change renumbers the mutants. Rulings in `spec/mutant_rulings.yaml`
   keep their old ids, which now point at other mutants or none, and mutate
   refuses them ("not a mutant this run generated" or "that mutant is killed

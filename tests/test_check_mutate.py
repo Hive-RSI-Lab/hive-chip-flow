@@ -1143,3 +1143,90 @@ def test_score_routes_each_survivor_by_its_cause():
     assert "add a check on y" in by["3"]["msg"]
     assert "probe timed out" in by["4"]["msg"]
     assert all(v["severity"] == "error" for v in by.values())
+
+
+# --- #82d: a mutant whose sim never ends is a timeout, not a kill ---------
+# The tb waits for count to reach 9 with no bound of its own; a mutant that
+# breaks the count never gets there, and the Clock keeps the sim running
+# forever. Before #82d that held the whole gate until mcy run's own 600 s
+# backstop and then refused it.
+TB_WAITS_FOREVER = """\
+import cocotb
+from cocotb.clock import Clock
+from cocotb.triggers import FallingEdge
+
+# req: REQ-WRAP
+@cocotb.test()
+async def test_reaches_nine(dut):
+    cocotb.start_soon(Clock(dut.clk, 10, unit="ns").start())
+    await FallingEdge(dut.clk)
+    dut.rst.value = 1
+    await FallingEdge(dut.clk)
+    dut.rst.value = 0
+    while int(dut.count.value) != 9:
+        await FallingEdge(dut.clk)
+    await FallingEdge(dut.clk)
+    assert int(dut.count.value) == 10
+"""
+
+
+@pytest.mark.slow
+def test_a_mutant_that_never_ends_is_a_timeout_not_a_kill(tmp_path, capsys,
+                                                          monkeypatch):
+    # a short limit keeps the test quick; the gate's own floor is 60 s
+    monkeypatch.setattr(check_mutate, "SIM_LIMIT_FLOOR_S", 20.0)
+    monkeypatch.setattr(check_mutate, "SIM_LIMIT_FACTOR", 5.0)
+    ws = make_ws(tmp_path, TB_WAITS_FOREVER)
+    code = check_mutate.main(["--workspace", str(ws), "--size", "8",
+                              "--seed", "1"])
+    out = json.loads(capsys.readouterr().out)
+    assert code in (0, 1), out
+    assert out["baseline_sim_s"] > 0 and out["sim_limit_s"] >= 20, out
+    assert out["timeouts"] >= 1, out
+    for mid in out["timeout_ids"]:
+        assert out["killed_by"][str(mid)] is None, out
+    assert out["killed"] + out["survived"] + out["timeouts"] \
+        == out["scored_mutants"], out
+    kinds = [v["kind"] for v in out["violations"]
+             if v["kind"].startswith("timeout_")]
+    assert len(kinds) == out["timeouts"], out
+
+
+def test_sim_limit_and_run_backstop_follow_the_baseline():
+    assert check_mutate.sim_limit(0.5) == check_mutate.SIM_LIMIT_FLOOR_S
+    assert check_mutate.sim_limit(12.3) == 123.0
+    # 24 mutants on 4 workers, every one hanging to 100 s: 6 rounds
+    assert check_mutate.run_timeout_for(24, 4, 100.0) == \
+        600.0 + check_mutate.RUN_TIMEOUT_S
+    assert check_mutate.run_timeout_for(24, 64, 60.0) == \
+        check_mutate.RUN_TIMEOUT_S + 60.0
+    assert check_mutate.run_timeout_for(24, 4, None) == \
+        check_mutate.RUN_TIMEOUT_S
+
+
+def test_score_counts_a_timeout_as_not_killed():
+    ms = [{"id": i, "mutation": f"m{i}", "class": "stuck_other",
+           "killed": True, "survived": False, "src": "a.v"}
+          for i in range(2, 10)]
+    ms.append({"id": 10, "mutation": "m10", "class": "output_stuck",
+               "killed": False, "survived": False, "timeout": True,
+               "src": "a.v"})
+    facts, violations = check_mutate.score(ms, set(), limit_s=60.0)
+    assert facts["killed"] == 8 and facts["timeouts"] == 1
+    assert facts["survived"] == 0 and facts["timeout_ids"] == [10]
+    assert facts["kill_rate"] == round(8 / 9, 4)
+    tv = [v for v in violations if v["kind"] == "timeout_output_stuck"]
+    assert len(tv) == 1 and tv[0]["severity"] == "error"
+    assert "60 s" in tv[0]["msg"]
+
+
+def test_proofs_run_one_per_proof_mem_of_headroom():
+    # abc pdr proofs grow to GBs each: the proof pool shrinks to the
+    # memory there is, never below one, never above the jobs asked for
+    mb = check_mutate.PROOF_MEM_MB
+    assert check_mutate.proof_jobs(20, None) == 20
+    assert check_mutate.proof_jobs(20, 3 * mb + 1) == 3
+    assert check_mutate.proof_jobs(20, mb - 1) == 1
+    assert check_mutate.proof_jobs(2, 100 * mb) == 2
+    room = check_mutate.memory_headroom_mb()
+    assert room is None or isinstance(room, int)

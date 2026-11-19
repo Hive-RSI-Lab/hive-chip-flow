@@ -115,6 +115,18 @@ fires - add a checker). A probe that fails or times out gives `unknown`.
 The cause rides on the survivor's finding (`cause`, and the route in its
 msg) and in facts `survivor_causes`, `survivor_cause_by_id` and
 `causes_skipped`; it never changes the verdict.
+
+Hung mutants (#82d): after `mcy init`, time_baseline() runs the unmutated
+design's own build+sim through mutate_runner.py once, alone, and
+sim_limit() sets each mutant's budget to SIM_LIMIT_FACTOR times that wall
+time, at least SIM_LIMIT_FLOOR_S (facts `baseline_sim_s`, `sim_limit_s`).
+mutate_runner.py stops a mutant past it and writes TIMEOUT; mcy tags it
+TIMEOUT, and it is never a kill: it stays in the kill rate's denominator,
+is not sent to formal, the prover or the cause probes, and gets a
+`timeout_<class>` finding at its class's severity (a test waits unbounded
+on something the mutant never does: bound that wait). Facts `timeouts` and
+`timeout_ids`. mcy run's own backstop grows to fit every mutant hanging to
+its limit, so a sample of hangs still reports.
 """
 from __future__ import annotations
 
@@ -175,10 +187,24 @@ MUST_KILL_CLASSES = {"reset_removed", "output_stuck", "condition_inverted"}
 INIT_TIMEOUT_S = 600.0
 RUN_TIMEOUT_S = 600.0  # r2r_dac: 174 s wall, 29 s CPU, at load 120
 RUN_TIMEOUT_PER_24 = 24  # mcy run's backstop grows with the sample, per 24
+# #82d: one mutant's build+sim may take SIM_LIMIT_FACTOR times the unmutated
+# run's own wall time (timed once, alone, before mcy run), at least
+# SIM_LIMIT_FLOOR_S, before mutate_runner.py stops it and writes TIMEOUT. The
+# mutants run -j nproc side by side, so each is slower than the lone timing
+# run; the factor and floor cover that, and a real hang never ends anyway.
+SIM_LIMIT_FACTOR = 10.0
+SIM_LIMIT_FLOOR_S = 60.0
+BASELINE_TIME_TIMEOUT_S = 600.0  # the unmutated timing run's own backstop
+BASELINE_TIME_SUBDIR = "baseline_time"
 EQUIV_SUBDIR = "equiv"
 EQUIV_TIMEOUT_S = 60.0
 EQUIV_DEPTH = 8
 PDR_TIMEOUT_S = 1800.0
+# One abc pdr proof grew to 3.5 GB in 90 s on sensor_counted (WINDOW 1024)
+# and kept growing; eight side by side filled a 12 GB slice and the kernel
+# killed the gate and its neighbours. Proofs run at most one per
+# PROOF_MEM_MB of memory headroom (proof_jobs()), never fewer than one.
+PROOF_MEM_MB = 4000
 FORMAL_SUBDIR = "formal_kill"
 POINTS_SUBDIR = "points"
 MUTANT_V_SCRIPT = """\
@@ -223,7 +249,8 @@ def collect_sources(ws: Path) -> list[Path]:
 
 
 def write_config(mcy_dir: Path, rtl_files: list[Path], top: str, tb_dir: Path,
-                 size: int, seed: int, sim_seed: int) -> None:
+                 size: int, seed: int, sim_seed: int,
+                 limit_s: float | None = None) -> None:
     # -nosynthesis: yosys defines SYNTHESIS by default, but the sim gate
     # (Icarus, no define) tests the `else` side of an `ifdef SYNTHESIS`. A
     # PDK cell kept under SYNTHESIS (a gf180mcu delay cell, say) would
@@ -232,6 +259,7 @@ def write_config(mcy_dir: Path, rtl_files: list[Path], top: str, tb_dir: Path,
     # tests that passed it.
     reads = "\n".join(f"read_verilog -sv -nosynthesis {f.resolve()}"
                       for f in rtl_files)
+    limit = f" --limit {limit_s:.0f}" if limit_s else ""
     config = f"""\
 [options]
 size {size}
@@ -245,39 +273,99 @@ proc
 [logic]
 if result("sim") == "FAIL":
     tag("KILLED")
+elif result("sim") == "TIMEOUT":
+    tag("TIMEOUT")
 else:
     tag("SURVIVED")
 
 [test sim]
 maxbatchsize 1
-expect PASS FAIL
-run python3 {MUTATE_RUNNER} --tb {tb_dir.resolve()} --top {top} --seed {sim_seed}
+expect PASS FAIL TIMEOUT
+run python3 {MUTATE_RUNNER} --tb {tb_dir.resolve()} --top {top} --seed {sim_seed}{limit}
 
 [report]
-print(f"mutants={{tags()}} killed={{tags('KILLED')}} survived={{tags('SURVIVED')}}")
+print(f"mutants={{tags()}} killed={{tags('KILLED')}} survived={{tags('SURVIVED')}} timeout={{tags('TIMEOUT')}}")
 """
     (mcy_dir / "config.mcy").write_text(config, encoding="utf-8")
 
 
-def run_mcy(mcy_dir: Path, mcy_real: Path, nproc: int, size: int = 24
-            ) -> None:
-    run_timeout = RUN_TIMEOUT_S * max(1, math.ceil(size / RUN_TIMEOUT_PER_24))
+def sim_limit(baseline_s: float) -> float:
+    """One mutant's build+sim budget, in whole seconds, from the unmutated
+    run's own wall time (#82d)."""
+    return float(math.ceil(max(SIM_LIMIT_FLOOR_S,
+                               SIM_LIMIT_FACTOR * baseline_s)))
+
+
+def run_timeout_for(size: int, nproc: int, limit_s: float | None) -> float:
+    """mcy run's own backstop: the per-24 allowance, and never less than
+    every mutant hanging to its limit in turn on nproc workers, plus that
+    allowance again, so a sample of hangs still reports."""
+    t = RUN_TIMEOUT_S * max(1, math.ceil(size / RUN_TIMEOUT_PER_24))
+    if limit_s:
+        t = max(t, limit_s * math.ceil(size / max(1, nproc)) + RUN_TIMEOUT_S)
+    return t
+
+
+def time_baseline(mcy_dir: Path, tb_dir: Path, top: str, sim_seed: int
+                  ) -> float:
+    """Wall seconds of the unmutated design's own build+sim through
+    mutate_runner.py, run alone in a scratch task dir after `mcy init`
+    (design.il exists). Its verdict is not read here: mcy run repeats it
+    as mutation 1 and check_baseline() judges that. A run past
+    BASELINE_TIME_TIMEOUT_S is a CheckError: the visible tests do not end
+    on the design itself, so no mutant can be judged."""
+    task = mcy_dir / BASELINE_TIME_SUBDIR
+    shutil.rmtree(task, ignore_errors=True)
+    task.mkdir(parents=True)
+    (task / "input.txt").write_text("1 mutate -mode none\n", encoding="utf-8")
+    env = {**os.environ, "PRJDIR": str(mcy_dir.resolve()),
+           "TASKDIR": str(task.resolve())}
+    t0 = time.monotonic()
+    try:
+        checklib.run_group(
+            [str(EDA_BIN), "python3", str(MUTATE_RUNNER), "--tb",
+             str(tb_dir.resolve()), "--top", top, "--seed", str(sim_seed)],
+            cwd=str(task), env=env, capture_output=True, text=True,
+            encoding="utf-8", errors="replace",
+            timeout=BASELINE_TIME_TIMEOUT_S)
+    except subprocess.TimeoutExpired as exc:
+        raise CheckError(
+            "the unmutated design's visible tests did not finish within "
+            f"{BASELINE_TIME_TIMEOUT_S:.0f} s, so no mutant can be judged: "
+            "a test waits on something that never happens - give that "
+            "wait a timeout") from exc
+    return time.monotonic() - t0
+
+
+def run_mcy(mcy_dir: Path, mcy_real: Path, nproc: int, size: int = 24,
+            before_run=None) -> float | None:
+    """mcy init, then mcy run. before_run(), if given, runs between them
+    (design.il exists by then) and returns the per-mutant sim limit the
+    run's own backstop must make room for; that limit is returned."""
+    limit_s = None
+
+    def timeout_for(args) -> float:
+        if args and args[0] == "init":
+            return INIT_TIMEOUT_S
+        return run_timeout_for(size, nproc, limit_s)
 
     def mcy(*args: str) -> subprocess.CompletedProcess:
         return checklib.run_group(
             [str(EDA_BIN), "python3", str(mcy_real), *args], cwd=str(mcy_dir),
             capture_output=True, text=True, encoding="utf-8", errors="replace",
-            timeout=INIT_TIMEOUT_S if args and args[0] == "init"
-            else run_timeout)
+            timeout=timeout_for(args))
 
     init = mcy("init")
     if init.returncode != 0:
         raise CheckError(f"mcy init failed: "
                          f"{(init.stderr or init.stdout)[-2000:]}")
+    if before_run is not None:
+        limit_s = before_run()
     ran = mcy("run", "-j", str(max(1, nproc)))
     if ran.returncode != 0:
         raise CheckError(f"mcy run failed: "
                          f"{(ran.stderr or ran.stdout)[-2000:]}")
+    return limit_s
 
 
 def rtl_lines(rtl_files: list[Path]) -> int:
@@ -402,6 +490,10 @@ def check_baseline(db_path: Path) -> None:
                     + build_error.read_text(encoding="utf-8",
                                             errors="replace").strip())
             raise CheckError("the unmutated design fails the visible tests")
+        if "TIMEOUT" in tags:
+            raise CheckError("the unmutated design's visible tests ran past "
+                             "the per-mutant sim limit (sim_limit_s), so "
+                             "no mutant can be judged against them")
         if "SURVIVED" not in tags:
             raise CheckError("mcy's own baseline (mutation id 1) never got "
                              "a KILLED/SURVIVED tag - mcy run did not "
@@ -445,6 +537,7 @@ def read_mutants(db_path: Path, output_ports: set[str]) -> list[dict]:
             mutants.append({
                 "id": mid, "mutation": mutation, "class": cls,
                 "killed": "KILLED" in tags, "survived": "SURVIVED" in tags,
+                "timeout": "TIMEOUT" in tags,
                 "src": src_m.group(1) if src_m else None,
             })
         return mutants
@@ -764,6 +857,41 @@ def prove_whole(design_il: Path, mutation: str, work: Path,
     return True, PROVEN + "induction"
 
 
+def memory_headroom_mb() -> int | None:
+    """MB this process may still allocate: the least of MemAvailable and,
+    for every cgroup v2 ancestor with a memory.max, max - current. None
+    when neither can be read."""
+    room: list[int] = []
+    try:
+        for ln in Path("/proc/meminfo").read_text().splitlines():
+            if ln.startswith("MemAvailable:"):
+                room.append(int(ln.split()[1]) // 1024)
+    except (OSError, ValueError, IndexError):
+        pass
+    try:
+        rel = next(ln[3:] for ln in
+                   Path("/proc/self/cgroup").read_text().splitlines()
+                   if ln.startswith("0::"))
+        cg = Path("/sys/fs/cgroup") / rel.lstrip("/")
+        while cg != Path("/sys/fs/cgroup") and cg != cg.parent:
+            mx = cg / "memory.max"
+            if mx.is_file() and mx.read_text().strip() != "max":
+                cur = int((cg / "memory.current").read_text())
+                room.append((int(mx.read_text()) - cur) // 1048576)
+            cg = cg.parent
+    except (OSError, ValueError, StopIteration):
+        pass
+    return min(room) if room else None
+
+
+def proof_jobs(jobs: int, headroom_mb: int | None) -> int:
+    """How many equivalence proofs run side by side: `jobs`, but no more
+    than one per PROOF_MEM_MB of headroom, and at least one."""
+    if headroom_mb is None:
+        return max(1, jobs)
+    return max(1, min(jobs, headroom_mb // PROOF_MEM_MB))
+
+
 def prove_survivors(design_il: Path, mutants: list[dict], work: Path,
                     jobs: int, pdr_timeout: float = PDR_TIMEOUT_S
                     ) -> dict[int, str]:
@@ -773,7 +901,8 @@ def prove_survivors(design_il: Path, mutants: list[dict], work: Path,
     todo = [m for m in mutants if m["survived"]]
     if not todo:
         return {}
-    with concurrent.futures.ThreadPoolExecutor(max(1, jobs)) as ex:
+    jobs = proof_jobs(jobs, memory_headroom_mb())
+    with concurrent.futures.ThreadPoolExecutor(jobs) as ex:
         futs = {m["id"]: ex.submit(prove_equivalent, design_il, m["mutation"],
                                    work / str(m["id"]),
                                    pdr_timeout=pdr_timeout) for m in todo}
@@ -1140,13 +1269,17 @@ def ruled_survivors(rulings: dict, mutants: list[dict]) -> dict[int, str]:
 
 def score(mutants: list[dict], equivalent: set[int],
           ruled: dict[int, str] | None = None,
-          causes: dict[int, dict] | None = None) -> tuple[dict, list]:
+          causes: dict[int, dict] | None = None,
+          limit_s: float | None = None) -> tuple[dict, list]:
     """The kill-rate arithmetic and findings, kept free of any tool so it
     can be tested alone. A proven-equivalent mutant, or one in `ruled`
     ({id: ruling} - the owner accepted it as equivalent), leaves the
     denominator (no test could ever kill it) and is reported at "info",
     whatever its class. A survivor with an entry in `causes`
-    (survivor_causes()) carries its `cause` and the fix it routes to."""
+    (survivor_causes()) carries its `cause` and the fix it routes to. A
+    mutant whose sim ran past the per-mutant limit (`timeout`, #82d) stays
+    in the denominator, never as a kill, and gets a `timeout_<class>`
+    finding at its class's severity."""
     ruled = ruled or {}
     causes = causes or {}
     equivalent = set(equivalent) | set(ruled)
@@ -1164,6 +1297,9 @@ def score(mutants: list[dict], equivalent: set[int],
     for m in scored:
         if m["survived"]:
             survivors_by_class.setdefault(m["class"], []).append(m)
+    timeouts = sorted((m for m in scored
+                       if m.get("timeout") and not m["killed"]),
+                      key=lambda m: m["id"])
 
     violations = []
     for cls, ms in sorted(survivors_by_class.items()):
@@ -1176,6 +1312,16 @@ def score(mutants: list[dict], equivalent: set[int],
                 "mutate", sev, m["src"], None, f"survivor_{cls}", [],
                 f"mutant {m['id']} ({cls}) survived{why}: {m['mutation']}",
                 "mcy", **extra))
+    limit = f" {limit_s:.0f} s" if limit_s else ""
+    for m in timeouts:
+        sev = "error" if m["class"] in MUST_KILL_CLASSES else "info"
+        violations.append(checklib.violation(
+            "mutate", sev, m["src"], None, f"timeout_{m['class']}", [],
+            f"mutant {m['id']} ({m['class']}) ran past the{limit} per-mutant "
+            "sim limit and was stopped, so it is not a kill: a visible test "
+            "waits on something this mutant never does - bound that wait "
+            "(cocotb.triggers.with_timeout) so the test fails instead: "
+            f"{m['mutation']}", "mcy"))
     for m in sorted(equiv_ms, key=lambda m: m["id"]):
         how = (f"accepted as equivalent by owner ruling ({ruled[m['id']]})"
                if m["id"] in ruled else "proven equivalent to the design")
@@ -1192,7 +1338,9 @@ def score(mutants: list[dict], equivalent: set[int],
     facts = {
         "total_mutants": len(mutants), "equivalent": len(equiv_ms),
         "equivalent_ids": sorted(m["id"] for m in equiv_ms),
-        "scored_mutants": total, "killed": killed, "survived": total - killed,
+        "scored_mutants": total, "killed": killed,
+        "survived": total - killed - len(timeouts),
+        "timeouts": len(timeouts), "timeout_ids": [m["id"] for m in timeouts],
         "kill_rate": round(kill_rate, 4),
         "survivors_by_class": {c: len(v) for c, v in
                                sorted(survivors_by_class.items())},
@@ -1265,7 +1413,18 @@ def run(argv=None):
     # all and auto ask mcy for one more, so they score exactly `size`.
     mcy_size = size if size_rule == "fixed" else size + 1
     write_config(mcy_dir, rtl_files, top, tb_dir, mcy_size, seed, sim_seed)
-    run_mcy(mcy_dir, mcy_real, nproc, mcy_size)
+    timing: dict[str, float] = {}
+
+    def limit_from_baseline() -> float:
+        # mcy reads config.mcy afresh on every command, so the limit the
+        # unmutated run's own time sets goes into the run line here
+        timing["baseline_s"] = time_baseline(mcy_dir, tb_dir, top, sim_seed)
+        timing["limit_s"] = sim_limit(timing["baseline_s"])
+        write_config(mcy_dir, rtl_files, top, tb_dir, mcy_size, seed,
+                     sim_seed, timing["limit_s"])
+        return timing["limit_s"]
+
+    run_mcy(mcy_dir, mcy_real, nproc, mcy_size, limit_from_baseline)
 
     db_path = mcy_dir / "database" / "db.sqlite3"
     check_baseline(db_path)
@@ -1273,10 +1432,11 @@ def run(argv=None):
     if not mutants:
         raise CheckError("mcy produced no mutants to score (check spec.yaml "
                          "mutate.size and the design's own size)")
-    unresolved = [m for m in mutants if not (m["killed"] or m["survived"])]
+    unresolved = [m for m in mutants
+                  if not (m["killed"] or m["survived"] or m.get("timeout"))]
     if unresolved:
         raise CheckError(f"{len(unresolved)} of {len(mutants)} mutant(s) "
-                         "never got a KILLED/SURVIVED tag - mcy run did not "
+                         "never got a KILLED/SURVIVED/TIMEOUT tag - mcy run did not "
                          "finish cleanly")
 
     ruled = ruled_survivors(rulings, mutants)
@@ -1295,7 +1455,8 @@ def run(argv=None):
     causes, causes_skipped = survivor_causes(
         rtl_files, top, tb_dir, sim_seed, design_il, survivors,
         sorted(output_ports), mcy_dir / CAUSES_SUBDIR, nproc)
-    facts, violations = score(mutants, equivalent, ruled, causes)
+    facts, violations = score(mutants, equivalent, ruled, causes,
+                              timing.get("limit_s"))
     cause_counts: dict[str, int] = {}
     for c in causes.values():
         cause_counts[c["cause"]] = cause_counts.get(c["cause"], 0) + 1
@@ -1324,6 +1485,9 @@ def run(argv=None):
         points=points, rtl_lines=lines, size=size, size_rule=size_rule,
         sampled_fraction=round(facts["total_mutants"] / points, 4),
         sim_seed=sim_seed,
+        baseline_sim_s=(round(timing["baseline_s"], 2)
+                        if "baseline_s" in timing else None),
+        sim_limit_s=timing.get("limit_s"),
         sim_replay=cocotblib.replay_command("check_mutate", sim_seed,
                                           "--sim-seed"),
         wall_s=round(wall_s, 2))
