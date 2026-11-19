@@ -59,7 +59,7 @@ Frozen fixtures under `evals/fixtures/<stage>/<name>/`; `bench.py --compare` fai
 | P3 | counter8_tb | 1.0 | sim pass, mutate pass, cover pass | 2026-11-06 |
 | P4 | counter8_rtl | 1.0 | lint pass, sim pass, holdout pass, mutate pass, formal pass, cover pass | 2026-11-06 |
 | P4 | uart_rtl | 1.0 | lint pass, sim pass, holdout pass, mutate pass, formal pass, cover pass | 2026-11-06 |
-| P4 | uart_weak_spec | 0.9937 | lint pass, sim pass, holdout pass, mutate fail, formal pass, cover pass | 2026-11-06 |
+| P4 | uart_weak_spec | 0.9952 | lint pass, sim pass, holdout pass, mutate fail, formal pass, cover pass, reset_indep pass, xprop pass | 2026-11-18 |
 
 ## CVDP
 
