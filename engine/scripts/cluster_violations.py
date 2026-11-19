@@ -145,6 +145,14 @@ FIXER_HINTS: dict[str, str] = {
     "survivor_stuck_other": "testbench",
     "survivor_conditional_stuck": "testbench",
     "survivor_other": "testbench",
+    # a mutant whose sim ran past the per-mutant limit (#82d): a test waits
+    # unbounded, so the fix is a timeout in tb/
+    "timeout_reset_removed": "testbench",
+    "timeout_output_stuck": "testbench",
+    "timeout_condition_inverted": "testbench",
+    "timeout_stuck_other": "testbench",
+    "timeout_conditional_stuck": "testbench",
+    "timeout_other": "testbench",
 
     # formal (check_formal.py)
     # the property-writer reads the counterexample against the spec first;

@@ -10,10 +10,13 @@ per queued mutation - mcy's own format, `create_mutated.sh` in
 share/mcy/scripts is the upstream example this mirrors), yosys-applies each
 mutation to the frozen `database/design.il` mcy already built, then builds
 and runs the workspace's VISIBLE `tb/test_*.py` cocotb suite against the
-resulting mutated netlist. Writes `output.txt` with one `<idx> PASS|FAIL`
-line per input line: PASS = every visible test still passed (the mutant
-SURVIVED, undetected), FAIL = at least one visible test failed, or the
-mutated netlist would not even build (the mutant was KILLED). Before it
+resulting mutated netlist. Writes `output.txt` with one
+`<idx> PASS|FAIL|TIMEOUT` line per input line: PASS = every visible test
+still passed (the mutant SURVIVED, undetected), FAIL = at least one visible
+test failed, or the mutated netlist would not even build (the mutant was
+KILLED), TIMEOUT = the build and sim ran past `--limit` seconds and were
+stopped (#82d: a test that waits forever on something the mutant never
+does; check_mutate.py records it as a timeout, never as a kill). Before it
 simulates, each netlist's edge-triggered flops are regrouped into one block
 per module and sensitivity list, in RTL assignment order (regroup_flops()
 says why).
@@ -154,6 +157,10 @@ def main(argv=None) -> int:
     ap.add_argument("--top", required=True, help="top module name")
     ap.add_argument("--seed", type=int, help="cocotb random seed "
                     "(check_mutate passes the block's sim seed)")
+    ap.add_argument("--limit", type=float, help="seconds one mutant's "
+                    "build and sim may take before it is stopped and "
+                    "written TIMEOUT (check_mutate sets it from the "
+                    "unmutated run's own time); none: no limit")
     args = ap.parse_args(argv)
 
     taskdir = Path.cwd()
@@ -203,11 +210,16 @@ def main(argv=None) -> int:
         try:
             xml_path = cocotblib.run_cocotb(build_dir, tb_dir, [mutated_v],
                                             args.top, modules, results_xml,
-                                            seed=args.seed)
+                                            seed=args.seed,
+                                            timeout_s=args.limit)
             parsed = cocotblib.parse_results_xml(xml_path)
             killed = (not parsed) or any(not r["passed"]
                                          for r in parsed.values())
             results.append((idx, "FAIL" if killed else "PASS"))
+        except cocotblib.CocotbTimeout:
+            # the sim never ended within the limit: not a test failing,
+            # so not a kill (subprocess.run already killed the vvp child)
+            results.append((idx, "TIMEOUT"))
         except Exception:  # noqa: BLE001 - a build/run crash means "caught"
             # no sim.vvp: iverilog itself refused the netlist
             if baseline and not (build_dir / "sim.vvp").is_file():

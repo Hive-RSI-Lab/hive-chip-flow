@@ -170,6 +170,7 @@ def test_mutate_and_holdout_kinds_never_route_to_rtl_writer_by_accident():
     assert cluster_violations.FIXER_HINTS["kill_rate_below_threshold"] == "testbench"
     for cls in ("reset_removed", "output_stuck", "condition_inverted"):
         assert cluster_violations.FIXER_HINTS[f"survivor_{cls}"] == "testbench"
+        assert cluster_violations.FIXER_HINTS[f"timeout_{cls}"] == "testbench"
 
 
 def test_property_failed_routes_to_formal_first():
