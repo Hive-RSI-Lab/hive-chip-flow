@@ -1005,3 +1005,141 @@ def test_counter8_at_size_all_scores_every_point(tmp_path, capsys):
     assert code in (0, 1), out        # 1: equivalent mutants are info rows
     assert not [v for v in out["violations"] if v["severity"] != "info"], out
     assert out["kill_rate"] == 1.0, out
+
+
+# --- survivor causes (#82c) ---------------------------------------------
+CAUSE_RTL = """\
+module cause8 (
+    input  wire       clk,
+    input  wire       rst,
+    input  wire       down,
+    output reg  [7:0] count
+);
+  always @(posedge clk) begin
+    if (rst)
+      count <= 8'd0;
+    else if (down)
+      count <= count - 8'd1;
+    else
+      count <= count + 8'd1;
+  end
+endmodule
+"""
+
+# never sets `down` (line 11 never runs) and checks only count[0] (a
+# change in count[7] is never seen)
+CAUSE_TB = """\
+import cocotb
+from cocotb.clock import Clock
+from cocotb.triggers import FallingEdge
+
+
+@cocotb.test()
+async def test_lsb_toggles(dut):
+    cocotb.start_soon(Clock(dut.clk, 20, unit="ns").start())
+    dut.down.value = 0
+    dut.rst.value = 1
+    for _ in range(2):
+        await FallingEdge(dut.clk)
+    dut.rst.value = 0
+    prev = int(dut.count.value) & 1
+    for _ in range(300):
+        await FallingEdge(dut.clk)
+        cur = int(dut.count.value) & 1
+        assert cur == prev ^ 1, f"count[0] stuck at {cur}"
+        prev = cur
+"""
+
+
+def make_cause_ws(tmp_path: Path) -> tuple[Path, Path, list[str]]:
+    """rtl/, tb/, mcy's design.il and every `mutate -list` line for it."""
+    import subprocess
+    (tmp_path / "rtl").mkdir()
+    (tmp_path / "tb").mkdir()
+    rtl = tmp_path / "rtl" / "cause8.v"
+    rtl.write_text(CAUSE_RTL, encoding="utf-8")
+    (tmp_path / "tb" / "test_cause8.py").write_text(CAUSE_TB, encoding="utf-8")
+    il, pts = tmp_path / "design.il", tmp_path / "pts.txt"
+    subprocess.run([str(check_mutate.EDA_BIN), "yosys", "-q", "-p",
+                    f"read_verilog -sv -nosynthesis {rtl}; hierarchy -top "
+                    f"cause8; proc; write_rtlil {il}; mutate -list 1000 "
+                    f"-seed 1 -o {pts}"], check=True)
+    return rtl, il, pts.read_text(encoding="utf-8").splitlines()
+
+
+@pytest.mark.slow
+def test_survivor_causes_unreached_line_and_unchecked_output(tmp_path):
+    rtl, il, pts = make_cause_ws(tmp_path)
+    on_11 = next(p for p in pts if "-mode inv" in p and "$sub" in p
+                 and "-port Y" in p)
+    add_7 = next(p for p in pts if "-mode inv" in p and "$add" in p
+                 and "-port Y -portbit 7" in p)
+    causes, skipped = check_mutate.survivor_causes(
+        [rtl], "cause8", tmp_path / "tb", 1, il,
+        [{"id": 1, "mutation": on_11}, {"id": 2, "mutation": add_7}],
+        ["count"], tmp_path / "causes", 2)
+    assert skipped is None
+    assert causes[1] == {"cause": "not_activated", "file": "cause8.v",
+                         "line": 11}
+    assert causes[2]["cause"] == "not_detected", causes[2]
+    assert causes[2]["port"] == "count"
+    assert causes[2]["t_ns"] > 0
+
+
+def test_activation_takes_the_narrowest_counted_range(tmp_path):
+    f = str(tmp_path / "a.v")
+    hits = {str(Path(f).resolve()): {8: 5, 11: 0, 13: 7}}
+    narrow = f"mutate -mode inv -src {f}:11.16-11.28 -src {f}:7.3-14.6"
+    assert check_mutate.activation(narrow, hits) == (False, "a.v", 11)
+    on_13 = f"mutate -mode inv -src {f}:13.16-13.28 -src {f}:7.3-14.6"
+    assert check_mutate.activation(on_13, hits) == (True, "a.v", 13)
+    # a port declaration carries no counted line: the block's range decides
+    decl = f"mutate -mode inv -src {f}:5.23-5.28 -src {f}:7.3-14.6"
+    assert check_mutate.activation(decl, hits) == (True, "a.v", 8)
+    assert check_mutate.activation(f"mutate -src {f}:2.1-2.9", hits) is None
+    assert check_mutate.activation("mutate -mode inv", hits) is None
+
+
+def test_trace_compare_finds_the_first_differing_output(tmp_path):
+    base = tmp_path / "base.txt"
+    base.write_text("0 x 0\n10000 0 0\n10000 0 0\n20000 1 0\n30000 1 1\n",
+                    encoding="utf-8")
+    same = tmp_path / "same.txt"
+    same.write_text("0 x 0\n10000 0 0\n15000 0 0\n20000 1 0\n30000 1 1\n",
+                    encoding="utf-8")
+    late = tmp_path / "late.txt"
+    late.write_text("0 x 0\n10000 0 0\n20000 1 0\n30000 1 0\n",
+                    encoding="utf-8")
+    early = tmp_path / "early.txt"
+    early.write_text("0 x 0\n10000 0 0\n12000 0 1\n", encoding="utf-8")
+    rt = check_mutate.read_trace
+    outs = ["a", "b"]
+    assert rt(base) == [(0, ("x", "0")), (10000, ("0", "0")),
+                        (20000, ("1", "0")), (30000, ("1", "1"))]
+    assert check_mutate.first_divergence(rt(base), rt(same), outs) is None
+    assert check_mutate.first_divergence(rt(base), rt(late), outs) == (
+        30.0, "b")
+    assert check_mutate.first_divergence(rt(base), rt(early), outs) == (
+        12.0, "b")
+
+
+def test_score_routes_each_survivor_by_its_cause():
+    ms = [{"id": i, "mutation": f"m{i}", "class": "condition_inverted",
+           "killed": False, "survived": True, "src": "a.v"}
+          for i in (1, 2, 3, 4)]
+    ms.append({"id": 5, "mutation": "m5", "class": "other", "killed": True,
+               "survived": False, "src": "a.v"})
+    causes = {1: {"cause": "not_activated", "file": "a.v", "line": 11},
+              2: {"cause": "not_propagated"},
+              3: {"cause": "not_detected", "port": "y", "t_ns": 42.0},
+              4: {"cause": "unknown", "error": "probe timed out"}}
+    _, vs = check_mutate.score(ms, set(), None, causes)
+    by = {v["msg"].split()[1]: v for v in vs if v["kind"].startswith(
+        "survivor_")}
+    assert by["1"]["cause"] == "not_activated"
+    assert "never run line 11 of a.v" in by["1"]["msg"]
+    assert "never reaches an output port" in by["2"]["msg"]
+    assert "output y differs" in by["3"]["msg"]
+    assert "add a check on y" in by["3"]["msg"]
+    assert "probe timed out" in by["4"]["msg"]
+    assert all(v["severity"] == "error" for v in by.values())

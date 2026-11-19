@@ -100,6 +100,21 @@ or ruled mutant is reported at severity "info" as `equivalent_<class>` (a
 must-kill class included - it cannot be killed), with facts `equivalent`
 and `equivalent_ids`. If every mutant is equivalent there is nothing left
 to score, and that is an error, not a pass.
+
+Survivor causes (survivor_causes(), mutate_probe.py): each survivor left
+after the proofs and rulings is given a `cause`, judged on the visible
+tests at the same sim seed. One Verilator --coverage-line run of the
+unmutated RTL decides `not_activated` (every counted line in the
+mutation's narrowest `-src` range reads 0: the tests never reach it - add
+stimulus). Every other survivor's netlist and the unmutated one run the
+tests under Icarus with a monitor that logs the output ports at each
+change; identical logs give `not_propagated` (the change never reaches an
+output - drive inputs that carry it out), different ones `not_detected`
+with the first differing port and time (an output is wrong and no check
+fires - add a checker). A probe that fails or times out gives `unknown`.
+The cause rides on the survivor's finding (`cause`, and the route in its
+msg) and in facts `survivor_causes`, `survivor_cause_by_id` and
+`causes_skipped`; it never changes the verdict.
 """
 from __future__ import annotations
 
@@ -788,6 +803,205 @@ def write_mutant_verilog(design_il: Path, mutation: str, work: Path) -> Path:
     return out
 
 
+# --- survivor causes (#82c) ---------------------------------------------
+# A survivor is a testbench gap, but which one decides the fix. Three
+# causes, each judged on the visible tests at the gate's own sim seed:
+#   not_activated  - the unmutated design's line coverage (Verilator) never
+#                    reaches the mutated line: the tests need stimulus there
+#   not_propagated - the line runs, but the mutant's output ports never
+#                    differ from the original's: drive inputs that carry
+#                    the change out
+#   not_detected   - an output differs, yet every test passes: a checker
+#                    is missing on that output
+# "unknown" when a probe sim fails or times out; the gate never fails on
+# a cause, it only routes the survivor's finding.
+CAUSES_SUBDIR = "causes"
+PROBE = SCRIPTS / "mutate_probe.py"
+PROBE_TIMEOUT_S = 900.0
+SRC_RANGE_RE = re.compile(r"-src (\S+?):(\d+)\.\d+-(\d+)\.\d+")
+CAUSE_ROUTE = {
+    "not_activated": "the tests never run line {line} of {file}: add tb "
+                     "stimulus that reaches it",
+    "not_propagated": "the tests run that code, but the change never "
+                      "reaches an output port: drive inputs that carry "
+                      "it out",
+    "not_detected": "output {port} differs from the original at {t_ns} ns, "
+                    "yet every test passes: add a check on {port}",
+    "unknown": "cause not found ({error})",
+}
+
+
+def run_probe(argv: list[str], timeout: float = PROBE_TIMEOUT_S) -> dict:
+    """mutate_probe.py's own JSON line, or {"ok": False, "error"}."""
+    try:
+        proc = checklib.run_group(
+            [str(EDA_BIN), "python3", str(PROBE), *argv],
+            capture_output=True, text=True, encoding="utf-8",
+            errors="replace", timeout=timeout)
+    except subprocess.TimeoutExpired:
+        return {"ok": False, "error": f"probe timed out after {timeout:.0f} s"}
+    for line in reversed(proc.stdout.splitlines()):
+        if line.startswith("{"):
+            try:
+                return json.loads(line)
+            except json.JSONDecodeError:
+                break
+    return {"ok": False, "error": f"probe exited {proc.returncode}: "
+            f"{(proc.stderr or proc.stdout)[-300:]}"}
+
+
+def line_hits(info: Path) -> dict[str, dict[int, int]]:
+    """{resolved source path: {line: hits}} from the probe's lcov file."""
+    import check_cover
+    return {str(Path(f).resolve()): rec["line"]
+            for f, rec in check_cover.parse_info(info).items()}
+
+
+def activation(mutation: str, hits: dict[str, dict[int, int]]
+               ) -> tuple[bool, str, int] | None:
+    """(ran, file, line) for the mutation's narrowest `-src` range that
+    holds a counted line (all ranges that narrow together: ran if any of
+    their lines was hit), or None when no range holds one."""
+    best: list[tuple[str, dict[int, int]]] = []
+    best_span = None
+    for f, l0, l1 in SRC_RANGE_RE.findall(mutation):
+        l0, l1 = int(l0), int(l1)
+        lines = hits.get(str(Path(f).resolve()), {})
+        da = {n: c for n, c in lines.items() if l0 <= n <= l1}
+        if not da:
+            continue
+        span = l1 - l0
+        if best_span is None or span < best_span:
+            best, best_span = [(f, da)], span
+        elif span == best_span:
+            best.append((f, da))
+    if not best:
+        return None
+    ran = any(c > 0 for _, da in best for c in da.values())
+    f, da = best[0]
+    return ran, Path(f).name, min(da)
+
+
+def read_trace(path: Path) -> list[tuple[int, tuple[str, ...]]]:
+    """The probe's trace with consecutive identical output values merged:
+    [(t_ps, values)], one entry per output change."""
+    out: list[tuple[int, tuple[str, ...]]] = []
+    for raw in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        parts = raw.split()
+        if not parts or not parts[0].isdigit():
+            continue
+        vals = tuple(parts[1:])
+        if out and out[-1][1] == vals:
+            continue
+        out.append((int(parts[0]), vals))
+    return out
+
+
+def first_divergence(base: list, mut: list, outputs: list[str]
+                     ) -> tuple[float, str] | None:
+    """(t_ns, port) of the first output change the two merged traces
+    disagree on, or None when they are the same."""
+    def at(trace, i, t):
+        # the trace's values at time t, given entry i is the first after
+        # the common prefix
+        vals = trace[i - 1][1] if i else None
+        if i < len(trace) and trace[i][0] <= t:
+            vals = trace[i][1]
+        return vals
+    n = min(len(base), len(mut))
+    i = next((k for k in range(n) if base[k] != mut[k]), n)
+    if i == len(base) == len(mut):
+        return None
+    t = min(tr[i][0] for tr in (base, mut) if i < len(tr))
+    a, b = at(base, i, t), at(mut, i, t)
+    port = outputs[0]
+    if a is not None and b is not None:
+        port = next((p for p, x, y in zip(outputs, a, b) if x != y), port)
+    return t / 1000.0, port
+
+
+def survivor_causes(rtl_files: list[Path], top: str, tb_dir: Path,
+                    sim_seed: int, design_il: Path, survivors: list[dict],
+                    outputs: list[str], work: Path, jobs: int
+                    ) -> tuple[dict[int, dict], str | None]:
+    """({id: {"cause", ...detail}}, why the coverage step was skipped or
+    None). One coverage run of the unmutated RTL settles not_activated;
+    every other survivor's outputs are traced against the unmutated
+    design's, in parallel."""
+    if not survivors:
+        return {}, None
+    work.mkdir(parents=True, exist_ok=True)
+    common = ["--tb", str(tb_dir.resolve()), "--top", top,
+              "--seed", str(sim_seed)]
+    causes: dict[int, dict] = {}
+    cov = run_probe(["cover", *common, "--work", str(work / "cover"),
+                     "--src", *[str(f.resolve()) for f in rtl_files]])
+    cover_skipped = None
+    hits: dict = {}
+    if cov.get("ok"):
+        try:
+            hits = line_hits(Path(cov["info"]))
+        except CheckError as exc:
+            cover_skipped = str(exc)
+    else:
+        cover_skipped = cov.get("error", "coverage probe failed")
+    todo = []
+    for m in survivors:
+        act = activation(m["mutation"], hits) if hits else None
+        if act is not None and not act[0]:
+            causes[m["id"]] = {"cause": "not_activated", "file": act[1],
+                               "line": act[2]}
+        else:
+            todo.append(m)
+    if not todo:
+        return causes, cover_skipped
+    if not outputs:
+        for m in todo:
+            causes[m["id"]] = {"cause": "unknown",
+                               "error": "spec.yaml names no output port"}
+        return causes, cover_skipped
+    names = ",".join(outputs)
+
+    def traced(mid, mutation):
+        sub = work / str(mid)
+        try:
+            net = write_mutant_verilog(design_il, mutation, sub)
+        except CheckError as exc:
+            return {"ok": False, "error": str(exc)[:300]}
+        return run_probe(["trace", *common, "--work", str(sub / "trace"),
+                          "--netlist", str(net), "--watch", names,
+                          "--outputs", names])
+
+    with concurrent.futures.ThreadPoolExecutor(max(1, jobs)) as ex:
+        base_f = ex.submit(traced, "baseline", "")
+        futs = {m["id"]: ex.submit(traced, m["id"], m["mutation"])
+                for m in todo}
+        base = base_f.result()
+        res = {mid: f.result() for mid, f in futs.items()}
+    if not base.get("ok"):
+        for m in todo:
+            causes[m["id"]] = {"cause": "unknown", "error": "the unmutated "
+                               f"trace failed: {base.get('error')}"}
+        return causes, cover_skipped
+    base_tr = read_trace(Path(base["trace"]))
+    for mid, r in res.items():
+        if not r.get("ok"):
+            causes[mid] = {"cause": "unknown", "error": r.get("error")}
+            continue
+        div = first_divergence(base_tr, read_trace(Path(r["trace"])),
+                               outputs)
+        causes[mid] = ({"cause": "not_propagated"} if div is None else
+                       {"cause": "not_detected", "t_ns": div[0],
+                        "port": div[1]})
+    return causes, cover_skipped
+
+
+def cause_route(c: dict) -> str:
+    detail = {"line": "?", "file": "?", "port": "?", "t_ns": "?",
+              "error": "?", **c}
+    return f"{c['cause']}: " + CAUSE_ROUTE[c["cause"]].format(**detail)
+
+
 def bmc_verdict(work: Path, sv_files: list[Path], mutant_v: Path, plan: dict
                 ) -> str:
     """One bounded sby bmc of formal/*.sv over `mutant_v` at the plan's
@@ -925,13 +1139,16 @@ def ruled_survivors(rulings: dict, mutants: list[dict]) -> dict[int, str]:
 
 
 def score(mutants: list[dict], equivalent: set[int],
-          ruled: dict[int, str] | None = None) -> tuple[dict, list]:
+          ruled: dict[int, str] | None = None,
+          causes: dict[int, dict] | None = None) -> tuple[dict, list]:
     """The kill-rate arithmetic and findings, kept free of any tool so it
     can be tested alone. A proven-equivalent mutant, or one in `ruled`
     ({id: ruling} - the owner accepted it as equivalent), leaves the
     denominator (no test could ever kill it) and is reported at "info",
-    whatever its class."""
+    whatever its class. A survivor with an entry in `causes`
+    (survivor_causes()) carries its `cause` and the fix it routes to."""
     ruled = ruled or {}
+    causes = causes or {}
     equivalent = set(equivalent) | set(ruled)
     scored = [m for m in mutants if m["id"] not in equivalent]
     equiv_ms = [m for m in mutants if m["id"] in equivalent]
@@ -952,10 +1169,13 @@ def score(mutants: list[dict], equivalent: set[int],
     for cls, ms in sorted(survivors_by_class.items()):
         sev = "error" if cls in MUST_KILL_CLASSES else "info"
         for m in ms:
+            c = causes.get(m["id"])
+            extra = {"cause": c["cause"]} if c else {}
+            why = f"; {cause_route(c)}" if c else ""
             violations.append(checklib.violation(
                 "mutate", sev, m["src"], None, f"survivor_{cls}", [],
-                f"mutant {m['id']} ({cls}) survived: {m['mutation']}",
-                "mcy"))
+                f"mutant {m['id']} ({cls}) survived{why}: {m['mutation']}",
+                "mcy", **extra))
     for m in sorted(equiv_ms, key=lambda m: m["id"]):
         how = (f"accepted as equivalent by owner ruling ({ruled[m['id']]})"
                if m["id"] in ruled else "proven equivalent to the design")
@@ -1070,7 +1290,15 @@ def run(argv=None):
     proven_by = {mid: why[len(PROVEN):] for mid, why in proofs.items()
                  if why.startswith(PROVEN)}
     equivalent = set(proven_by)
-    facts, violations = score(mutants, equivalent, ruled)
+    survivors = [m for m in mutants if m["survived"]
+                 and m["id"] not in equivalent and m["id"] not in ruled]
+    causes, causes_skipped = survivor_causes(
+        rtl_files, top, tb_dir, sim_seed, design_il, survivors,
+        sorted(output_ports), mcy_dir / CAUSES_SUBDIR, nproc)
+    facts, violations = score(mutants, equivalent, ruled, causes)
+    cause_counts: dict[str, int] = {}
+    for c in causes.values():
+        cause_counts[c["cause"]] = cause_counts.get(c["cause"], 0) + 1
     equivalent_by = {**proven_by,
                      **{mid: RULED + r for mid, r in ruled.items()}}
     wall_s = time.monotonic() - t0
@@ -1086,6 +1314,9 @@ def run(argv=None):
                             if k not in equivalent},
         killed_by={str(m["id"]): m["killed_by"]
                    for m in sorted(mutants, key=lambda m: m["id"])},
+        survivor_causes=dict(sorted(cause_counts.items())),
+        survivor_cause_by_id={str(k): v for k, v in sorted(causes.items())},
+        causes_skipped=causes_skipped,
         formal_kills=sum(1 for m in mutants if m["killed_by"] == "formal"),
         formal_skipped=formal_skipped,
         formal_survivors={str(k): v for k, v in sorted(verdicts.items())
