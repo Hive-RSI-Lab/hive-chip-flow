@@ -49,13 +49,29 @@ own `[logic]` counts every crash as a kill, and kill rate reads a false 1.0.
 check_baseline() below catches that one, off mcy's own `-none` baseline row
 (mutation id 1) rather than off any real mutant.
 
+Formal kills: the visible tests are not the only judge. Each mutant the
+tests let survive (formal_kills(), in parallel) is written back out of
+mcy's design.il with its mutation applied, the way mutate_runner.py writes
+it, and run against the block's formal/*.sv asserts as a bounded sby bmc
+(smtbmc yices) at spec.yaml formal.depth, with the frontend and multiclock
+mode check_formal.py would pick. An assert that fails within the bound
+kills it; anything else (PASS, a timeout, a tool error) leaves it a
+survivor, its verdict in `formal_survivors`. Every mutant records
+`killed_by` ("sim", "formal", or null for a survivor) and the report counts
+`formal_kills`. The step first runs the same bmc on the unmutated design;
+unless that passes - and when the workspace has no formal/*.sv, the spec
+no formal.depth, or formal.async_reset_cuts is set - no mutant is judged
+by formal and `formal_skipped` says why (the kill rate is then the tests'
+alone, never higher). A survivor the owner ruled equivalent that a formal
+assert kills is refused as a stale ruling (exit 2).
+
 Equivalent mutants: a survivor no test could ever kill - because the
 mutation does not change what the design does - is not a testbench gap.
 Equivalent here means: started from reset (every FF at zero, or its
 declared init), the mutant and the unmutated design give identical PRIMARY
 OUTPUTS on every cycle for every input sequence; internal signals may
-differ. After mcy runs, each SURVIVED mutant (in parallel) gets a proof over
-a proof (prove_equivalent()): first yosys equiv_induct over every
+differ. After the formal kills, each mutant still SURVIVED (in parallel)
+gets a proof over a proof (prove_equivalent()): first yosys equiv_induct over every
 name-matched signal (zero-init base case; all signals agreeing implies the
 outputs do), then, over a miter of the two designs' outputs, k-induction in
 yosys (a zero-init base case, then `sat -tempinduct`, the whole yosys
@@ -107,6 +123,8 @@ import cocotblib  # noqa: E402
 import rulingslib  # noqa: E402
 import speclib  # noqa: E402
 from checklib import CheckError  # noqa: E402
+sys.path.insert(0, str(SCRIPTS))
+import check_formal  # noqa: E402
 
 SCRIPT = "check_mutate"
 EDA_BIN = REPO / "bin" / "eda"
@@ -130,6 +148,13 @@ EQUIV_SUBDIR = "equiv"
 EQUIV_TIMEOUT_S = 60.0
 EQUIV_DEPTH = 8
 PDR_TIMEOUT_S = 1800.0
+FORMAL_SUBDIR = "formal_kill"
+MUTANT_V_SCRIPT = """\
+read_rtlil {design}
+{mutation}
+techmap
+write_verilog -norename {out}
+"""
 PROVEN = "proven equivalent by "  # + "signal induction", "induction" or "pdr"
 # ...and, for a proof scoped to the mutated module alone, + MODULE_SCOPE
 RULED = "accepted by owner ruling: "  # + the entry's own `ruling`
@@ -645,6 +670,145 @@ def prove_survivors(design_il: Path, mutants: list[dict], work: Path,
         return {mid: f.result()[1] for mid, f in futs.items()}
 
 
+def write_mutant_verilog(design_il: Path, mutation: str, work: Path) -> Path:
+    """mutant.v under `work`: mcy's frozen design.il with `mutation` applied
+    (an empty one for the unmutated baseline), techmapped and written the
+    way mutate_runner.py writes the netlist the tests ran. CheckError when
+    yosys cannot."""
+    work.mkdir(parents=True, exist_ok=True)
+    out = work / "mutant.v"
+    (work / "mutant.ys").write_text(MUTANT_V_SCRIPT.format(
+        design=design_il.resolve(), mutation=mutation, out=out.resolve()),
+        encoding="utf-8")
+    try:
+        proc = checklib.run_group(
+            [str(EDA_BIN), "yosys", "-q", "-l", "mutant.log", "-s",
+             "mutant.ys"], cwd=str(work), capture_output=True, text=True,
+            encoding="utf-8", errors="replace", timeout=EQUIV_TIMEOUT_S)
+    except subprocess.TimeoutExpired as exc:
+        raise CheckError(f"yosys writing {out} timed out: {exc}") from exc
+    if proc.returncode != 0 or not out.is_file():
+        raise CheckError(f"yosys could not write {out}: "
+                         f"{(proc.stderr or proc.stdout)[-1000:]}")
+    return out
+
+
+def bmc_verdict(work: Path, sv_files: list[Path], mutant_v: Path, plan: dict
+                ) -> str:
+    """One bounded sby bmc of formal/*.sv over `mutant_v` at the plan's
+    depth: "FAIL" (an assert fails within the bound), "PASS", "TIMEOUT"
+    or "ERROR: <why>". Never raises on a tool problem - that only leaves
+    the mutant where the tests left it."""
+    config = work / "bmc.sby"
+    check_formal.write_sby(
+        config, sv_files, [mutant_v], plan["formal_top"], "bmc",
+        "smtbmc yices", plan["depth"], plan["frontend"], plan["slang_so"],
+        multiclock=plan["multiclock"], timeout_s=plan["timeout_s"])
+    workdir = work / "bmc"
+    shutil.rmtree(workdir, ignore_errors=True)
+    try:
+        proc = checklib.run_group(
+            [str(EDA_BIN), "sby", "-f", str(config.resolve()), "-d",
+             str(workdir.resolve())], cwd=str(work.resolve()),
+            capture_output=True, text=True, encoding="utf-8",
+            errors="replace",
+            timeout=plan["timeout_s"] + check_formal.SBY_TIMEOUT_GRACE_S)
+    except subprocess.TimeoutExpired:
+        return "TIMEOUT"
+    output = (proc.stdout or "") + (proc.stderr or "")
+    status = check_formal.done_status(output)
+    if status in ("PASS", "FAIL", "TIMEOUT"):
+        return status
+    return "ERROR: " + (output.strip().splitlines() or ["no output"])[-1][-300:]
+
+
+def formal_plan(ws: Path, spec: dict, design_il: Path, work: Path
+                ) -> tuple[dict | None, str | None]:
+    """(plan, None) when the block's formal/*.sv can judge a mutant, else
+    (None, why not). The plan holds formal/*.sv, the formal top, the
+    spec's formal.depth and prove timeout, and the frontend and multiclock
+    mode check_formal.py would pick, read off the unmutated design written
+    the way every mutant is. That baseline must PASS the same bmc, so a
+    harness that fails on the design itself never kills a mutant."""
+    sv_dir = ws / "formal"
+    sv_files = checklib.order_sources(sorted(
+        f for ext in (".sv", ".v") for f in sv_dir.glob(f"*{ext}")))
+    if not sv_files:
+        return None, f"no formal/*.sv in {ws}"
+    cfg = spec.get("formal")
+    if not isinstance(cfg, dict) or cfg.get("depth") is None:
+        return None, "spec.yaml has no formal.depth"
+    if cfg.get("async_reset_cuts"):
+        return None, ("spec.yaml formal.async_reset_cuts is set, and the "
+                      "cut route is not run per mutant")
+    try:
+        settings = check_formal.formal_settings(spec)
+        base_v = write_mutant_verilog(design_il, "", work / "baseline")
+        formal_top = cfg.get("top") or f"{spec['top']}_formal"
+        frontend, _, slang_so, probe_log = check_formal.pick_frontend(
+            sv_files, [base_v], formal_top)
+        multiclock, _ = check_formal.needs_multiclock(
+            check_formal.clocking(probe_log), spec)
+    except CheckError as exc:
+        return None, f"formal/*.sv cannot be set up over the mutants: {exc}"
+    plan = {"sv_files": sv_files, "formal_top": formal_top,
+            "depth": settings["depth"],
+            "timeout_s": settings["prove_timeout_s"], "frontend": frontend,
+            "slang_so": slang_so, "multiclock": multiclock}
+    base = bmc_verdict(work / "baseline", sv_files, base_v, plan)
+    if base != "PASS":
+        return None, (f"the unmutated design does not pass the bounded "
+                      f"formal at depth {plan['depth']} ({base}) - the "
+                      "formal gate's own finding; no mutant is judged by it")
+    return plan, None
+
+
+def formal_judge(design_il: Path, mutation: str, work: Path, plan: dict
+                 ) -> str:
+    """bmc_verdict for one mutant, its yosys step included: a mutant yosys
+    cannot write is an "ERROR: ...", never a kill."""
+    try:
+        mutant_v = write_mutant_verilog(design_il, mutation, work)
+    except CheckError as exc:
+        return f"ERROR: {exc}"
+    return bmc_verdict(work, plan["sv_files"], mutant_v, plan)
+
+
+def formal_kills(ws: Path, spec: dict, design_il: Path, mutants: list[dict],
+                 work: Path, jobs: int) -> tuple[dict[int, str], str | None]:
+    """({id: verdict}, why skipped or None) for every mutant the tests let
+    survive, each run against formal/*.sv as a bounded bmc at
+    formal.depth (side by side). A "FAIL" verdict is a kill."""
+    todo = [m for m in mutants if m["survived"]]
+    if not todo:
+        return {}, None
+    plan, skipped = formal_plan(ws, spec, design_il, work)
+    if plan is None:
+        return {}, skipped
+    with concurrent.futures.ThreadPoolExecutor(max(1, jobs)) as ex:
+        futs = {m["id"]: ex.submit(formal_judge, design_il, m["mutation"],
+                                   work / str(m["id"]), plan) for m in todo}
+        return {mid: f.result() for mid, f in futs.items()}, None
+
+
+def apply_formal_kills(mutants: list[dict], verdicts: dict[int, str],
+                       ruled: dict[int, str]) -> None:
+    """Record killed_by on every mutant ("sim", "formal" or None for a
+    survivor) and move each formal FAIL from survived to killed. A ruled
+    mutant a formal assert kills is refused: it is not equivalent, so the
+    ruling is stale. Pure."""
+    for m in mutants:
+        m["killed_by"] = "sim" if m["killed"] else None
+        if m["survived"] and verdicts.get(m["id"]) == "FAIL":
+            if m["id"] in ruled:
+                raise CheckError(
+                    f"{rulingslib.RULINGS_REL} equivalent id {m['id']}: a "
+                    "formal/*.sv assert fails on that mutant within "
+                    "formal.depth, so it is not equivalent - remove the "
+                    "stale ruling")
+            m.update(killed=True, survived=False, killed_by="formal")
+
+
 def ruled_survivors(rulings: dict, mutants: list[dict]) -> dict[int, str]:
     """{id: ruling} for every `equivalent` ruling in spec/mutant_rulings.
     yaml, each checked against this run: it must name a mutant mcy
@@ -791,7 +955,11 @@ def run(argv=None):
                          "finish cleanly")
 
     ruled = ruled_survivors(rulings, mutants)
-    proofs = prove_survivors(mcy_dir / "database" / "design.il",
+    design_il = mcy_dir / "database" / "design.il"
+    verdicts, formal_skipped = formal_kills(
+        ws, spec, design_il, mutants, mcy_dir / FORMAL_SUBDIR, nproc)
+    apply_formal_kills(mutants, verdicts, ruled)
+    proofs = prove_survivors(design_il,
                              [m for m in mutants if m["id"] not in ruled],
                              mcy_dir / EQUIV_SUBDIR, nproc, args.pdr_timeout)
     proven_by = {mid: why[len(PROVEN):] for mid, why in proofs.items()
@@ -811,6 +979,12 @@ def run(argv=None):
         equivalent_by={str(k): v for k, v in sorted(equivalent_by.items())},
         unproven_survivors={str(k): v for k, v in sorted(proofs.items())
                             if k not in equivalent},
+        killed_by={str(m["id"]): m["killed_by"]
+                   for m in sorted(mutants, key=lambda m: m["id"])},
+        formal_kills=sum(1 for m in mutants if m["killed_by"] == "formal"),
+        formal_skipped=formal_skipped,
+        formal_survivors={str(k): v for k, v in sorted(verdicts.items())
+                          if v != "FAIL"},
         sim_seed=sim_seed,
         sim_replay=cocotblib.replay_command("check_mutate", sim_seed,
                                           "--sim-seed"),

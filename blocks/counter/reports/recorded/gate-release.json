@@ -21,7 +21,7 @@
  "violations": [],
  "facts": {
   "attestation": "reports/checks.json",
-  "attestation_sha256": "504cac733b5f5b93b35b21c2f04d3adafd5af63cf85e04c80fd885d3d891d8a3",
+  "attestation_sha256": "5f10424bc39e44da7bf556c3622fe8a86e4e17b5000401fccca39aa83ec0e48b",
   "disposition": "gates-green",
   "waived": [],
   "tt_submission": {
@@ -49,7 +49,7 @@
     "librelane_pdk": "f6eeac7dad085ffcc829ccfd721f7b4ce39edcf7",
     "tt_support_tools": "9d13ff3e3e6202090740110438c6a10c1d62ca0f",
     "gds": "harden/runs/run/final/gds/tt_um_ece298a_counter.gds",
-    "gds_sha256": "fd555eff8e90e2b160483b56620785fa2b3c044d466242e863d4781cbc02057e",
+    "gds_sha256": "181331bc0449fc4d1c481bee58b1dcdb37088edc6fc0551e60341a336f5dbd95",
     "lef": "harden/runs/run/final/lef/tt_um_ece298a_counter.lef",
     "lef_sha256": "0e02af726f19109d54f7e795d768f49e5e6ce57382d05816cc08dd3bc70f3855",
     "gl": "harden/runs/run/final/pnl/tt_um_ece298a_counter.pnl.v",
@@ -65,7 +65,7 @@
      "top_module": "tt_um_ece298a_counter",
      "pdk": "gf180mcuD",
      "gds_path": "gds/tt_um_ece298a_counter.gds",
-     "gds_sha256": "fd555eff8e90e2b160483b56620785fa2b3c044d466242e863d4781cbc02057e",
+     "gds_sha256": "181331bc0449fc4d1c481bee58b1dcdb37088edc6fc0551e60341a336f5dbd95",
      "lef_path": "lef/tt_um_ece298a_counter.lef",
      "lef_sha256": "0e02af726f19109d54f7e795d768f49e5e6ce57382d05816cc08dd3bc70f3855",
      "verilog_path": "gl/tt_um_ece298a_counter.v",
@@ -83,6 +83,6 @@
   "pdk_version": "text_eol:ee54c0e187106d2fbaa73699eb7e3089aadba8c9b9d587458e8feac0942b2dd2"
  },
  "strength_at_start": 0,
- "recorded_ts": "2026-11-18T16:29:12",
- "attempts": 14
+ "recorded_ts": "2026-11-18T18:23:09",
+ "attempts": 15
 }

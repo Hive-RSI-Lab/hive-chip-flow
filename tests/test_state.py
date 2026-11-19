@@ -394,20 +394,22 @@ def _not_fresh(ws):
     return {g for g, v in fresh["gates"].items() if not v["fresh"]}
 
 
-def test_vde_formal_key_only_edit_stales_only_formal_cover_xprop(tmp_path):
+def test_vde_formal_key_only_edit_stales_only_its_readers(tmp_path):
     """An edit to only spec.yaml's `formal:` key used to stale lint, sim,
     holdout, mutate and every later gate by hash, because each hashed the
-    whole spec. Only formal, cover and xprop read it (cover and xprop take
-    the whole file), so only they go stale - by hash, and by the declared class's marks.
+    whole spec. Only formal, cover, xprop and mutate read it (mutate runs
+    each test survivor as a bmc at formal.depth), so only they go stale -
+    by hash, and by the declared class's marks.
     spec_lint lints the whole file, so it re-runs too."""
     ws = _vde_ws_with_passes(tmp_path)
     (ws / "spec" / "spec.yaml").write_text(
         VDE_SPEC.replace("depth: 20", "depth: 40\n  cover_depth: 60"),
         encoding="utf-8")
-    assert _not_fresh(ws) == {"spec_lint", "formal", "cover", "xprop"}
+    readers = {"spec_lint", "formal", "cover", "xprop", "mutate"}
+    assert _not_fresh(ws) == readers
     state_mod.run(["edit", "--workspace", str(ws),
                    "--class", "spec_formal_edit"])
-    assert _not_fresh(ws) == {"spec_lint", "formal", "cover", "xprop"}
+    assert _not_fresh(ws) == readers
 
 
 @pytest.mark.parametrize("edit", [

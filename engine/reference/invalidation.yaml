@@ -89,8 +89,8 @@ version: 1
 artifact_kinds:
   spec_md:       {path: "spec/spec.md", norm: text_eol}
   spec_yaml:     {path: "spec/spec.yaml", norm: json_canonical}
-  # the same file minus `formal:` - only check_formal.py reads that key, so
-  # a formal-depth-only edit must not stale lint/sim/holdout/mutate/synth
+  # the same file minus `formal:` - a gate that never reads that key takes
+  # this, so a formal-depth-only edit does not stale lint/sim/holdout/synth
   # or the signoff gates; any other spec.yaml edit still does.
   spec_yaml_sans_formal: {path: "spec/spec.yaml",
                           norm: json_canonical_sans_formal}
@@ -226,7 +226,10 @@ gate_inputs:
     lint:      [rtl, spec_yaml_sans_formal]
     sim:       [rtl, tb, spec_yaml_sans_formal]
     holdout:   [rtl, holdout, spec_yaml_sans_formal]
-    mutate:    [rtl, tb, spec_yaml_sans_formal, mutant_rulings]
+    # mutate re-runs each mutant the tests let survive against formal/*.sv
+    # as a bounded bmc at formal.depth (#82a), so it reads formal/ and the
+    # whole spec.yaml: a depth or assert edit can change its kill rate.
+    mutate:    [rtl, tb, formal, spec_yaml, mutant_rulings]
     # spec_yaml (M5, added): check_formal.py also reads `top` and this
     # block's own `formal: {depth}` from spec.yaml - a depth-only edit
     # (the fix loop's own sanctioned way to close a bounded-not-proven or
@@ -476,7 +479,7 @@ edit_classes:
       # a spec_edit; the hash layer still stales every gate reading the rest.
       mutates: [spec_yaml]
       stale_artifacts: []
-      gates: [formal, cover, xprop]
+      gates: [formal, cover, xprop, mutate]
       human_hold: 1
     holdout_edit:
       # held-out tests are the check the designer never sees (section 2),
