@@ -16,6 +16,23 @@ Kill rate must clear 0.9, AND no survivor may land in a must-kill class
 that happens to kill 95% of mutants while missing every reset-removed one
 has a specific, dangerous blind spot the aggregate number hides.
 
+## Why each survivor lived
+
+Every survivor that is not proven or ruled equivalent carries a `cause`
+(facts `survivor_causes` and `survivor_cause_by_id`), which says what to
+change in `tb/`:
+
+- `not_activated`: line coverage of the unmutated design under the
+  visible tests never reaches the mutated line. Add stimulus that runs it.
+- `not_propagated`: the line runs, but the mutant's output ports match the
+  original's in every test. Drive inputs that carry the change to an output.
+- `not_detected`: an output differs (the finding names the port and the
+  first time it differs), yet every test passes. Add a check on that port.
+- `unknown`: a probe sim failed or timed out; the finding says why.
+
+`causes_skipped` is set when the coverage run itself failed (every
+survivor is then traced instead). A cause never changes the verdict.
+
 ## This is the one gate whose failure is never the design's fault
 
 A `mutate` failure means the TESTBENCH did not notice the design could be
