@@ -120,3 +120,14 @@ faults:
     gate: cdc
     plant: plant_rdc.py
     expect: {status: fail, kind: rdc_unsynced_release}
+  # --- #96: the optional FPGA prototype step -------------------------------
+  # the clean run is the known answer: counter8 places on the up5k with an
+  # Fmax above its spec clock
+  - name: fpga_combinational_loop
+    gate: fpga
+    plant: plant_fpga.py
+    expect: {status: fail, kind: fpga_comb_loop}
+  - name: fpga_spec_clock_beats_fmax
+    gate: fpga
+    plant: plant_fpga_fmax.py
+    expect: {status: fail, kind: fpga_fmax_below_clock}

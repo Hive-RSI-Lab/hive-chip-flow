@@ -109,6 +109,8 @@
   "scored_mutants": 19,
   "killed": 19,
   "survived": 0,
+  "timeouts": 0,
+  "timeout_ids": [],
   "kill_rate": 1.0,
   "survivors_by_class": {},
   "equivalent_by": {
@@ -143,6 +145,11 @@
    "23": "sim",
    "24": "sim"
   },
+  "survivor_causes": {},
+  "survivor_cause_by_id": {},
+  "causes_skipped": null,
+  "proof_budget_s": 150.0,
+  "proofs_cut_by_budget": [],
   "formal_kills": 0,
   "formal_skipped": null,
   "formal_survivors": {
@@ -151,18 +158,25 @@
    "20": "PASS",
    "22": "PASS"
   },
+  "points": 481,
+  "rtl_lines": 66,
+  "size": 24,
+  "size_rule": "fixed",
+  "sampled_fraction": 0.0478,
   "sim_seed": 889066098,
+  "baseline_sim_s": 1.25,
+  "sim_limit_s": 60.0,
   "sim_replay": "bin/eda python engine/scripts/check_mutate.py --workspace <ws> --sim-seed 889066098",
-  "wall_s": 3.55
+  "wall_s": 5.06
  },
  "inputs_at_start": {
   "rtl": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
   "tb": "dir_text:1a9e6faab6600130823e4ed8154e094fed3d16ebb98f4d6a474351cd134dddff",
   "formal": "dir_text:9d98f2365c459e0bd46ca5ed9391ba21316ad174e11a70a83552254f153b8cb3",
-  "spec_yaml": "json_canonical:969b0fe1155ae8e297f5db8ca34afc10e02ba481ea588d4287af70b8e371a5b7",
+  "spec_yaml": "json_canonical:eae9fd7872690eb0e514d474efcdeebb394a182b69d63409517f672e0da2e2d9",
   "mutant_rulings": null
  },
  "strength_at_start": 0,
- "recorded_ts": "2026-11-18T18:21:38",
- "attempts": 5
+ "recorded_ts": "2026-11-19T17:05:11",
+ "attempts": 6
 }

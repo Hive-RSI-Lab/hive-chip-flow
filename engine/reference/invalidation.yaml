@@ -55,8 +55,11 @@
 #                    interface.yaml - whitespace and key order invisible).
 #   json_canonical_sans_formal
 #                    json_canonical of spec.yaml minus its top-level
-#                    `formal:` key (kind spec_yaml_sans_formal): what a vde
-#                    gate that never reads `formal:` depends on.
+#                    `formal:` and `fpga:` keys (kind spec_yaml_sans_formal):
+#                    what a vde gate that reads neither depends on.
+#   json_canonical_fpga
+#                    json_canonical_sans_formal with `fpga:` kept (kind
+#                    spec_yaml_fpga): what check_fpga.py depends on.
 #   json_canonical_sans_roots
 #                    json_canonical of the generated harden/config.json with
 #                    the block's workspace, chip-flow's root and PDK_ROOT as
@@ -89,11 +92,13 @@ version: 1
 artifact_kinds:
   spec_md:       {path: "spec/spec.md", norm: text_eol}
   spec_yaml:     {path: "spec/spec.yaml", norm: json_canonical}
-  # the same file minus `formal:` - a gate that never reads that key takes
-  # this, so a formal-depth-only edit does not stale lint/sim/holdout/synth
-  # or the signoff gates; any other spec.yaml edit still does.
+  # the same file minus `formal:` and `fpga:` - a gate that reads neither
+  # takes this, so a formal-depth or fpga-board edit does not stale
+  # lint/sim/holdout/synth or the signoff gates; any other edit still does.
   spec_yaml_sans_formal: {path: "spec/spec.yaml",
                           norm: json_canonical_sans_formal}
+  # sans_formal with `fpga:` kept: what the fpga gate (#96) reads
+  spec_yaml_fpga: {path: "spec/spec.yaml", norm: json_canonical_fpga}
   rtl:           {path: "rtl", norm: dir_text}
   netlist:       {path: "netlist", norm: dir_text}
   tb:            {path: "tb", norm: dir_text}
@@ -259,6 +264,10 @@ gate_inputs:
     # cells RTL instantiates and its OpenSTA cross-check.
     cdc:       [rtl, spec_yaml_sans_formal, cdc_waivers, pdk_version,
                 pdk_liberty]
+    # fpga (#96) reads `top`, tt_pins, clock and its own `fpga:` section;
+    # the ice40 tools come with the toolchain, no PDK file is read.
+    # spec_yaml_fpga, not sans_formal: check_fpga.py reads `fpga:` itself
+    fpga:      [rtl, spec_yaml_fpga]
     # spec_yaml (M4 review): harden reads tt_pins and clock.period_ns from
     # spec.yaml to build the wrapper and CLOCK_PERIOD, and timing, drc, lvs,
     # glsim and precheck all read `top` (and glsim tt_pins) from it too. A
@@ -452,15 +461,16 @@ edit_classes:
       mutates: [spec_yaml, spec_md]
       stale_artifacts: [holdout]
       gates: [spec_lint, lint, sim, holdout, mutate, formal, cover,
-              reset_indep, xprop, synth, cdc, harden, timing, drc, lvs, glsim, lec,
-              precheck, release]
+              reset_indep, xprop, synth, cdc, fpga, harden, timing, drc, lvs,
+              glsim, lec, precheck, release]
       human_hold: 2
     rtl_edit:
       mutates: [rtl]
       stale_artifacts: []
       gates: [lint, sim, holdout, mutate, formal, cover, reset_indep, xprop,
               synth,
-              cdc, harden, timing, drc, lvs, glsim, lec, precheck, release]
+              cdc, fpga, harden, timing, drc, lvs, glsim, lec, precheck,
+              release]
       human_hold: 1
     cdc_waiver_edit:
       # spec/cdc.yaml: a waiver is a claim a crossing is safe, so it holds 2

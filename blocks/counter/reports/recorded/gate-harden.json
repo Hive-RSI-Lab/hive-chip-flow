@@ -22,8 +22,8 @@
  "facts": {
   "top": "ece298a_counter",
   "run_tag": "run",
-  "resumed": false,
-  "wall_s": 47.18,
+  "resumed": true,
+  "wall_s": 45.46,
   "run_dir": "harden/runs/run",
   "metrics": {
    "design__instance__count": 1402,
@@ -220,12 +220,12 @@
     }
    },
    "config_sha256": "f86ce9db491412ccc0ac48e5d05139a34f8fef6e05c529c9239f10a4c3cd2de4",
-   "resolved_sha256": "8c5c4519ff9bfa94bce80e9e83f0faa0ffcd449ba8f0d8c6c8a77fe8cf3fb52d",
-   "wall_s": 47.18
+   "resolved_sha256": "458383afdc9dc1e2a95f3ac2c6a29efa5c68b838e1c80267dde9f8f72e0e480c",
+   "wall_s": 45.46
   },
   "qor_diff": {
    "baseline": "recorded",
-   "baseline_ts": "2026-11-19T01:54:14",
+   "baseline_ts": "2026-11-19T17:14:47",
    "summary": "no regressions in 124 compared metric(s)",
    "compared": 124,
    "regressions": [],
@@ -240,7 +240,7 @@
     "count_abs": 0
    },
    "qor_baseline": {
-    "recorded_ts": "2026-11-19T01:54:14",
+    "recorded_ts": "2026-11-19T17:14:47",
     "qor": {
      "metrics": {
       "die_area": 55712,
@@ -400,8 +400,8 @@
       }
      },
      "config_sha256": "f86ce9db491412ccc0ac48e5d05139a34f8fef6e05c529c9239f10a4c3cd2de4",
-     "resolved_sha256": "85feeafcdf122dc336e43b7def14f45994739f280833e8f386a6998b8fcb9edd",
-     "wall_s": 50.48
+     "resolved_sha256": "458383afdc9dc1e2a95f3ac2c6a29efa5c68b838e1c80267dde9f8f72e0e480c",
+     "wall_s": 45.59
     }
    }
   },
@@ -483,6 +483,6 @@
   "pdk_netgen": "dir_text:8164f65bb7d1bef6e27af4c13b1c6ede50973cec7aec482556abb23881aceb04"
  },
  "strength_at_start": 1,
- "recorded_ts": "2026-11-19T14:00:39",
- "attempts": 14
+ "recorded_ts": "2026-11-19T17:17:15",
+ "attempts": 16
 }

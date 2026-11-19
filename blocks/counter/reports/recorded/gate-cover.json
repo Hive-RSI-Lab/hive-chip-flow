@@ -240,12 +240,12 @@
    },
    "runs": {
     "icarus": {
-     "wall_s": 0.7544,
-     "cpu_s": 0.7484
+     "wall_s": 0.7421,
+     "cpu_s": 0.7076
     },
     "verilator": {
-     "wall_s": 2.5052,
-     "cpu_s": 2.3416
+     "wall_s": 2.7558,
+     "cpu_s": 2.7302
     }
    }
   }
@@ -255,9 +255,9 @@
   "tb": "dir_text:1a9e6faab6600130823e4ed8154e094fed3d16ebb98f4d6a474351cd134dddff",
   "holdout": "dir_text:fb8d89cdea7e2d1106319346a2079912521ca1f89a8834fa0b96f638b704cc21",
   "cover_points": null,
-  "spec_yaml": "json_canonical:969b0fe1155ae8e297f5db8ca34afc10e02ba481ea588d4287af70b8e371a5b7"
+  "spec_yaml": "json_canonical:eae9fd7872690eb0e514d474efcdeebb394a182b69d63409517f672e0da2e2d9"
  },
  "strength_at_start": 0,
- "recorded_ts": "2026-11-19T01:52:23",
- "attempts": 5
+ "recorded_ts": "2026-11-19T17:04:04",
+ "attempts": 6
 }

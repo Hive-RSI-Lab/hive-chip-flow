@@ -209,16 +209,31 @@ def _req_sans_source(req):
 
 
 def _norm_json_canonical_sans_formal(path: Path) -> bytes:
-    """json_canonical of spec.yaml without its top-level `formal:` key - the
-    spec as every vde gate that never reads `formal:` sees it (only
-    check_formal.py does), so a formal-depth-only edit leaves their recorded
-    passes fresh while any other edit still changes this hash. A document
-    that is not a mapping raises, so hash_artifact's raw fallback takes
+    """json_canonical of spec.yaml without its top-level `formal:` and
+    `fpga:` keys - the spec as every vde gate that reads neither sees it
+    (only check_formal.py and its kin read `formal:`, only check_fpga.py
+    reads `fpga:`), so a formal-depth edit, or opting a hardened block into
+    the FPGA prototype (#96), leaves their recorded passes fresh while any
+    other edit still changes this hash. A spec without either key hashes as
+    it always did."""
+    return _spec_sans(path, ("formal", "fpga"))
+
+
+def _norm_json_canonical_fpga(path: Path) -> bytes:
+    """The spec as check_fpga.py (#96) sees it: sans_formal, but with its
+    own `fpga:` section kept, so a board edit stales the fpga gate and a
+    formal-depth edit does not."""
+    return _spec_sans(path, ("formal",))
+
+
+def _spec_sans(path: Path, drop: tuple[str, ...]) -> bytes:
+    """json_canonical of spec.yaml without the top-level keys in `drop`. A
+    document that is not a mapping raises, so hash_artifact's raw fallback takes
     over (fail-safe: over-invalidates, never under)."""
     doc = yaml.safe_load(_text(path.read_bytes()))
     if not isinstance(doc, dict):
         raise ValueError(f"{path} is not a mapping")
-    doc = {k: v for k, v in doc.items() if k != "formal"}
+    doc = {k: v for k, v in doc.items() if k not in drop}
     # a measure bound's source/note say where release reads a number, and no
     # gate that hashes this reads them, so wiring a source into a hardened
     # block leaves its passes fresh (measurelib.py, #89). Limits still count.
@@ -445,6 +460,7 @@ NORMALIZERS = {
     "dir_bytes": _norm_dir_bytes,
     "json_canonical": _norm_json_canonical,
     "json_canonical_sans_formal": _norm_json_canonical_sans_formal,
+    "json_canonical_fpga": _norm_json_canonical_fpga,
     "json_canonical_sans_roots": _norm_json_canonical_sans_roots,
     "harden_signoff": _norm_harden_signoff,
     "dir_text": _norm_dir_text,

@@ -208,7 +208,12 @@ def test_missing_gate_says_not_run(tmp_path):
     payload, _, _ = design_doc.run(["--workspace", str(ws), "--no-build"])
     text = Path(payload["tex"]).read_text()
     owed = design_doc.attest_mod.applicable_gates("vde")
-    assert set(payload["missing"]) == set(owed) - {"sim", "mutate"}
+    # a gate this spec doesn't ask for (fpga, #96: no `fpga:` section) is
+    # not applicable, said as such, never "missing"
+    na = {g for g in owed
+          if design_doc.attest_mod.not_applicable_reason(ws, "vde", g)}
+    assert na == {"fpga"}
+    assert set(payload["missing"]) == set(owed) - {"sim", "mutate"} - na
     for g in owed:
         assert r"\texttt{\small " + design_doc.tex(g) + "}" in text
     assert text.count("not run") >= len(payload["missing"])

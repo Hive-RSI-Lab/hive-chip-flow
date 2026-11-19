@@ -129,6 +129,7 @@ Gates (from `engine/reference/gates.yaml`, run via `gate.py --gate <name>
 | cover | P4 | line >= 95%, toggle >= 90% on the DUT; exclusions carry reasons |
 | synth | P5 | no latches, unmapped cells or combinational loops |
 | cdc | P5 | every crossing between inferred clock domains synchronised, every clock gate glitch-free, every async reset released through a reset synchroniser in each domain it resets, or waived with a reason in `spec/cdc.yaml`; no clock info is not checked, never clean |
+| fpga | P5 | optional (spec.yaml `fpga: {board: icebreaker}`): places and routes on the iCE40UP5K with Fmax at or above the spec clock, no comb loop or latch; LUTs and Fmax recorded, bitstream in `log/fpga/`; programming the board is the person's |
 | harden (job) | P6 | LibreLane finishes clean, produces GDS/LEF/netlist/SDF/metrics; in the final ODB no net lacks a driver, and none lacks a load unless it is a TT input or waived; records the QoR table, tool versions and config hash (`chip-flow qor show`/`diff`/`repro`) |
 | timing | P6 | setup+hold slack >= 0 at every corner |
 | drc | P6 | 0 violations, magic + klayout |
@@ -240,6 +241,7 @@ On gate fail (exit 1, result JSON has `failing` with a `kind`/`file`/
    | formal | spec_formal_edit | only spec.yaml's `formal:` key moved (depth, cover_depth) - re-run formal, cover, xprop, mutate; declare both classes when formal/ moved too |
    | synth | rtl_edit | a synth finding is almost always an RTL fix (fix_dispatch's own guidance) - the edit still lands in rtl/ |
    | cdc | rtl_edit, or cdc_waiver_edit for `spec/cdc.yaml` | add the synchroniser or fix the gate in rtl/; a waiver or a port's domain is a design claim for the person, hold 2 |
+   | fpga | rtl_edit | pipeline or fix the RTL; a slower clock is a spec edit, the person's, hold 2 |
    | harden | harden_config_edit | `harden/config.override.json` moved (M4+; config.json/info.yaml are regenerated each run) |
 
 6. Re-run the gate that failed with `--workspace` - EVERY attempt records

@@ -86,6 +86,7 @@ GATE_WHAT = {
     "reset_indep": "random power-up state",
     "xprop": "no X after reset (proof)", "synth": "Yosys synthesis",
     "cdc": "clock domain crossings",
+    "fpga": "FPGA prototype",
     "harden": "LibreLane to GDS", "timing": "OpenSTA signoff",
     "drc": "magic + klayout DRC", "lvs": "netgen LVS",
     "glsim": "gate-level sim", "lec": "logical equivalence", "precheck": "Tiny Tapeout precheck",

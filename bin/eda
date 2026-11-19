@@ -576,6 +576,13 @@ case "$TOOL" in
     exec "$entry" "$@"
     ;;
 
+  # ---- FPGA prototype (#96) -------------------------------------------------
+  # The ice40 tools live under foss/tools/fpga/bin; foss/tools/bin's links
+  # to them are absolute /foss/... paths, wrong outside the container.
+  nextpnr-ice40|icepack|icetime|icepll|icebram|iceunpack|icemulti)
+    run_elf "$T/foss/tools/fpga/bin/$TOOL" "$@"
+    ;;
+
   # ---- synthesis / formal --------------------------------------------------
   yosys)
     run_elf "$T/foss/tools/yosys/bin/yosys" "$@"

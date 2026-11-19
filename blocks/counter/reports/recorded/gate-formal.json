@@ -49,8 +49,18 @@
   "bounded": [],
   "failed": [],
   "vacuous": [],
+  "undecided": [],
   "smt_status": "UNKNOWN",
   "pdr_status": "PASS",
+  "pdr_by_property": {
+   "REQ_BUS": "PASS",
+   "REQ_COUNT": "PASS",
+   "REQ_HOLD": "PASS",
+   "REQ_LOAD": "PASS",
+   "REQ_LOAD_OE": "PASS",
+   "REQ_RELEASE": "PASS",
+   "REQ_RESET": "PASS"
+  },
   "cover_points": [
    "COVER_ASYNC_CLEAR",
    "COVER_LOAD_OE",
@@ -62,8 +72,9 @@
  "inputs_at_start": {
   "rtl": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
   "formal": "dir_text:9d98f2365c459e0bd46ca5ed9391ba21316ad174e11a70a83552254f153b8cb3",
-  "spec_yaml": "json_canonical:969b0fe1155ae8e297f5db8ca34afc10e02ba481ea588d4287af70b8e371a5b7"
+  "spec_yaml": "json_canonical:eae9fd7872690eb0e514d474efcdeebb394a182b69d63409517f672e0da2e2d9"
  },
- "recorded_ts": "2026-11-01T11:10:28",
- "attempts": 3
+ "strength_at_start": 0,
+ "recorded_ts": "2026-11-19T17:03:30",
+ "attempts": 4
 }

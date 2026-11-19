@@ -187,6 +187,21 @@ gates:
         synchronised bits of one source reconverging, or waived with a reason
         in spec/cdc.yaml. A handshake or mux-enable crossing is recognised.
         No sequential cell or no clock info is not applicable, never clean.
+    fpga:
+      phase: P5
+      tool: fpga
+      strength: 0
+      fail_severities: [error]
+      max_count: 0
+      fault: "a combinational loop the ASIC flow's ABC breaks and finishes"
+      description: >-
+        Optional, asked for by a spec.yaml `fpga:` section (#96): the TT
+        wrapper on the board's pins (icebreaker, iCE40UP5K) through yosys
+        synth_ice40, nextpnr-ice40 and icepack. It places and routes, has no
+        combinational loop or latch, and reaches an Fmax at or above the
+        spec clock; LUTs and Fmax recorded, the bitstream in log/fpga/.
+        Programming a board is the person's, never the gate's. No `fpga:`
+        section is not applicable.
     harden:
       phase: P6
       tool: harden
