@@ -78,7 +78,8 @@ outputs do), then, over a miter of the two designs' outputs, k-induction in
 yosys (a zero-init base case, then `sat -tempinduct`, the whole yosys
 run bounded by EQUIV_TIMEOUT_S), and, only if the base case held but the induction step
 did not, an unbounded model check over reachable states (sby `abc pdr`, up
-to --pdr-timeout, default PDR_TIMEOUT_S = 30 minutes per mutant). The proof
+to --pdr-timeout, default PDR_TIMEOUT_S = 30 minutes per mutant, and
+within the proof stage's shared budget below). The proof
 also assumes a single clock straight from an input and asynchronous resets
 acting at clock granularity. When the whole top is outside that clock
 model (two clock domains, say) the same proof runs once more on the mutated
@@ -127,6 +128,18 @@ is not sent to formal, the prover or the cause probes, and gets a
 on something the mutant never does: bound that wait). Facts `timeouts` and
 `timeout_ids`. mcy run's own backstop grows to fit every mutant hanging to
 its limit, so a sample of hangs still reports.
+
+Proof budget (#82e): the pdr proofs share one wall-clock budget,
+--proof-budget (default PROOF_BUDGET_S), for the whole proof stage. A pdr
+proof that starts gets the remaining budget split evenly over the
+survivors whose proofs have not finished yet, in waves of the proof jobs
+(PdrBudget), and never more than --pdr-timeout; one that would start with
+less than PDR_MIN_S left does not run. Either way a proof cut short is not
+a proof: the mutant stays a survivor, its reason says the budget ended it,
+and fact `proofs_cut_by_budget` lists those ids with `proof_budget_s`.
+Signal induction and k-induction are not charged to it (each is bounded
+by EQUIV_TIMEOUT_S already). Give an owner's ruling, or rerun with a
+larger --proof-budget, to settle one of them.
 """
 from __future__ import annotations
 
@@ -140,6 +153,7 @@ import shutil
 import sqlite3
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -205,6 +219,13 @@ PDR_TIMEOUT_S = 1800.0
 # killed the gate and its neighbours. Proofs run at most one per
 # PROOF_MEM_MB of memory headroom (proof_jobs()), never fewer than one.
 PROOF_MEM_MB = 4000
+# The whole proof stage's pdr wall time (#82e). sensor_counted's five
+# survivors at 30 min of pdr each, one at a time, took hours; the gate is
+# meant to report in minutes. A survivor whose proof is cut stays a
+# survivor.
+PROOF_BUDGET_S = 150.0
+PDR_MIN_S = 5.0
+BUDGET_CUT = "proof budget"  # in the reason of every proof it cut
 FORMAL_SUBDIR = "formal_kill"
 POINTS_SUBDIR = "points"
 MUTANT_V_SCRIPT = """\
@@ -649,6 +670,41 @@ def clock_refusal(work: Path) -> str | None:
     return None
 
 
+class PdrBudget:
+    """One wall-clock budget shared by every pdr proof of a proof stage.
+    take() at a pdr's start gives it the remaining time split over the
+    survivors still unfinished, in waves of `jobs`, capped at `cap`;
+    0 when less than PDR_MIN_S would be left. finish() is called once per
+    survivor when its whole proof is over."""
+
+    def __init__(self, total_s: float, cap_s: float, pending: int, jobs: int,
+                 clock=time.monotonic):
+        self.clock = clock
+        self.deadline = clock() + max(0.0, total_s)
+        self.cap = cap_s
+        self.pending = max(1, pending)
+        self.jobs = max(1, jobs)
+        self.lock = threading.Lock()
+
+    def take(self) -> float:
+        with self.lock:
+            left = self.deadline - self.clock()
+            waves = math.ceil(self.pending / self.jobs)
+            share = min(self.cap, left / max(1, waves))
+            return share if share >= PDR_MIN_S else 0.0
+
+    def finish(self) -> None:
+        with self.lock:
+            self.pending = max(1, self.pending - 1)
+
+
+def pdr_timeout_of(pdr_timeout) -> tuple[float, bool]:
+    """(seconds, from_budget) for a float or a PdrBudget."""
+    if isinstance(pdr_timeout, PdrBudget):
+        return pdr_timeout.take(), True
+    return float(pdr_timeout), False
+
+
 def prove_reachable(work: Path, timeout: float = PDR_TIMEOUT_S
                     ) -> tuple[bool, str]:
     """The stronger proof, over REACHABLE states only: a miter of the
@@ -849,7 +905,12 @@ def prove_whole(design_il: Path, mutation: str, work: Path,
         refused = clock_refusal(work)
         if refused:
             return False, refused
-        proven, pdr_why = prove_reachable(work, pdr_timeout)
+        pdr_s, budgeted = pdr_timeout_of(pdr_timeout)
+        if pdr_s <= 0:
+            return False, f"{why}; pdr: not run, the {BUDGET_CUT} is spent"
+        proven, pdr_why = prove_reachable(work, pdr_s)
+        if not proven and budgeted and "timeout" in pdr_why.lower():
+            pdr_why += f" (its share of the {BUDGET_CUT})"
         return proven, pdr_why if proven else f"{why}; {pdr_why}"
     refused = clock_refusal(work)
     if refused:
@@ -893,19 +954,25 @@ def proof_jobs(jobs: int, headroom_mb: int | None) -> int:
 
 
 def prove_survivors(design_il: Path, mutants: list[dict], work: Path,
-                    jobs: int, pdr_timeout: float = PDR_TIMEOUT_S
-                    ) -> dict[int, str]:
+                    jobs: int, pdr_timeout: float = PDR_TIMEOUT_S,
+                    budget_s: float = PROOF_BUDGET_S) -> dict[int, str]:
     """{id: reason} for every SURVIVED mutant, proven or not; the proven
     ones' reason starts with PROVEN. Proofs are independent, so they run
-    side by side."""
+    side by side; their pdr steps share one PdrBudget of budget_s."""
     todo = [m for m in mutants if m["survived"]]
     if not todo:
         return {}
     jobs = proof_jobs(jobs, memory_headroom_mb())
+    budget = PdrBudget(budget_s, pdr_timeout, len(todo), jobs)
+
+    def one(m):
+        try:
+            return prove_equivalent(design_il, m["mutation"],
+                                    work / str(m["id"]), pdr_timeout=budget)
+        finally:
+            budget.finish()
     with concurrent.futures.ThreadPoolExecutor(jobs) as ex:
-        futs = {m["id"]: ex.submit(prove_equivalent, design_il, m["mutation"],
-                                   work / str(m["id"]),
-                                   pdr_timeout=pdr_timeout) for m in todo}
+        futs = {m["id"]: ex.submit(one, m) for m in todo}
         return {mid: f.result()[1] for mid, f in futs.items()}
 
 
@@ -1364,6 +1431,10 @@ def parse_args(argv=None) -> argparse.Namespace:
     ap.add_argument("--pdr-timeout", type=float, default=PDR_TIMEOUT_S,
                     help="seconds of pdr per survivor that induction could "
                     f"not settle (default {PDR_TIMEOUT_S:.0f})")
+    ap.add_argument("--proof-budget", type=float, default=PROOF_BUDGET_S,
+                    help="seconds of pdr for the whole proof stage, shared "
+                    "by every survivor; a proof it cuts is not a proof "
+                    f"(default {PROOF_BUDGET_S:.0f})")
     ap.add_argument("--out", help="write result JSON here instead of stdout")
     return ap.parse_args(argv)
 
@@ -1446,7 +1517,8 @@ def run(argv=None):
     apply_formal_kills(mutants, verdicts, ruled)
     proofs = prove_survivors(design_il,
                              [m for m in mutants if m["id"] not in ruled],
-                             mcy_dir / EQUIV_SUBDIR, nproc, args.pdr_timeout)
+                             mcy_dir / EQUIV_SUBDIR, nproc, args.pdr_timeout,
+                             args.proof_budget)
     proven_by = {mid: why[len(PROVEN):] for mid, why in proofs.items()
                  if why.startswith(PROVEN)}
     equivalent = set(proven_by)
@@ -1478,6 +1550,10 @@ def run(argv=None):
         survivor_causes=dict(sorted(cause_counts.items())),
         survivor_cause_by_id={str(k): v for k, v in sorted(causes.items())},
         causes_skipped=causes_skipped,
+        proof_budget_s=args.proof_budget,
+        proofs_cut_by_budget=sorted(k for k, v in proofs.items()
+                                    if k not in equivalent
+                                    and BUDGET_CUT in v),
         formal_kills=sum(1 for m in mutants if m["killed_by"] == "formal"),
         formal_skipped=formal_skipped,
         formal_survivors={str(k): v for k, v in sorted(verdicts.items())
