@@ -20,7 +20,9 @@ not regenerate to the same bytes, or a pin that is missing, is a finding.
 
 Exit 0: written (or, with --check, every table matches its pin).
 1: with --check, a table differs. 2: refused (no PDK, ngspice failed,
-an unknown device or corner), with a remediation.
+an unknown device or corner, or tables that differ from their existing
+pins without --repin: a write never moves a pin silently), with a
+remediation.
 """
 from __future__ import annotations
 
@@ -178,6 +180,9 @@ def main(argv=None) -> int:
                     help="where the tables go (gmidlib.cache_dir())")
     ap.add_argument("--manifest", type=Path, default=gmidlib.MANIFEST)
     ap.add_argument("--check", action="store_true")
+    ap.add_argument("--repin", action="store_true",
+                    help="overwrite a pin that differs (after a grid or "
+                    "toolchain change, reviewed in the PR)")
     a = ap.parse_args(argv)
     devices = a.device or list(gmidlib.DEVICES)
     corners = a.corner or list(gmidlib.CORNERS)
@@ -202,7 +207,8 @@ def main(argv=None) -> int:
                 return 1 if viol else 0
             out.mkdir(parents=True, exist_ok=True)
             made = build(devices, corners, out, tmp / "work")
-    except (layoutlib.LayoutError, gmidlib.GmidError, OSError) as exc:
+    except (layoutlib.LayoutError, gmidlib.GmidError, OSError,
+            ValueError) as exc:
         print(json.dumps({"ok": False, "error": str(exc)[:600],
                           "remediation": "run through bin/chip-flow (the "
                           "toolchain's ngspice and gf180mcuD); see the "
@@ -210,6 +216,18 @@ def main(argv=None) -> int:
         return 2
     mpath = a.manifest
     doc = json.loads(mpath.read_text()) if mpath.is_file() else {}
+    moved = [n for n, row in made.items()
+             if doc.get("tables", {}).get(n, {}).get("sha256")
+             not in (None, row["sha256"])]
+    if (moved or doc.get("grid", grid_doc()) != grid_doc()) and not a.repin:
+        print(json.dumps({"ok": False, "written": sorted(made),
+                          "out": str(out), "differs_from_pin": moved,
+                          "error": "the tables made here do not match "
+                          f"{mpath}'s pins; the manifest is left as it was",
+                          "remediation": "run through bin/eda's toolchain; "
+                          "re-pin with --repin only for a deliberate grid "
+                          "or toolchain change"}, indent=2))
+        return 2
     doc.setdefault("tables", {}).update(made)
     doc["grid"] = grid_doc()
     doc["generator"] = "engine/scripts/gmid_lut.py"

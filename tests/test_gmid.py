@@ -35,17 +35,18 @@ def nfet_tt(tmp_path_factory):
 
 
 def _op(tmp_path: Path, device: str, corner: str, points) -> list[dict]:
-    """ngspice op on one instance per (w_um, l_um, vgs, vds, vsb):
-    each one's |id| and gm."""
+    """ngspice op on one instance per (w_um, l_um, vgs, vds, vsb[, m]):
+    each one's |id| and gm (all m devices together)."""
     pdk = layoutlib.pdk_root() / "libs.tech" / "ngspice"
     section, temp_c = gmidlib.CORNERS[corner]
     s = -1 if device.startswith("p") else 1
     lines = [f"* gmid op {device}", f".include '{pdk}/design.ngspice'",
              f".lib '{pdk}/sm141064.ngspice' {section}", f".temp {temp_c:g}"]
-    for i, (w, l, vgs, vds, vsb) in enumerate(points):
+    for i, (w, l, vgs, vds, vsb, *m) in enumerate(points):
         lines += [f"vd{i} d{i} 0 {s * vds:.9g}", f"vg{i} g{i} 0 {s * vgs:.9g}",
                   f"vb{i} b{i} 0 {-s * vsb:.9g}",
-                  f"x{i} d{i} g{i} 0 b{i} {device} w={w:.9g}u l={l:.9g}u"]
+                  f"x{i} d{i} g{i} 0 b{i} {device} w={w:.9g}u l={l:.9g}u"
+                  f" m={m[0] if m else 1}"]
     lines += [".control", "op"]
     for i in range(len(points)):
         lines += [f"let id{i} = abs(@m.x{i}.m0[id])",
@@ -55,7 +56,39 @@ def _op(tmp_path: Path, device: str, corner: str, points) -> list[dict]:
     cir.write_text("\n".join(lines) + "\n")
     v = layoutlib.parse_ngspice_prints(
         layoutlib.run_ngspice(cir, cwd=tmp_path, timeout=60))
+    # an m=N instance reports all N devices' id and gm
     return [{"id": v[f"id{i}"], "gm": v[f"gm{i}"]} for i in range(len(points))]
+
+
+def _at_gmid(tmp_path: Path, device: str, corner: str, r: dict, vds: float,
+             vsb: float, gmid_v: float) -> dict:
+    """ngspice DC sweep of VGS (1 mV steps, +-0.15 V round the helper's)
+    on the helper's W, L and m: the Id and VGS where gm/Id is gmid_v, as a
+    current-biased device would sit."""
+    import numpy as np
+    pdk = layoutlib.pdk_root() / "libs.tech" / "ngspice"
+    section, temp_c = gmidlib.CORNERS[corner]
+    s = -1 if device.startswith("p") else 1
+    lo, hi = max(r["VGS"] - 0.15, 0.0), r["VGS"] + 0.15
+    out = tmp_path / "sw.txt"
+    cir = tmp_path / "sw.cir"
+    cir.write_text("\n".join([
+        f"* gmid sweep {device}", f".include '{pdk}/design.ngspice'",
+        f".lib '{pdk}/sm141064.ngspice' {section}", f".temp {temp_c:g}",
+        f"vd d 0 {s * vds:.9g}", "vg g 0 0", f"vb b 0 {-s * vsb:.9g}",
+        f"x1 d g 0 b {device} w={r['W_each_um']:.9g}u l={r['L_um']:.9g}u"
+        f" m={r['M']}", ".option numdgt=8",
+        ".save @m.x1.m0[id] @m.x1.m0[gm]", ".control",
+        f"dc vg {s * lo:.9g} {s * hi:.9g} {s * 0.001:g}",
+        f"wrdata {out} @m.x1.m0[id] @m.x1.m0[gm]", ".endc", ".end"]) + "\n")
+    layoutlib.run_ngspice(cir, cwd=tmp_path, timeout=60)
+    a = np.loadtxt(out)
+    vg, i_d, gm = np.abs(a[:, 0]), np.abs(a[:, 1]), np.abs(a[:, 3])
+    g = gm / i_d                         # falls as VGS rises
+    order = np.argsort(g)
+    assert g.min() <= gmid_v <= g.max(), (r, g.min(), g.max())
+    return {"id": float(np.interp(gmid_v, g[order], i_d[order])),
+            "vgs": float(np.interp(gmid_v, g[order], vg[order]))}
 
 
 def test_the_committed_manifest_pins_all_six_tables_on_the_scripts_grid():
@@ -80,8 +113,34 @@ def test_known_answer_a_sized_nfet_lands_on_the_tables_gm_id_and_id(
                 [(r["W_um"], 1.0, r["VGS"], 1.65, 0.0)])
     assert op["id"] == pytest.approx(10e-6, rel=0.03), (r, op)
     assert op["gm"] / op["id"] == pytest.approx(10.0, rel=0.05), (r, op)
-    assert op["id"] / r["W_um"] == pytest.approx(r["ID_W"], rel=0.05)
     assert r["fT"] > 1e8 and r["gm_gds"] > 10
+    assert r["M"] == 1 and not r["warnings"]
+
+
+@pytest.mark.parametrize("gmid_v, id_a, l_um, vds, vsb", [
+    (15.0, 10e-6, 1.0, 1.65, 0.2),      # VSB between swept points
+    (15.0, 10e-6, 1.0, 1.65, 0.6),
+    (15.0, 10e-6, 0.4, 1.65, 0.0),      # L between 0.35 and 0.5
+    (15.0, 10e-6, 4.0, 0.77, 0.3),      # L, VDS and VSB all off-grid
+    (10.0, 400e-6, 1.0, 1.65, 0.0),     # past the widest bin: m devices
+])
+def test_off_the_grid_and_split_sizes_land_on_ngspice(
+        nfet_tt, tmp_path, gmid_v, id_a, l_um, vds, vsb):
+    """Each swept neighbour is solved before blending: a blend of curves
+    at different thresholds once sized these 30-50% off (the review)."""
+    r = gmidlib.size(nfet_tt, gmid_v, id_a, l_um, vds=vds, vsb=vsb)
+    assert r["W_each_um"] <= gmidlib.W_MAX_UM
+    at = _at_gmid(tmp_path, "nfet_03v3", "tt", r, vds, vsb, gmid_v)
+    # the W: at the bias where gm/Id is the target, Id is the target
+    assert at["id"] == pytest.approx(id_a, rel=0.03), (r, at)
+    assert at["vgs"] == pytest.approx(r["VGS"], abs=0.02), (r, at)
+    if id_a > 100e-6:
+        assert r["M"] > 1
+
+
+def test_a_width_below_the_models_bins_is_refused(nfet_tt):
+    with pytest.raises(gmidlib.GmidError, match="narrowest"):
+        gmidlib.size(nfet_tt, 10.0, 0.1e-6, 1.0)
 
 
 def test_the_tables_gm_matches_ngspice_at_five_random_points(nfet_tt,
@@ -132,6 +191,14 @@ def test_the_cli_sizes_from_the_cache(nfet_tt, monkeypatch, capsys):
     assert out["W_um"] == pytest.approx(want["W_um"])
     assert {"gm", "gds", "fT", "Cgg", "VGS"} <= set(out)
     assert out["spice"].startswith("nfet_03v3 w=")
+    assert gmid.main(["size", "--gmid", "10", "--id", "400u", "--l",
+                      "1u"]) == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out["M"] > 1 and out["spice"].endswith(f" m={out['M']}")
+    assert gmid.main(["size", "--gmid", "60", "--id", "1u", "--l",
+                      "1u"]) == 2
+    out = json.loads(capsys.readouterr().out)
+    assert out["ok"] is False and out["remediation"]
 
 
 @pytest.fixture
@@ -143,7 +210,7 @@ def tiny(monkeypatch):
 
 
 def test_planted_a_table_made_at_the_wrong_corner_fails_the_pin(
-        tiny, tmp_path):
+        tiny, tmp_path, monkeypatch):
     ref = tmp_path / "ref"
     ref.mkdir()
     manifest = tmp_path / "manifest.json"
@@ -162,6 +229,14 @@ def test_planted_a_table_made_at_the_wrong_corner_fails_the_pin(
     manifest.write_text(json.dumps(doc))
     with pytest.raises(gmidlib.GmidError, match="labelled SS"):
         gmidlib.load("nfet_03v3", "tt", ref=ref, manifest=manifest)
+    # a write that would move a pin is refused, and the pins stay
+    before = manifest.read_text()
+    monkeypatch.setattr(gmid_lut, "VSTEP_DS", 1.65)
+    assert gmid_lut.main(["--device", "nfet_03v3", "--corner", "ss",
+                          "--out", str(ref), "--manifest",
+                          str(manifest)]) == 2
+    assert manifest.read_text() == before
+    monkeypatch.setattr(gmid_lut, "VSTEP_DS", 1.1)
     # --check against the real pins sees the tiny grid as a finding
     assert gmid_lut.main(["--device", "nfet_03v3", "--corner", "tt",
                           "--manifest", str(gmidlib.MANIFEST)]

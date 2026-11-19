@@ -30,8 +30,9 @@
 *   A0 ~= (gm/gds)_1 * (gm/gds)_6 / 4 with the table's gm/gds at each L:
 *     eda python engine/scripts/gmid.py size --device pfet_03v3
 *         --gmid 12 --id 50u --l 1u
-*     -> pfet_03v3 w=150.9u l=1u, VGS 0.90 V (a pfet carries ~1/4 the
-*        nfet's Id/W at the same gm/Id here)
+*     -> pfet_03v3 w=37.73u l=1u m=4 (W 150.9 um, past the models' 100 um
+*        bin, so split), VGS 0.90 V (a pfet carries ~1/4 the nfet's Id/W
+*        at the same gm/Id here)
 *
 * DESIGN EQUATIONS (square-law starting point; the benches decide):
 *   gm1 = sqrt(2 * un*Cox * (W/L)_1 * Itail/2)      Itail = Ib * w_t/w_b

@@ -26,7 +26,9 @@ the cache (cache_dir(): $CHIP_FLOW_CACHE/gmid, else chip-flow/gmid in the
 user's cache) and then checks it like any other. It refuses a table
 whose bytes or labels differ from the manifest's pin, so a table made at
 another corner, or a re-labelled one, or one the toolchain no longer
-reproduces, is never read as the one asked for.
+reproduces, is never read as the one asked for. The bytes go through
+zlib, so tables are made through bin/eda's toolchain: a host's own zlib
+build can compress the same values to other bytes.
 """
 from __future__ import annotations
 
@@ -70,7 +72,10 @@ def read_manifest(manifest: Path = MANIFEST) -> dict:
     if not Path(manifest).is_file():
         raise GmidError(f"no manifest at {manifest}: run "
                         "engine/scripts/gmid_lut.py to write the tables")
-    return json.loads(Path(manifest).read_text(encoding="utf-8"))
+    try:
+        return json.loads(Path(manifest).read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise GmidError(f"{manifest}: {exc}") from exc
 
 
 def _struct(path: Path) -> dict:
@@ -117,8 +122,10 @@ def load(device: str, corner: str = "tt", ref: Path | None = None,
     if got != pin["sha256"]:
         raise GmidError(f"{name}: sha256 {got[:12]} is not the pinned "
                         f"{pin['sha256'][:12]} (a table made elsewhere, at "
-                        "another corner, or edited): regenerate it with "
-                        "engine/scripts/gmid_lut.py, or restore the pinned one")
+                        "another corner, or edited): delete it so load makes it "
+                        "again, and if that still differs run "
+                        "engine/scripts/gmid_lut.py --check (the toolchain "
+                        "no longer reproduces the pin)")
     t = _struct(path)
     section, temp_c = CORNERS[corner]
     if (t.get("CORNER") != corner.upper()
@@ -145,71 +152,57 @@ def _make(device: str, corner: str, ref: Path) -> None:
             gmid_lut.build([device], [corner], Path(tmp), Path(tmp) / "work")
             name = table_name(device, corner)
             os.replace(Path(tmp) / name, ref / name)
-    except layoutlib.LayoutError as exc:
-        raise GmidError(f"making {device} {corner}: {exc}") from exc
+    except (layoutlib.LayoutError, OSError, ValueError) as exc:
+        raise GmidError(f"making {device} {corner} into {ref}: {exc}") from exc
 
 
-def _l_index(t: dict, l_um: float) -> tuple[int, int, float]:
-    """The two swept L either side of `l_um` and the weight on the upper
-    one (interpolated in log L); refuses an L outside the sweep."""
-    ls = t["L"]
-    if l_um < ls[0] * (1 - 1e-9) or l_um > ls[-1] * (1 + 1e-9):
-        raise GmidError(f"L={l_um:g} um is outside the table's "
-                        f"{ls[0]:g}..{ls[-1]:g} um")
-    hi = int(np.searchsorted(ls, l_um * (1 - 1e-9)))
-    hi = min(max(hi, 0), len(ls) - 1)
-    if math.isclose(ls[hi], l_um, rel_tol=1e-6) or hi == 0:
-        return hi, hi, 0.0
-    lo = hi - 1
-    w = (math.log(l_um) - math.log(ls[lo])) / (math.log(ls[hi])
-                                                - math.log(ls[lo]))
-    return lo, hi, w
-
-
-def _axis(values, x: float, what: str) -> tuple[int, int, float]:
-    v = np.asarray(values)
-    if x < v[0] - 1e-9 or x > v[-1] + 1e-9:
+def _neighbours(values, x: float, what: str, log: bool = False):
+    """The swept points either side of `x` with their weights (linear, or
+    in log for L); one point when `x` is on the grid. Refuses an `x`
+    outside the sweep."""
+    v = np.asarray(values, float)
+    if x < v[0] * (1 - 1e-9) - 1e-9 or x > v[-1] * (1 + 1e-9) + 1e-9:
         raise GmidError(f"{what}={x:g} is outside the table's "
                         f"{v[0]:g}..{v[-1]:g}")
     hi = int(np.clip(np.searchsorted(v, x - 1e-12), 0, len(v) - 1))
-    if hi == 0 or math.isclose(v[hi], x, abs_tol=1e-9):
-        return hi, hi, 0.0
-    return hi - 1, hi, (x - v[hi - 1]) / (v[hi] - v[hi - 1])
+    if hi == 0 or math.isclose(v[hi], x, rel_tol=1e-6, abs_tol=1e-9):
+        return [(hi, 1.0)]
+    lo = hi - 1
+    if log:
+        w = (math.log(x) - math.log(v[lo])) / (math.log(v[hi])
+                                                - math.log(v[lo]))
+    else:
+        w = (x - v[lo]) / (v[hi] - v[lo])
+    return [(lo, 1 - w), (hi, w)]
 
 
-def curve(t: dict, field: str, l_um: float, vds: float,
-          vsb: float = 0.0) -> np.ndarray:
-    """`field` against VGS at L, VDS and VSB: linear in VDS and VSB, log-L
-    in L (each a weighted mean of the swept neighbours)."""
+def curve(t: dict, field: str, il: int, isb: int, vds: float) -> np.ndarray:
+    """`field` against VGS at the swept L index `il` and VSB index `isb`,
+    linear in VDS between its swept neighbours."""
     a = t[field]
-    li = _l_index(t, l_um)
-    di = _axis(t["VDS"], vds, "VDS")
-    si = _axis(t["VSB"], vsb, "VSB")
     out = np.zeros(a.shape[1])
-    for il, wl in ((li[0], 1 - li[2]), (li[1], li[2])):
-        for idd, wd in ((di[0], 1 - di[2]), (di[1], di[2])):
-            for isb, ws in ((si[0], 1 - si[2]), (si[1], si[2])):
-                w = wl * wd * ws
-                if w:
-                    out += w * a[il, :, idd, isb]
+    for idd, wd in _neighbours(t["VDS"], vds, "VDS"):
+        out += wd * a[il, :, idd, isb]
     return out
 
 
-def size(t: dict, gmid: float, id_a: float, l_um: float, vds: float = 1.65,
-         vsb: float = 0.0) -> dict:
-    """W (um) and the small-signal values of one transistor at gm/Id =
-    `gmid` (1/V), drain current `id_a` (A) and length `l_um`, at VDS and
-    VSB. VGS is where the table's gm/Id curve crosses `gmid` on its
-    strong-inversion side (past its peak), found with a monotone cubic
-    (pchip) in VGS; Id/W, gds/Id and Cgg/W are read there the same way,
-    Id/W in log. The table's own W is the reference: the values scale
-    with W, so a W far from it (narrow-width effects) is less exact."""
+# the 3.3 V models' width bins in sm141064.ngspice (um, per device)
+W_MIN_UM, W_MAX_UM = 0.22, 100.0
+W_SPLIT_UM = 50.0       # a device wider than W_MAX is split into m of these
+NARROW_UM = 1.0         # below this, narrow-width effects move the answer
+
+
+def _size_at(t: dict, gmid: float, il: int, isb: int, vds: float,
+             l_um: float) -> dict:
+    """VGS and the per-width values at gm/Id = `gmid` on one swept L and
+    VSB: where the gm/Id curve crosses `gmid` on its strong-inversion side
+    (past its peak), found with a monotone cubic (pchip) in VGS."""
     from scipy.interpolate import PchipInterpolator
 
     vgs = t["VGS"]
     w_ref = float(t["W"])
-    idc = curve(t, "ID", l_um, vds, vsb)
-    gm = curve(t, "GM", l_um, vds, vsb)
+    idc = curve(t, "ID", il, isb, vds)
+    gm = curve(t, "GM", il, isb, vds)
     ok = idc > 0
     if ok.sum() < 4:
         raise GmidError("the table carries no current at that bias")
@@ -223,7 +216,6 @@ def size(t: dict, gmid: float, id_a: float, l_um: float, vds: float = 1.65,
     if gmid < ys[-1]:
         raise GmidError(f"gm/Id={gmid:g} is below the table's lowest "
                         f"{ys[-1]:.3g} at VGS={xs[-1]:g} V")
-    # ys falls from the peak: the crossing as a root of the pchip
     k = int(np.argmax(ys <= gmid))
     if ys[k] == gmid:
         v = float(xs[k])
@@ -239,19 +231,48 @@ def size(t: dict, gmid: float, id_a: float, l_um: float, vds: float = 1.65,
         v = 0.5 * (lo + hi)
     sel = slice(max(peak - 2, 0), None)
 
-    def at(arr, log=False):
-        y = np.log(arr[sel]) if log else arr[sel]
-        r = float(PchipInterpolator(vgs[sel], y)(v))
-        return math.exp(r) if log else r
+    def at(arr):
+        return float(PchipInterpolator(vgs[sel], arr[sel])(v))
 
-    id_w = at(idc / w_ref, log=True)          # A/um
-    gds_id = at(curve(t, "GDS", l_um, vds, vsb) / np.where(ok, idc, 1))
-    cgg_w = at(curve(t, "CGG", l_um, vds, vsb) / w_ref)   # F/um
-    gm_cgg = at(gm / curve(t, "CGG", l_um, vds, vsb))
+    cgg = curve(t, "CGG", il, isb, vds)
+    idsafe = np.where(ok, idc, 1)
+    return {"VGS": v, "log_ID_W": at(np.log(idsafe / w_ref)),
+            "gds_id": at(curve(t, "GDS", il, isb, vds) / idsafe),
+            "cgg_w": at(cgg / w_ref), "gm_cgg": at(gm / cgg)}
+
+
+def size(t: dict, gmid: float, id_a: float, l_um: float, vds: float = 1.65,
+         vsb: float = 0.0) -> dict:
+    """W (um) and the small-signal values of one transistor at gm/Id =
+    `gmid` (1/V), drain current `id_a` (A) and length `l_um`, at VDS and
+    VSB. Each swept L and VSB either side of the asked one is solved on
+    its own (_size_at), and their VGS, log Id/W, gds/Id, Cgg/W and gm/Cgg
+    are then blended (L in log): neighbouring curves sit at different
+    thresholds, so blending the curves first and solving after would
+    size a device that is neither. The table's own W is the reference:
+    a W far from it (narrow-width effects) is less exact, and a W past
+    the models' widest bin comes back as m parallel devices of W_each_um.
+    """
+    rows = []
+    for il, wl in _neighbours(t["L"], l_um, "L", log=True):
+        for isb, ws in _neighbours(t["VSB"], vsb, "VSB"):
+            rows.append((wl * ws, _size_at(t, gmid, il, isb, vds, l_um)))
+    r = {k: sum(w * row[k] for w, row in rows) for k in rows[0][1]}
+    id_w = math.exp(r["log_ID_W"])            # A/um
     w_um = id_a / id_w
+    if w_um < W_MIN_UM:
+        raise GmidError(f"W={w_um:.3g} um is below the models' narrowest "
+                        f"{W_MIN_UM:g} um: raise Id, or lower gm/Id")
+    m = 1 if w_um <= W_MAX_UM else math.ceil(w_um / W_SPLIT_UM)
+    w_each = w_um / m
+    warnings = []
+    if w_each < NARROW_UM:
+        warnings.append(f"W={w_each:.3g} um is narrow against the table's "
+                        f"{float(t['W']):g} um: check it in ngspice")
     gm_s = gmid * id_a
-    cgg = cgg_w * w_um
-    return {"W_um": w_um, "L_um": l_um, "VGS": v, "VDS": vds, "VSB": vsb,
-            "ID": id_a, "gm_id": gmid, "ID_W": id_w, "gm": gm_s,
-            "gds": gds_id * id_a, "gm_gds": gmid / gds_id, "Cgg": cgg,
-            "fT": gm_cgg / (2 * math.pi), "W_ref_um": w_ref}
+    return {"W_um": w_um, "M": m, "W_each_um": w_each, "L_um": l_um,
+            "VGS": r["VGS"], "VDS": vds, "VSB": vsb, "ID": id_a,
+            "gm_id": gmid, "ID_W": id_w, "gm": gm_s,
+            "gds": r["gds_id"] * id_a, "gm_gds": gmid / r["gds_id"],
+            "Cgg": r["cgg_w"] * w_um, "fT": r["gm_cgg"] / (2 * math.pi),
+            "W_ref_um": float(t["W"]), "warnings": warnings}

@@ -9,7 +9,11 @@ on first use, refused unless it hashes to engine/reference/gmid's pin)
 and prints, as JSON, the W that carries --id at --gmid and --l, the VGS
 it sits at, and its gm, gds, gm/gds, Cgg and fT (gm / 2 pi Cgg). Values
 take SPICE suffixes (10u, 1.5m). --vds defaults to VDD/2 = 1.65 V; the
-pfet's voltages are magnitudes.
+pfet's voltages are magnitudes. A W past the models' widest bin
+(100 um) comes back as M parallel devices of W_each_um (the `spice` line
+carries m=); `warnings` flags a W narrow enough to be less exact.
+Off the swept L and VSB points the W holds to about 1% and the VGS to a
+few mV: bias the device by its current (a mirror), not by that VGS.
 
     gmid.py size --gmid 12 --id 10u --l 1u
 
@@ -57,15 +61,18 @@ def main(argv=None) -> int:
         t = gmidlib.load(a.device, a.corner)
         r = gmidlib.size(t, a.gmid, abs(a.id), a.l * 1e6, vds=a.vds,
                          vsb=a.vsb)
-    except gmidlib.GmidError as exc:
-        print(json.dumps({"ok": False, "error": str(exc),
-                          "remediation": "pick a gm/Id and L the table "
-                          "covers, or remake the table with "
-                          "engine/scripts/gmid_lut.py (--check says "
-                          "whether it still matches its pin)"}, indent=2))
+    except (gmidlib.GmidError, OSError, ValueError) as exc:
+        print(json.dumps({"ok": False, "error": str(exc)[:600],
+                          "remediation": "pick a gm/Id, Id and L the table "
+                          "covers; for a table refused on its pin, delete "
+                          "it from the cache so it is made again, and run "
+                          "engine/scripts/gmid_lut.py --check if that still "
+                          "differs"}, indent=2))
         return 2
-    r.update(ok=True, device=a.device, corner=a.corner,
-             spice=f"{a.device} w={r['W_um']:.4g}u l={r['L_um']:.4g}u")
+    spice = f"{a.device} w={r['W_each_um']:.4g}u l={r['L_um']:.4g}u"
+    if r["M"] > 1:
+        spice += f" m={r['M']}"
+    r.update(ok=True, device=a.device, corner=a.corner, spice=spice)
     print(json.dumps(r, indent=2))
     return 0
 
