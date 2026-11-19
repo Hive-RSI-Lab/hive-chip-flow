@@ -172,6 +172,13 @@ FIXER_HINTS: dict[str, str] = {
     "toggle_coverage_below_threshold": "testbench",
     "line_not_covered": "testbench",
     "toggle_not_covered": "testbench",
+    # #80: state machines and condition terms the tests never exercise
+    "fsm_coverage_below_threshold": "testbench",
+    "expr_coverage_below_threshold": "testbench",
+    "fsm_state_not_covered": "testbench",
+    "fsm_arc_not_covered": "testbench",
+    "expr_not_covered": "testbench",
+    "fsm_arcs_not_seen": "testbench",
     # cover's simdiff (#86): a test whose result differs between Icarus and
     # Verilator hangs on event order - almost always an RTL race (a
     # blocking write read by another always block on the same edge)

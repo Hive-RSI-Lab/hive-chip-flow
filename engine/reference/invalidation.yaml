@@ -237,7 +237,7 @@ gate_inputs:
     # file under formal/ or rtl/ at all, and without this a stale recorded
     # PASS from before the depth changed would still read as fresh.
     formal:    [rtl, formal, spec_yaml]
-    # cover reads `top` and `cover: {line_min, toggle_min}`, synth reads
+    # cover reads `top` and `cover: {line_min, toggle_min, fsm_min, expr_min}`, synth reads
     # `top`: both used to have no spec input at all, so a threshold or top
     # edit left their passes fresh. cover takes the whole file, so a
     # `formal:` edit stales it too (spec_formal_edit's own set).

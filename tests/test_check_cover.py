@@ -141,6 +141,221 @@ def test_exclusion_removes_a_point_from_the_denominator():
     assert violations2 == []
 
 
+# #80: a state machine whose tests enter every state and flip every bit,
+# but never take the RUN->IDLE abort - line and toggle are both 100%.
+RTL_FSM_SKIPPED_ARC = """\
+module top (input wire clk, input wire rst, input wire go, input wire stop,
+            output reg [1:0] state);
+  localparam IDLE = 2'd0, RUN = 2'd1, DONE = 2'd2, HOLD = 2'd3;
+  always @(posedge clk) begin
+    if (rst) state <= IDLE;
+    else case (state)
+      IDLE: state <= go ? RUN : IDLE;
+      RUN: state <= stop ? IDLE : DONE;
+      DONE: state <= HOLD;
+      HOLD: state <= IDLE;
+    endcase
+  end
+endmodule
+"""
+
+TB_FSM = """\
+import cocotb
+from cocotb.clock import Clock
+from cocotb.triggers import FallingEdge
+
+@cocotb.test()
+async def test_walks_every_state(dut):
+    cocotb.start_soon(Clock(dut.clk, 10, unit="ns").start())
+    dut.go.value = 0
+    dut.stop.value = 1
+    dut.rst.value = 1
+    await FallingEdge(dut.clk)
+    dut.rst.value = 0
+    await FallingEdge(dut.clk)
+    for _ in range(3):
+        dut.go.value = 1
+        await FallingEdge(dut.clk)       # IDLE -> RUN (stop drops below)
+        dut.go.value = 0
+        dut.stop.value = 0
+        await FallingEdge(dut.clk)       # RUN -> DONE
+        dut.stop.value = 1              # stop toggles, but only in DONE/HOLD/IDLE
+        await FallingEdge(dut.clk)       # DONE -> HOLD
+        await FallingEdge(dut.clk)       # HOLD -> IDLE
+        await FallingEdge(dut.clk)       # IDLE -> IDLE
+        assert int(dut.state.value) == 0
+"""
+
+# #80: `a && b` evaluated only while en is high, and b is held high
+# whenever en is - b toggles, the line runs, yet b never decides y.
+RTL_EXPR_TERM = """\
+module top (input wire clk, input wire en, input wire a, input wire b,
+            output reg y);
+  always @(posedge clk) if (en) y <= a && b;
+endmodule
+"""
+
+TB_EXPR = """\
+import cocotb
+from cocotb.clock import Clock
+from cocotb.triggers import FallingEdge
+
+@cocotb.test()
+async def test_and_gate(dut):
+    cocotb.start_soon(Clock(dut.clk, 10, unit="ns").start())
+    for en, a, b in [(0, 0, 0), (1, 0, 1), (1, 1, 1), (0, 1, 0), (1, 0, 1),
+                     (1, 1, 1), (0, 0, 0)]:
+        dut.en.value, dut.a.value, dut.b.value = en, a, b
+        await FallingEdge(dut.clk)
+        if en:
+            assert int(dut.y.value) == (a & b)
+"""
+
+
+def _errors_and_infos(out):
+    return ({v["kind"]: v for v in out["violations"] if v["severity"] == "error"},
+            [v for v in out["violations"] if v["severity"] == "info"])
+
+
+@pytest.mark.slow
+def test_fsm_skipped_transition_fails_naming_it(tmp_path, capsys):
+    ws = make_ws(tmp_path, RTL_FSM_SKIPPED_ARC)
+    (ws / "tb" / "test_top.py").write_text(TB_FSM, encoding="utf-8")
+    code = check_cover.main(["--workspace", str(ws)])
+    out = json.loads(capsys.readouterr().out)
+    assert code == 1, out
+    # line and toggle alone would have passed this suite
+    assert out["line_pct"] == 100.0 and out["toggle_pct"] == 100.0
+    errors, infos = _errors_and_infos(out)
+    assert set(errors) == {"fsm_coverage_below_threshold"}, errors
+    assert "top.state::RUN->IDLE" in errors["fsm_coverage_below_threshold"]["msg"]
+    arcs = [v["label"] for v in infos if v["kind"] == "fsm_arc_not_covered"]
+    assert arcs == ["top.state::RUN->IDLE"]
+    assert not any(v["kind"] == "fsm_state_not_covered" for v in infos)
+    assert gate.evaluate("cover", _cover_gate_row(), out)["status"] == "fail"
+
+    # the owner's reasoned exclusion of that one arc passes the gate
+    (ws / "rtl" / "cover_exclude.yaml").write_text(
+        "- file: top.v\n  line: 6\n  label: top.state::RUN->IDLE\n"
+        "  reason: the stop arc is covered by the system test, not this block's\n",
+        encoding="utf-8")
+    code = check_cover.main(["--workspace", str(ws)])
+    out = json.loads(capsys.readouterr().out)
+    assert code == 0, out
+    assert out["fsm_pct"] == 100.0
+
+
+@pytest.mark.slow
+def test_expr_term_never_deciding_fails_naming_it(tmp_path, capsys):
+    ws = make_ws(tmp_path, RTL_EXPR_TERM)
+    (ws / "tb" / "test_top.py").write_text(TB_EXPR, encoding="utf-8")
+    (ws / "spec" / "spec.yaml").write_text(
+        "top: top\nrequirements: []\ncover: {expr_min: 100}\n",
+        encoding="utf-8")
+    code = check_cover.main(["--workspace", str(ws)])
+    out = json.loads(capsys.readouterr().out)
+    assert code == 1, out
+    assert out["line_pct"] == 100.0 and out["toggle_pct"] == 100.0
+    errors, infos = _errors_and_infos(out)
+    assert set(errors) == {"expr_coverage_below_threshold"}, errors
+    assert [v["label"] for v in infos if v["kind"] == "expr_not_covered"] \
+        == ["(b==0) => 0"]
+    assert out["fsm_total"] == 0 and out["fsm_pct"] is None
+
+
+def _dat_line(count, **keys):
+    body = "".join(f"\x01{k}\x02{v}" for k, v in keys.items())
+    return f"C '{body}' {count}\n"
+
+
+def test_parse_dat_reads_fsm_and_expr_points_only(tmp_path):
+    dat = tmp_path / "coverage.dat"
+    dat.write_text(
+        "# SystemC::Coverage-3\n"
+        + _dat_line(4, f="rtl/top.v", l=6, t="fsm_arc", o="top.s::ANY->A[reset]",
+                    Fv="top.s", Ff="ANY", Ft="A", Fg="reset")
+        + _dat_line(0, f="rtl/top.v", l=6, t="fsm_arc", o="top.s::A->B",
+                    Fv="top.s", Ff="A", Ft="B")
+        + _dat_line(2, f="rtl/top.v", l=6, t="fsm_state", o="top.s::A",
+                    Fv="top.s", Ft="A")
+        + _dat_line(3, f="rtl/top.v", l=9, t="expr", o="(a==1 && b==1) => 1")
+        + _dat_line(7, f="rtl/top.v", l=9, t="branch", o="if")
+        + _dat_line(7, f="rtl/top.v", l=9, t="toggle", o="a:0->1"),
+        encoding="utf-8")
+    pts = check_cover.parse_dat(dat)
+    assert [(p["kind"], p["label"], p["count"]) for p in pts] == [
+        ("fsm_arc", "top.s::ANY->A[reset]", 4), ("fsm_arc", "top.s::A->B", 0),
+        ("fsm_state", "top.s::A", 2), ("expr", "(a==1 && b==1) => 1", 3)]
+    assert pts[0]["reset"] and not pts[1]["reset"]
+    assert (pts[1]["var"], pts[1]["from"], pts[1]["to"]) == ("top.s", "A", "B")
+
+
+def _pt(kind, label, count, line=6, **fsm):
+    return {"kind": kind, "file": "/ws/rtl/top.v", "line": line,
+            "label": label, "count": count, "var": fsm.get("var"),
+            "from": fsm.get("frm"), "to": fsm.get("to"),
+            "reset": fsm.get("reset", False)}
+
+
+NO_EXCLUDES = {"line": {}, "toggle": {}}
+
+
+def test_count_fsm_expr_thresholds_and_exclusions():
+    pts = [_pt("fsm_state", "top.s::A", 3, var="top.s", to="A"),
+           _pt("fsm_state", "top.s::B", 1, var="top.s", to="B"),
+           _pt("fsm_arc", "top.s::ANY->A[reset]", 1, var="top.s", frm="ANY",
+               to="A", reset=True),
+           _pt("fsm_arc", "top.s::A->B", 1, var="top.s", frm="A", to="B"),
+           _pt("fsm_arc", "top.s::B->A", 0, var="top.s", frm="B", to="A"),
+           _pt("expr", "(a==0) => 0", 5, line=9),
+           _pt("expr", "(b==0) => 0", 0, line=9),
+           _pt("fsm_state", "top.x::Q", 0, var="top.x", to="Q") | {
+               "file": "/ws/tb/helper.v"}]  # not the DUT's rtl: ignored
+    v, c = check_cover.count_fsm_expr(pts, {"top.v"}, NO_EXCLUDES, 100.0, 90.0)
+    assert (c["fsm_covered"], c["fsm_total"]) == (4, 5)
+    assert (c["expr_covered"], c["expr_total"]) == (1, 2)
+    kinds = sorted(x["kind"] for x in v)
+    assert kinds == ["expr_coverage_below_threshold", "expr_not_covered",
+                     "fsm_arc_not_covered", "fsm_coverage_below_threshold"]
+    fsm_err = next(x for x in v if x["kind"] == "fsm_coverage_below_threshold")
+    assert fsm_err["missed"] == ["top.v:6 top.s::B->A"]
+
+    ex = {"line": {}, "toggle": {("top.v", 6, "top.s::B->A"): "why",
+                                 ("top.v", 9, "(b==0) => 0"): "why"}}
+    v, c = check_cover.count_fsm_expr(pts, {"top.v"}, ex, 100.0, 90.0)
+    assert v == [] and c["fsm_pct"] == 100.0 and c["expr_pct"] == 100.0
+
+
+def test_count_fsm_expr_with_none_has_no_threshold():
+    v, c = check_cover.count_fsm_expr([], {"top.v"}, NO_EXCLUDES, 100.0, 90.0)
+    assert v == []
+    assert c == {"fsm_pct": None, "fsm_covered": 0, "fsm_total": 0,
+                 "expr_pct": None, "expr_covered": 0, "expr_total": 0}
+
+
+def test_state_with_no_extracted_transition_is_named():
+    # Verilator saw states A and B but no arc out of B (an else-if chain):
+    # a count it never made must not read as coverage
+    pts = [_pt("fsm_state", "top.s::A", 1, var="top.s", to="A"),
+           _pt("fsm_state", "top.s::B", 1, var="top.s", to="B", line=8),
+           _pt("fsm_arc", "top.s::ANY->A[reset]", 1, var="top.s", frm="ANY",
+               to="A", reset=True),
+           _pt("fsm_arc", "top.s::A->B", 1, var="top.s", frm="A", to="B")]
+    v, _ = check_cover.count_fsm_expr(pts, {"top.v"}, NO_EXCLUDES, 100.0, 90.0)
+    assert [(x["kind"], x["severity"], x["states"]) for x in v] == [
+        ("fsm_arcs_not_seen", "info", ["B"])]
+
+
+def test_new_cover_kinds_route_to_testbench_with_a_remediation():
+    import cluster_violations
+    rem = REPO / "skills" / "vde" / "reference" / "remediations"
+    for kind in ("fsm_coverage_below_threshold", "expr_coverage_below_threshold",
+                 "fsm_arc_not_covered", "fsm_state_not_covered",
+                 "expr_not_covered", "fsm_arcs_not_seen"):
+        assert cluster_violations.FIXER_HINTS[kind] == "testbench", kind
+        assert (rem / f"{kind}.md").is_file(), kind
+
+
 RTL_SYNTAX_ERROR = """\
 module top (input wire clk, input wire rst, output reg [3:0] count);
   always @(posedge clk) count <= rst ? 4'd0 : count + 4'd1
