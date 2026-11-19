@@ -1,7 +1,7 @@
 {
  "skill": "vde",
  "block": "r2r_dac",
- "ts": "2026-11-18T18:25:24",
+ "ts": "2026-11-19T02:10:34",
  "pdk": {
   "name": "gf180mcuD",
   "open_pdks": "1689ac3f2dc763876eaf967227c7dfe831b031ae",
@@ -35,11 +35,13 @@
    "tool": "cover",
    "version": 1,
    "status": "pass",
-   "attempts": 9,
-   "ts": "2026-11-05T19:28:39",
+   "attempts": 10,
+   "ts": "2026-11-19T02:03:13",
    "inputs": {
     "rtl": "dir_text:5b5e3748612f45afdfaedc1d7e6daa228ca0e64c09072bc4ac8b8b6275a6d995",
     "tb": "dir_text:04af66bc6eb7fca3a2248c8ba77586ee3233d41be6fc978dfde7a7fb936be615",
+    "holdout": "dir_text:f65967855cfae892ca16aceed451dd4323f7ed8ab336a3bc796d08c755f77a96",
+    "cover_points": null,
     "spec_yaml": "json_canonical:316aabe3e699eb67a766fb42296b9a90d765394b6deefb2d5178cc8865c08bbf"
    },
    "reason": null
@@ -52,8 +54,8 @@
    "tool": "drc",
    "version": 1,
    "status": "pass",
-   "attempts": 16,
-   "ts": "2026-11-18T18:24:46",
+   "attempts": 17,
+   "ts": "2026-11-19T02:07:24",
    "inputs": {
     "harden": "harden_signoff:857853e12358b7137b1d3595ab578ac6079a9d2e0161f7469c877da78139ad68",
     "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119",
@@ -88,8 +90,8 @@
    "tool": "glsim",
    "version": 1,
    "status": "pass",
-   "attempts": 17,
-   "ts": "2026-11-18T18:24:52",
+   "attempts": 18,
+   "ts": "2026-11-19T02:08:36",
    "inputs": {
     "harden": "harden_signoff:857853e12358b7137b1d3595ab578ac6079a9d2e0161f7469c877da78139ad68",
     "tb": "dir_text:04af66bc6eb7fca3a2248c8ba77586ee3233d41be6fc978dfde7a7fb936be615",
@@ -106,8 +108,8 @@
    "tool": "harden",
    "version": 1,
    "status": "pass",
-   "attempts": 28,
-   "ts": "2026-11-18T18:24:18",
+   "attempts": 29,
+   "ts": "2026-11-19T02:05:22",
    "inputs": {
     "rtl": "dir_text:5b5e3748612f45afdfaedc1d7e6daa228ca0e64c09072bc4ac8b8b6275a6d995",
     "harden_config": "json_canonical_sans_roots:ab14269c69db89715552ce0dd70eaa0b41c7bb91ada8983289e759db57718239",
@@ -149,8 +151,8 @@
    "tool": "lec",
    "version": 1,
    "status": "pass",
-   "attempts": 17,
-   "ts": "2026-11-18T18:24:57",
+   "attempts": 18,
+   "ts": "2026-11-19T02:10:08",
    "inputs": {
     "harden": "harden_signoff:857853e12358b7137b1d3595ab578ac6079a9d2e0161f7469c877da78139ad68",
     "rtl": "dir_text:5b5e3748612f45afdfaedc1d7e6daa228ca0e64c09072bc4ac8b8b6275a6d995",
@@ -184,8 +186,8 @@
    "tool": "lvs",
    "version": 1,
    "status": "pass",
-   "attempts": 16,
-   "ts": "2026-11-18T18:24:47",
+   "attempts": 17,
+   "ts": "2026-11-19T02:08:00",
    "inputs": {
     "harden": "harden_signoff:857853e12358b7137b1d3595ab578ac6079a9d2e0161f7469c877da78139ad68",
     "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119",
@@ -222,8 +224,8 @@
    "tool": "precheck",
    "version": 1,
    "status": "pass",
-   "attempts": 15,
-   "ts": "2026-11-18T18:25:23",
+   "attempts": 16,
+   "ts": "2026-11-19T02:09:32",
    "inputs": {
     "harden": "harden_signoff:857853e12358b7137b1d3595ab578ac6079a9d2e0161f7469c877da78139ad68",
     "harden_info": "json_canonical:e722bc7d8de703255711480061816e03c2199ce2ea6dff004d19c5a958436590",
@@ -309,8 +311,8 @@
    "tool": "timing",
    "version": 1,
    "status": "pass",
-   "attempts": 26,
-   "ts": "2026-11-18T18:24:22",
+   "attempts": 27,
+   "ts": "2026-11-19T02:05:56",
    "inputs": {
     "harden": "harden_signoff:857853e12358b7137b1d3595ab578ac6079a9d2e0161f7469c877da78139ad68",
     "spec_yaml_sans_formal": "json_canonical_sans_formal:ed8f31d7b49d1395e51d6ee5b8f5bdd0ed70710413c640dc29961fe29e015119",
@@ -363,7 +365,7 @@
    "librelane_pdk": "f6eeac7dad085ffcc829ccfd721f7b4ce39edcf7",
    "tt_support_tools": "9d13ff3e3e6202090740110438c6a10c1d62ca0f",
    "gds": "harden/runs/run/final/gds/tt_um_r2r_dac_digital.gds",
-   "gds_sha256": "fb90b7a3fda5109117699fc27db74438743fbb5d9f9b5cf8c9f3b85e242d8685",
+   "gds_sha256": "a7ea4ce0afb09f71e7a0c80015f7963d38bb27bcb7aff6d21d6fbb9379ad9a43",
    "lef": "harden/runs/run/final/lef/tt_um_r2r_dac_digital.lef",
    "lef_sha256": "6182f566d93304f88698ec2c46832da1d2fbd8e3c2350cf541950bee17ba3a03",
    "gl": "harden/runs/run/final/pnl/tt_um_r2r_dac_digital.pnl.v",
@@ -379,7 +381,7 @@
     "top_module": "tt_um_r2r_dac_digital",
     "pdk": "gf180mcuD",
     "gds_path": "gds/tt_um_r2r_dac_digital.gds",
-    "gds_sha256": "fb90b7a3fda5109117699fc27db74438743fbb5d9f9b5cf8c9f3b85e242d8685",
+    "gds_sha256": "a7ea4ce0afb09f71e7a0c80015f7963d38bb27bcb7aff6d21d6fbb9379ad9a43",
     "lef_path": "lef/tt_um_r2r_dac_digital.lef",
     "lef_sha256": "6182f566d93304f88698ec2c46832da1d2fbd8e3c2350cf541950bee17ba3a03",
     "verilog_path": "gl/tt_um_r2r_dac_digital.v",
@@ -388,7 +390,7 @@
    }
   ],
   "manifest": "release/manifest.json",
-  "manifest_sha256": "117a0f18f1363a45940272febae9c4da04444519372450dcbe17f0df860fe5ce"
+  "manifest_sha256": "28f76ee9561d29a57f3bff7e4bb44c63f57ff4559559d80715bb4cefdd3a29cc"
  },
- "attestation_sha256": "e44642310f0961ea6f0f954f3dae79dba7caa066243f4a2a8705b8de4615c7a4"
+ "attestation_sha256": "5b2e201b7c1aa544a8432447268838759b167b2c7d955419570dcbcedcbd5328"
 }

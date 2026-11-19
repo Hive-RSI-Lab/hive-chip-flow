@@ -77,6 +77,16 @@ instances must be hit in each. cover_exclude.yaml never removes a
 requirement's cover point. A cover no requirement names is counted
 (`user_pct`) and a missed one is an info `cover_point_not_hit`.
 
+Holdout merged (#80c): when holdout/ has tests, they run once more on the
+same coverage build and `verilator_coverage --write` sums the two
+coverage.dat files into log/coverage_merged.dat (log/coverage_merged.info
+its --write-info). The report's `merged` block carries the merged counts
+and percentages (line, toggle, fsm, expr, user) and nothing else: no
+holdout point, label or test name. Every top-level count, every finding
+and the verdict stay tb-only, so a point only a holdout test reaches still
+fails the gate (the fixer must cover it from tb/). `merged` is null when
+the block has no holdout tests.
+
 Fault this gate must catch (gates.yaml): "an unreachable state" - a branch
 or line the visible tb/ suite never reaches, dragging line coverage below
 `line_min`.
@@ -123,6 +133,11 @@ ICARUS_RESULTS_NAME = "cover_icarus_results.xml"
 SIMULATORS = ("icarus", "verilator")
 INFO_NAME = "log/coverage.info"
 DAT_NAME = "log/coverage.dat"
+HOLDOUT_SUBDIR = "holdout"
+HOLDOUT_RESULTS_NAME = "cover_holdout_results.xml"
+HOLDOUT_DAT_NAME = "log/coverage_holdout.dat"
+MERGED_DAT_NAME = "log/coverage_merged.dat"
+MERGED_INFO_NAME = "log/coverage_merged.info"
 EXCLUDE_REL = "rtl/cover_exclude.yaml"
 COVER_DIR = "cover"  # bind files of SV cover points, Verilator cover only
 DEFAULT_LINE_MIN = 95.0
@@ -184,7 +199,8 @@ def load_excludes(ws: Path) -> dict[str, dict]:
 
 def run_coverage(ws: Path, top: str, sources: list[Path],
                  seed: int | None = None,
-                 cover_sources: list[Path] | None = None) -> Path:
+                 cover_sources: list[Path] | None = None,
+                 holdout_seed: int | None = None) -> tuple[Path, Path | None]:
     """cocotb over the verilator simulator, --coverage instrumented.
     `runner.test()`'s own `test_dir` is where the compiled simulation
     binary actually RUNS (proved empirically - not `ws`, whatever cwd this
@@ -195,7 +211,13 @@ def run_coverage(ws: Path, top: str, sources: list[Path],
     the `tb` artifact kind (invalidation.yaml) for sim/mutate/holdout too,
     and a stray coverage.dat left sitting in tb/ would flip THEIR recorded
     input hash on every cover run, marking them stale for a reason that has
-    nothing to do with the design under test."""
+    nothing to do with the design under test.
+
+Returns (tb-only info path, holdout coverage.dat or None). When holdout/
+has tests they run once more on the same build (holdout_seed, no pad
+frame: the same top the tb run drives, so the two .dat files share their
+points) and their coverage.dat is moved to log/, out of holdout/ (a
+hashed artifact, like tb/)."""
     from cocotb_tools.runner import get_runner
 
     build_dir = ws / BUILD_SUBDIR
@@ -261,9 +283,81 @@ def run_coverage(ws: Path, top: str, sources: list[Path],
                              "coverage binary)")
         info = write_coverage_info(ws, coverage_dat)
         shutil.copyfile(coverage_dat, ws / DAT_NAME)
-        return info
+        coverage_dat.unlink()
+
+        holdout_dir = ws / HOLDOUT_SUBDIR
+        holdout_modules = cocotblib.test_modules(holdout_dir) \
+            if holdout_dir.is_dir() else []
+        if not holdout_modules:
+            (ws / HOLDOUT_DAT_NAME).unlink(missing_ok=True)
+            return info, None
+        holdout_coverage_dat = holdout_dir / "coverage.dat"
+        holdout_coverage_dat.unlink(missing_ok=True)
+        try:
+            try:
+                runner.test(hdl_toplevel=top, test_module=holdout_modules,
+                            test_dir=str(holdout_dir),
+                            build_dir=str(build_dir),
+                            results_xml=str(ws / "log" /
+                                            HOLDOUT_RESULTS_NAME),
+                            log_file=str(build_dir / "cover_holdout.log"),
+                            seed=holdout_seed)
+            except Exception as exc:  # noqa: BLE001
+                raise CheckError(
+                    "cocotb-over-verilator holdout coverage run failed: "
+                    f"{type(exc).__name__}") from exc
+            if not holdout_coverage_dat.is_file():
+                raise CheckError("the holdout coverage run wrote no "
+                                 "coverage.dat")
+            shutil.copyfile(holdout_coverage_dat, ws / HOLDOUT_DAT_NAME)
+        finally:
+            holdout_coverage_dat.unlink(missing_ok=True)
+        return info, ws / HOLDOUT_DAT_NAME
     finally:
         coverage_dat.unlink(missing_ok=True)
+
+
+def merge_coverage(ws: Path, dats: list[Path]) -> tuple[Path, Path]:
+    """`verilator_coverage --write` the points of several coverage.dat
+    files summed into log/coverage_merged.dat, then `--write-info` it to
+    log/coverage_merged.info. Returns (merged .dat, merged .info)."""
+    merged = ws / MERGED_DAT_NAME
+    proc = checklib.run_tool(
+        [str(EDA_BIN), "verilator_coverage", "--write", str(merged)]
+        + [str(d) for d in dats],
+        cwd=str(ws), capture_output=True, text=True, encoding="utf-8",
+        errors="replace", wall=TIMEOUT_S)
+    if proc.returncode != 0 or not merged.is_file():
+        raise CheckError(
+            f"verilator_coverage --write exited {proc.returncode}: "
+            f"{(proc.stderr or proc.stdout)[-2000:]}")
+    return merged, write_coverage_info(ws, merged, MERGED_INFO_NAME)
+
+
+def merged_counts(info_path: Path, dat_path: Path, rtl_names: set[str],
+                  cover_names: set[str], excludes: dict[str, dict],
+                  requirements: list) -> dict:
+    """Counts and percentages only over the tb+holdout merge: the
+    findings are dropped, so no holdout point, label or test reaches the
+    report, and the gate's verdict stays the tb-only one."""
+    _, c = count_coverage(parse_info(info_path), rtl_names, excludes,
+                          0.0, 0.0)
+    points = parse_dat(dat_path)
+    _, fe = count_fsm_expr(points, rtl_names, excludes, 0.0, 0.0)
+    _, req = count_requirement_covers(points, rtl_names | cover_names,
+                                      requirements)
+    out = {"line_pct": checklib.rnd(c["line_pct"]),
+           "line_covered": c["line_covered"], "line_total": c["line_total"],
+           "toggle_pct": checklib.rnd(c["toggle_pct"]),
+           "toggle_covered": c["toggle_covered"],
+           "toggle_total": c["toggle_total"]}
+    for group in ("fsm", "expr", "user"):
+        for k in ("pct", "covered", "total"):
+            key = f"{group}_{k}"
+            src = req if group == "user" else fe
+            if key in src:
+                out[key] = src[key]
+    return out
 
 
 def timed(fn, *args, **kwargs):
@@ -330,12 +424,13 @@ def simdiff(results: dict[str, dict[str, dict]]) -> tuple[list[dict], dict]:
     return violations, table
 
 
-def write_coverage_info(ws: Path, coverage_dat: Path) -> Path:
+def write_coverage_info(ws: Path, coverage_dat: Path,
+                        info_name: str = INFO_NAME) -> Path:
     """`verilator_coverage --write-info` on its own - split out from
     run_coverage() so a launcher failure here (bin/eda missing, exit 127,
     EDA_TOOLCHAIN pointed nowhere) is testable without a real cocotb+
     verilator build in front of it."""
-    info_path = ws / INFO_NAME
+    info_path = ws / info_name
     info_path.parent.mkdir(parents=True, exist_ok=True)
     proc = checklib.run_tool(
         [str(EDA_BIN), "verilator_coverage", "--write-info",
@@ -436,8 +531,10 @@ def run(argv=None):
 
     # the same bench as sim, so coverage counts sim's own draw
     seed = cocotblib.sim_seed(spec, ws / "tb", args.seed)
-    info_path, verilator_cost = timed(run_coverage, ws, top, sources, seed,
-                                      cover_sources)
+    holdout_seed = cocotblib.sim_seed(spec, ws / HOLDOUT_SUBDIR, args.seed) \
+        if (ws / HOLDOUT_SUBDIR).is_dir() else None
+    (info_path, holdout_dat), verilator_cost = timed(
+        run_coverage, ws, top, sources, seed, cover_sources, holdout_seed)
     per_file = parse_info(info_path)
     rtl_names = {f.name for f in sources}
     cover_names = {f.name for f in cover_sources}
@@ -451,6 +548,14 @@ def run(argv=None):
     more, req_counts = count_requirement_covers(
         points, rtl_names | cover_names, spec.get("requirements") or [])
     violations += more
+
+    merged = None
+    if holdout_dat is not None:
+        merged_dat, merged_info = merge_coverage(
+            ws, [ws / DAT_NAME, holdout_dat])
+        merged = merged_counts(merged_info, merged_dat, rtl_names,
+                               cover_names, excludes,
+                               spec.get("requirements") or [])
 
     icarus_xml, icarus_cost = timed(run_icarus, ws, top, sources, seed)
     diffs, per_test = simdiff({
@@ -466,7 +571,7 @@ def run(argv=None):
         line_covered=counts["line_covered"], line_total=counts["line_total"],
         toggle_covered=counts["toggle_covered"],
         toggle_total=counts["toggle_total"],
-        **fe_counts, **req_counts,
+        **fe_counts, **req_counts, merged=merged,
         simdiff={"agree": not diffs, "tests": per_test,
                  "runs": {"icarus": icarus_cost,
                           "verilator": verilator_cost}})

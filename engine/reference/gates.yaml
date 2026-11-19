@@ -140,7 +140,8 @@ gates:
         state and transition Verilator extracts (100%), and expression terms
         at or above 90% on the DUT; exclusions carry reasons. Every SV
         cover point a spec.yaml requirement names (cover: [LABEL]) is hit
-        by the visible tests.
+        by the visible tests. When holdout/ has tests, the tb+holdout
+        merged percentages are reported too, never judged.
     reset_indep:
       phase: P4
       tool: reset_indep

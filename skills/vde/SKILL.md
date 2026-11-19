@@ -235,7 +235,7 @@ On gate fail (exit 1, result JSON has `failing` with a `kind`/`file`/
    |---|---|---|
    | rtl | rtl_edit | the design's own text moved |
    | testbench | tb_edit | tb/ moved - re-run sim, mutate, cover |
-   | holdout_stimulus | holdout_stimulus_edit | holdout/ stimulus moved; `--baseline pre-fix-holdout-a<attempt>` is required, and the edit is refused if an assert, bound or expected value moved (check_holdout_edit.py) |
+   | holdout_stimulus | holdout_stimulus_edit | holdout/ stimulus moved (re-run holdout, cover); `--baseline pre-fix-holdout-a<attempt>` is required, and the edit is refused if an assert, bound or expected value moved (check_holdout_edit.py) |
    | formal | formal_edit | formal/ moved - re-run formal, mutate |
    | formal | spec_formal_edit | only spec.yaml's `formal:` key moved (depth, cover_depth) - re-run formal, cover, xprop, mutate; declare both classes when formal/ moved too |
    | synth | rtl_edit | a synth finding is almost always an RTL fix (fix_dispatch's own guidance) - the edit still lands in rtl/ |
