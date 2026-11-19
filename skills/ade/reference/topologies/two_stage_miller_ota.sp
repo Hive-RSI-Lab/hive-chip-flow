@@ -23,6 +23,16 @@
 *                   |
 *        ibias --- xmt              (xmb: ibias diode to vss)
 *
+* GM/ID STARTING POINT (#102, engine/lib/gmidlib.py's pinned tables):
+*   gm1 = 2*pi*GBW*Cc fixes gm1; Itail/2 = gm1 / (gm/Id)_1 (12-16 /V for
+*   the input pair), gm6 >= ~2.2*gm1*CL/Cc at (gm/Id)_6 ~ 10-12 gives
+*   stage 2's current; each W = Id / (Id/W)(gm/Id, L), and
+*   A0 ~= (gm/gds)_1 * (gm/gds)_6 / 4 with the table's gm/gds at each L:
+*     eda python engine/scripts/gmid.py size --device pfet_03v3
+*         --gmid 12 --id 50u --l 1u
+*     -> pfet_03v3 w=150.9u l=1u, VGS 0.90 V (a pfet carries ~1/4 the
+*        nfet's Id/W at the same gm/Id here)
+*
 * DESIGN EQUATIONS (square-law starting point; the benches decide):
 *   gm1 = sqrt(2 * un*Cox * (W/L)_1 * Itail/2)      Itail = Ib * w_t/w_b
 *   GBW = ugf ~= gm1 / (2*pi*Cc)

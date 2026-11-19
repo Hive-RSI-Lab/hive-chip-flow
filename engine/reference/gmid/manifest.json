@@ -1,0 +1,79 @@
+{
+  "generator": "engine/scripts/gmid_lut.py",
+  "grid": {
+    "L_um": [
+      0.28,
+      0.35,
+      0.5,
+      0.7,
+      1.0,
+      1.5,
+      2.0,
+      3.0,
+      5.0,
+      10.0
+    ],
+    "VDS": [
+      0.0,
+      3.3,
+      0.05
+    ],
+    "VGS": [
+      0.0,
+      3.3,
+      0.05
+    ],
+    "VSB": [
+      0.0,
+      0.4,
+      0.8,
+      1.2
+    ],
+    "W_um": 10.0
+  },
+  "note": "pins only: the tables are made into gmidlib.cache_dir() on first use and refused unless they hash to these",
+  "tables": {
+    "gf180_nfet_03v3_ff.mat": {
+      "corner": "ff",
+      "device": "nfet_03v3",
+      "section": "ff",
+      "sha256": "f882c9367b5d4490273ad6e988019bad8f5ef66a53aa4a2fba468d0d7c992799",
+      "temp_c": -40.0
+    },
+    "gf180_nfet_03v3_ss.mat": {
+      "corner": "ss",
+      "device": "nfet_03v3",
+      "section": "ss",
+      "sha256": "67c305aacd75b9a92fa9f0f07f689a338fa2c44dee93aaf06eafdcf342404114",
+      "temp_c": 125.0
+    },
+    "gf180_nfet_03v3_tt.mat": {
+      "corner": "tt",
+      "device": "nfet_03v3",
+      "section": "typical",
+      "sha256": "471ebaf4fcebaf3693cab8331f80acdbf96f8e857781249a5104b5c7f71c25c8",
+      "temp_c": 27.0
+    },
+    "gf180_pfet_03v3_ff.mat": {
+      "corner": "ff",
+      "device": "pfet_03v3",
+      "section": "ff",
+      "sha256": "9bc257729e14efb614e9f75a35f10aac66d5cf2c56f2cd7efc35f3b3416210ec",
+      "temp_c": -40.0
+    },
+    "gf180_pfet_03v3_ss.mat": {
+      "corner": "ss",
+      "device": "pfet_03v3",
+      "section": "ss",
+      "sha256": "d045e83db2ab960b7274754e97d687eb74c1a48db6d8438ace4bd30c80d55930",
+      "temp_c": 125.0
+    },
+    "gf180_pfet_03v3_tt.mat": {
+      "corner": "tt",
+      "device": "pfet_03v3",
+      "section": "typical",
+      "sha256": "c8b064b6ab50fdd91fcf2fd1992af50efe7669fdb48e59ab38c9b2c0a2ea5aa9",
+      "temp_c": 27.0
+    }
+  }
+}

@@ -74,7 +74,10 @@ edit it.
 2. Write `sizing/sizing.yaml`: one entry per sized parameter, each with a
    `value` inside a `min`/`max` you pick from the topology header's own
    sizing-bounds section - an entry with no bound makes `optimise` search
-   over everything, which proves nothing.
+   over everything, which proves nothing. Start each transistor's `value`
+   from the header's gm/Id block, not the square law: `$CFH/bin/eda python
+   $CFH/engine/scripts/gmid.py size --gmid G --id I --l L [--device
+   pfet_03v3]` reads the pinned gf180 table and prints W, VGS, gm/gds and fT.
 3. Self-check, cheapest first, each through `$CFH/bin/eda python
    $CFH/engine/scripts/gate.py --gate <g> --skill ade --workspace <ws>`:
    `netlist_lint` (PDK models, declared devices, no floating node, a clean
