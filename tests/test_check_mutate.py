@@ -557,6 +557,56 @@ def test_pdr_timeout_is_not_a_proof(tmp_path):
     assert "pdr" in why and "timeout" in why.lower(), why
 
 
+# ---- the pdr proofs share one budget (#82e) ----------------------------------
+def test_pdr_budget_splits_what_is_left_over_unfinished_waves():
+    now = [0.0]
+    b = check_mutate.PdrBudget(120, 1800, pending=4, jobs=2,
+                               clock=lambda: now[0])
+    assert b.take() == 60          # 4 proofs in 2 waves share 120 s
+    now[0] = 60
+    b.finish()
+    b.finish()
+    assert b.take() == 60          # 60 s left, one wave left
+    capped = check_mutate.PdrBudget(1000, 30, pending=1, jobs=1,
+                                    clock=lambda: 0.0)
+    assert capped.take() == 30     # never more than --pdr-timeout
+
+
+def test_pdr_budget_spent_gives_zero_not_a_sliver():
+    now = [0.0]
+    b = check_mutate.PdrBudget(100, 1800, pending=1, jobs=1,
+                               clock=lambda: now[0])
+    now[0] = 100 - check_mutate.PDR_MIN_S / 2
+    assert b.take() == 0
+    now[0] = 500
+    assert b.take() == 0
+
+
+def test_proof_budget_flag_defaults_to_the_constant():
+    assert check_mutate.parse_args(["--workspace", "w"]).proof_budget \
+        == check_mutate.PROOF_BUDGET_S
+    assert check_mutate.parse_args(
+        ["--workspace", "w", "--proof-budget", "600"]).proof_budget == 600
+
+
+@pytest.mark.slow
+def test_spent_proof_budget_leaves_a_survivor_not_a_proof(tmp_path):
+    # the same reachable-only mutant pdr proves above, with no budget left
+    il, eq = make_reach_il(tmp_path)
+    mutant = {"id": 1, "survived": True,
+              "mutation": f"mutate -mode const0 -module top -cell {eq} "
+                          "-port A -portbit 7"}
+    proofs = check_mutate.prove_survivors(il, [mutant], tmp_path / "e", 1,
+                                          budget_s=0)
+    assert not proofs[1].startswith(check_mutate.PROVEN), proofs
+    assert check_mutate.BUDGET_CUT in proofs[1], proofs
+    assert not (tmp_path / "e" / "1" / "pdr").exists()
+    # and with a budget it is proven, as before
+    proofs = check_mutate.prove_survivors(il, [mutant], tmp_path / "f", 1,
+                                          budget_s=120)
+    assert proofs[1] == check_mutate.PROVEN + "pdr", proofs
+
+
 # ---- equivalence is on the outputs only -------------------------------------
 # t counts every cycle but only its bit 0 reaches the output. Forcing the
 # adder's result bit 2 to 1 changes t's own sequence (an internal register
@@ -732,7 +782,7 @@ def make_stubbed_run(tmp_path, monkeypatch, mutants, rulings, proven=()):
     monkeypatch.setattr(check_mutate, "read_mutants", lambda *a: mutants)
     sent: list[int] = []
 
-    def fake_prove(design_il, ms, work, jobs, pdr_timeout=0):
+    def fake_prove(design_il, ms, work, jobs, pdr_timeout=0, budget_s=0):
         todo = [m["id"] for m in ms if m["survived"]]
         sent.extend(todo)
         return {mid: (check_mutate.PROVEN + "induction" if mid in proven

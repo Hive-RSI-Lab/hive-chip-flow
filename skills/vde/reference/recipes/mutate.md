@@ -68,7 +68,7 @@ real RTL or testbench change.
   fanout, yet mcy still lists and mutates it. These prove equivalent in about
   a second and are harmless.
 - A mutant that is equivalent only because of the design's context cannot be
-  killed by any test, and abc pdr runs to its 30 minute limit on it because
+  killed by any test, and abc pdr runs out its share of the proof budget because
   induction fails. Seen: a constant top-level byte with a bit that is always
   0; a race that an 80,000-cycle debounce makes unreachable; a counter
   relabeling. Writing more tests does not help. The way out is the owner's
@@ -82,6 +82,13 @@ real RTL or testbench change.
   the proofs one at a time, slowly but without being killed. Run `mutate`
   alone, not next to harden or another long job, and rerun it if it was
   killed anyway.
+- The pdr proofs share one budget for the whole proof stage,
+  `--proof-budget` (150 s by default). Each pdr proof gets the time left,
+  split evenly over the survivors still unproven, and never more than
+  `--pdr-timeout`. A proof the budget cuts is not a proof: the mutant stays
+  a survivor, its reason names the proof budget, and the fact
+  `proofs_cut_by_budget` lists those ids. To settle one, get the owner's
+  ruling, or rerun with a larger `--proof-budget` when there is time.
 - A design change renumbers the mutants. Rulings in `spec/mutant_rulings.yaml`
   keep their old ids, which now point at other mutants or none, and mutate
   refuses them ("not a mutant this run generated" or "that mutant is killed
