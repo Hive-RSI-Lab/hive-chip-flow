@@ -60,3 +60,7 @@ tt_pins:
   ena: ena
   clk: clk
   rst_n: rst_n
+# #96: the optional FPGA prototype (check_fpga.py) on the iCEBreaker's
+# iCE40UP5K: the TT wrapper on board pins, timed at clock.period_ns.
+fpga:
+  board: icebreaker

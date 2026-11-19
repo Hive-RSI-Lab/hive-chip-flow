@@ -211,7 +211,7 @@ def test_ws_empty_init_edit_freshness_resume(tmp_path):
     assert marked == {"lint"}
     assert set(r3["edit"]["gates"]) == {
         "lint", "sim", "holdout", "mutate", "formal", "cover", "reset_indep",
-        "xprop", "synth", "cdc", "harden", "timing", "drc", "lvs", "glsim", "lec",
+        "xprop", "synth", "cdc", "fpga", "harden", "timing", "drc", "lvs", "glsim", "lec",
         "precheck", "release"}
 
     r4, _ = state_mod.run(["freshness", "--workspace", str(ws)])
@@ -325,6 +325,34 @@ def test_formal_gate_hash_covers_a_spec_yaml_depth_edit(tmp_path):
     assert "spec_yaml" in fresh_after["gates"]["formal"]["changed_inputs"]
 
 
+@pytest.mark.parametrize("gate,stale", [
+    ("harden", False), ("synth", False), ("lec", False), ("fpga", True)])
+def test_an_fpga_section_stales_fpga_only(tmp_path, gate, stale):
+    """#96: only check_fpga.py reads spec.yaml's `fpga:`, so opting a
+    hardened block into the FPGA prototype leaves harden and every gate on
+    spec_yaml_sans_formal fresh while the fpga gate's own record goes stale.
+    (formal, cover, xprop and mutate hash the whole spec, so they re-run.)"""
+    ws = ws_empty(tmp_path)
+    state_mod.run(["init", "--workspace", str(ws), "--skill", "vde",
+                  "--block", "counter8"])
+    base = "top: counter8\nrequirements: []\nclock: {period_ns: 20}\n"
+    (ws / "spec" / "spec.yaml").write_text(base, encoding="utf-8")
+    (ws / "rtl" / "counter8.v").write_text("module counter8; endmodule\n",
+                                           encoding="utf-8")
+    result_path = ws / f"{gate}-result.json"
+    result_path.write_text(json.dumps({"status": "pass", "failing_count": 0,
+                                       "counts": {"total": 0}}),
+                           encoding="utf-8")
+    state_mod.run(["record-gate", "--workspace", str(ws), "--gate", gate,
+                  "--result", str(result_path)])
+    fresh_before, _ = state_mod.run(["freshness", "--workspace", str(ws)])
+    assert fresh_before["gates"][gate]["fresh"] is True
+    (ws / "spec" / "spec.yaml").write_text(
+        base + "fpga: {board: icebreaker}\n", encoding="utf-8")
+    fresh_after, _ = state_mod.run(["freshness", "--workspace", str(ws)])
+    assert fresh_after["gates"][gate]["hash_valid"] is (not stale)
+
+
 @pytest.mark.parametrize("gate", ["harden", "timing", "drc", "lvs", "glsim",
                                   "precheck"])
 def test_m4_gate_hash_covers_a_spec_yaml_period_edit(tmp_path, gate):
@@ -358,7 +386,7 @@ def test_m4_gate_hash_covers_a_spec_yaml_period_edit(tmp_path, gate):
 
 
 VDE_GATES = ["spec_lint", "lint", "sim", "holdout", "mutate", "formal",
-             "cover", "reset_indep", "xprop", "synth", "cdc", "harden", "timing", "drc", "lvs", "glsim", "lec",
+             "cover", "reset_indep", "xprop", "synth", "cdc", "fpga", "harden", "timing", "drc", "lvs", "glsim", "lec",
              "precheck", "release"]
 VDE_SPEC = ("top: counter8\nrequirements: []\nclock: {period_ns: 20}\n"
             "cover: {line_min: 95}\nformal:\n  depth: 20\n")

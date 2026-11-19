@@ -42,3 +42,7 @@ tt_pins:
   clk: clk
   rst: ~rst_n
   count: uo_out[7:0]
+# #96: the optional FPGA prototype step (check_fpga.py) on the iCEBreaker's
+# iCE40UP5K: the TT wrapper above on board pins, timed at clock.period_ns.
+fpga:
+  board: icebreaker

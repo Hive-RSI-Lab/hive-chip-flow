@@ -201,6 +201,12 @@ FIXER_HINTS: dict[str, str] = {
 
     # synth (check_synth.py)
     "combinational_loop": "rtl",
+    # fpga (check_fpga.py, #96): the RTL's to fix; a clock the board
+    # cannot reach is the RTL's to pipeline (or the spec's, a hold-2 edit).
+    "fpga_comb_loop": "rtl",
+    "fpga_latch": "rtl",
+    "fpga_place_route_failed": "rtl",
+    "fpga_fmax_below_clock": "rtl",
     # cdc: the RTL's to fix. A waiver is the person's, never a fixer's.
     "cdc_unsynchronized": "rtl",
     "cdc_multibit_unsafe": "rtl",

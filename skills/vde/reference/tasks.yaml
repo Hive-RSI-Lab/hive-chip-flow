@@ -155,6 +155,11 @@ verbs:
               every clock gate glitch-free and every async reset's release
               synchronised per domain, or waived with a reason in
               spec/cdc.yaml - the waiver is the person's call, not a fixer's"
+      - gate: fpga
+        why: "the FPGA prototype, only when spec.yaml asks (fpga:): places
+              and routes on the board at the spec clock and writes the
+              bitstream to log/fpga/ - programming the board is the
+              person's, never this step's"
       - note: "Write log/P5-digest.md before advancing."
       - do: "scripts/state.py set-phase --workspace {ws} --phase P6"
         why: "advance to harden + signoff"

@@ -36,9 +36,9 @@
  },
  "inputs_at_start": {
   "rtl": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
-  "spec_yaml": "json_canonical:969b0fe1155ae8e297f5db8ca34afc10e02ba481ea588d4287af70b8e371a5b7"
+  "spec_yaml": "json_canonical:eae9fd7872690eb0e514d474efcdeebb394a182b69d63409517f672e0da2e2d9"
  },
  "strength_at_start": 0,
- "recorded_ts": "2026-11-18T16:17:12",
- "attempts": 1
+ "recorded_ts": "2026-11-19T17:04:35",
+ "attempts": 2
 }

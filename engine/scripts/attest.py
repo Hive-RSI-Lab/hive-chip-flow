@@ -247,6 +247,20 @@ def _cdc_not_applicable(ws: Path) -> str | None:
         return None
 
 
+def _fpga_not_applicable(ws: Path) -> str | None:
+    """/vde's `fpga` (#96), not applicable only when spec.yaml has no
+    `fpga:` section: the step is opt-in. An unreadable spec owes it."""
+    import speclib
+    try:
+        spec = speclib.load_spec(ws / "spec" / "spec.yaml")
+    except checklib.CheckError:
+        return None
+    if spec.get("fpga") is not None:
+        return None
+    return ("not applicable: spec.yaml asks for no FPGA prototype (no "
+            "'fpga:' section), re-read at this release")
+
+
 def _boundary_not_applicable(ws: Path) -> str | None:
     """/msde's `boundary`, not applicable only with no crossing pin."""
     import check_boundary
@@ -299,6 +313,7 @@ def _layout_match_not_applicable(ws: Path) -> str | None:
 NOT_APPLICABLE = {("ade", "mc"): _mc_not_applicable,
                   ("ade", "layout_match"): _layout_match_not_applicable,
                   ("vde", "cdc"): _cdc_not_applicable,
+                  ("vde", "fpga"): _fpga_not_applicable,
                   ("msde", "macro_lib"): _macro_lib_not_applicable,
                   ("msde", "boundary"): _boundary_not_applicable}
 

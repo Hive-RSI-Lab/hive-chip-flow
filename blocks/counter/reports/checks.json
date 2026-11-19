@@ -1,7 +1,7 @@
 {
  "skill": "vde",
  "block": "counter",
- "ts": "2026-11-19T14:02:45",
+ "ts": "2026-11-19T17:26:16",
  "pdk": {
   "name": "gf180mcuD",
   "open_pdks": "1689ac3f2dc763876eaf967227c7dfe831b031ae",
@@ -35,14 +35,14 @@
    "tool": "cover",
    "version": 1,
    "status": "pass",
-   "attempts": 5,
-   "ts": "2026-11-19T01:52:23",
+   "attempts": 6,
+   "ts": "2026-11-19T17:04:04",
    "inputs": {
     "rtl": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
     "tb": "dir_text:1a9e6faab6600130823e4ed8154e094fed3d16ebb98f4d6a474351cd134dddff",
     "holdout": "dir_text:fb8d89cdea7e2d1106319346a2079912521ca1f89a8834fa0b96f638b704cc21",
     "cover_points": null,
-    "spec_yaml": "json_canonical:969b0fe1155ae8e297f5db8ca34afc10e02ba481ea588d4287af70b8e371a5b7"
+    "spec_yaml": "json_canonical:eae9fd7872690eb0e514d474efcdeebb394a182b69d63409517f672e0da2e2d9"
    },
    "reason": null
   },
@@ -54,8 +54,8 @@
    "tool": "drc",
    "version": 1,
    "status": "pass",
-   "attempts": 14,
-   "ts": "2026-11-19T14:02:19",
+   "attempts": 15,
+   "ts": "2026-11-19T17:20:06",
    "inputs": {
     "harden": "harden_signoff:bba0c728de80ed1d73908601fbb85b1eaa19ec3b3c5955b037d72a1d738e5e77",
     "spec_yaml_sans_formal": "json_canonical_sans_formal:ec426c58dd9f2334b09759284010f4068e5638e331ac28be8742ab3fee1e7b69",
@@ -73,12 +73,28 @@
    "tool": "formal",
    "version": 1,
    "status": "pass",
-   "attempts": 3,
-   "ts": "2026-11-01T11:10:28",
+   "attempts": 4,
+   "ts": "2026-11-19T17:03:30",
    "inputs": {
     "rtl": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
     "formal": "dir_text:9d98f2365c459e0bd46ca5ed9391ba21316ad174e11a70a83552254f153b8cb3",
-    "spec_yaml": "json_canonical:969b0fe1155ae8e297f5db8ca34afc10e02ba481ea588d4287af70b8e371a5b7"
+    "spec_yaml": "json_canonical:eae9fd7872690eb0e514d474efcdeebb394a182b69d63409517f672e0da2e2d9"
+   },
+   "reason": null
+  },
+  {
+   "gate": "fpga",
+   "applies": true,
+   "ran": true,
+   "ok": true,
+   "tool": "fpga",
+   "version": 1,
+   "status": "pass",
+   "attempts": 1,
+   "ts": "2026-11-19T17:05:37",
+   "inputs": {
+    "rtl": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
+    "spec_yaml_fpga": "json_canonical_fpga:2425366a69d05d7ce6fd1a39c21273320b54664d4eaca95eefd20d761a7f9af1"
    },
    "reason": null
   },
@@ -90,8 +106,8 @@
    "tool": "glsim",
    "version": 1,
    "status": "pass",
-   "attempts": 14,
-   "ts": "2026-11-19T14:02:24",
+   "attempts": 15,
+   "ts": "2026-11-19T17:23:11",
    "inputs": {
     "harden": "harden_signoff:bba0c728de80ed1d73908601fbb85b1eaa19ec3b3c5955b037d72a1d738e5e77",
     "tb": "dir_text:1a9e6faab6600130823e4ed8154e094fed3d16ebb98f4d6a474351cd134dddff",
@@ -108,8 +124,8 @@
    "tool": "harden",
    "version": 1,
    "status": "pass",
-   "attempts": 14,
-   "ts": "2026-11-19T14:00:39",
+   "attempts": 16,
+   "ts": "2026-11-19T17:17:15",
    "inputs": {
     "rtl": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
     "harden_config": "json_canonical_sans_roots:f86ce9db491412ccc0ac48e5d05139a34f8fef6e05c529c9239f10a4c3cd2de4",
@@ -151,8 +167,8 @@
    "tool": "lec",
    "version": 1,
    "status": "pass",
-   "attempts": 12,
-   "ts": "2026-11-19T14:02:28",
+   "attempts": 13,
+   "ts": "2026-11-19T17:24:45",
    "inputs": {
     "harden": "harden_signoff:bba0c728de80ed1d73908601fbb85b1eaa19ec3b3c5955b037d72a1d738e5e77",
     "rtl": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
@@ -186,8 +202,8 @@
    "tool": "lvs",
    "version": 1,
    "status": "pass",
-   "attempts": 14,
-   "ts": "2026-11-19T14:02:19",
+   "attempts": 15,
+   "ts": "2026-11-19T17:21:32",
    "inputs": {
     "harden": "harden_signoff:bba0c728de80ed1d73908601fbb85b1eaa19ec3b3c5955b037d72a1d738e5e77",
     "spec_yaml_sans_formal": "json_canonical_sans_formal:ec426c58dd9f2334b09759284010f4068e5638e331ac28be8742ab3fee1e7b69",
@@ -205,13 +221,13 @@
    "tool": "mutate",
    "version": 1,
    "status": "pass",
-   "attempts": 5,
-   "ts": "2026-11-18T18:21:38",
+   "attempts": 6,
+   "ts": "2026-11-19T17:05:11",
    "inputs": {
     "rtl": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
     "tb": "dir_text:1a9e6faab6600130823e4ed8154e094fed3d16ebb98f4d6a474351cd134dddff",
     "formal": "dir_text:9d98f2365c459e0bd46ca5ed9391ba21316ad174e11a70a83552254f153b8cb3",
-    "spec_yaml": "json_canonical:969b0fe1155ae8e297f5db8ca34afc10e02ba481ea588d4287af70b8e371a5b7",
+    "spec_yaml": "json_canonical:eae9fd7872690eb0e514d474efcdeebb394a182b69d63409517f672e0da2e2d9",
     "mutant_rulings": null
    },
    "reason": null
@@ -224,8 +240,8 @@
    "tool": "precheck",
    "version": 1,
    "status": "pass",
-   "attempts": 14,
-   "ts": "2026-11-19T14:02:44",
+   "attempts": 15,
+   "ts": "2026-11-19T17:26:00",
    "inputs": {
     "harden": "harden_signoff:bba0c728de80ed1d73908601fbb85b1eaa19ec3b3c5955b037d72a1d738e5e77",
     "harden_info": "json_canonical:f695957862502907d834adb8801ec93f4f59eaf89bf74f8192f72bb3c514eba1",
@@ -278,10 +294,10 @@
    "tool": "spec_lint",
    "version": 1,
    "status": "pass",
-   "attempts": 3,
-   "ts": "2026-11-01T11:10:22",
+   "attempts": 4,
+   "ts": "2026-11-19T17:02:24",
    "inputs": {
-    "spec_yaml": "json_canonical:969b0fe1155ae8e297f5db8ca34afc10e02ba481ea588d4287af70b8e371a5b7"
+    "spec_yaml": "json_canonical:eae9fd7872690eb0e514d474efcdeebb394a182b69d63409517f672e0da2e2d9"
    },
    "reason": null
   },
@@ -311,8 +327,8 @@
    "tool": "timing",
    "version": 1,
    "status": "pass",
-   "attempts": 16,
-   "ts": "2026-11-19T14:00:42",
+   "attempts": 17,
+   "ts": "2026-11-19T17:18:19",
    "inputs": {
     "harden": "harden_signoff:bba0c728de80ed1d73908601fbb85b1eaa19ec3b3c5955b037d72a1d738e5e77",
     "spec_yaml_sans_formal": "json_canonical_sans_formal:ec426c58dd9f2334b09759284010f4068e5638e331ac28be8742ab3fee1e7b69",
@@ -330,11 +346,11 @@
    "tool": "xprop",
    "version": 1,
    "status": "pass",
-   "attempts": 1,
-   "ts": "2026-11-18T16:17:12",
+   "attempts": 2,
+   "ts": "2026-11-19T17:04:35",
    "inputs": {
     "rtl": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
-    "spec_yaml": "json_canonical:969b0fe1155ae8e297f5db8ca34afc10e02ba481ea588d4287af70b8e371a5b7"
+    "spec_yaml": "json_canonical:eae9fd7872690eb0e514d474efcdeebb394a182b69d63409517f672e0da2e2d9"
    },
    "reason": null
   }
@@ -364,7 +380,7 @@
    "librelane_pdk": "f6eeac7dad085ffcc829ccfd721f7b4ce39edcf7",
    "tt_support_tools": "0922544e6c7f6126047c3fba720b0437fa32a1b8",
    "gds": "harden/runs/run/final/gds/tt_um_ece298a_counter.gds",
-   "gds_sha256": "2831f64fbfa20776d4525522d554128a69f02eee470cc7003bbe1ca7fee31db4",
+   "gds_sha256": "646ab50387a8bfdc84dfcd242b54496bb4246d8ece686cc1eb474f9a70ce0279",
    "lef": "harden/runs/run/final/lef/tt_um_ece298a_counter.lef",
    "lef_sha256": "0e02af726f19109d54f7e795d768f49e5e6ce57382d05816cc08dd3bc70f3855",
    "gl": "harden/runs/run/final/pnl/tt_um_ece298a_counter.pnl.v",
@@ -380,7 +396,7 @@
     "top_module": "tt_um_ece298a_counter",
     "pdk": "gf180mcuD",
     "gds_path": "gds/tt_um_ece298a_counter.gds",
-    "gds_sha256": "2831f64fbfa20776d4525522d554128a69f02eee470cc7003bbe1ca7fee31db4",
+    "gds_sha256": "646ab50387a8bfdc84dfcd242b54496bb4246d8ece686cc1eb474f9a70ce0279",
     "lef_path": "lef/tt_um_ece298a_counter.lef",
     "lef_sha256": "0e02af726f19109d54f7e795d768f49e5e6ce57382d05816cc08dd3bc70f3855",
     "verilog_path": "gl/tt_um_ece298a_counter.v",
@@ -389,7 +405,7 @@
    }
   ],
   "manifest": "release/manifest.json",
-  "manifest_sha256": "5569d5782edec6377714580e8f18d3370eeaabebdbc1b5a0679648dee2258513"
+  "manifest_sha256": "ece20d0f048ff19272255c696eecdc39eeb5aae50a0f690b464851137ce1b5e8"
  },
- "attestation_sha256": "18de0530579aa9307f1fb54ce98ac7c2c2fe15bfad029c3999cfc33a790413fc"
+ "attestation_sha256": "806f4cd3fbfba28dcdcd9d53e73f8e2e524703d611a39b870122708243ff5824"
 }
