@@ -727,6 +727,7 @@ def make_stubbed_run(tmp_path, monkeypatch, mutants, rulings, proven=()):
     (root / check_mutate.MCY_REL).write_text("", encoding="utf-8")
     monkeypatch.setattr(check_mutate, "toolchain_root", lambda: root)
     monkeypatch.setattr(check_mutate, "run_mcy", lambda *a, **k: None)
+    monkeypatch.setattr(check_mutate, "count_points", lambda *a: 100)
     monkeypatch.setattr(check_mutate, "check_baseline", lambda *a: None)
     monkeypatch.setattr(check_mutate, "read_mutants", lambda *a: mutants)
     sent: list[int] = []
@@ -940,3 +941,67 @@ def test_a_ruling_on_a_mutant_a_formal_assert_kills_is_an_error(tmp_path, monkey
     code = check_mutate.main(["--workspace", str(ws)])
     out = json.loads(capsys.readouterr().out)
     assert code == 2 and "stale ruling" in out["error"], out
+
+
+# ---- sample size (#82b) ----------------------------------------------------
+
+def test_sample_size_fixed_count_is_kept_and_clipped_to_the_points():
+    assert check_mutate.sample_size(24, 280, 12, None) == (24, "fixed")
+    assert check_mutate.sample_size("24", 280, 12, None) == (24, "fixed")
+    assert check_mutate.sample_size(500, 280, 12, None) == (280, "fixed")
+
+
+def test_sample_size_all_is_every_point():
+    assert check_mutate.sample_size("all", 280, 12, None) == (280, "all")
+
+
+def test_sample_size_auto_scales_with_the_design():
+    # a small design: every point
+    assert check_mutate.sample_size("auto", 52, 17, None) == (52, "auto")
+    assert check_mutate.sample_size(None, 52, 17, None) == (52, "auto")
+    # a short file with many points: the floor
+    assert check_mutate.sample_size(None, 280, 12, None) == (20, "auto")
+    # one per two lines
+    assert check_mutate.sample_size(None, 8470, 313, None) == (157, "auto")
+    # the wall-budget cap, default and from spec mutate.max
+    assert check_mutate.sample_size(None, 31439, 2000, None) == (
+        check_mutate.AUTO_MAX, "auto")
+    assert check_mutate.sample_size(None, 8470, 313, 40) == (40, "auto")
+
+
+@pytest.mark.parametrize("asked,cap", [(0, None), (-3, None), ("most", None),
+                                       (True, None), (2.5, None),
+                                       ("auto", 5), ("auto", "lots")])
+def test_sample_size_refuses_bad_values(asked, cap):
+    with pytest.raises(check_mutate.CheckError):
+        check_mutate.sample_size(asked, 280, 12, cap)
+
+
+def test_sample_size_refuses_a_design_with_no_points():
+    with pytest.raises(check_mutate.CheckError):
+        check_mutate.sample_size("auto", 0, 12, None)
+
+
+def test_rtl_lines_skips_blanks_and_comments(tmp_path):
+    f = tmp_path / "a.v"
+    f.write_text("// head\n\nmodule a;\n  // note\n  wire x;\nendmodule\n",
+                 encoding="utf-8")
+    assert check_mutate.rtl_lines([f]) == 3
+
+
+@pytest.mark.slow
+def test_counter8_at_size_all_scores_every_point(tmp_path, capsys):
+    ws = make_counter8_ws(tmp_path)
+    src = ENGINE.parent / "corpus" / "vde" / "counter8" / "rtl"
+    points = check_mutate.count_points(
+        check_mutate.collect_sources(ws), "counter8", 1, tmp_path / "pts")
+    code = check_mutate.main(["--workspace", str(ws), "--size", "all",
+                              "--pdr-timeout", "60"])
+    out = json.loads(capsys.readouterr().out)
+    assert src.is_dir()
+    assert out["size_rule"] == "all" and out["points"] == points, out
+    assert out["total_mutants"] == points, out
+    assert out["sampled_fraction"] == 1.0, out
+    assert code in (0, 1), out        # 1: equivalent mutants are info rows
+    assert not [v for v in out["violations"] if v["severity"] != "info"], out
+    assert out["kill_rate"] == 1.0, out

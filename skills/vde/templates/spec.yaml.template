@@ -40,8 +40,10 @@ clock:
 # must_keep: [<cell_or_signal_name>]   # optional - M7's optimiser may not
 #                                        remove these
 
-# mutate: {size: 24, seed: 1}          # optional - defaults live in
-#                                        check_mutate.py
+# mutate: {size: auto, seed: 1}        # optional - size: auto (default,
+#                                        sized to the design, capped by
+#                                        max: 200), all (every point) or a
+#                                        fixed N; defaults in check_mutate.py
 
 # formal: {depth: <N>}                 # REQUIRED once any requirement is
 #                                        check: formal|both - N is the prove
