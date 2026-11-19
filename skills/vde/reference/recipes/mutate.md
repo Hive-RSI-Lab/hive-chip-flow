@@ -1,7 +1,10 @@
 # mutate - score the test, never the design
 
-Runs `mutate` alone: yosys mutates the current RTL (fixed seed, N
-mutants - inverted conditions, stuck outputs, removed resets, off-by-one
+Runs `mutate` alone: yosys mutates the current RTL (fixed seed; a
+sample sized to the design by default - every point for a small one,
+else one per 2 RTL lines, 20 to `mutate.max` - or `size: all` or a fixed
+N; the report's `sampled_fraction` says how much of the design was
+tried - inverted conditions, stuck outputs, removed resets, off-by-one
 constants, swapped operators), and the visible suite plus bounded formal
 run against each mutant. A mutant nothing catches "survived."
 

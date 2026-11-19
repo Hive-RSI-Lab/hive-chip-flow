@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """check_mutate.py - the mutate gate (docs/design.md 1.5, "### M2.").
 
-    check_mutate.py --workspace DIR [--size N] [--seed N] [--jobs N]
+    check_mutate.py --workspace DIR [--size N|auto|all] [--seed N] [--jobs N]
                     [--pdr-timeout S] [--out FILE]
 
 Drives real mcy (yosys's mutation-coverage tool, foss/tools/yosys/bin/mcy -
@@ -13,8 +13,9 @@ mutation database is worse than a slower gate). `[script]` reads rtl/
 without SYNTHESIS defined (what the sim gate tests, so a PDK cell kept
 under `ifdef SYNTHESIS` is not left in the mutants) and elaborates with a
 fixed `--top` from spec.yaml; `mutate -list <size> -seed
-<seed>` (yosys's own pass, gates.yaml's "fixed seed, N mutants") samples the
-design for candidate mutations; `[test sim]` (mutate_runner.py, one process
+<seed>` (yosys's own pass, fixed seed) samples the design for candidate
+mutations; how many is sample_size() over count_points()'s unlimited
+`mutate -list` (spec `mutate.size`: auto, all or a fixed N, see there); `[test sim]` (mutate_runner.py, one process
 per mutant) yosys-applies each mutation to the frozen design and runs the
 workspace's VISIBLE tb/ cocotb suite against it - PASS = survived, FAIL =
 killed. A mutant mcy tags `-mode none` is its own built-in do-nothing
@@ -105,6 +106,7 @@ from __future__ import annotations
 import argparse
 import concurrent.futures
 import json
+import math
 import os
 import re
 import shutil
@@ -132,7 +134,20 @@ MCY_REL = "foss/tools/yosys/bin/mcy"  # check_env.py's own MCY_REL, mirrored
 MUTATE_RUNNER = SCRIPTS / "mutate_runner.py"
 MCY_SUBDIR = "log/mutate"
 BASELINE_BUILD_ERROR = "baseline_build_error.txt"  # mutate_runner.py writes it
-DEFAULT_SIZE = 20
+DEFAULT_SIZE = "auto"
+# sample sizing (sample_size()): a fixed count was the same 20 for a 12-line
+# counter and a 300-line DAC controller. `auto` scores every point of a
+# small design, else one mutant per AUTO_LINES_PER_MUTANT RTL lines, never
+# under AUTO_FLOOR, never over the wall-budget cap `mutate.max`.
+AUTO_FLOOR = 20
+AUTO_ALL_MAX = 64        # a design with this many points or fewer: all
+AUTO_LINES_PER_MUTANT = 2
+# The cap stands for the wall budget. Each mutant is one sim of the
+# visible suite plus, if it survives, a bmc and a proof: r2r_dac measured
+# 174 s wall for 24 at load 120, so 200 is the most one run should cost.
+AUTO_MAX = 200
+POINTS_TIMEOUT_S = 120.0
+SIZE_WORDS = ("auto", "all")
 DEFAULT_SEED = 1
 KILL_RATE_MIN = 0.9
 RESET_PORT = "rst"
@@ -144,11 +159,13 @@ MUST_KILL_CLASSES = {"reset_removed", "output_stuck", "condition_inverted"}
 # the old 60 s refused a healthy block.
 INIT_TIMEOUT_S = 600.0
 RUN_TIMEOUT_S = 600.0  # r2r_dac: 174 s wall, 29 s CPU, at load 120
+RUN_TIMEOUT_PER_24 = 24  # mcy run's backstop grows with the sample, per 24
 EQUIV_SUBDIR = "equiv"
 EQUIV_TIMEOUT_S = 60.0
 EQUIV_DEPTH = 8
 PDR_TIMEOUT_S = 1800.0
 FORMAL_SUBDIR = "formal_kill"
+POINTS_SUBDIR = "points"
 MUTANT_V_SCRIPT = """\
 read_rtlil {design}
 {mutation}
@@ -227,13 +244,16 @@ print(f"mutants={{tags()}} killed={{tags('KILLED')}} survived={{tags('SURVIVED')
     (mcy_dir / "config.mcy").write_text(config, encoding="utf-8")
 
 
-def run_mcy(mcy_dir: Path, mcy_real: Path, nproc: int) -> None:
+def run_mcy(mcy_dir: Path, mcy_real: Path, nproc: int, size: int = 24
+            ) -> None:
+    run_timeout = RUN_TIMEOUT_S * max(1, math.ceil(size / RUN_TIMEOUT_PER_24))
+
     def mcy(*args: str) -> subprocess.CompletedProcess:
         return checklib.run_group(
             [str(EDA_BIN), "python3", str(mcy_real), *args], cwd=str(mcy_dir),
             capture_output=True, text=True, encoding="utf-8", errors="replace",
             timeout=INIT_TIMEOUT_S if args and args[0] == "init"
-            else RUN_TIMEOUT_S)
+            else run_timeout)
 
     init = mcy("init")
     if init.returncode != 0:
@@ -243,6 +263,81 @@ def run_mcy(mcy_dir: Path, mcy_real: Path, nproc: int) -> None:
     if ran.returncode != 0:
         raise CheckError(f"mcy run failed: "
                          f"{(ran.stderr or ran.stdout)[-2000:]}")
+
+
+def rtl_lines(rtl_files: list[Path]) -> int:
+    """Lines of RTL that are not blank and not only a `//` comment."""
+    n = 0
+    for f in rtl_files:
+        for line in f.read_text(encoding="utf-8", errors="replace").splitlines():
+            t = line.strip()
+            if t and not t.startswith("//"):
+                n += 1
+    return n
+
+
+def count_points(rtl_files: list[Path], top: str, seed: int, work: Path
+                 ) -> int:
+    """How many mutations yosys's own `mutate -list` offers for this design
+    with no limit: the same read and elaboration as write_config()'s
+    `[script]`, so it is the population mcy samples from."""
+    work.mkdir(parents=True, exist_ok=True)
+    out = work / "points.txt"
+    reads = "\n".join(f"read_verilog -sv -nosynthesis {f.resolve()}"
+                      for f in rtl_files)
+    (work / "points.ys").write_text(
+        f"{reads}\nhierarchy -top {top}\nproc\n"
+        f"mutate -list 100000000 -seed {seed} -o {out.resolve()}\n",
+        encoding="utf-8")
+    try:
+        proc = checklib.run_group(
+            [str(EDA_BIN), "yosys", "-q", "-l", "points.log", "-s",
+             "points.ys"], cwd=str(work), capture_output=True, text=True,
+            encoding="utf-8", errors="replace", timeout=POINTS_TIMEOUT_S)
+    except subprocess.TimeoutExpired as exc:
+        raise CheckError(f"yosys mutate -list timed out: {exc}") from exc
+    if proc.returncode != 0 or not out.is_file():
+        raise CheckError("yosys mutate -list failed: "
+                         f"{(proc.stderr or proc.stdout)[-1000:]}")
+    return sum(1 for line in out.read_text(encoding="utf-8").splitlines()
+               if line.strip())
+
+
+def sample_size(asked, points: int, lines: int, cap) -> tuple[int, str]:
+    """(mutant count, rule) for spec.yaml `mutate.size` (or --size):
+    an int is a fixed count ("fixed"); "all" is every point ("all");
+    "auto" or nothing is every point when there are at most AUTO_ALL_MAX,
+    else one per AUTO_LINES_PER_MUTANT RTL lines, at least AUTO_FLOOR, at
+    most `cap` (spec `mutate.max`, default AUTO_MAX) ("auto"). Never more
+    than the points there are. CheckError for anything else."""
+    if points < 1:
+        raise CheckError("yosys mutate -list offers no mutation points "
+                         "for this design")
+    if isinstance(asked, str) and asked.strip().isdigit():
+        asked = int(asked)
+    if asked is None:
+        asked = DEFAULT_SIZE
+    if isinstance(asked, bool) or not isinstance(asked, (int, str)):
+        raise CheckError(f"mutate.size must be a count, 'auto' or 'all', "
+                         f"not {asked!r}")
+    if isinstance(asked, int):
+        if asked < 1:
+            raise CheckError(f"mutate.size must be at least 1, not {asked}")
+        return min(asked, points), "fixed"
+    if asked == "all":
+        return points, "all"
+    if asked != "auto":
+        raise CheckError(f"mutate.size must be a count, 'auto' or 'all', "
+                         f"not {asked!r}")
+    if cap is None:
+        cap = AUTO_MAX
+    if isinstance(cap, bool) or not isinstance(cap, int) or cap < AUTO_FLOOR:
+        raise CheckError(f"mutate.max must be a count of at least "
+                         f"{AUTO_FLOOR}, not {cap!r}")
+    if points <= AUTO_ALL_MAX:
+        return points, "auto"
+    want = max(AUTO_FLOOR, math.ceil(lines / AUTO_LINES_PER_MUTANT))
+    return min(want, cap, points), "auto"
 
 
 def check_baseline(db_path: Path) -> None:
@@ -888,8 +983,9 @@ def score(mutants: list[dict], equivalent: set[int],
 def parse_args(argv=None) -> argparse.Namespace:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--workspace", required=True, help="block workspace")
-    ap.add_argument("--size", type=int, help="override the mutant count "
-                    f"(default {DEFAULT_SIZE}, or spec.yaml mutate.size)")
+    ap.add_argument("--size", help="override the mutant count: N, 'auto' "
+                    f"or 'all' (default spec.yaml mutate.size, else "
+                    f"{DEFAULT_SIZE})")
     ap.add_argument("--seed", type=int, help="override the RNG seed "
                     f"(default {DEFAULT_SEED}, or spec.yaml mutate.seed)")
     ap.add_argument("--sim-seed", type=int, help="override the cocotb "
@@ -921,7 +1017,6 @@ def run(argv=None):
     rulings = rulingslib.load(ws, "mutate")
 
     mutate_cfg = spec.get("mutate") or {}
-    size = args.size or mutate_cfg.get("size") or DEFAULT_SIZE
     seed = (args.seed if args.seed is not None
            else mutate_cfg.get("seed", DEFAULT_SEED))
     sim_seed = cocotblib.sim_seed(spec, tb_dir, args.sim_seed)
@@ -937,10 +1032,20 @@ def run(argv=None):
     mcy_dir = ws / MCY_SUBDIR
     shutil.rmtree(mcy_dir, ignore_errors=True)
     mcy_dir.mkdir(parents=True)
-    write_config(mcy_dir, rtl_files, top, tb_dir, size, seed, sim_seed)
-
     t0 = time.monotonic()
-    run_mcy(mcy_dir, mcy_real, nproc)
+    points = count_points(rtl_files, top, seed, mcy_dir / POINTS_SUBDIR)
+    lines = rtl_lines(rtl_files)
+    asked = (args.size if args.size is not None
+             else mutate_cfg.get("size"))
+    size, size_rule = sample_size(asked, points, lines,
+                                  mutate_cfg.get("max"))
+    # mcy's own `size` counts its `-none` baseline row (mcy's reset_status
+    # stops at nmutations == size), so it gives size - 1 real mutants. A
+    # fixed count keeps meaning mcy's size, so pinned results do not move;
+    # all and auto ask mcy for one more, so they score exactly `size`.
+    mcy_size = size if size_rule == "fixed" else size + 1
+    write_config(mcy_dir, rtl_files, top, tb_dir, mcy_size, seed, sim_seed)
+    run_mcy(mcy_dir, mcy_real, nproc, mcy_size)
 
     db_path = mcy_dir / "database" / "db.sqlite3"
     check_baseline(db_path)
@@ -985,6 +1090,8 @@ def run(argv=None):
         formal_skipped=formal_skipped,
         formal_survivors={str(k): v for k, v in sorted(verdicts.items())
                           if v != "FAIL"},
+        points=points, rtl_lines=lines, size=size, size_rule=size_rule,
+        sampled_fraction=round(facts["total_mutants"] / points, 4),
         sim_seed=sim_seed,
         sim_replay=cocotblib.replay_command("check_mutate", sim_seed,
                                           "--sim-seed"),
