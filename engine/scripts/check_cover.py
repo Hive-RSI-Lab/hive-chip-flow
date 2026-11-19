@@ -5,7 +5,7 @@
 
 Runs the SAME cocotb tests `sim` runs (tb/test_*.py), but over the VERILATOR
 simulator instead of Icarus, built with `--coverage --coverage-line
---coverage-toggle`. `verilator_coverage --write-info` (an lcov-shaped .info:
+--coverage-toggle --coverage-fsm --coverage-expr`. `verilator_coverage --write-info` (an lcov-shaped .info:
 `DA:<line>,<count>` for line hits, `BRDA:<line>,<branch>,<label>,<count>`
 for both real branches AND verilator's own toggle points - the two are told
 apart here by the label's own shape: a toggle label always ends
@@ -39,6 +39,28 @@ that half; multiple rtl/ files are each counted by their own `SF:` block.
 line and/or `{file, line, label, reason}` for one toggle edge) removes
 exactly the named point from both the covered and total counts - "exclusions
 carry reasons" (gates.yaml) mirrors check_lint.py's own `lint_allow.yaml`.
+
+State machines and conditions (#80): line and toggle saturate early - a
+test can visit every state of a state machine and flip every bit of its
+register while never taking one transition, or run an `if (a && b)` line
+without ever letting `b` decide it. Two more counts close that, both read
+from `coverage.dat` itself (copied to log/coverage.dat), because
+`--write-info` drops the state register's name and the reset mark from
+them:
+  - fsm: every state Verilator found in each state machine and every
+    transition it extracted, `cover.fsm_min` (default 100%). Each missed
+    one is a `fsm_state_not_covered`/`fsm_arc_not_covered` finding, labeled
+    as `coverage.dat` labels it (`top.state::RUN->IDLE`).
+  - expr: every term of each logical expression that alone decides its
+    value (`(b==0) => 0` for `a && b`), `cover.expr_min` (default 90%).
+    Verilator counts a term, not every combination: `(b==0) => 0` is
+    covered by a=0,b=0 too. Each missed one is `expr_not_covered`.
+Verilator 5.052 extracts a transition only from a plain if/else or ?: per
+state: an else-if chain's transitions are not counted. A state with no
+transition out of it other than reset is named in a `fsm_arcs_not_seen`
+info finding, so a missing count is never mistaken for coverage; line and
+branch coverage still see that code. The same `rtl/cover_exclude.yaml`
+entry (`file`, `line`, `label`, `reason`) excludes one of these points.
 
 Fault this gate must catch (gates.yaml): "an unreachable state" - a branch
 or line the visible tb/ suite never reaches, dragging line coverage below
@@ -85,9 +107,12 @@ ICARUS_BUILD_SUBDIR = "log/cover_icarus_build"
 ICARUS_RESULTS_NAME = "cover_icarus_results.xml"
 SIMULATORS = ("icarus", "verilator")
 INFO_NAME = "log/coverage.info"
+DAT_NAME = "log/coverage.dat"
 EXCLUDE_REL = "rtl/cover_exclude.yaml"
 DEFAULT_LINE_MIN = 95.0
 DEFAULT_TOGGLE_MIN = 90.0
+DEFAULT_FSM_MIN = 100.0
+DEFAULT_EXPR_MIN = 90.0
 # A wall ceiling only, ten times the old fixed limit: the tool is ended
 # sooner when it stops making progress (checklib.STALL_S).
 TIMEOUT_S = 2400.0
@@ -96,6 +121,9 @@ TOGGLE_LABEL_RE = re.compile(r":[01]->[01]$")
 DA_RE = re.compile(r"^DA:(\d+),(-?\d+)")
 BRDA_RE = re.compile(r"^BRDA:(\d+),(\d+),([^,]+),(-|\d+)")
 SF_RE = re.compile(r"^SF:(.+)$")
+# coverage.dat: `C '<\x01key\x02value...>' count`, one point per line
+DAT_RE = re.compile(r"^C '(.*)' (\d+)\s*$")
+DAT_KINDS = {"fsm_state": "fsm", "fsm_arc": "fsm", "expr": "expr"}
 
 
 def collect_sources(ws: Path) -> list[Path]:
@@ -107,7 +135,9 @@ def collect_sources(ws: Path) -> list[Path]:
 
 
 def load_excludes(ws: Path) -> dict[str, dict]:
-    """{'line': {(file, line): reason}, 'toggle': {(file, line, label): reason}}"""
+    """{'line': {(file, line): reason}, 'toggle': {(file, line, label): reason}}
+    - a labeled entry names one toggle, fsm or expr point (labels never
+    collide across the three kinds)."""
     out = {"line": {}, "toggle": {}}
     p = ws / EXCLUDE_REL
     if not p.is_file():
@@ -165,7 +195,14 @@ def run_coverage(ws: Path, top: str, sources: list[Path],
             runner.build(sources=[str(s) for s in sources], hdl_toplevel=top,
                         build_dir=str(build_dir), always=True,
                         build_args=["--coverage", "--coverage-line",
-                                    "--coverage-toggle"], log_file=log_file)
+                                    "--coverage-toggle", "--coverage-fsm",
+                                    "--coverage-expr",
+                                    # a construct --coverage-fsm/-expr cannot
+                                    # model (a state reached only through
+                                    # `default`, say) is left uncounted, not a
+                                    # build failure: line and toggle still
+                                    # count it, and the lint gate owns warnings
+                                    "-Wno-COVERIGN"], log_file=log_file)
             # A failing cocotb TEST is never this gate's concern (that is
             # `sim`'s job) - only coverage is, and coverage.dat is written
             # regardless of whether the test's own assertions held. No
@@ -194,7 +231,9 @@ def run_coverage(ws: Path, top: str, sources: list[Path],
                              "instrumented run never wrote one (a crashed "
                              "launcher or a build that produced no "
                              "coverage binary)")
-        return write_coverage_info(ws, coverage_dat)
+        info = write_coverage_info(ws, coverage_dat)
+        shutil.copyfile(coverage_dat, ws / DAT_NAME)
+        return info
     finally:
         coverage_dat.unlink(missing_ok=True)
 
@@ -307,6 +346,34 @@ def parse_info(info_path: Path) -> dict[str, dict]:
     return out
 
 
+def parse_dat(dat_path: Path) -> list[dict]:
+    """The fsm and expr points of a Verilator coverage.dat: [{"kind"
+    ("fsm_state"|"fsm_arc"|"expr"), "file", "line", "label", "count",
+    "var", "from", "to", "reset"}]. var/from/to/reset are set on fsm points
+    only (Fv/Ff/Ft/Fg keys); label is the point's own `o` key, with a reset
+    arc's `[reset]` mark kept."""
+    points = []
+    for raw in dat_path.read_text(encoding="utf-8",
+                                  errors="replace").splitlines():
+        m = DAT_RE.match(raw)
+        if not m:
+            continue
+        keys = {}
+        for part in m.group(1).split("\x01"):
+            k, sep, v = part.partition("\x02")
+            if sep:
+                keys[k] = v
+        kind = keys.get("t")
+        if kind not in DAT_KINDS or "f" not in keys or "l" not in keys:
+            continue
+        points.append({
+            "kind": kind, "file": keys["f"], "line": int(keys["l"]),
+            "label": keys.get("o", ""), "count": int(m.group(2)),
+            "var": keys.get("Fv"), "from": keys.get("Ff"),
+            "to": keys.get("Ft"), "reset": keys.get("Fg") == "reset"})
+    return points
+
+
 def run(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--workspace", required=True, help="block workspace")
@@ -332,6 +399,8 @@ def run(argv=None):
     cover_cfg = spec.get("cover") or {}
     line_min = float(cover_cfg.get("line_min", DEFAULT_LINE_MIN))
     toggle_min = float(cover_cfg.get("toggle_min", DEFAULT_TOGGLE_MIN))
+    fsm_min = float(cover_cfg.get("fsm_min", DEFAULT_FSM_MIN))
+    expr_min = float(cover_cfg.get("expr_min", DEFAULT_EXPR_MIN))
     excludes = load_excludes(ws)
 
     # the same bench as sim, so coverage counts sim's own draw
@@ -342,6 +411,9 @@ def run(argv=None):
 
     violations, counts = count_coverage(per_file, rtl_names, excludes,
                                         line_min, toggle_min)
+    more, fe_counts = count_fsm_expr(parse_dat(ws / DAT_NAME), rtl_names,
+                                     excludes, fsm_min, expr_min)
+    violations += more
 
     icarus_xml, icarus_cost = timed(run_icarus, ws, top, sources, seed)
     diffs, per_test = simdiff({
@@ -357,6 +429,7 @@ def run(argv=None):
         line_covered=counts["line_covered"], line_total=counts["line_total"],
         toggle_covered=counts["toggle_covered"],
         toggle_total=counts["toggle_total"],
+        **fe_counts,
         simdiff={"agree": not diffs, "tests": per_test,
                  "runs": {"icarus": icarus_cost,
                           "verilator": verilator_cost}})
@@ -431,6 +504,79 @@ def count_coverage(per_file: dict[str, dict], rtl_names: set[str],
         "line_covered": line_covered, "line_total": line_total,
         "toggle_covered": toggle_covered, "toggle_total": toggle_total,
     }
+
+
+def count_fsm_expr(points: list[dict], rtl_names: set[str],
+                   excludes: dict[str, dict], fsm_min: float,
+                   expr_min: float) -> tuple[list[dict], dict]:
+    """fsm and expr counts over parse_dat()'s points, pure like
+    count_coverage(). A design with no state machine (or no logical
+    expression) has nothing to miss there: its pct is null and its
+    threshold does not apply."""
+    tally = {"fsm": [0, 0], "expr": [0, 0]}  # [covered, total]
+    missed = {"fsm": [], "expr": []}
+    violations = []
+    arcs_out: dict[tuple, set] = {}   # (file, var) -> states with an arc out
+    states: dict[tuple, dict] = {}    # (file, var) -> {state: line}
+    for p in points:
+        name = Path(p["file"]).name
+        if name not in rtl_names:
+            continue
+        if p["kind"] == "fsm_state":
+            states.setdefault((name, p["var"]), {})[p["to"]] = p["line"]
+        elif p["kind"] == "fsm_arc" and not p["reset"]:
+            arcs_out.setdefault((name, p["var"]), set()).add(p["from"])
+        if excludes["toggle"].get((name, p["line"], p["label"])):
+            continue
+        group = DAT_KINDS[p["kind"]]
+        tally[group][1] += 1
+        if p["count"] > 0:
+            tally[group][0] += 1
+            continue
+        missed[group].append(f"{name}:{p['line']} {p['label']}")
+        if p["kind"] == "fsm_state":
+            kind, what = "fsm_state_not_covered", f"state {p['label']} was " \
+                "never entered"
+        elif p["kind"] == "fsm_arc":
+            kind, what = "fsm_arc_not_covered", f"transition {p['label']} " \
+                "was never taken"
+        else:
+            kind, what = "expr_not_covered", f"condition term {p['label']} " \
+                "never decided its expression"
+        violations.append(checklib.violation(
+            "cover", "info", name, None, kind, [],
+            f"{name}:{p['line']} {what} by tb/", "verilator",
+            line=p["line"], label=p["label"]))
+
+    for (name, var), found in sorted(states.items()):
+        blind = sorted(s for s in found
+                       if s != "ANY" and s not in arcs_out.get((name, var), ()))
+        if blind:
+            violations.append(checklib.violation(
+                "cover", "info", name, None, "fsm_arcs_not_seen", [],
+                f"{name}: Verilator extracted no transition out of state(s) "
+                f"{', '.join(blind)} of {var} (an else-if chain or nested ?:, say), so "
+                "fsm coverage does not count them; line coverage still "
+                "does", "verilator", line=found[blind[0]], fsm=var,
+                states=blind))
+
+    out = {}
+    for group, floor in (("fsm", fsm_min), ("expr", expr_min)):
+        covered, total = tally[group]
+        pct = 100.0 * covered / total if total else None
+        out[f"{group}_pct"] = checklib.rnd(pct) if pct is not None else None
+        out[f"{group}_covered"], out[f"{group}_total"] = covered, total
+        if pct is not None and pct < floor:
+            names = "; ".join(missed[group][:5])
+            more = len(missed[group]) - 5
+            violations.append(checklib.violation(
+                "cover", "error", None, None,
+                f"{group}_coverage_below_threshold", [],
+                f"{group} coverage {pct:.1f}% ({covered}/{total}) is below "
+                f"{floor:g}%; missed: {names}"
+                + (f" and {more} more" if more > 0 else ""), "verilator",
+                missed=missed[group]))
+    return violations, out
 
 
 def main(argv=None) -> int:
