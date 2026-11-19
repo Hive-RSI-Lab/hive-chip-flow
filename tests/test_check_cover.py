@@ -105,6 +105,8 @@ def test_full_coverage_passes(tmp_path, capsys):
     # coverage.dat must never linger in tb/ - it would flip tb's own
     # dir_text hash (invalidation.yaml) for sim/mutate/holdout too.
     assert not (ws / "tb" / "coverage.dat").exists()
+    # no holdout/ tests: no merged block (#80c)
+    assert out["merged"] is None
 
 
 @pytest.mark.slow
@@ -467,6 +469,83 @@ def test_bound_cover_point_never_hit_fails_the_gate(tmp_path, capsys):
     assert out["line_pct"] == 100.0
     gate_result = gate.evaluate("cover", _cover_gate_row(), out)
     assert gate_result["status"] == "fail"
+
+
+# #80c: the load branch is reached only by the holdout test
+RTL_LOAD = """\
+module top (input wire clk, input wire rst, input wire ld,
+            output reg [3:0] count);
+  always @(posedge clk) begin
+    if (rst)
+      count <= 4'd0;
+    else if (ld)
+      count <= 4'hA;
+    else
+      count <= count + 4'd1;
+  end
+endmodule
+"""
+
+HOLDOUT_LOAD = """\
+import cocotb
+from cocotb.clock import Clock
+from cocotb.triggers import FallingEdge
+
+@cocotb.test()
+async def test_secret_load_path(dut):
+    cocotb.start_soon(Clock(dut.clk, 10, unit="ns").start())
+    dut.ld.value = 0
+    await FallingEdge(dut.clk)
+    dut.rst.value = 1
+    await FallingEdge(dut.clk)
+    dut.rst.value = 0
+    dut.ld.value = 1
+    await FallingEdge(dut.clk)
+    dut.ld.value = 0
+    assert int(dut.count.value) == 0xA
+"""
+
+
+@pytest.mark.slow
+def test_point_hit_only_by_holdout_is_covered_in_merged_only(tmp_path,
+                                                             capsys):
+    ws = make_ws(tmp_path, RTL_LOAD)
+    (ws / "tb" / "test_top.py").write_text(
+        TB.replace("    dut.rst.value = 1",
+                   "    dut.ld.value = 0\n    dut.rst.value = 1"),
+        encoding="utf-8")
+    (ws / "holdout").mkdir()
+    (ws / "holdout" / "test_hold.py").write_text(HOLDOUT_LOAD,
+                                                  encoding="utf-8")
+    code = check_cover.main(["--workspace", str(ws)])
+    raw = capsys.readouterr().out
+    out = json.loads(raw)
+    # tb-only: the load line is uncovered, and the verdict is tb-only
+    assert code == 1, out
+    missed = [v for v in out["violations"] if v["kind"] == "line_not_covered"]
+    assert [v["line"] for v in missed] == [7]
+    assert out["line_pct"] < 100.0
+    # merged: the holdout test reached it
+    m = out["merged"]
+    assert m["line_pct"] == 100.0
+    assert m["line_covered"] == m["line_total"] == out["line_total"]
+    # the merged count is verilator_coverage's own on the merged .dat
+    info = tmp_path / "independent.info"
+    proc = check_cover.checklib.run_tool(
+        [str(check_cover.EDA_BIN), "verilator_coverage", "--write-info",
+         str(info), str(ws / check_cover.MERGED_DAT_NAME)],
+        capture_output=True, text=True, wall=600)
+    assert proc.returncode == 0, proc.stderr
+    _, c = check_cover.count_coverage(
+        check_cover.parse_info(info), {"top.v"},
+        {"line": {}, "toggle": {}}, 0.0, 0.0)
+    assert (c["line_covered"], c["line_total"]) == (m["line_covered"],
+                                                    m["line_total"])
+    assert (c["toggle_covered"], c["toggle_total"]) == (
+        m["toggle_covered"], m["toggle_total"])
+    # nothing of the holdout bench reaches the report or stays in holdout/
+    assert "secret" not in raw and "test_hold" not in raw
+    assert not (ws / "holdout" / "coverage.dat").exists()
 
 
 RTL_SYNTAX_ERROR = """\

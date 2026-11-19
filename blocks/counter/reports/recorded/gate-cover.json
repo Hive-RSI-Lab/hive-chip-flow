@@ -1,108 +1,263 @@
 {
-  "script": "gate",
-  "gate": "cover",
-  "phase": "P4",
-  "tool": "cover",
-  "input_digest": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
-  "status": "pass",
-  "criteria": {
-    "fail_severities": [
-      "error"
-    ],
-    "max_count": 0
-  },
-  "counts": {
-    "total": 3,
-    "by_severity": {
-      "info": 3
-    },
-    "by_source": {
-      "verilator": 3
-    }
-  },
-  "failing_count": 0,
-  "failing": [],
-  "violations": [
-    {
-      "check": "cover",
-      "severity": "info",
-      "file": "ece298a_counter.v",
-      "module": null,
-      "line": 29,
-      "kind": "toggle_not_covered",
-      "refs": [],
-      "msg": "ece298a_counter.v:29 ui_in[3]:1->0 never toggled",
-      "source": "verilator",
-      "items": [
-        {
-          "msg": "ece298a_counter.v:29 ui_in[3]:1->0 never toggled",
-          "file": "ece298a_counter.v",
-          "line": 29
-        }
-      ]
-    },
-    {
-      "check": "cover",
-      "severity": "info",
-      "file": "ece298a_counter.v",
-      "module": null,
-      "line": 29,
-      "kind": "toggle_not_covered",
-      "refs": [],
-      "msg": "ece298a_counter.v:29 ui_in[5]:1->0 never toggled",
-      "source": "verilator",
-      "items": [
-        {
-          "msg": "ece298a_counter.v:29 ui_in[5]:1->0 never toggled",
-          "file": "ece298a_counter.v",
-          "line": 29
-        }
-      ]
-    },
-    {
-      "check": "cover",
-      "severity": "info",
-      "file": "ece298a_counter.v",
-      "module": null,
-      "line": 29,
-      "kind": "toggle_not_covered",
-      "refs": [],
-      "msg": "ece298a_counter.v:29 ui_in[7]:1->0 never toggled",
-      "source": "verilator",
-      "items": [
-        {
-          "msg": "ece298a_counter.v:29 ui_in[7]:1->0 never toggled",
-          "file": "ece298a_counter.v",
-          "line": 29
-        }
-      ]
-    }
+ "script": "gate",
+ "gate": "cover",
+ "phase": "P4",
+ "tool": "cover",
+ "input_digest": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
+ "status": "pass",
+ "criteria": {
+  "fail_severities": [
+   "error"
   ],
-  "facts": {
-    "top": "ece298a_counter",
-    "line_pct": 100.0,
-    "toggle_pct": 97.6923,
-    "line_covered": 31,
-    "line_total": 31,
-    "toggle_covered": 127,
-    "toggle_total": 130
+  "max_count": 0
+ },
+ "counts": {
+  "total": 4,
+  "by_severity": {
+   "info": 4
   },
-  "inputs_at_start": {
-    "rtl": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
-    "tb": "dir_text:1a9e6faab6600130823e4ed8154e094fed3d16ebb98f4d6a474351cd134dddff",
-    "spec_yaml": "json_canonical:969b0fe1155ae8e297f5db8ca34afc10e02ba481ea588d4287af70b8e371a5b7"
-  },
-  "record_result": {
-    "ok": true,
-    "recorded": true,
-    "workspace": "blocks/counter",
-    "gate": "cover",
-    "status": "pass",
-    "attempts": 4,
-    "inputs": {
-      "rtl": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
-      "tb": "dir_text:1a9e6faab6600130823e4ed8154e094fed3d16ebb98f4d6a474351cd134dddff",
-      "spec_yaml": "json_canonical:969b0fe1155ae8e297f5db8ca34afc10e02ba481ea588d4287af70b8e371a5b7"
-    }
+  "by_source": {
+   "verilator": 4
   }
+ },
+ "failing_count": 0,
+ "failing": [],
+ "violations": [
+  {
+   "check": "cover",
+   "severity": "info",
+   "file": "ece298a_counter.v",
+   "module": null,
+   "line": 29,
+   "kind": "toggle_not_covered",
+   "refs": [],
+   "msg": "ece298a_counter.v:29 ui_in[3]:1->0 never toggled",
+   "source": "verilator",
+   "items": [
+    {
+     "msg": "ece298a_counter.v:29 ui_in[3]:1->0 never toggled",
+     "file": "ece298a_counter.v",
+     "line": 29
+    }
+   ]
+  },
+  {
+   "check": "cover",
+   "severity": "info",
+   "file": "ece298a_counter.v",
+   "module": null,
+   "line": 29,
+   "kind": "toggle_not_covered",
+   "refs": [],
+   "msg": "ece298a_counter.v:29 ui_in[5]:1->0 never toggled",
+   "source": "verilator",
+   "items": [
+    {
+     "msg": "ece298a_counter.v:29 ui_in[5]:1->0 never toggled",
+     "file": "ece298a_counter.v",
+     "line": 29
+    }
+   ]
+  },
+  {
+   "check": "cover",
+   "severity": "info",
+   "file": "ece298a_counter.v",
+   "module": null,
+   "line": 29,
+   "kind": "toggle_not_covered",
+   "refs": [],
+   "msg": "ece298a_counter.v:29 ui_in[7]:1->0 never toggled",
+   "source": "verilator",
+   "items": [
+    {
+     "msg": "ece298a_counter.v:29 ui_in[7]:1->0 never toggled",
+     "file": "ece298a_counter.v",
+     "line": 29
+    }
+   ]
+  },
+  {
+   "check": "cover",
+   "severity": "info",
+   "file": "ece298a_counter.v",
+   "module": null,
+   "line": 110,
+   "kind": "expr_not_covered",
+   "refs": [],
+   "msg": "ece298a_counter.v:110 condition term ({32'h1{{{ena, ui_in[7:3]}, 1'h0}}}[0]==1 && {32'h1{{{ena, ui_in[7:3]}, 1'h0}}}[1]==1 && {32'h1{{{ena, ui_in[7:3]}, 1'h0}}}[2]==1 && {32'h1{{{ena, ui_in[7:3]}, 1'h0}}}[3]==1 && {32'h1{{{ena, ui_in[7:3]}, 1'h0}}}[4]==1 && {32'h1{{{ena, ui_in[7:3]}, 1'h0}}}[5]==1 && {32'h1{{{ena, ui_in[7:3]}, 1'h0}}}[6]==1) => 1 never decided its expression by tb/",
+   "source": "verilator",
+   "items": [
+    {
+     "msg": "ece298a_counter.v:110 condition term ({32'h1{{{ena, ui_in[7:3]}, 1'h0}}}[0]==1 && {32'h1{{{ena, ui_in[7:3]}, 1'h0}}}[1]==1 && {32'h1{{{ena, ui_in[7:3]}, 1'h0}}}[2]==1 && {32'h1{{{ena, ui_in[7:3]}, 1'h0}}}[3]==1 && {32'h1{{{ena, ui_in[7:3]}, 1'h0}}}[4]==1 && {32'h1{{{ena, ui_in[7:3]}, 1'h0}}}[5]==1 && {32'h1{{{ena, ui_in[7:3]}, 1'h0}}}[6]==1) => 1 never decided its expression by tb/",
+     "file": "ece298a_counter.v",
+     "line": 110
+    }
+   ],
+   "label": "({32'h1{{{ena, ui_in[7:3]}, 1'h0}}}[0]==1 && {32'h1{{{ena, ui_in[7:3]}, 1'h0}}}[1]==1 && {32'h1{{{ena, ui_in[7:3]}, 1'h0}}}[2]==1 && {32'h1{{{ena, ui_in[7:3]}, 1'h0}}}[3]==1 && {32'h1{{{ena, ui_in[7:3]}, 1'h0}}}[4]==1 && {32'h1{{{ena, ui_in[7:3]}, 1'h0}}}[5]==1 && {32'h1{{{ena, ui_in[7:3]}, 1'h0}}}[6]==1) => 1"
+  }
+ ],
+ "facts": {
+  "top": "ece298a_counter",
+  "seed": 889066098,
+  "replay": "bin/eda python engine/scripts/check_cover.py --workspace <ws> --seed 889066098",
+  "line_pct": 100.0,
+  "toggle_pct": 97.6923,
+  "line_covered": 31,
+  "line_total": 31,
+  "toggle_covered": 127,
+  "toggle_total": 130,
+  "fsm_pct": null,
+  "fsm_covered": 0,
+  "fsm_total": 0,
+  "expr_pct": 93.3333,
+  "expr_covered": 14,
+  "expr_total": 15,
+  "user_pct": null,
+  "user_covered": 0,
+  "user_total": 0,
+  "requirement_covers": {},
+  "merged": {
+   "line_pct": 100.0,
+   "line_covered": 31,
+   "line_total": 31,
+   "toggle_pct": 97.6923,
+   "toggle_covered": 127,
+   "toggle_total": 130,
+   "fsm_pct": null,
+   "fsm_covered": 0,
+   "fsm_total": 0,
+   "expr_pct": 93.3333,
+   "expr_covered": 14,
+   "expr_total": 15,
+   "user_pct": null,
+   "user_covered": 0,
+   "user_total": 0
+  },
+  "simdiff": {
+   "agree": true,
+   "tests": {
+    "test_async_reset": {
+     "icarus": {
+      "result": "pass",
+      "wall_s": 0.001
+     },
+     "verilator": {
+      "result": "pass",
+      "wall_s": 0.0
+     }
+    },
+    "test_count_enable_holds": {
+     "icarus": {
+      "result": "pass",
+      "wall_s": 0.0
+     },
+     "verilator": {
+      "result": "pass",
+      "wall_s": 0.0
+     }
+    },
+    "test_count_up_from_loaded_value": {
+     "icarus": {
+      "result": "pass",
+      "wall_s": 0.0
+     },
+     "verilator": {
+      "result": "pass",
+      "wall_s": 0.0
+     }
+    },
+    "test_load_beats_count": {
+     "icarus": {
+      "result": "pass",
+      "wall_s": 0.0
+     },
+     "verilator": {
+      "result": "pass",
+      "wall_s": 0.0
+     }
+    },
+    "test_load_ignored_while_driving": {
+     "icarus": {
+      "result": "pass",
+      "wall_s": 0.0
+     },
+     "verilator": {
+      "result": "pass",
+      "wall_s": 0.0
+     }
+    },
+    "test_release_lags_two_edges": {
+     "icarus": {
+      "result": "pass",
+      "wall_s": 0.0
+     },
+     "verilator": {
+      "result": "pass",
+      "wall_s": 0.0
+     }
+    },
+    "test_sync_load": {
+     "icarus": {
+      "result": "pass",
+      "wall_s": 0.0
+     },
+     "verilator": {
+      "result": "pass",
+      "wall_s": 0.0
+     }
+    },
+    "test_tristate_bus": {
+     "icarus": {
+      "result": "pass",
+      "wall_s": 0.0
+     },
+     "verilator": {
+      "result": "pass",
+      "wall_s": 0.0
+     }
+    },
+    "test_unused_inputs": {
+     "icarus": {
+      "result": "pass",
+      "wall_s": 0.0
+     },
+     "verilator": {
+      "result": "pass",
+      "wall_s": 0.0
+     }
+    },
+    "test_wraparound": {
+     "icarus": {
+      "result": "pass",
+      "wall_s": 0.001
+     },
+     "verilator": {
+      "result": "pass",
+      "wall_s": 0.0
+     }
+    }
+   },
+   "runs": {
+    "icarus": {
+     "wall_s": 0.7544,
+     "cpu_s": 0.7484
+    },
+    "verilator": {
+     "wall_s": 2.5052,
+     "cpu_s": 2.3416
+    }
+   }
+  }
+ },
+ "inputs_at_start": {
+  "rtl": "dir_text:aa4436b381bcec7f90468678cdd7f947f043ff26c9e6434a4f318d1428e1b97f",
+  "tb": "dir_text:1a9e6faab6600130823e4ed8154e094fed3d16ebb98f4d6a474351cd134dddff",
+  "holdout": "dir_text:fb8d89cdea7e2d1106319346a2079912521ca1f89a8834fa0b96f638b704cc21",
+  "cover_points": null,
+  "spec_yaml": "json_canonical:969b0fe1155ae8e297f5db8ca34afc10e02ba481ea588d4287af70b8e371a5b7"
+ },
+ "strength_at_start": 0,
+ "recorded_ts": "2026-11-19T01:52:23",
+ "attempts": 5
 }
