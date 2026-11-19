@@ -59,6 +59,107 @@ def test_centre_fits_and_refuses():
     assert check_top_harden.centre(die, 400.0, 31.04) is None
 
 
+# the TT analog 1x2 tile, the PLL's
+_TILE = "0 0 346.64 325.36"
+
+
+def _signal_macro(tmp_path: Path, side: str) -> dict:
+    """A 122.02 um wide macro abstract, the PLL's width, with its digital
+    signal pins (pfd_up, pfd_dn) at its `side` edge."""
+    x = 121.32 if side == "right" else 0.3
+    lef = tmp_path / f"sig_{side}.lef"
+    lef.write_text("MACRO sig\n  SIZE 122.020 BY 296.760 ;\n" + "".join(
+        f"  PIN {pin}\n    PORT\n      LAYER Metal3 ;\n"
+        f"        RECT {x} {y} {x + 0.4} {y + 0.4} ;\n    END\n  END {pin}\n"
+        for pin, y in (("pfd_up", 150), ("pfd_dn", 160)))
+        + "END sig\n")
+    return {"cell": "sig", "files": {"lef": str(lef)},
+            "pins": {"pfd_up": "pfd_up", "pfd_dn": "pfd_dn"}}
+
+
+def test_place_macro_centres_while_a_row_runs_past_it(tmp_path):
+    """The PLL's old 259.46 um macro: centred at y 31.36, its 10 um halo
+    leaves rows below it, so the Metal1 rails join the cells either side."""
+    macro = _signal_macro(tmp_path, "right")
+    loc, note, bounds = check_top_harden.place_macro(
+        macro, _TILE, (122.02, 259.46))
+    assert loc == [112.56, 31.36] and note == "centred" and bounds is None
+    assert check_top_harden.power_split(_TILE, loc, 122.02, 259.46) is None
+
+
+def test_place_macro_goes_to_the_edge_its_pins_face_away_from(tmp_path,
+                                                              capsys):
+    """The 296.76 um macro (breakage: PSM-0069 at the harden's step 57):
+    centred, it and its halo cover every row (core y 3.92..321.44), so the
+    cells right of it were an island; it goes to the edge that keeps its
+    signal pins facing the std-cell block, slid no further than its halo
+    still covers the strip to that edge, and down to the core's bottom edge
+    so full rows above it join its supply stripes to the cell grid."""
+    macro = _signal_macro(tmp_path, "right")
+    loc, note, bounds = check_top_harden.place_macro(
+        macro, _TILE, (122.02, 296.76))
+    assert loc == [3.36, 3.92] and bounds == (3.36, 13.36)
+    assert note.startswith("at the left edge") and "pfd_up" in note
+    assert "bottom edge" in note
+    assert "left edge" in capsys.readouterr().err
+    assert check_top_harden.power_split(_TILE, loc, 122.02, 296.76) is None
+    # the pins on the left put it at the right edge (core x ends at 343.28)
+    macro = _signal_macro(tmp_path, "left")
+    loc, note, bounds = check_top_harden.place_macro(
+        macro, _TILE, (122.02, 296.76))
+    assert loc == [221.2, 3.92] and bounds == (211.26, 221.2)
+    assert note.startswith("at the right edge")
+    assert check_top_harden.power_split(_TILE, loc, 122.02, 296.76) is None
+
+
+def test_power_split_names_the_island():
+    """Centred, the 296.76 um macro leaves cells on both sides and no row
+    past it: the narrower block, on its right, is the island."""
+    split = check_top_harden.power_split(_TILE, [123.2, 15.68], 122.02,
+                                         296.76)
+    assert split["island"] == "right"
+    assert split["left"] == [3.36, 113.2] and split["right"] == [255.22,
+                                                                 343.28]
+    assert split["macro_y"] == [5.68, 322.44]
+
+
+def test_power_split_names_the_macro_island():
+    """At the side edge but still covering every row (y 15.68), the cells
+    are one block, yet the macro's own stripes reach no row: the macro is
+    the island (the top3 harden's PSM-0069)."""
+    split = check_top_harden.power_split(_TILE, [3.36, 15.68], 122.02,
+                                         296.76)
+    assert split["island"] == "macro" and split["macro"] == [3.36, 125.38]
+    assert "reach no row" in check_top_harden.split_message(
+        {"cell": "sig", "location": [3.36, 15.68]}, split)
+
+
+def test_row_location_finds_a_full_row():
+    """The 296.76 um macro at the bottom edge leaves full rows above it;
+    one taller than the core minus a halo and a row leaves none."""
+    assert check_top_harden.row_location(_TILE, 296.76, 3.36) == [3.36,
+                                                                  3.92]
+    assert check_top_harden.row_location(_TILE, 320.0, 3.36) is None
+
+
+def test_power_location_keeps_to_its_bounds(tmp_path, monkeypatch):
+    """The edge window: a stripe reaching the supplies outside it is no
+    place for the macro."""
+    lef = _power_lef(tmp_path, [])
+    macro = {"files": {"lef": str(lef), "gds": "x"}, "cell": "pwr",
+             "power": {"vdd": "vdd", "vss": "vss"}}
+    stripes = [("VPWR", 50.0), ("VGND", 53.3)]
+    monkeypatch.setattr(check_top_harden, "macro_size",
+                        lambda *_a: (100.0, 100.0))
+    free = check_top_harden.power_location(macro, "0 0 300 200", [0.0, 50.0],
+                                           stripes, 0.8, 38.87)
+    assert free == [0.0, 50.0]
+    assert check_top_harden.power_location(
+        macro, "0 0 300 200", [0.0, 50.0], [("VPWR", 120.0),
+                                            ("VGND", 123.3)], 0.8, 38.87,
+        (0.0, 10.0)) is None
+
+
 def _lef(tmp_path: Path, vdd_layer: str, vss_layer: str) -> dict:
     lef = tmp_path / "mac.lef"
     lef.write_text("".join(

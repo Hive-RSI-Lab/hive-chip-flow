@@ -392,3 +392,26 @@ def test_ext_devices_drops_the_pnp_none_substrate():
     dev = {"class": "bjt", "model": "pnp_10p00x10p00",
            "nets": {"c": "C", "b": "B", "e": "E"}}
     assert erc.locate(dev, [e]) == [[0.05, 0.1]]
+
+
+MOSCAP = ".subckt t f vss\nX0 f vss cap_nmos_03v3_b c_width=35u c_length=12u\n.ends\n"
+
+
+def test_to_cdl_rates_a_mos_cap_as_its_gate_oxide():
+    devices, _ports, cdl = erc.to_cdl(MOSCAP, "t")
+    assert "M0 vss f vss vss cap_nmos_03v3_b w=35.0u l=12.0u" in cdl
+    assert devices["M0"]["class"] == "moscap"
+    assert devices["M0"]["nets"] == {"g": "f", "b": "vss"}
+    text = erc.model_file(devices)
+    assert "MN cap_nmos_03v3_b Vth=0.6 Vgs=3.63 Vbg=3.63" in text
+
+
+@pytest.mark.slow
+def test_mos_cap_on_its_supply_passes_and_over_it_is_a_gate_overvoltage(tmp_path):
+    violations, _facts = erc.check(tmp_path, "t", MOSCAP, "", 3.3, {},
+                                   tmp_path / "ok")
+    assert [v for v in violations if v["severity"] == "error"] == []
+    violations, _facts = erc.check(tmp_path, "t", MOSCAP, "", 3.3,
+                                   {"f": {"min": 0, "max": 5.0}}, tmp_path / "hv")
+    assert sorted((v["kind"], v["severity"]) for v in violations) == [
+        ("overvoltage_vbg", "error"), ("overvoltage_vgs", "error")]

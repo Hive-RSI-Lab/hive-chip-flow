@@ -347,6 +347,13 @@ def test_with_op_adds_the_control_block_before_end():
     assert gate.dut_line(BENCH) == (["vdd", "0", "out"], "mirror")
 
 
+def test_with_op_prints_the_operating_point_at_twelve_digits():
+    # 6 digits (ngspice's default) is 1 uV on a 3 V rail: 30 nA over 33 ohm,
+    # which made a deviceless n-well node look like a current source.
+    out = gate.with_op(BENCH)
+    assert out.index("set numdgt=12") < out.index("op\nprint all")
+
+
 def test_with_op_refuses_a_bench_with_its_own_control_block():
     with pytest.raises(CheckError, match=".control"):
         gate.with_op(BENCH.replace(".end", ".control\nop\n.endc\n.end"))
@@ -687,3 +694,56 @@ def test_with_tran_saves_the_probes_and_needs_a_tran_line():
     assert out.index(".control") < out.rindex(".end")
     with pytest.raises(CheckError, match=".tran"):
         gate.with_tran(BENCH, "x.raw")
+
+
+WELL_PEX = """\
+.subckt pump vdd out
+X1 out g vdd.t1 vdd.t2 pfet_03v3 w=50u l=4u
+X2 out g vdd.t3 vdd.t4 pfet_03v3 w=50u l=4u
+X3 out vss vss ppolyf_u r_width=1u r_length=10u
+R1 vdd.t2 vdd.n9 80
+R2 vdd.n9 vdd.t4 80
+R3 vdd.n9 vdd.n1 30
+R4 vdd.n1 vdd.n7 1
+R5 vdd.n7 vdd.n8 1
+.ends pump
+"""
+
+
+def test_device_terminals_names_each_mos_bulk():
+    terms, bulks = emirlib.device_terminals(WELL_PEX, "pump")
+    assert bulks == {"vdd.t2", "vdd.t4"}
+    assert {"out", "g", "vdd.t1", "vdd.t3", "vss"} <= terms
+    assert "vdd.n9" not in terms
+
+
+def test_body_nodes_take_the_well_between_bulk_pins_and_stop_at_metal():
+    """vdd.n9 is n-well between the two PFETs' bulk pins, 20 um from the
+    vdd metal: it joins the body. vdd.n1 is the tap's metal (on the
+    geometry), so vdd.n8 beyond it, far and deviceless as it is, stays a
+    wire node the gate defends."""
+    fh = emirlib.parse_fh(STRAP_FH.replace("Nout", "Nvdd"))
+    rnodes = {"vdd.t2": (25.0, 0.0), "vdd.t4": (35.0, 0.0),
+              "vdd.n9": (30.0, 0.0), "vdd.n1": (10.0, 0.0),
+              "vdd.n7": (5.0, 0.0), "vdd.n8": (40.0, 0.0)}
+    terms, bulks = emirlib.device_terminals(WELL_PEX, "pump")
+    res = emirlib.subckt_resistors(WELL_PEX, "pump")
+    body = emirlib.body_nodes(emirlib.handed_on_nodes([], bulks), terms,
+                              res, fh, rnodes)
+    assert body == {"vdd.t2", "vdd.t4", "vdd.n9"}
+
+
+def test_a_well_node_far_off_the_geometry_is_handed_on_as_body():
+    """The PLL case: a deviceless well node 17.6 um from the vdd metal
+    carries its own capacitance current in a transient."""
+    net = emirlib.parse_fh(STRAP_FH)["out"]
+    inj = {"out.n9": 7e-8}
+    rnodes = {"out.n9": (30.0, 0.0), "out.n1": (10.0, 0.0)}
+    res = [("out.n9", "out.n1", 33.0)]
+    volts = {"out.n9": 7e-8 * 33.0, "out.n1": 0.0}
+    with pytest.raises(emirlib.EmirError, match="um away"):
+        emirlib.place(net, inj, rnodes, res, volts)
+    placed, folded = emirlib.place(net, inj, rnodes, res, volts,
+                                   bulk=frozenset({"out.n9"}))
+    assert folded == 1
+    assert placed == [("1", pytest.approx(7e-8))]
