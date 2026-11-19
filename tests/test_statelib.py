@@ -374,10 +374,13 @@ def test_gate_freshness_an_optional_kind_added_later_and_still_absent():
     assert statelib.gate_freshness(was, absent, optional=opt)["fresh"] is False
 
 
-def test_only_clock_jitter_is_an_optional_kind():
+def test_only_clock_jitter_and_cover_points_are_optional_kinds():
     # widening `optional: true` to another kind is a freshness decision of
-    # its own: make it here, deliberately
-    assert statelib.optional_kinds(statelib.load_map()) == {"clock_jitter"}
+    # its own: make it here, deliberately. cover_points (#80b): cover/ is
+    # optional per block, and a cover record made before the kind existed
+    # read no cover/ either; the rule above still stales it once one exists.
+    assert statelib.optional_kinds(statelib.load_map()) == {
+        "clock_jitter", "cover_points"}
 
 
 def test_gate_freshness_unknown_gate_never_fresh():

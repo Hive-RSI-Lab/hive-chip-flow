@@ -62,6 +62,21 @@ info finding, so a missing count is never mistaken for coverage; line and
 branch coverage still see that code. The same `rtl/cover_exclude.yaml`
 entry (`file`, `line`, `label`, `reason`) excludes one of these points.
 
+Requirement cover points (#80b): the build also takes `--coverage-user`,
+so every SV `cover property` and immediate `cover` is counted - in rtl/
+itself, or in `cover/*.sv`, files of cover modules `bind`-ed into the
+DUT that only this Verilator build reads (sim's Icarus and simdiff never
+see them, and synthesis never does). A spec.yaml requirement names its
+points with `cover: [LABEL, ...]`, each the statement label of a cover
+(`WRAP: cover property (...)`). The gate fails a requirement whose label
+no visible test ever hit (`requirement_cover_not_hit`, naming the
+requirement, the label and the instance), or that no cover statement
+carries at all (`requirement_cover_label_missing`): a label that names
+nothing would otherwise pass for free. A label bound into several
+instances must be hit in each. cover_exclude.yaml never removes a
+requirement's cover point. A cover no requirement names is counted
+(`user_pct`) and a missed one is an info `cover_point_not_hit`.
+
 Fault this gate must catch (gates.yaml): "an unreachable state" - a branch
 or line the visible tb/ suite never reaches, dragging line coverage below
 `line_min`.
@@ -109,6 +124,7 @@ SIMULATORS = ("icarus", "verilator")
 INFO_NAME = "log/coverage.info"
 DAT_NAME = "log/coverage.dat"
 EXCLUDE_REL = "rtl/cover_exclude.yaml"
+COVER_DIR = "cover"  # bind files of SV cover points, Verilator cover only
 DEFAULT_LINE_MIN = 95.0
 DEFAULT_TOGGLE_MIN = 90.0
 DEFAULT_FSM_MIN = 100.0
@@ -123,7 +139,8 @@ BRDA_RE = re.compile(r"^BRDA:(\d+),(\d+),([^,]+),(-|\d+)")
 SF_RE = re.compile(r"^SF:(.+)$")
 # coverage.dat: `C '<\x01key\x02value...>' count`, one point per line
 DAT_RE = re.compile(r"^C '(.*)' (\d+)\s*$")
-DAT_KINDS = {"fsm_state": "fsm", "fsm_arc": "fsm", "expr": "expr"}
+DAT_KINDS = {"fsm_state": "fsm", "fsm_arc": "fsm", "expr": "expr",
+             "user": "user"}
 
 
 def collect_sources(ws: Path) -> list[Path]:
@@ -132,6 +149,14 @@ def collect_sources(ws: Path) -> list[Path]:
     if not files:
         raise CheckError(f"no .v/.sv files under {rtl_dir}")
     return checklib.order_sources(files)
+
+
+def collect_cover_sources(ws: Path) -> list[Path]:
+    """cover/*.sv and *.v: cover modules bound into the DUT."""
+    d = ws / COVER_DIR
+    if not d.is_dir():
+        return []
+    return sorted(d.glob("*.v")) + sorted(d.glob("*.sv"))
 
 
 def load_excludes(ws: Path) -> dict[str, dict]:
@@ -158,7 +183,8 @@ def load_excludes(ws: Path) -> dict[str, dict]:
 
 
 def run_coverage(ws: Path, top: str, sources: list[Path],
-                 seed: int | None = None) -> Path:
+                 seed: int | None = None,
+                 cover_sources: list[Path] | None = None) -> Path:
     """cocotb over the verilator simulator, --coverage instrumented.
     `runner.test()`'s own `test_dir` is where the compiled simulation
     binary actually RUNS (proved empirically - not `ws`, whatever cwd this
@@ -192,11 +218,13 @@ def run_coverage(ws: Path, top: str, sources: list[Path],
     try:
         runner = get_runner("verilator")
         try:
-            runner.build(sources=[str(s) for s in sources], hdl_toplevel=top,
+            runner.build(sources=[str(s) for s in
+                                  list(sources) + list(cover_sources or [])],
+                        hdl_toplevel=top,
                         build_dir=str(build_dir), always=True,
                         build_args=["--coverage", "--coverage-line",
                                     "--coverage-toggle", "--coverage-fsm",
-                                    "--coverage-expr",
+                                    "--coverage-expr", "--coverage-user",
                                     # a construct --coverage-fsm/-expr cannot
                                     # model (a state reached only through
                                     # `default`, say) is left uncounted, not a
@@ -347,11 +375,12 @@ def parse_info(info_path: Path) -> dict[str, dict]:
 
 
 def parse_dat(dat_path: Path) -> list[dict]:
-    """The fsm and expr points of a Verilator coverage.dat: [{"kind"
-    ("fsm_state"|"fsm_arc"|"expr"), "file", "line", "label", "count",
-    "var", "from", "to", "reset"}]. var/from/to/reset are set on fsm points
-    only (Fv/Ff/Ft/Fg keys); label is the point's own `o` key, with a reset
-    arc's `[reset]` mark kept."""
+    """The fsm, expr and user (SV cover) points of a Verilator coverage.dat:
+    [{"kind" ("fsm_state"|"fsm_arc"|"expr"|"user"), "file", "line", "label",
+    "count", "var", "from", "to", "reset", "hier"}]. var/from/to/reset are
+    set on fsm points only (Fv/Ff/Ft/Fg keys); label is the point's own `o`
+    key (a cover's statement label), with a reset arc's `[reset]` mark
+    kept; hier is the `h` key (`TOP.counter8.u_cov.WRAP`)."""
     points = []
     for raw in dat_path.read_text(encoding="utf-8",
                                   errors="replace").splitlines():
@@ -370,7 +399,8 @@ def parse_dat(dat_path: Path) -> list[dict]:
             "kind": kind, "file": keys["f"], "line": int(keys["l"]),
             "label": keys.get("o", ""), "count": int(m.group(2)),
             "var": keys.get("Fv"), "from": keys.get("Ff"),
-            "to": keys.get("Ft"), "reset": keys.get("Fg") == "reset"})
+            "to": keys.get("Ft"), "reset": keys.get("Fg") == "reset",
+            "hier": keys.get("h", "")})
     return points
 
 
@@ -396,6 +426,7 @@ def run(argv=None):
         raise CheckError("spec.yaml has no non-empty 'top' - run spec_lint "
                          "first")
     sources = collect_sources(ws)
+    cover_sources = collect_cover_sources(ws)
     cover_cfg = spec.get("cover") or {}
     line_min = float(cover_cfg.get("line_min", DEFAULT_LINE_MIN))
     toggle_min = float(cover_cfg.get("toggle_min", DEFAULT_TOGGLE_MIN))
@@ -405,14 +436,20 @@ def run(argv=None):
 
     # the same bench as sim, so coverage counts sim's own draw
     seed = cocotblib.sim_seed(spec, ws / "tb", args.seed)
-    info_path, verilator_cost = timed(run_coverage, ws, top, sources, seed)
+    info_path, verilator_cost = timed(run_coverage, ws, top, sources, seed,
+                                      cover_sources)
     per_file = parse_info(info_path)
     rtl_names = {f.name for f in sources}
+    cover_names = {f.name for f in cover_sources}
 
     violations, counts = count_coverage(per_file, rtl_names, excludes,
                                         line_min, toggle_min)
-    more, fe_counts = count_fsm_expr(parse_dat(ws / DAT_NAME), rtl_names,
-                                     excludes, fsm_min, expr_min)
+    points = parse_dat(ws / DAT_NAME)
+    more, fe_counts = count_fsm_expr(points, rtl_names, excludes, fsm_min,
+                                     expr_min)
+    violations += more
+    more, req_counts = count_requirement_covers(
+        points, rtl_names | cover_names, spec.get("requirements") or [])
     violations += more
 
     icarus_xml, icarus_cost = timed(run_icarus, ws, top, sources, seed)
@@ -429,7 +466,7 @@ def run(argv=None):
         line_covered=counts["line_covered"], line_total=counts["line_total"],
         toggle_covered=counts["toggle_covered"],
         toggle_total=counts["toggle_total"],
-        **fe_counts,
+        **fe_counts, **req_counts,
         simdiff={"agree": not diffs, "tests": per_test,
                  "runs": {"icarus": icarus_cost,
                           "verilator": verilator_cost}})
@@ -520,7 +557,7 @@ def count_fsm_expr(points: list[dict], rtl_names: set[str],
     states: dict[tuple, dict] = {}    # (file, var) -> {state: line}
     for p in points:
         name = Path(p["file"]).name
-        if name not in rtl_names:
+        if name not in rtl_names or p["kind"] == "user":
             continue
         if p["kind"] == "fsm_state":
             states.setdefault((name, p["var"]), {})[p["to"]] = p["line"]
@@ -577,6 +614,69 @@ def count_fsm_expr(points: list[dict], rtl_names: set[str],
                 + (f" and {more} more" if more > 0 else ""), "verilator",
                 missed=missed[group]))
     return violations, out
+
+
+def count_requirement_covers(points: list[dict], names: set[str],
+                             requirements: list) -> tuple[list[dict], dict]:
+    """SV cover points against the requirements that name them, pure like
+    count_fsm_expr(). A requirement's `cover: [LABEL]` passes when every
+    instance of every label was hit at least once."""
+    by_label: dict[str, list[dict]] = {}
+    for p in points:
+        if p["kind"] == "user" and Path(p["file"]).name in names:
+            by_label.setdefault(p["label"], []).append(p)
+    violations = []
+    named: set[str] = set()
+    per_req: dict[str, dict] = {}
+    for req in requirements:
+        if not isinstance(req, dict) or not req.get("cover"):
+            continue
+        rid = str(req.get("id"))
+        labels = req["cover"]
+        if isinstance(labels, str):
+            labels = [labels]
+        row = per_req.setdefault(rid, {})
+        for label in labels:
+            label = str(label)
+            named.add(label)
+            found = by_label.get(label, [])
+            row[label] = sum(p["count"] for p in found)
+            if not found:
+                violations.append(checklib.violation(
+                    "cover", "error", None, None,
+                    "requirement_cover_label_missing", [rid],
+                    f"requirement {rid} names cover point {label}, but no "
+                    f"`{label}: cover ...` statement exists in rtl/ or "
+                    f"{COVER_DIR}/", "verilator", label=label))
+                continue
+            for p in found:
+                if p["count"] > 0:
+                    continue
+                fname = Path(p["file"]).name
+                violations.append(checklib.violation(
+                    "cover", "error", fname, None,
+                    "requirement_cover_not_hit", [rid],
+                    f"requirement {rid}: cover point {label} "
+                    f"({p['hier'] or fname}, {fname}:{p['line']}) was never "
+                    "hit by tb/", "verilator", line=p["line"], label=label,
+                    hier=p["hier"]))
+    covered = total = 0
+    for label, found in sorted(by_label.items()):
+        for p in found:
+            total += 1
+            if p["count"] > 0:
+                covered += 1
+            elif label not in named:
+                fname = Path(p["file"]).name
+                violations.append(checklib.violation(
+                    "cover", "info", fname, None, "cover_point_not_hit", [],
+                    f"{fname}:{p['line']} cover point {label} "
+                    f"({p['hier']}) was never hit by tb/", "verilator",
+                    line=p["line"], label=label, hier=p["hier"]))
+    return violations, {
+        "user_pct": checklib.rnd(100.0 * covered / total) if total else None,
+        "user_covered": covered, "user_total": total,
+        "requirement_covers": per_req}
 
 
 def main(argv=None) -> int:

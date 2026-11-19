@@ -70,6 +70,24 @@ def test_requirement_with_bad_check_kind_fails():
     assert "requirement_no_check" in kinds
 
 
+
+@pytest.mark.parametrize("cover", ["WRAP", [], [""], [3], None])
+def test_requirement_bad_cover_fails(cover):
+    spec = {**GOOD_SPEC, "requirements": [
+        {"id": "REQ-X", "text": "something", "check": "sim", "cover": cover},
+    ]}
+    kinds = {v["kind"] for v in speclib.lint_spec(spec)}
+    assert "requirement_bad_cover" in kinds
+
+
+def test_requirement_cover_labels_lint_clean():
+    spec = {**GOOD_SPEC, "requirements": [
+        {"id": "REQ-X", "text": "something", "check": "sim",
+         "cover": ["WRAP"]},
+    ]}
+    kinds = {v["kind"] for v in speclib.lint_spec(spec)}
+    assert "requirement_bad_cover" not in kinds
+
 def test_requirement_no_id_or_text_flagged():
     spec = {**GOOD_SPEC, "requirements": [
         {"check": "sim"},

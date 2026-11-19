@@ -54,7 +54,7 @@ from checklib import CheckError  # noqa: E402
 SCRIPT = "faults"
 CORPUS = REPO / "corpus"
 DEFAULT_GATES = ENGINE / "reference" / "gates.yaml"
-COPY_SUBDIRS = ("rtl", "netlist", "tb", "holdout", "formal", "sizing",
+COPY_SUBDIRS = ("rtl", "netlist", "tb", "holdout", "formal", "cover", "sizing",
                "layout", "layout_ref")
 # formal: M3. sizing: M8 (docs/design.md "### M8.") - an ade rung's own
 # sizing/sizing.yaml (section 4's optimise target) is a real per-block

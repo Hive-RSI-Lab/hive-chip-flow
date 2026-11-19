@@ -138,7 +138,9 @@ gates:
       description: >-
         Line at or above 95%, toggle at or above 90%, every state machine
         state and transition Verilator extracts (100%), and expression terms
-        at or above 90% on the DUT; exclusions carry reasons.
+        at or above 90% on the DUT; exclusions carry reasons. Every SV
+        cover point a spec.yaml requirement names (cover: [LABEL]) is hit
+        by the visible tests.
     reset_indep:
       phase: P4
       tool: reset_indep
