@@ -79,18 +79,19 @@ EVALS = REPO / "evals"
 # the files a fixture carries: the artifact directories a gate reads, never
 # state.json, runs/, log/, reports/ or snapshots, which are a run's history
 # rather than its inputs.
-FREEZE_DIRS = ("spec", "rtl", "netlist", "tb", "holdout", "formal", "synth",
-               "harden", "sizing", "layout", "layout_ref")
+FREEZE_DIRS = ("spec", "rtl", "netlist", "tb", "holdout", "formal", "cover",
+               "synth", "harden", "sizing", "layout", "layout_ref")
 FREEZE_ROOT_FILES = ("interface.yaml", "digital_spec.yaml", "analog_spec.yaml")
 # what each (skill, stage) boundary carries, cumulative with the stage
 # before it (a later stage still needs its predecessor's output). Only
 # vde's stages are pinned down; an unlisted skill/stage falls back to
 # every FREEZE_DIRS directory the source workspace has.
 STAGE_FREEZE_DIRS = {
-    ("vde", "P3"): ("spec", "tb", "holdout", "formal", "rtl"),
-    ("vde", "P4"): ("spec", "tb", "holdout", "formal", "rtl"),
-    ("vde", "P5"): ("spec", "tb", "holdout", "formal", "rtl", "synth"),
-    ("vde", "P6"): ("spec", "tb", "holdout", "formal", "rtl", "synth",
+    ("vde", "P3"): ("spec", "tb", "holdout", "formal", "cover", "rtl"),
+    ("vde", "P4"): ("spec", "tb", "holdout", "formal", "cover", "rtl"),
+    ("vde", "P5"): ("spec", "tb", "holdout", "formal", "cover", "rtl",
+                    "synth"),
+    ("vde", "P6"): ("spec", "tb", "holdout", "formal", "cover", "rtl", "synth",
                      "netlist", "harden"),
 }
 # stages whose gate list is not simply "the non-job gates of that phase"

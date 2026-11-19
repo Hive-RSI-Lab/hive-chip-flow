@@ -22,6 +22,8 @@ exists, is the only artifact early enough):
                                  required when check == measure; each
                                  bound names the recorded fact it is held
                                  to (measurelib.py, issue #89)
+        cover: [str]             optional; SV cover statement labels the
+                                 cover gate must see hit (#80b)
     ports: {name: {dir, width}} optional, loose
     tt_pins: {name: pin}         optional (M4+); a non-empty mapping when present
     clock: {period_ns, domains, primary?}  optional, loose; primary must
@@ -1011,6 +1013,16 @@ def lint_spec(spec: dict, rel_path: str = "spec/spec.yaml") -> list[dict]:
                    f"{where} (id {rid!r}) has check: {check} but no "
                    "'property' label naming its assert/cover in formal/*.sv",
                    refs=[rid] if rid else [])
+
+        # #80b: the SV cover points (statement labels, rtl/ or cover/*.sv)
+        # the cover gate must see hit for this requirement
+        if "cover" in req:
+            labels = req.get("cover")
+            if not isinstance(labels, list) or not labels or not all(
+                    isinstance(x, str) and x.strip() for x in labels):
+                bad("requirement_bad_cover",
+                   f"{where} (id {rid!r}) 'cover' must be a non-empty list "
+                   "of cover statement labels", refs=[rid] if rid else [])
 
     tt_pins = spec.get("tt_pins")
     if tt_pins is not None and (not isinstance(tt_pins, dict) or not tt_pins):

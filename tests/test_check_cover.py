@@ -355,6 +355,119 @@ def test_new_cover_kinds_route_to_testbench_with_a_remediation():
         assert cluster_violations.FIXER_HINTS[kind] == "testbench", kind
         assert (rem / f"{kind}.md").is_file(), kind
 
+    for kind in ("requirement_cover_not_hit", "requirement_cover_label_missing",
+                 "cover_point_not_hit"):
+        assert cluster_violations.FIXER_HINTS[kind] == "testbench", kind
+        assert (rem / f"{kind}.md").is_file(), kind
+
+
+# #80b: SV cover points tied to requirements
+def test_parse_dat_reads_a_user_cover_point(tmp_path):
+    dat = tmp_path / "coverage.dat"
+    dat.write_text(
+        "# SystemC::Coverage-3\n"
+        + _dat_line(3, f="cover/top_cover.sv", l=7, t="user", o="WRAP",
+                    h="TOP.top.u_cover.WRAP"),
+        encoding="utf-8")
+    [p] = check_cover.parse_dat(dat)
+    assert (p["kind"], p["label"], p["count"], p["line"], p["hier"]) == (
+        "user", "WRAP", 3, 7, "TOP.top.u_cover.WRAP")
+
+
+def _upt(label, count, hier=None, file="/ws/cover/top_cover.sv", line=7):
+    return {"kind": "user", "file": file, "line": line, "label": label,
+            "count": count, "var": None, "from": None, "to": None,
+            "reset": False, "hier": hier or f"TOP.top.u_cover.{label}"}
+
+
+NAMES = {"top.v", "top_cover.sv"}
+
+
+def test_requirement_cover_hit_passes_and_is_counted():
+    reqs = [{"id": "REQ-WRAP", "text": "wraps", "check": "sim",
+             "cover": ["WRAP"]}]
+    v, c = check_cover.count_requirement_covers(
+        [_upt("WRAP", 2)], NAMES, reqs)
+    assert v == []
+    assert c["requirement_covers"] == {"REQ-WRAP": {"WRAP": 2}}
+    assert (c["user_pct"], c["user_covered"], c["user_total"]) == (100.0, 1, 1)
+
+
+def test_requirement_cover_never_hit_fails_naming_requirement_and_label():
+    reqs = [{"id": "REQ-HOLD", "text": "holds", "check": "sim",
+             "cover": ["HOLD"]}]
+    v, c = check_cover.count_requirement_covers(
+        [_upt("HOLD", 0)], NAMES, reqs)
+    [x] = v
+    assert (x["kind"], x["severity"], x["refs"], x["label"]) == (
+        "requirement_cover_not_hit", "error", ["REQ-HOLD"], "HOLD")
+    assert "REQ-HOLD" in x["msg"] and "HOLD" in x["msg"]
+    assert c["user_pct"] == 0.0
+
+
+def test_every_instance_of_a_requirement_cover_must_be_hit():
+    reqs = [{"id": "REQ-W", "text": "t", "check": "sim", "cover": ["WRAP"]}]
+    pts = [_upt("WRAP", 1, hier="TOP.top.a.WRAP"),
+           _upt("WRAP", 0, hier="TOP.top.b.WRAP")]
+    v, c = check_cover.count_requirement_covers(pts, NAMES, reqs)
+    assert [(x["kind"], x["hier"]) for x in v] == [
+        ("requirement_cover_not_hit", "TOP.top.b.WRAP")]
+    assert c["requirement_covers"] == {"REQ-W": {"WRAP": 1}}
+
+
+def test_requirement_cover_label_with_no_statement_fails():
+    # a label that names nothing must never pass for free
+    reqs = [{"id": "REQ-X", "text": "t", "check": "sim", "cover": ["NOPE"]}]
+    v, c = check_cover.count_requirement_covers([_upt("WRAP", 1)], NAMES, reqs)
+    assert [(x["kind"], x["refs"], x["label"]) for x in v] == [
+        ("requirement_cover_label_missing", ["REQ-X"], "NOPE")]
+    assert c["requirement_covers"] == {"REQ-X": {"NOPE": 0}}
+
+
+def test_unnamed_cover_point_not_hit_is_info_only():
+    v, c = check_cover.count_requirement_covers(
+        [_upt("SPARE", 0), _upt("OTHER", 0, file="/ws/tb/helper.sv")],
+        NAMES, [{"id": "REQ-A", "text": "t", "check": "sim"}])
+    # helper.sv is not the DUT's rtl/ or cover/: ignored entirely
+    assert [(x["kind"], x["severity"]) for x in v] == [
+        ("cover_point_not_hit", "info")]
+    assert (c["user_total"], c["requirement_covers"]) == (1, {})
+
+
+COVER_BIND = """\
+module top_cover (input wire clk, input wire rst, input wire [3:0] count);
+  WRAP: cover property (@(posedge clk) disable iff (rst)
+                        count == 4'd15 ##1 count == 4'd0);
+  NEVER: cover property (@(posedge clk) disable iff (rst)
+                         count == 4'd3 ##1 count == 4'd3);
+endmodule
+bind top top_cover u_cover (.clk(clk), .rst(rst), .count(count));
+"""
+
+
+@pytest.mark.slow
+def test_bound_cover_point_never_hit_fails_the_gate(tmp_path, capsys):
+    ws = make_ws(tmp_path, RTL)
+    (ws / "cover").mkdir()
+    (ws / "cover" / "top_cover.sv").write_text(COVER_BIND, encoding="utf-8")
+    (ws / "spec" / "spec.yaml").write_text(
+        "top: top\nrequirements:\n"
+        "  - {id: REQ-WRAP, text: wraps, check: sim, cover: [WRAP]}\n"
+        "  - {id: REQ-STUCK, text: holds, check: sim, cover: [NEVER]}\n",
+        encoding="utf-8")
+    code = check_cover.main(["--workspace", str(ws)])
+    out = json.loads(capsys.readouterr().out)
+    assert code == 1, out
+    errs = [(v["kind"], v["refs"], v.get("label")) for v in out["violations"]
+            if v["severity"] == "error"]
+    assert errs == [("requirement_cover_not_hit", ["REQ-STUCK"], "NEVER")]
+    assert out["requirement_covers"] == {"REQ-WRAP": {"WRAP": 1},
+                                         "REQ-STUCK": {"NEVER": 0}}
+    # the bind file is a cover input, never part of the DUT's line count
+    assert out["line_pct"] == 100.0
+    gate_result = gate.evaluate("cover", _cover_gate_row(), out)
+    assert gate_result["status"] == "fail"
+
 
 RTL_SYNTAX_ERROR = """\
 module top (input wire clk, input wire rst, output reg [3:0] count);

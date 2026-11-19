@@ -99,6 +99,10 @@ artifact_kinds:
   tb:            {path: "tb", norm: dir_text}
   holdout:       {path: "holdout", norm: dir_text}
   formal:        {path: "formal", norm: dir_text}
+  # SV cover modules bound into the DUT, read by the cover gate alone (#80b).
+  # `optional: true`: a cover record made before this kind existed stays
+  # fresh while the block has no cover/; adding one stales it.
+  cover_points:  {path: "cover", norm: dir_text, optional: true}
   synth:         {path: "synth", norm: dir_text}
   harden_config: {path: "harden/config.json", norm: json_canonical_sans_roots}
   harden_info:   {path: "harden/info.yaml", norm: json_canonical}
@@ -240,8 +244,9 @@ gate_inputs:
     # cover reads `top` and `cover: {line_min, toggle_min, fsm_min, expr_min}`, synth reads
     # `top`: both used to have no spec input at all, so a threshold or top
     # edit left their passes fresh. cover takes the whole file, so a
-    # `formal:` edit stales it too (spec_formal_edit's own set).
-    cover:     [rtl, tb, spec_yaml]
+    # `formal:` edit stales it too (spec_formal_edit's own set). It builds
+    # cover/*.sv (bound SV cover points, #80b) in with rtl/.
+    cover:     [rtl, tb, cover_points, spec_yaml]
     # reset_indep reads `top` and the sim seed from spec.yaml, as sim does
     # (#84); a `formal:` edit leaves it fresh.
     reset_indep: [rtl, tb, spec_yaml_sans_formal]

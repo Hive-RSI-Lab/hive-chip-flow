@@ -179,6 +179,10 @@ FIXER_HINTS: dict[str, str] = {
     "fsm_arc_not_covered": "testbench",
     "expr_not_covered": "testbench",
     "fsm_arcs_not_seen": "testbench",
+    # #80b: a requirement's SV cover point never hit, or not written at all
+    "requirement_cover_not_hit": "testbench",
+    "requirement_cover_label_missing": "testbench",
+    "cover_point_not_hit": "testbench",
     # cover's simdiff (#86): a test whose result differs between Icarus and
     # Verilator hangs on event order - almost always an RTL race (a
     # blocking write read by another always block on the same edge)
