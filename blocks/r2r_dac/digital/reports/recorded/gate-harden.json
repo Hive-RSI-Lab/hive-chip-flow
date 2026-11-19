@@ -23,7 +23,7 @@
   "top": "r2r_dac_digital",
   "run_tag": "run",
   "resumed": false,
-  "wall_s": 67.07,
+  "wall_s": 64.09,
   "run_dir": "harden/runs/run",
   "metrics": {
    "design__instance__count": 2095,
@@ -220,12 +220,12 @@
     }
    },
    "config_sha256": "ab14269c69db89715552ce0dd70eaa0b41c7bb91ada8983289e759db57718239",
-   "resolved_sha256": "9f643690f5332ad302c38dc29a647414c41a37568a456c788ed8b3c98f6146d1",
-   "wall_s": 67.07
+   "resolved_sha256": "4705b067768b91891ba2bbe7c16921b260063f6142fdf0c5fe03d6b293f9d6a3",
+   "wall_s": 64.09
   },
   "qor_diff": {
    "baseline": "recorded",
-   "baseline_ts": "2026-11-18T18:24:18",
+   "baseline_ts": "2026-11-19T02:05:22",
    "summary": "no regressions in 124 compared metric(s)",
    "compared": 124,
    "regressions": [],
@@ -240,7 +240,7 @@
     "count_abs": 0
    },
    "qor_baseline": {
-    "recorded_ts": "2026-11-18T18:24:18",
+    "recorded_ts": "2026-11-19T02:05:22",
     "qor": {
      "metrics": {
       "die_area": 55712,
@@ -400,8 +400,8 @@
       }
      },
      "config_sha256": "ab14269c69db89715552ce0dd70eaa0b41c7bb91ada8983289e759db57718239",
-     "resolved_sha256": "7958a8d07f0277868c76a1f8c6947b8752aa751479aab9e0ecab61b0daf2299f",
-     "wall_s": 65.16
+     "resolved_sha256": "9f643690f5332ad302c38dc29a647414c41a37568a456c788ed8b3c98f6146d1",
+     "wall_s": 67.07
     }
    }
   },
@@ -483,6 +483,6 @@
   "pdk_netgen": "dir_text:8164f65bb7d1bef6e27af4c13b1c6ede50973cec7aec482556abb23881aceb04"
  },
  "strength_at_start": 1,
- "recorded_ts": "2026-11-19T02:05:22",
- "attempts": 29
+ "recorded_ts": "2026-11-19T14:03:51",
+ "attempts": 30
 }
