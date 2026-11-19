@@ -21,6 +21,14 @@
 *                  |
 *                 vss
 *
+* GM/ID STARTING POINT (#102, engine/lib/gmidlib.py's pinned tables):
+*   gm = (gm/Id) * Itail/2 per device: pick gm/Id from the gain/speed
+*   trade (12-16 /V: more gm per uA and lower offset; under ~8 /V: speed),
+*   then W = (Itail/2) / (Id/W)(gm/Id, L):
+*     eda python engine/scripts/gmid.py size --gmid 15 --id 5u --l 1u
+*     -> nfet_03v3 w=7.174u l=1u, VGS 0.74 V, fT ~0.67 GHz
+*   Av = gm * R; the input common-mode floor is VGS (the tool's) + Vds,tail.
+*
 * DESIGN EQUATIONS (square-law, starting point only - see
 * current_mirror.sp's own note on why):
 *   gm = sqrt(2 * u_n * Cox * (W/L) * Itail/2)     [per-device transconductance,

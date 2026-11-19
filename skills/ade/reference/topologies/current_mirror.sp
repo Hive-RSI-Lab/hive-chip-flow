@@ -17,6 +17,16 @@
 *          |                       |
 *         vss                     vss
 *
+* GM/ID STARTING POINT (#102: the pinned gf180 tables, engine/lib/gmidlib.py
+* - this replaces the square-law guess below with the device's own curve):
+*   pick gm/Id for both devices (8-10 /V: Vov ~ 2/(gm/Id) ~ 0.2-0.25 V of
+*   headroom, strong enough inversion that Vth mismatch matters less), and
+*   L from the ro the output needs (gm/gds read off the table at that L);
+*   W_ref = Iref / (Id/W)(gm/Id, L), W_out = W_ref * Iout/Iref:
+*     eda python engine/scripts/gmid.py size --gmid 8 --id 10u --l 1u
+*     -> nfet_03v3 w=2.666u l=1u, VGS 0.89 V, gm/gds ~370 at VDS 1.65 V
+*   same gm/Id on both devices is what keeps the ratio a W ratio.
+*
 * DESIGN EQUATIONS (square-law, saturation, gf180's nfet_03v3 is a real
 * short-channel device so these are a starting point, not a closed form -
 * the sim_pvt/bench_strength gates are what actually validate a sizing):
