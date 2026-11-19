@@ -4,7 +4,7 @@ engine/scripts/gmid_lut.py and gmid.py.
 The known answer and the gm cross-check run ngspice for real on one op
 deck each, against the nfet tt table made once for the module (about 4 s
 of ngspice: the table is the thing under test, so it is made the way the
-cache makes it and must hash to the committed pin). The planted
+cache makes it and must match the committed pin). The planted
 wrong-corner table runs on a tiny grid. The full regeneration of all six
 tables (gmid_lut.py --check) is `slow`.
 """
@@ -99,7 +99,24 @@ def test_the_committed_manifest_pins_all_six_tables_on_the_scripts_grid():
     assert set(doc["tables"]) == want
     for name, pin in doc["tables"].items():
         assert name == gmidlib.table_name(pin["device"], pin["corner"])
-        assert len(pin["sha256"]) == 64
+        fp = pin["fingerprint"]
+        assert set(fp["points"]) == set(gmidlib.FIELDS)
+        assert all(len(v) == gmidlib.FP_N for v in fp["points"].values())
+
+
+def test_the_pin_holds_through_last_digit_noise_but_not_a_one_percent_shift(
+        nfet_tt):
+    """Another CPU or zlib changes bytes and last digits, never content:
+    1e-6 noise still matches the pin; Id 1% higher does not."""
+    import numpy as np
+    pin = gmidlib.fingerprint(nfet_tt)
+    rng = np.random.default_rng(0)
+    noisy = {k: (v * (1 + 1e-6 * rng.standard_normal(v.shape))
+                 if k in gmidlib.FIELDS else v) for k, v in nfet_tt.items()}
+    assert gmidlib.fingerprint_diff(pin, gmidlib.fingerprint(noisy)) == []
+    shifted = dict(nfet_tt, ID=nfet_tt["ID"] * 1.01)
+    (d,) = gmidlib.fingerprint_diff(pin, gmidlib.fingerprint(shifted))
+    assert d.startswith("ID: ")
 
 
 def test_known_answer_a_sized_nfet_lands_on_the_tables_gm_id_and_id(
@@ -221,11 +238,12 @@ def test_planted_a_table_made_at_the_wrong_corner_fails_the_pin(
     ss = gmidlib.table_name("nfet_03v3", "ss")
     assert gmidlib.load("nfet_03v3", "tt", ref=ref, manifest=manifest)
     shutil.copy(ref / ss, ref / tt)           # the ss sweep, named tt
-    with pytest.raises(gmidlib.GmidError, match="sha256"):
+    with pytest.raises(gmidlib.GmidError, match="does not match its pin"):
         gmidlib.load("nfet_03v3", "tt", ref=ref, manifest=manifest)
     # and re-pinned to the wrong file: its own label still refuses it
     doc = json.loads(manifest.read_text())
-    doc["tables"][tt]["sha256"] = gmidlib.sha256(ref / tt)
+    doc["tables"][tt]["fingerprint"] = gmidlib.fingerprint(
+        gmidlib._struct(ref / tt))
     manifest.write_text(json.dumps(doc))
     with pytest.raises(gmidlib.GmidError, match="labelled SS"):
         gmidlib.load("nfet_03v3", "tt", ref=ref, manifest=manifest)

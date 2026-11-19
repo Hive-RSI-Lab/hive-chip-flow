@@ -9,14 +9,14 @@ section for the corner: tt = typical at 27 C, ss at 125 C, ff at -40 C)
 over L, VGS, VDS and VSB at W = 10 um, one nested DC sweep (VGS inside
 VDS) per L and VSB, and writes each as pygmid's .mat
 (gmidlib's docstring has the fields) with engine/reference/gmid's
-manifest.json pinning every file's sha256, device and corner (the
+manifest.json pinning every table's fingerprint, device and corner (the
 tables go to --out, gmidlib.cache_dir() by default: only the manifest is
 in git, see gmidlib).
 
-The .mat bytes are reproducible (zlib, and the header's creation date is
-replaced by a fixed text), so --check regenerates every table into a
-scratch directory and compares its hash with the pin: a table that does
-not regenerate to the same bytes, or a pin that is missing, is a finding.
+--check regenerates every table into a scratch directory and compares
+its fingerprint with the pin (gmidlib: content within 0.1%, not bytes,
+which another zlib or CPU changes): a table that does not regenerate to
+its pin, or a pin that is missing, is a finding.
 
 Exit 0: written (or, with --check, every table matches its pin).
 1: with --check, a table differs. 2: refused (no PDK, ngspice failed,
@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 import tempfile
 from pathlib import Path
@@ -161,8 +162,8 @@ def build(devices, corners, out: Path, work: Path) -> dict:
             write_mat(sweep(d, c, sub), name[:-4], out / name)
             section, temp_c = gmidlib.CORNERS[c]
             tables[name] = {"device": d, "corner": c, "section": section,
-                            "temp_c": temp_c,
-                            "sha256": gmidlib.sha256(out / name)}
+                            "temp_c": temp_c, "fingerprint":
+                            gmidlib.fingerprint(gmidlib._struct(out / name))}
     return tables
 
 
@@ -198,10 +199,11 @@ def main(argv=None) -> int:
                                  "script": grid_doc()})
                 made = build(devices, corners, tmp, tmp / "work")
                 for name, row in made.items():
-                    pin = doc.get("tables", {}).get(name, {}).get("sha256")
-                    if pin != row["sha256"]:
-                        viol.append({"table": name, "pinned": pin,
-                                     "regenerated": row["sha256"]})
+                    pin = doc.get("tables", {}).get(name, {}).get(
+                        "fingerprint")
+                    diff = gmidlib.fingerprint_diff(pin, row["fingerprint"])
+                    if diff:
+                        viol.append({"table": name, "differs": diff[:8]})
                 print(json.dumps({"ok": not viol, "checked": sorted(made),
                                   "violations": viol}, indent=2))
                 return 1 if viol else 0
@@ -216,9 +218,9 @@ def main(argv=None) -> int:
         return 2
     mpath = a.manifest
     doc = json.loads(mpath.read_text()) if mpath.is_file() else {}
-    moved = [n for n, row in made.items()
-             if doc.get("tables", {}).get(n, {}).get("sha256")
-             not in (None, row["sha256"])]
+    moved = [n for n, row in made.items() if n in doc.get("tables", {})
+             and gmidlib.fingerprint_diff(doc["tables"][n].get("fingerprint"),
+                                          row["fingerprint"])]
     if (moved or doc.get("grid", grid_doc()) != grid_doc()) and not a.repin:
         print(json.dumps({"ok": False, "written": sorted(made),
                           "out": str(out), "differs_from_pin": moved,
@@ -232,9 +234,15 @@ def main(argv=None) -> int:
     doc["grid"] = grid_doc()
     doc["generator"] = "engine/scripts/gmid_lut.py"
     doc["note"] = ("pins only: the tables are made into gmidlib.cache_dir() "
-                   "on first use and refused unless they hash to these")
+                   "on first use and refused unless they match these fingerprints")
     mpath.parent.mkdir(parents=True, exist_ok=True)
-    mpath.write_text(json.dumps(doc, indent=2, sort_keys=True) + "\n")
+    text = json.dumps(doc, indent=2, sort_keys=True)
+    # one line per list of numbers: the fingerprints stay reviewable
+    text = re.sub(r"\[\s*([-0-9.e+,\s]+?)\s*\]",
+                  lambda m: "[" + ", ".join(m.group(1).split(",")).replace(
+                      "\n", "").replace("  ", "").replace(" ,", ",")
+                  .replace(",  ", ", ") + "]", text)
+    mpath.write_text(text + "\n")
     print(json.dumps({"ok": True, "written": sorted(made), "out": str(out),
                       "manifest": str(mpath)}, indent=2))
     return 0

@@ -19,20 +19,24 @@ and in accumulation): BSIM4's terms are transcapacitances, not
 branch capacitors, so read CGG for the gate's load.
 
 engine/scripts/gmid_lut.py writes the tables and their manifest
-(engine/reference/gmid/manifest.json: each file's sha256, device, corner,
-temperature and the sweep's grid). Only the manifest is in git: a table
-is 13 MB and takes ngspice about 4 s, so `load` makes a missing one into
-the cache (cache_dir(): $CHIP_FLOW_CACHE/gmid, else chip-flow/gmid in the
-user's cache) and then checks it like any other. It refuses a table
-whose bytes or labels differ from the manifest's pin, so a table made at
-another corner, or a re-labelled one, or one the toolchain no longer
-reproduces, is never read as the one asked for. The bytes go through
-zlib, so tables are made through bin/eda's toolchain: a host's own zlib
-build can compress the same values to other bytes.
+(engine/reference/gmid/manifest.json: each table's fingerprint, device,
+corner, temperature and the sweep's grid). Only the manifest is in git: a
+table is 13 MB and takes ngspice about 4 s, so `load` makes a missing one
+into the cache (cache_dir(): $CHIP_FLOW_CACHE/gmid, else chip-flow/gmid
+in the user's cache) and then checks it like any other. It refuses a
+table whose content or labels differ from the manifest's pin, so a table
+made at another corner, or a re-labelled one, or one the toolchain no
+longer reproduces, is never read as the one asked for.
+
+The pin is the content, not the file's bytes: the same sweep compresses
+to other bytes under another zlib build, and the last digit of a solve
+can differ on another CPU. A fingerprint is each axis's first, last and
+length, each field's shape, and every field's value at FP_N fixed
+points; a table matches when every value is within FP_REL of the pin's
+(a corner apart is tens of percent).
 """
 from __future__ import annotations
 
-import hashlib
 import json
 import math
 import os
@@ -64,8 +68,50 @@ def table_name(device: str, corner: str) -> str:
     return f"gf180_{device}_{corner}.mat"
 
 
-def sha256(path: Path) -> str:
-    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+FP_N = 64
+FP_REL = 1e-3
+AXES = ("L", "VGS", "VDS", "VSB")
+
+
+def fingerprint(t: dict) -> dict:
+    """The content pin of table struct `t` (the module docstring)."""
+    fp = {"axes": {k: [float(np.ravel(t[k])[0]), float(np.ravel(t[k])[-1]),
+                       int(np.size(t[k]))] for k in AXES},
+          "shape": list(np.shape(t["ID"])), "points": {}}
+    for f in FIELDS:
+        flat = np.ravel(np.asarray(t[f], float))
+        idx = (np.arange(FP_N, dtype=np.int64) * 2654435761 + 12345) % flat.size
+        fp["points"][f] = [float(f"{v:.6g}") for v in flat[idx]]
+    return fp
+
+
+def fingerprint_diff(pin: dict | None, got: dict) -> list[str]:
+    """What differs between two fingerprints (empty: they match)."""
+    if not isinstance(pin, dict) or "points" not in pin:
+        return ["no fingerprint pinned"]
+    out = []
+    for k in AXES:
+        a, b = pin.get("axes", {}).get(k), got["axes"][k]
+        if a is None or a[2] != b[2] or not np.allclose(a[:2], b[:2],
+                                                        atol=1e-9):
+            out.append(f"axis {k}: pinned {a}, got {b}")
+    if pin.get("shape") != got["shape"]:
+        out.append(f"shape: pinned {pin.get('shape')}, got {got['shape']}")
+    if out:
+        return out
+    for f in FIELDS:
+        a = np.asarray(pin["points"].get(f, []), float)
+        b = np.asarray(got["points"][f], float)
+        if a.shape != b.shape:
+            out.append(f"{f}: {a.size} pinned points, {b.size} here")
+            continue
+        tol = FP_REL * np.abs(a) + 1e-9 * max(float(np.abs(a).max()), 1e-30)
+        bad = np.flatnonzero(np.abs(a - b) > tol)
+        if bad.size:
+            i = int(bad[np.argmax(np.abs(a - b)[bad] / (np.abs(a[bad]) + 1e-300))])
+            out.append(f"{f}: {bad.size} of {a.size} points off, worst "
+                       f"pinned {a[i]:.6g} got {b[i]:.6g}")
+    return out
 
 
 def read_manifest(manifest: Path = MANIFEST) -> dict:
@@ -98,8 +144,8 @@ def _struct(path: Path) -> dict:
 def load(device: str, corner: str = "tt", ref: Path | None = None,
          manifest: Path = MANIFEST, make: bool = True) -> dict:
     """The table for `device` at `corner` from `ref` (cache_dir() by
-    default), after its pin check: the file's sha256 must be the
-    manifest's, and its CORNER and TEMP the corner's. A missing table is
+    default), after its pin check: its fingerprint must match the
+    manifest's, and its CORNER and TEMP be the corner's. A missing table is
     made first (gmid_lut.py's sweep) when `make`. Refuses (GmidError)
     otherwise."""
     if device not in DEVICES:
@@ -118,15 +164,18 @@ def load(device: str, corner: str = "tt", ref: Path | None = None,
             raise GmidError(f"{path} is missing: run "
                             "engine/scripts/gmid_lut.py --out " + str(ref))
         _make(device, corner, ref)
-    got = sha256(path)
-    if got != pin["sha256"]:
-        raise GmidError(f"{name}: sha256 {got[:12]} is not the pinned "
-                        f"{pin['sha256'][:12]} (a table made elsewhere, at "
-                        "another corner, or edited): delete it so load makes it "
-                        "again, and if that still differs run "
+    try:
+        t = _struct(path)
+        diff = fingerprint_diff(pin.get("fingerprint"), fingerprint(t))
+    except (KeyError, ValueError, TypeError, IndexError) as exc:
+        diff = [f"not a gm/Id table: {exc}"]
+    if diff:
+        raise GmidError(f"{name} does not match its pin (a table made at "
+                        "another corner, on another grid, or edited): "
+                        + "; ".join(diff)[:400] + ". Delete it so load makes "
+                        "it again, and if that still differs run "
                         "engine/scripts/gmid_lut.py --check (the toolchain "
                         "no longer reproduces the pin)")
-    t = _struct(path)
     section, temp_c = CORNERS[corner]
     if (t.get("CORNER") != corner.upper()
             or not math.isclose(float(t["TEMP"]), temp_c + 273.15,
