@@ -1160,15 +1160,15 @@ def si_spef(cc):
                                       ("agg", "i0:ZN", "f2:D", "f0:Q")))
 
 
-def _si_corner(tmp_path, cc, period, name):
+def _si_corner(tmp_path, cc, period, name, in_delay=1, out_delay=0):
     final = tmp_path / name / "final"
     for sub in ("nl", "sdc", "spef/nom"):
         (final / sub).mkdir(parents=True)
     (final / "nl" / "tt_um_si.nl.v").write_text(SI_NETLIST, encoding="utf-8")
     (final / "sdc" / "t.sdc").write_text(
         f"create_clock -name clk -period {period} [get_ports clk]\n"
-        "set_input_delay 1 -clock clk [get_ports {a b}]\n"
-        "set_output_delay 0 -clock clk [get_ports {y z}]\n"
+        f"set_input_delay {in_delay} -clock clk [get_ports {{a b}}]\n"
+        f"set_output_delay {out_delay} -clock clk [get_ports {{y z}}]\n"
         "set_propagated_clock [all_clocks]\n", encoding="utf-8")
     (final / "spef" / "nom" / "tt_um_si.nom.spef").write_text(
         si_spef(cc), encoding="utf-8")
@@ -1194,6 +1194,12 @@ def test_real_opensta_bound_is_monotone_and_catches_a_planted_coupling(
     assert "f1/D" in ends, r          # the planted victim, named
     [v] = check_timing.si_bound_violations(r, "tt_um_si", "warning")
     assert "f1/D" in v["msg"] and v["severity"] == "warning", v
+    # the hold side on its own: inputs arriving late and outputs with hold
+    # margin to spare, so f1/D (the coupled victim) is the worst hold path
+    # and dropping its coupling cap (factor 0) must lower the worst hold
+    # slack itself
+    late = _si_corner(tmp_path, 0.2, 20.0, "late", in_delay=5, out_delay=5)
+    assert late["si_hold_ws"] < late["hold_ws"], late
     # monotone in the coupling: more cap, a lower bound
     bigger = _si_corner(tmp_path, 0.4, 6.0, "bigger")
     assert bigger["si_setup_ws"] < r["si_setup_ws"], (bigger, r)

@@ -172,7 +172,8 @@ def si_bound_tcl(spef: Path) -> str:
         + "set sta_recovery_removal_checks_enabled 0\n"
         "foreach chipflow_si_side {max min} {\n"
         "    foreach chipflow_pe [find_timing_paths -path_delay "
-        f"$chipflow_si_side -slack_max 0 -group_path_count {SI_MAX_PATHS} "
+        f"$chipflow_si_side -slack_max 0 -sort_by_slack "
+        f"-group_path_count {SI_MAX_PATHS} "
         "-endpoint_path_count 1] {\n"
         f'        puts "{SI_PATH_MARK} $chipflow_si_side '
         "[get_property $chipflow_pe slack] "
@@ -205,7 +206,9 @@ def parse_si_bound(output: str) -> dict:
 
 def si_bound_severity(gates_path: Path | None = None) -> str:
     """gates.yaml's timing row `si_bound`: the severity of a negative
-    crosstalk bound (default warning)."""
+    crosstalk bound (default warning). Always the engine's own gates.yaml
+    (statelib reads strengths from it the same way): a `gate.py --gates`
+    file of another path does not reach this check."""
     path = gates_path or GATES_YAML
     data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     for table in (data.get("gates") or {}).values():
@@ -937,7 +940,11 @@ def si_bound_violations(r: dict, top: str, severity: str) -> list[dict]:
         ws = r.get(key)
         if ws is None or math.isinf(ws) or ws >= 0:
             continue
-        paths = r.get("si_paths", {}).get("max" if side == "setup" else "min", [])
+        # worst first and at most SI_MAX_PATHS: OpenSTA's -group_path_count
+        # is per path group, so a design with several clocks lists more,
+        # in group order
+        paths = sorted(r.get("si_paths", {}).get(
+            "max" if side == "setup" else "min", []))[:SI_MAX_PATHS]
         named = [f"{start} -> {end} ({slack:.4f}ns)"
                  for slack, start, end in paths]
         out.append(checklib.violation(
