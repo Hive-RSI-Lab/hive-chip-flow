@@ -108,6 +108,12 @@ LOOP_RE = re.compile(r"found logic loop in module (\S+?):")
 DLATCH_RE = re.compile(r"Latch inferred for signal `([^']+)'")
 
 
+def inferred_latches(text: str) -> list[str]:
+    """The signals yosys inferred a latch for, from its log: a "Warning:"
+    on yosys 0.69, an "ERROR:" that stops synth_ice40 on 0.70."""
+    return sorted({s.replace("\\", "") for s in DLATCH_RE.findall(text)})
+
+
 def fpga_settings(spec: dict) -> dict | None:
     """spec.yaml's `fpga:` section checked, or None when there is none."""
     f = spec.get("fpga")
@@ -434,7 +440,11 @@ stat
                     "-s", rel(script)], ws, out / "yosys.out")
     ylog = (out / "yosys.log").read_text(encoding="utf-8", errors="replace") \
         if (out / "yosys.log").is_file() else ""
-    if proc.returncode != 0:
+    # yosys 0.70's synth_ice40 stops with "ERROR: Latch inferred for signal"
+    # where 0.69 warned and went on, so latches are read before the exit code
+    # decides: a latch is a named finding on either version, never a crash.
+    latches = inferred_latches(ylog + (proc.stdout or "") + (proc.stderr or ""))
+    if proc.returncode != 0 and not latches:
         tail = (proc.stderr or proc.stdout or ylog).strip().splitlines()[-5:]
         raise CheckError("yosys synth_ice40 failed: " + " | ".join(tail))
 
@@ -444,8 +454,7 @@ stat
             GATE, "error", None, mod, "fpga_comb_loop", [],
             f"yosys found a combinational logic loop in module {mod}: an "
             "FPGA cannot time it", "yosys"))
-    for sig in sorted({s.replace("\\", "")
-                       for s in DLATCH_RE.findall(ylog)}):
+    for sig in latches:
         violations.append(checklib.violation(
             GATE, "error", None, None, "fpga_latch", [],
             f"a latch is inferred for {sig}: ice40 logic cells have no "

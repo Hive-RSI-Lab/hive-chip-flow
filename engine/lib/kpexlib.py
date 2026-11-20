@@ -27,6 +27,12 @@ What kpex is handed, and why:
     it is a refusal (KpexError), not a comparison of two different
     circuits.
   - kpex_runner.py: kpex with gate poly as a conductor (its docstring).
+    On kpex 0.6 it also measures the gate-poly C that magic's gf180 tech
+    leaves out (a gate edge's poly sidewall and its fringe onto the
+    metals) and writes it per net pair to gate_poly_excluded.json.
+    gate_poly_excluded reads that file, and check_pex_sim takes the share
+    off kpex's nets before comparing, so the two count the same terms. A
+    missing file is a KpexError.
 Net names: kpex calls the substrate VSUBS; it is renamed to the name
 magic's .ext gives the substrate net.
 
@@ -213,6 +219,30 @@ def run_kpex(work_dir, gds_path, topcell: str,
             f"{(proc.stderr or proc.stdout)[-2000:]}")
     netlist = found[0]
     return netlist, log
+
+
+def gate_poly_excluded(work_dir) -> dict:
+    """kpex_runner's gate_poly_excluded.json from a run_kpex under work_dir:
+    {release, gate_layer, rule, pairs: [{nets: [a, b], ff, terms}]}. A run
+    that wrote none, or wrote it wrong, is a KpexError: without the file the
+    comparison would count terms magic leaves out."""
+    import json
+
+    path = Path(work_dir) / "deck" / "gate_poly_excluded.json"
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        pairs = data["pairs"]
+        for p in pairs:
+            a, b = p["nets"]
+            if not (isinstance(a, str) and isinstance(b, str)
+                    and float(p["ff"]) >= 0):
+                raise ValueError(f"bad pair {p!r}")
+    except FileNotFoundError as exc:
+        raise KpexError(f"kpex_runner wrote no {path.name}: the gate-poly "
+                        "share magic leaves out is unknown") from exc
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        raise KpexError(f"{path.name} is unreadable: {exc}") from exc
+    return data
 
 
 _SUBSTRATE_RE = re.compile(r'^substrate\s+"([^"]+)"', re.M)

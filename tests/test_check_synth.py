@@ -387,3 +387,15 @@ def test_must_keep_must_be_a_list_of_names(bad):
     with pytest.raises(check_synth.CheckError):
         check_synth.spec_must_keep({"must_keep": bad})
     assert check_synth.spec_must_keep({}) == []
+
+
+# yosys's own undriven-wire lines: a scalar, and a bus bit, which yosys 0.70
+# prints as the only line for it ("\bus [0]", a space before the index)
+@pytest.mark.parametrize("line,name", [
+    ("Warning: Wire top.\\dangling is used but has no driver.",
+     "top.\\dangling"),
+    ("Warning: Wire top.\\unused_net [0] is used but has no driver.",
+     "top.\\unused_net [0]"),
+], ids=["scalar", "bus-bit"])
+def test_no_driver_re_reads_scalar_and_bus_bit(line, name):
+    assert check_synth.NO_DRIVER_RE.findall("x\n" + line + "\ny\n") == [name]

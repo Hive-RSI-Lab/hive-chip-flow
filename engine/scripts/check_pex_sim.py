@@ -30,7 +30,11 @@ c1/c2, half at each end) and run_magic_extract adds the rest
 kpex's C of the nets at its ends and of its third terminal before the
 comparison (subtract_model_c, listed per net in `extractor_crosscheck`'s
 `model_c_subtracted`) - that subtraction is what lets the two agree on a
-resistor ladder within the same 20%, with no net excluded for it. A net over an N-well, and the substrate of a block with a well,
+resistor ladder within the same 20%, with no net excluded for it. On
+kpex 0.6 the gate poly's sidewall and its fringe onto the metals, which
+magic's gf180 tech leaves out, are taken off kpex's nets as well
+(subtract_gate_poly, listed per net in `gate_poly_excluded` and beside each
+row's two values). The tolerance is not widened for it. A net over an N-well, and the substrate of a block with a well,
 are not compared (kpex models no well); the report lists them, and every
 row, in `extractor_crosscheck`. kpex failing to run is a refusal.
 
@@ -443,6 +447,30 @@ def subtract_model_c(pk: dict, bodies: list[dict]) -> dict:
     return {x: round(v, 5) for x, v in sorted(taken.items())}
 
 
+def subtract_gate_poly(pk: dict, excluded: dict, substrate: str) -> dict:
+    """Take the gate-poly C that magic's tech leaves out (kpex_runner's
+    gate_poly_excluded.json, read by kpexlib.gate_poly_excluded) off kpex's
+    per-net C `pk`, in place, from both nets of each pair. Returns
+    {net: {other: fF taken off}}. kpex's VSUBS is `substrate` here, as in
+    its renamed netlist."""
+    taken: dict[str, dict[str, float]] = {}
+
+    def name(n):
+        return substrate if n == "VSUBS" else _net_of(n.lower())
+    for p in excluded.get("pairs", []):
+        a, b = (name(n) for n in p["nets"])
+        ff = float(p["ff"])
+        if a == b or ff <= 0:
+            continue
+        for x, y in ((a, b), (b, a)):
+            if x in pk:
+                pk[x]["c_ff"] = round(pk[x]["c_ff"] - ff, 5)
+                pk[x]["c_to"][y] = round(pk[x]["c_to"].get(y, 0.0) - ff, 5)
+                t = taken.setdefault(x, {})
+                t[y] = round(t.get(y, 0.0) + ff, 5)
+    return {x: dict(sorted(v.items())) for x, v in sorted(taken.items())}
+
+
 def extractor_crosscheck(ws: Path, gds_path: Path, topcell: str,
                          rel_gds: str, ref_text: str, ref_pins, bench_text: str,
                          magic_text: str, ext_path: Path
@@ -487,8 +515,25 @@ def extractor_crosscheck(ws: Path, gds_path: Path, topcell: str,
     tech_c, model_c = layoutlib.poly_body_caps(None)
     _, bodies = layoutlib.add_poly_body_residuals(magic_text, tech_c, model_c)
     subtracted = subtract_model_c(pk, bodies)
+    try:
+        excluded = kpexlib.gate_poly_excluded(kdir)
+    except kpexlib.KpexError as exc:
+        raise CheckError(
+            f"the second extractor (kpex 2.5D) on {rel_gds}: {exc} - "
+            "pex_sim compares the two on the terms both count, so the gate "
+            "cannot pass without it") from exc
+    gate_taken = subtract_gate_poly(pk, excluded, substrate)
     result = kpexlib.compare(pm, pk, labelled, probed, skip)
     result["model_c_subtracted"] = subtracted
+    result["gate_poly_excluded"] = {
+        "release": excluded.get("release"), "rule": excluded.get("rule"),
+        "per_net": gate_taken}
+    for row in result["nets"]:
+        row["kpex_gate_poly_excluded_ff"] = round(
+            sum(gate_taken.get(row["net"], {}).values()), 5)
+    for row in result["couplings"]:
+        a, b = row["nets"]
+        row["kpex_gate_poly_excluded_ff"] = gate_taken.get(a, {}).get(b, 0.0)
     tol = result["tolerance"]
     findings = []
     for row in result.pop("disagree"):
@@ -498,12 +543,15 @@ def extractor_crosscheck(ws: Path, gds_path: Path, topcell: str,
             what, refs = (f"the coupling C between {row['nets'][0]} and "
                           f"{row['nets'][1]}"), list(row["nets"])
         m, k = row["magic_ff"], row["kpex_ff"]
+        gx = row.get("kpex_gate_poly_excluded_ff")
+        less = (f" after {gx} fF of gate-poly C magic's tech leaves out"
+                if gx else "")
         diff = (row["why"] if row.get("why") else
                 "one of them is zero" if row["off"] is None else
                 f"{row['off'] * 100:.0f}% apart")
         findings.append(checklib.violation(
             "pex_sim", "error", rel_gds, topcell, "pex_extractors_disagree",
-            refs, f"{what}: magic {m} fF, kpex 2.5D {k} fF ({diff}; the "
+            refs, f"{what}: magic {m} fF, kpex 2.5D {k} fF{less} ({diff}; the "
             f"tolerance is {tol * 100:.0f}% of the smaller) - one extractor "
             "reads this layout wrong, so magic's netlist cannot be trusted "
             "for the bench", "kpex", magic_ff=m, kpex_ff=k))

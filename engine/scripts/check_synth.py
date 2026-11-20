@@ -114,7 +114,10 @@ LOOP_RE = re.compile(r"found logic loop in module (\S+?):")
 # pass needed (and `check -assert` was rejected above for false-positiving
 # on every clean design's own flop-driven outputs; this text, from the
 # ORDINARY flow, does not - proved empirically, same discipline as LOOP_RE).
-NO_DRIVER_RE = re.compile(r"Wire (\S+?) is used but has no driver")
+# A bus bit reads "Wire top.\bus [0] is used ...", with a space before the
+# index, so the name is everything up to " is used" (\S+ missed every bus
+# bit; yosys 0.70 reports only the bit where 0.69 also named the port).
+NO_DRIVER_RE = re.compile(r"Wire (.+?) is used but has no driver")
 # `stat -liberty <lib>` prints a THREE-column breakdown (count, per-cell
 # area, name - proved empirically; plain `stat` with no liberty prints only
 # two) under a summary line of its own shape ("<N> <total-area> cells");
