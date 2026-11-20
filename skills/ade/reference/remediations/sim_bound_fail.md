@@ -11,6 +11,13 @@ every corner by a similar ratio: a wrong mirror ratio or a W/L swap. Use
 the topology header's design equations, then `sizing.yaml` inside its
 bounds; several coupled sizes are `optimise` work.
 
+**Which parameter:** the work order's `sensitivity` block ranks each
+`sizing.yaml` parameter by its normalised sensitivity (d measure/d param
+scaled by param/measure) at the failing corner, with the change that would
+reach the bound by itself. Re-run it after a change with
+`engine/scripts/sensitivity.py --workspace <ws> --measure <m> --corner <c>`.
+A `one_sided` entry stepped against the PDK's size limit on one side.
+
 **False positive class:** a bound in absolute volts on a quantity that
 scales with VDD fails the +/-10% supply corners however good the sizing
 is (the r2r_dac rung today). That is a spec/bench problem - report it in

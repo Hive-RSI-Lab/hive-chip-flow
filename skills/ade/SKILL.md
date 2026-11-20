@@ -165,6 +165,10 @@ On gate fail (exit 1, `failing` findings with `kind`/`file`/`module`):
    `log/workorders/`, attaches `skills/ade/reference/remediations/<kind>.md`
    (or the nearest family file, or `<check>.md` - every klayout DRC rule
    lands on `analog_drc.md`), and registers each cluster as an open issue.
+   A `sizing` order for a measure out of bound also carries
+   `sensitivity`: `engine/scripts/sensitivity.py` ranks d(measure)/d(param)
+   for each `sizing.yaml` parameter at the failing corner, top 3 first -
+   start the fix from that ranking (`--no-sensitivity` skips it).
 4. Spawn the role the ORDER names in `role_prompt`, not the one a recipe
    step happens to say: `layout` orders go to the layout-fixer,
    `testbench` orders to the bench-writer in WORK-ORDER MODE, everything
