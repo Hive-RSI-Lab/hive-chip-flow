@@ -27,6 +27,8 @@ FIXTURES = REPO / "tests" / "fixtures" / "opensta"
 CLEAN_UNCERTAINTY = ("chipflow_clock_uncertainty_begin\nchipflow_clock clk\n"
                      "set_clock_uncertainty 0.2500 clk\n"
                      "chipflow_clock_uncertainty_end\n"
+                     # the critical-path net listing (#77), no paths
+                     "chipflow_xc_begin\nchipflow_xc_end\n"
                      # the crosstalk bound (#76), clean
                      "chipflow_si_bound_begin\nworst slack max 7.50\n"
                      "worst slack min 0.20\nchipflow_si_bound_end\n")
@@ -1203,3 +1205,214 @@ def test_real_opensta_bound_is_monotone_and_catches_a_planted_coupling(
     # monotone in the coupling: more cap, a lower bound
     bigger = _si_corner(tmp_path, 0.4, 6.0, "bigger")
     assert bigger["si_setup_ws"] < r["si_setup_ws"], (bigger, r)
+
+
+# ---------------------------------------- second-extractor cross-check (#77)
+
+import pexlib  # noqa: E402
+
+XC_NETS = [f"n{i}" for i in range(6)]
+XC_TECH_LEF = ("LAYER Via1\n  TYPE CUT ;\n  RESISTANCE 4.5 ;\nEND Via1\n"
+               "VIA Via1_HV DEFAULT\n  RESISTANCE 4.5 ;\nEND Via1_HV\n")
+
+
+def _xc_spef(halve=()):
+    """A nom SPEF for XC_NETS: n<i> at 4+i fF and 20 ohm, the nets in
+    `halve` at half their C."""
+    out = ("*SPEF \"IEEE 1481-1998\"\n*C_UNIT 1 FF\n*R_UNIT 1 OHM\n")
+    for i, n in enumerate(XC_NETS):
+        c = (4 + i) / (2 if n in halve else 1)
+        out += (f"*D_NET {n} {c}\n*CONN\n*CAP\n1 {n}:1 {c}\n"
+                f"*RES\n1 {n}:1 {n}:2 20\n*END\n")
+    return out
+
+
+def _xc_sta_out(paths):
+    listing = "".join(f"{pexlib.CRIT_MARK} {p}\n" for p in paths)
+    return ("worst slack max 1\nworst slack min 1\n"
+            + CLEAN_COUNTS.replace(
+                f"{pexlib.CRIT_BEGIN}\n",
+                f"{pexlib.CRIT_BEGIN}\n{listing}"))
+
+
+def _xc_gate(tmp_path, monkeypatch, capsys, extract, halve=(),
+             paths=("max 0.8 n0 n1 n2", "min 0.1 n3 n4 \\n5"),
+             config_extra=None):
+    """The gate on a workspace whose nom corner lists `paths` as its
+    critical paths, with a real SPEF/DEF/LEF and magic faked by
+    `extract` (pexlib.extract's signature)."""
+    ws = make_ws_with_harden(tmp_path)
+    final = ws / "harden" / "runs" / "run" / "final"
+    (final / "spef" / "nom" / "tt_um_counter8.nom.spef").write_text(
+        _xc_spef(halve), encoding="utf-8")
+    (final / "def").mkdir()
+    (final / "def" / "tt_um_counter8.def").write_text(
+        "NETS 1 ;\n- n0 ( u0 Z ) + ROUTED Metal2 ( 0 0 ) ( 10 0 ) Via1_HV ;\n"
+        "END NETS\n", encoding="utf-8")
+    lefs = tmp_path / "lefs"
+    lefs.mkdir()
+    (lefs / "tech.lef").write_text(XC_TECH_LEF, encoding="utf-8")
+    (lefs / "cells.lef").write_text("x", encoding="utf-8")
+    resolved = final.parent / "resolved.json"
+    config = json.loads(resolved.read_text(encoding="utf-8"))
+    config.update({"TECH_LEFS": {"nom_*": str(lefs / "tech.lef")},
+                   "CELL_LEFS": [str(lefs / "cells.lef")],
+                   "EXTRA_LEFS": None})
+    config.update(config_extra or {})
+    resolved.write_text(json.dumps(config), encoding="utf-8")
+    _patch_common(monkeypatch, tmp_path)
+    sta_out = _xc_sta_out(paths)
+
+    def fake_run(cmd, **kwargs):
+        return subprocess.CompletedProcess(cmd, 0, stdout=sta_out, stderr="")
+    calls = []
+
+    def fake_extract(*args):
+        calls.append(args)
+        return extract(*args)
+    monkeypatch.setattr(check_timing.checklib, "run_tool", fake_run)
+    monkeypatch.setattr(check_timing.pexlib, "extract", fake_extract)
+    code = check_timing.main(["--workspace", str(ws)])
+    return code, json.loads(capsys.readouterr().out), calls
+
+
+def _magic_agrees(*args):
+    """magic's figures matching _xc_spef(): C to the femtofarad, R 20 ohm
+    of wire (n0's 4.5 ohm via comes from the DEF)."""
+    caps = {n: 4.0 + i for i, n in enumerate(XC_NETS)}
+    return caps, {n: 20.0 for n in XC_NETS}
+
+
+def test_the_critical_nets_cross_check_clean_with_per_net_ratios(
+        tmp_path, monkeypatch, capsys):
+    code, out, calls = _xc_gate(tmp_path, monkeypatch, capsys, _magic_agrees)
+    assert code == 0, out
+    [call] = calls
+    assert call[2].name == "tech.lef" and [p.name for p in call[3]] == [
+        "cells.lef"], call
+    x = out["pex_xcheck"]
+    assert x["severity"] == "warning" and x["corner"] == "nom_tt_025C_3v30"
+    assert x["extractor"] == "magic" and x["unmatched"] == []
+    rows = {r["net"]: r for r in x["nets"]}
+    # n3/n4/n5 on the 0.1 ns hold path come first; \n5 is unescaped
+    assert [r["net"] for r in x["nets"]] == ["n3", "n4", "n5", "n0", "n1",
+                                             "n2"]
+    assert rows["n2"]["c_ratio"] == 1.0 and rows["n2"]["slack_ns"] == 0.8
+    # n0's 4.5 ohm via, from the tech LEF, on top of 20 ohm of wire
+    assert rows["n0"]["magic_r_ohm"] == 24.5 and rows["n0"]["r_ratio"] == 1.225
+    assert x["thresholds"]["c_tol"] == pexlib.C_TOL
+
+
+def test_a_net_with_its_spef_caps_halved_is_a_pex_mismatch_warning(
+        tmp_path, monkeypatch, capsys):
+    code, out, _ = _xc_gate(tmp_path, monkeypatch, capsys, _magic_agrees,
+                            halve=("n4",))
+    # a finding (exit 1), but a warning by default (gates.yaml's
+    # pex_xcheck): gate.py's fail_severities [error] does not count it
+    assert code == 1, out
+    [v] = out["violations"]
+    assert v["kind"] == "pex_mismatch" and v["severity"] == "warning", v
+    assert v["refs"] == ["n4"] and "n4 (C x2.0" in v["msg"], v
+    assert v["corner"] == "nom_tt_025C_3v30" and v["source"] == "magic", v
+
+
+def test_a_critical_net_magic_does_not_have_is_named(
+        tmp_path, monkeypatch, capsys):
+    def magic_lacks_n1(*args):
+        caps, res = _magic_agrees()
+        del caps["n1"]
+        return caps, res
+    code, out, _ = _xc_gate(tmp_path, monkeypatch, capsys, magic_lacks_n1)
+    [v] = out["violations"]
+    assert v["kind"] == "pex_mismatch" and v["refs"] == ["n1"], v
+    assert "only one extractor has: n1" in v["msg"], v
+    assert out["pex_xcheck"]["unmatched"] == ["n1"]
+
+
+def test_a_magic_run_that_writes_nothing_refuses(tmp_path, monkeypatch,
+                                                  capsys):
+    def magic_fails(*args):
+        raise pexlib.PexError("eda magic (exit 1) wrote no flat.spice")
+    code, out, _ = _xc_gate(tmp_path, monkeypatch, capsys, magic_fails)
+    assert code == 2, out
+    assert "second-extractor cross-check" in out["error"], out
+    assert "flat.spice" in out["error"], out
+
+
+def test_magic_matching_no_critical_net_refuses(tmp_path, monkeypatch,
+                                                capsys):
+    code, out, _ = _xc_gate(tmp_path, monkeypatch, capsys,
+                            lambda *a: ({"other": 1.0}, {}))
+    assert code == 2 and "none of the 6 critical net(s)" in out["error"], out
+
+
+def test_a_bad_spef_refuses_not_crashes(tmp_path, monkeypatch, capsys):
+    def magic_then_break_spef(*args):
+        spef = (tmp_path / "ws" / "harden" / "runs" / "run" / "final"
+                / "spef" / "nom" / "tt_um_counter8.nom.spef")
+        spef.write_text("*SPEF\n*C_UNIT 1 XF\n", encoding="utf-8")
+        return _magic_agrees()
+    code, out, _ = _xc_gate(tmp_path, monkeypatch, capsys,
+                            magic_then_break_spef)
+    assert code == 2 and "C_UNIT" in out["error"], out
+
+
+def test_no_tech_lef_for_the_corner_refuses(tmp_path, monkeypatch, capsys):
+    code, out, calls = _xc_gate(tmp_path, monkeypatch, capsys, _magic_agrees,
+                                config_extra={"TECH_LEFS": {"max_*": "x"}})
+    assert code == 2 and "TECH_LEFS" in out["error"], out
+    assert calls == []
+
+
+def test_no_critical_path_runs_no_magic(tmp_path, monkeypatch, capsys):
+    code, out, calls = _xc_gate(tmp_path, monkeypatch, capsys, _magic_agrees,
+                                paths=())
+    assert code == 0 and calls == [], out
+    assert out["pex_xcheck"]["nets"] == [], out
+
+
+def test_xcheck_inputs_rebase_a_moved_pdk_root(tmp_path):
+    new = tmp_path / "pdks"
+    (new / "p" / "techlef").mkdir(parents=True)
+    tech = new / "p" / "techlef" / "nom.tlef"
+    tech.write_text("x", encoding="utf-8")
+    here = tmp_path / "cells.lef"
+    here.write_text("x", encoding="utf-8")
+    config = {"PDK_ROOT": "/old/pdks/",
+              "TECH_LEFS": {"nom_*": "/old/pdks/p/techlef/nom.tlef",
+                            "max_*": "/old/pdks/p/techlef/max.tlef"},
+              "CELL_LEFS": "/old/pdks/p/cells.lef", "EXTRA_LEFS": [str(here)]}
+    t, lefs = check_timing.xcheck_inputs(config, "nom_tt_025C_3v30", new)
+    assert t == tech
+    assert lefs == [new / "p" / "cells.lef", here]
+    with pytest.raises(check_timing.CheckError, match="CELL_LEFS"):
+        check_timing.xcheck_inputs({"TECH_LEFS": "t"}, "nom_x", new)
+
+
+def test_xcheck_runs_on_the_nominal_corner():
+    assert check_timing.xcheck_corner(
+        ["max_ss_125C_3v00", "nom_tt_025C_3v30"]) == "nom_tt_025C_3v30"
+    assert check_timing.xcheck_corner(
+        ["max_ss", "nom_ff_n40C"]) == "nom_ff_n40C"
+    assert check_timing.xcheck_corner(["min_x"]) == "min_x"
+
+
+def test_the_shipped_gates_yaml_keeps_the_cross_check_a_warning():
+    assert check_timing.pex_xcheck_severity() == "warning"
+
+
+def test_only_the_xcheck_corner_lists_its_critical_paths(
+        tmp_path, monkeypatch, capsys):
+    ws = make_ws_with_harden(tmp_path, corners=("max_ss_125C_3v00",
+                                                "nom_tt_025C_3v30"))
+    _patch_common(monkeypatch, tmp_path)
+    _passing_sta(monkeypatch)
+    code = check_timing.main(["--workspace", str(ws)])
+    out = json.loads(capsys.readouterr().out)
+    assert code == 0, out
+    scripts = _sta_scripts(ws)
+    listed = {k for k, tcl in scripts.items() if pexlib.CRIT_BEGIN in tcl}
+    assert len(listed) == 1 and "nom" in next(iter(listed)), scripts.keys()
+    tcl = next(t for k, t in scripts.items() if k in listed)
+    # before the crosstalk bound's SPEF re-read, which would change slacks
+    assert tcl.index(pexlib.CRIT_BEGIN) < tcl.index(check_timing.SI_BEGIN)

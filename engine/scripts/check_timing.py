@@ -97,6 +97,18 @@ because a design can meet setup and hold everywhere and still fail them:
     naming up to 20 failing startpoint -> endpoint paths, at the severity
     gates.yaml's timing row sets in `si_bound` (`warning`, the default,
     until the corpus has been timed with it; `error` fails the gate).
+  - a second extractor on the critical nets (issue #77): the SPEF every
+    corner reads is OpenRCX's alone, so on one nominal corner
+    (nom_tt_025C_3v30, else the first nom_*) the 20 nets on the worst
+    setup and hold paths are extracted again with magic (pexlib, from the
+    routed DEF over the tech and cell LEFs, under log/timing_work/) and
+    each net's total C and R is set against the SPEF's. A net off by more
+    than 25 % in C (and 1 fF) or 40 % in R (and 10 ohm) is named in one
+    `pex_mismatch` finding, at the severity gates.yaml's timing row sets
+    in `pex_xcheck` (`warning`, the default, until the thresholds are
+    calibrated against a reference extraction). The per-net ratios are in
+    the report's `pex_xcheck` either way; a magic run that does not
+    finish is an error, never a pass.
 
 Failure classification (the same three-way split check_harden.py uses):
   - no `harden/runs/run/final/` at all -> CheckError (harden has not run;
@@ -128,6 +140,7 @@ REPO = ENGINE.parent
 sys.path.insert(0, str(ENGINE / "lib"))
 import checklib  # noqa: E402
 import clock_budget  # noqa: E402
+import pexlib  # noqa: E402
 import speclib  # noqa: E402
 import ttlib  # noqa: E402
 import yaml  # noqa: E402
@@ -209,15 +222,26 @@ def si_bound_severity(gates_path: Path | None = None) -> str:
     crosstalk bound (default warning). Always the engine's own gates.yaml
     (statelib reads strengths from it the same way): a `gate.py --gates`
     file of another path does not reach this check."""
+    return _timing_row_severity("si_bound", gates_path)
+
+
+def pex_xcheck_severity(gates_path: Path | None = None) -> str:
+    """gates.yaml's timing row `pex_xcheck`: the severity of a
+    `pex_mismatch` between OpenRCX and magic on the critical nets
+    (default warning, until the thresholds are calibrated)."""
+    return _timing_row_severity("pex_xcheck", gates_path)
+
+
+def _timing_row_severity(key: str, gates_path: Path | None) -> str:
     path = gates_path or GATES_YAML
     data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     for table in (data.get("gates") or {}).values():
         for row in (table or {}).values():
             if isinstance(row, dict) and row.get("tool") == "timing":
-                sev = row.get("si_bound", "warning")
+                sev = row.get(key, "warning")
                 if sev not in SI_SEVERITIES:
                     raise CheckError(
-                        f"{path.name}: timing row's si_bound is {sev!r}, "
+                        f"{path.name}: timing row's {key} is {sev!r}, "
                         f"not one of {', '.join(SI_SEVERITIES)}")
                 return sev
     return "warning"
@@ -710,9 +734,9 @@ def _scripts_dir(pdk_root: Path) -> Path:
     return found[-1]
 
 
-def signoff_sdc(ws: Path, run_dir: Path, pdk_root: Path) -> tuple[Path, str]:
-    """The SDC LibreLane's signoff STA read and the Tcl that sets up the
-    ::env it read it under (everything but the corner's own name)."""
+def resolved_config(ws: Path, run_dir: Path) -> dict:
+    """The harden run's resolved.json, every path under its DESIGN_DIR
+    read from this workspace's harden/ instead."""
     resolved = run_dir / "resolved.json"
     try:
         config = json.loads(resolved.read_text(encoding="utf-8"))
@@ -735,6 +759,13 @@ def signoff_sdc(ws: Path, run_dir: Path, pdk_root: Path) -> tuple[Path, str]:
 
     config = {k: rebase(v) for k, v in config.items()}
     config["DESIGN_DIR"] = str(harden_dir)
+    return config
+
+
+def signoff_sdc(ws: Path, run_dir: Path, pdk_root: Path) -> tuple[Path, str]:
+    """The SDC LibreLane's signoff STA read and the Tcl that sets up the
+    ::env it read it under (everything but the corner's own name)."""
+    config = resolved_config(ws, run_dir)
     scripts = _scripts_dir(pdk_root)
     sdc = (config.get("SIGNOFF_SDC_FILE") or config.get("PNR_SDC_FILE")
            or config.get("FALLBACK_SDC") or str(scripts / "base.sdc"))
@@ -757,7 +788,8 @@ def signoff_sdc(ws: Path, run_dir: Path, pdk_root: Path) -> tuple[Path, str]:
 
 
 def run_corner(final_dir: Path, top: str, corner: str, pdk_root: Path,
-              work_dir: Path, sdc: Path, env_tcl: str) -> dict:
+              work_dir: Path, sdc: Path, env_tcl: str,
+              critical: bool = False) -> dict:
     bucket = corner.split("_", 1)[0]
     lib = ttlib.stdcell_liberty_path(corner, pdk_root)
     netlist = final_dir / "nl" / f"{top}.nl.v"
@@ -789,6 +821,7 @@ def run_corner(final_dir: Path, top: str, corner: str, pdk_root: Path,
         + "report_check_types -max_slew -max_capacitance -max_fanout -violators\n"
         + COUNTS_TCL + SIGNOFF_TCL
         + uncertainty_tcl(work_dir / f".sta_{corner}.applied.sdc")
+        + (pexlib.critical_paths_tcl() if critical else "")
         + si_bound_tcl(spef)
         + "exit\n", encoding="utf-8")
     try:
@@ -817,6 +850,10 @@ def run_corner(final_dir: Path, top: str, corner: str, pdk_root: Path,
         ideal = parse_ideal_clocks(output)
         uncertainty, pin_uncertainty, via_inter = parse_clock_uncertainty(output)
         si = parse_si_bound(output)
+        crit = pexlib.parse_critical_paths(output) if critical else None
+    except pexlib.PexError as exc:
+        raise CheckError(f"corner {corner!r}: {exc} (exit {proc.returncode}): "
+                         f"{output[-2000:]}") from exc
     except CheckError as exc:
         raise CheckError(f"corner {corner!r}: {exc} (exit {proc.returncode}): "
                          f"{output[-2000:]}") from exc
@@ -834,7 +871,7 @@ def run_corner(final_dir: Path, top: str, corner: str, pdk_root: Path,
            "pin_uncertainty": pin_uncertainty,
            "uncertainty_via_inter": via_inter,
            "si_setup_ws": si["max"], "si_hold_ws": si["min"],
-           "si_paths": si["paths"]}
+           "si_paths": si["paths"], "critical_paths": crit}
 
 
 SIGNOFF_KINDS = {"min_pulse_width": "min_pulse_width_violation",
@@ -959,6 +996,105 @@ def si_bound_violations(r: dict, top: str, severity: str) -> list[dict]:
     return out
 
 
+XCHECK_CORNER = "nom_tt_025C_3v30"
+
+
+def xcheck_corner(corners: list[str]) -> str:
+    """The one corner the second-extractor cross-check runs on."""
+    if XCHECK_CORNER in corners:
+        return XCHECK_CORNER
+    nom = [c for c in corners if c.startswith("nom_")]
+    return (nom or corners)[0]
+
+
+def _config_path(v, config: dict, pdk_root: Path) -> Path:
+    """A resolved.json path, re-read under this toolchain's PDK root when
+    it was recorded under another one."""
+    p = Path(v)
+    old = str(config.get("PDK_ROOT") or "").rstrip("/")
+    if not p.exists() and old and str(p).startswith(old + "/"):
+        return pdk_root / str(p)[len(old) + 1:]
+    return p
+
+
+def xcheck_inputs(config: dict, corner: str, pdk_root: Path):
+    """(tech LEF, cell and extra LEFs) the harden run read for corner."""
+    tech = config.get("TECH_LEFS")
+    if isinstance(tech, dict):
+        hits = [v for k, v in tech.items() if fnmatch.fnmatch(corner, k)]
+        tech = hits[0] if hits else None
+    if not tech:
+        raise CheckError(f"the harden run's resolved.json has no TECH_LEFS "
+                         f"entry for corner {corner!r} - re-run the harden "
+                         "gate")
+    lefs = []
+    for key in ("CELL_LEFS", "EXTRA_LEFS"):
+        v = config.get(key) or []
+        lefs += [v] if isinstance(v, str) else list(v)
+    if not lefs:
+        raise CheckError("the harden run's resolved.json has no CELL_LEFS - "
+                         "re-run the harden gate")
+    return (_config_path(tech, config, pdk_root),
+            [_config_path(v, config, pdk_root) for v in lefs])
+
+
+def pex_xcheck(r: dict, final_dir: Path, top: str, config: dict,
+               pdk_root: Path, work_dir: Path) -> dict:
+    """pexlib.compare() of magic against corner r's SPEF on the nets of
+    r's critical paths, with the corner named; no nets, no magic run."""
+    corner = r["corner"]
+    nets = pexlib.critical_nets(r["critical_paths"] or [])
+    out = {"corner": corner, "extractor": "magic"}
+    if not nets:
+        return {**out, **pexlib.compare([], {}, {}, {}, {})}
+    bucket = corner.split("_", 1)[0]
+    spef = final_dir / "spef" / bucket / f"{top}.{bucket}.spef"
+    def_path = final_dir / "def" / f"{top}.def"
+    tech_lef, lefs = xcheck_inputs(config, corner, pdk_root)
+    try:
+        caps, res = pexlib.extract(
+            EDA_BIN, checklib.run_tool, tech_lef, lefs, def_path, top,
+            work_dir / "pex_xcheck", TIMEOUT_S)
+        vias, cuts = pexlib.lef_via_r(tech_lef.read_text(encoding="utf-8"))
+        via_r = pexlib.def_via_r(def_path.read_text(encoding="utf-8"),
+                                 vias, cuts)
+        rcx = pexlib.parse_spef(spef.read_text(encoding="utf-8"))
+    except (pexlib.PexError, OSError) as exc:
+        raise CheckError(f"second-extractor cross-check (corner {corner}): "
+                         f"{exc}") from exc
+    found = pexlib.compare(nets, rcx, caps, res, via_r)
+    if not found["nets"]:
+        raise CheckError(
+            f"second-extractor cross-check (corner {corner}): none of the "
+            f"{len(nets)} critical net(s) has both an OpenRCX and a magic "
+            f"figure ({_shown(found['unmatched'])}) - see "
+            f"{work_dir / 'pex_xcheck' / 'magic.log'}")
+    return {**out, **found}
+
+
+def pex_violations(x: dict, top: str, severity: str) -> list[dict]:
+    """One `pex_mismatch` naming every critical net the two extractors
+    disagree on (or that only one of them has)."""
+    bad = [n for n in x["nets"] if n["c_mismatch"] or n["r_mismatch"]]
+    if not bad and not x["unmatched"]:
+        return []
+    named = [f"{n['net']} (C x{n['c_ratio']}, R x{n['r_ratio']})"
+             for n in bad]
+    msg = (f"corner {x['corner']}: magic and OpenRCX disagree on "
+           f"{len(bad)} of {len(x['nets'])} critical net(s) beyond "
+           f"{pexlib.C_TOL:.0%} C / {pexlib.R_TOL:.0%} R: {_shown(named)}")
+    if x["unmatched"]:
+        msg += (f"; {len(x['unmatched'])} critical net(s) only one "
+                f"extractor has: {_shown(x['unmatched'])}")
+    msg += ("; read the per-net ratios in the report's pex_xcheck before "
+            "trusting those nets' timing (a short net reads high in magic, "
+            "which counts the cell-pin metal)")
+    return [checklib.violation(
+        "timing", severity, None, top, "pex_mismatch",
+        [n["net"] for n in bad] + x["unmatched"], msg, "magic",
+        corner=x["corner"])]
+
+
 def run(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--workspace", required=True, help="block workspace")
@@ -983,13 +1119,18 @@ def run(argv=None):
     except clock_budget.ClockBudgetError as exc:
         raise CheckError(f"spec.yaml {exc}; spec_lint names it too") from exc
     si_severity = si_bound_severity()
+    pex_severity = pex_xcheck_severity()
     pdk_root = _pdk_root()
     sdc, env_tcl = signoff_sdc(ws, final_dir.parent, pdk_root)
     work_dir = ws / "log" / "timing_work"
     work_dir.mkdir(parents=True, exist_ok=True)
+    xc_corner = xcheck_corner(corners)
     results = [run_corner(final_dir, top, corner, pdk_root, work_dir,
-                          sdc, env_tcl)
+                          sdc, env_tcl, critical=corner == xc_corner)
               for corner in corners]
+    xc = pex_xcheck(next(r for r in results if r["corner"] == xc_corner),
+                    final_dir, top, resolved_config(ws, final_dir.parent),
+                    pdk_root, work_dir)
 
     violations = []
     corners_out = {}
@@ -1035,9 +1176,11 @@ def run(argv=None):
             "si_bound_hold_ws": _finite(r.get("si_hold_ws"))}
 
     violations.extend(jitter_source_violations(ws, budgets, top))
+    violations.extend(pex_violations(xc, top, pex_severity))
     extra = {"si_bound": {"severity": si_severity,
                           "setup_factor": SI_SETUP_FACTOR,
-                          "hold_factor": SI_HOLD_FACTOR}}
+                          "hold_factor": SI_HOLD_FACTOR},
+             "pex_xcheck": {"severity": pex_severity, **xc}}
     if budgets:
         extra["clock_budgets"] = {
             n: {"ps_rms": b.ps_rms, "cycles": b.cycles,
