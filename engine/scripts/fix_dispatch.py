@@ -32,7 +32,12 @@ Work order shape (log/workorders/wo-<id>.json):
      "sensitivity": [{measure, corner, condition?, value, bound, top: [3
        sensitivity.py entries], unranked, report} or {measure, corner,
        error}] - sizing orders with sim_bound_fail findings and a
-       sizing/sizing.yaml only (#104; --no-sensitivity skips it), "scope":
+       sizing/sizing.yaml only (#104; --no-sensitivity skips it),
+     "mismatch": [{measure, corner, value, bound, sigma, k_sigma, top: [3
+       sensitivity.py --mismatch devices], unranked, global, report} or
+       {measure, corner, error}] - the same orders' yield_below_spec and
+       sigma_above_spec findings (#386; --no-sensitivity skips it too),
+     "scope":
      "fix ONLY the findings in `cluster`; do not touch unrelated files"}
 """
 from __future__ import annotations
@@ -432,6 +437,79 @@ def sensitivity_for(workspace: Path, violations: list[dict]) -> list[dict]:
     return out
 
 
+# #386: a sizing order for an mc failure (yield_below_spec,
+# sigma_above_spec) carries sensitivity.py --mismatch's ranking of the
+# devices by their share of the measure's mismatch variance at that corner.
+MISMATCH_TOP = 3
+MISMATCH_GUIDANCE = (
+    "`mismatch` ranks the devices by their share of the measure's random "
+    "mismatch variance at the mc corner (sigma = the linear estimate of the "
+    "mismatch-only MC sigma; sigma_if_area_doubled = that sigma with one "
+    "device's W*L doubled, Pelgrom). Enlarge the top device's area first, "
+    "keeping its W/L (and so the operating point), then re-run the mc gate.")
+MC_REF_RE = re.compile(r"^([^@\s]+)@(\S+)$")
+
+
+def mc_pairs(workspace: Path, violations: list[dict]) -> list[tuple]:
+    """The distinct (measure, corner) of a cluster's mc findings, in order:
+    a sigma_above_spec names its measure and `bench@corner`; a
+    yield_below_spec names only `bench@corner`s, so every measure that
+    bench's bounds.json declares stands for it."""
+    out = []
+    for v in violations:
+        kind, refs = v.get("kind"), v.get("refs") or []
+        if kind == "sigma_above_spec" and len(refs) == 2:
+            m = MC_REF_RE.match(refs[1])
+            found = [(refs[0], m.group(2))] if m else []
+        elif kind == "yield_below_spec":
+            found = []
+            for ref in refs:
+                m = MC_REF_RE.match(ref)
+                if not m:
+                    continue
+                bounds = workspace / "tb" / (
+                    Path(m.group(1)).stem + ".bounds.json")
+                try:
+                    decl = json.loads(bounds.read_text(encoding="utf-8"))
+                except (OSError, ValueError):
+                    continue
+                for b in decl if isinstance(decl, list) else []:
+                    if isinstance(b, dict) and isinstance(b.get("measure"),
+                                                          str):
+                        found.append((b["measure"].lower(), m.group(2)))
+        else:
+            continue
+        for pair in found:
+            if pair not in out:
+                out.append(pair)
+    return out
+
+
+def mismatch_for(workspace: Path, violations: list[dict]) -> list[dict]:
+    """sensitivity.py --mismatch's top devices for the first
+    SENSITIVITY_PAIRS mc (measure, corner)s; a run that cannot finish is an
+    `error` entry, never a failed dispatch."""
+    import sensitivity
+    out = []
+    for measure, corner in mc_pairs(workspace, violations)[:SENSITIVITY_PAIRS]:
+        entry = {"measure": measure, "corner": corner}
+        try:
+            rep = sensitivity.analyse_mismatch(workspace, measure, corner,
+                                               top=MISMATCH_TOP)
+        except (CheckError, OSError, ValueError, KeyError) as exc:
+            entry["error"] = f"{type(exc).__name__}: {exc}"
+        else:
+            entry.update({
+                "value": rep["value"], "bound": rep["bound"],
+                "sigma": rep["sigma"], "k_sigma": rep["k_sigma"],
+                "top": [d for d in rep["devices"]
+                        if d["variance"] is not None][:MISMATCH_TOP],
+                "unranked": [u["device"] for u in rep["unranked"]],
+                "global": rep["global"], "report": rep["decks"]})
+        out.append(entry)
+    return out
+
+
 def run(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--input", required=True,
@@ -555,6 +633,12 @@ def run(argv=None):
                 if sens:
                     order["sensitivity"] = sens
                     order["guidance"].insert(0, SENSITIVITY_GUIDANCE)
+            if c["fixer"] == "sizing" and not args.no_sensitivity:
+                # a block with no sizing.yaml still has devices to rank
+                mm = mismatch_for(workspace, c["violations"])
+                if mm:
+                    order["mismatch"] = mm
+                    order["guidance"].insert(0, MISMATCH_GUIDANCE)
             out_dir.mkdir(parents=True, exist_ok=True)
             wo_path = out_dir / f"wo-{oid}.json"
             wo_path.write_text(json.dumps(order, indent=1), encoding="utf-8")

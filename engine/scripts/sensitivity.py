@@ -8,6 +8,8 @@ failing corner, so a `sim_bound_fail` work order (fix_dispatch.py) says
     sensitivity.py --workspace DIR --measure NAME [--corner NAME]
                    [--condition pad|no_pad] [--step 0.05] [--top 3]
                    [--timeout SEC] [--workers 1|2] [--out FILE]
+    sensitivity.py --workspace DIR --measure NAME --mismatch [--corner NAME]
+                   [--top 3] [--timeout SEC] [--workers 1|2] [--out FILE]
 
 For every numeric parameter of sizing/sizing.yaml, the bench that declares
 `--measure` runs twice at the corner, with that one parameter at
@@ -43,10 +45,20 @@ margin (optimise.measure_margin) is the one differentiated. The decks go
 to log/sensitivity/<measure>__<corner>/, one subdirectory per run.
 Report status is "pass" whether or not the measure itself passes: the
 report is information for a fixer, not a gate.
+
+--mismatch (#386) ranks devices instead of parameters: each device's share
+of the measure's random part-to-part (Pelgrom) variance at the corner, from
+a netlist copy whose mismatch draws are parameters (see the mismatch
+section below). It reports `sigma` (the linear estimate of the mc gate's
+mismatch-only sigma), and per device `per_sigma` (the measure's move per
+1-sigma of each draw), `variance`, `share` and `sigma_if_area_doubled`;
+devices it cannot rank are in `unranked` with the reason.
 """
 from __future__ import annotations
 
 import argparse
+import math
+import re
 import shutil
 import sys
 from concurrent.futures import ThreadPoolExecutor
@@ -148,11 +160,14 @@ class Bench:
             return None
         return scored[0]
 
-    def run(self, corner: dict, sizing: dict, out_dir: Path) -> dict:
-        """{value, error}: the measure at one corner and sizing."""
-        subs = sim_run.build_subs(self.t_root, self.netlist, corner,
-                                  self.nominal_vdd, sizing)
-        text = self.text
+    def run(self, corner: dict, sizing: dict, out_dir: Path,
+            netlist: Path | None = None, text: str | None = None) -> dict:
+        """{value, error}: the measure at one corner and sizing, on the
+        block's netlist or on `netlist` (a rewritten copy), and on the
+        bench's text or on `text`."""
+        subs = sim_run.build_subs(self.t_root, netlist or self.netlist,
+                                  corner, self.nominal_vdd, sizing)
+        text = self.text if text is None else text
         if self.pad is not None:
             text = sim_run.pad_bench(text, self.top, self.pad, corner,
                                      subs["VDD"])
@@ -217,6 +232,32 @@ def rank(entries: list[dict]) -> list[dict]:
         e["param"]))
 
 
+def _corner_and_base(bench, ws, sweep, sizing, corner_name, tag, workers,
+                     measure):
+    """(corner, baseline run, bound, out_root): the named corner, or the
+    scored one with the least margin."""
+    if corner_name:
+        matches = [c for c in sweep if corner_name in corners_mod.names_of(c)]
+        if not matches:
+            raise CheckError(f"corner '{corner_name}' is not in the spec's "
+                             "sweep: " + ", ".join(c["name"] for c in sweep))
+        corner = matches[0]
+        bound = bench.bound_at(corner)
+        if bound is None:
+            raise CheckError(f"'{measure}' is not scored at {corner_name}")
+        out_root = ws / OUT_SUBDIR / f"{tag}__{corner['name']}"
+        shutil.rmtree(out_root, ignore_errors=True)
+        base = bench.run(corner, sizing, out_root / "baseline")
+        if base["value"] is None:
+            raise CheckError(f"baseline at {corner['name']}: {base['error']} - "
+                             f"see {out_root / 'baseline'}")
+        return corner, base, bound, out_root
+    out_root = ws / OUT_SUBDIR / f"{tag}__worst"
+    shutil.rmtree(out_root, ignore_errors=True)
+    corner, base, bound = pick_corner(bench, sweep, sizing, out_root, workers)
+    return corner, base, bound, out_root
+
+
 def analyse(ws: Path, measure: str, corner_name: str | None = None,
             condition: str | None = None, step: float = DEFAULT_STEP,
             top: int = DEFAULT_TOP, timeout: float = DEFAULT_TIMEOUT,
@@ -238,29 +279,9 @@ def analyse(ws: Path, measure: str, corner_name: str | None = None,
                          "differentiate")
     bench = Bench(ws, measure, eda_bin, timeout, condition)
     sweep, _ = sim_run.spec_sweep(ws)
-    tag = bench.measure
-    if condition:
-        tag += f"__{condition}"
-    if corner_name:
-        matches = [c for c in sweep if corner_name in corners_mod.names_of(c)]
-        if not matches:
-            raise CheckError(f"corner '{corner_name}' is not in the spec's "
-                             "sweep: " + ", ".join(c["name"] for c in sweep))
-        corner = matches[0]
-        bound = bench.bound_at(corner)
-        if bound is None:
-            raise CheckError(f"'{measure}' is not scored at {corner_name}")
-        out_root = ws / OUT_SUBDIR / f"{tag}__{corner['name']}"
-        shutil.rmtree(out_root, ignore_errors=True)
-        base = bench.run(corner, sizing, out_root / "baseline")
-        if base["value"] is None:
-            raise CheckError(f"baseline at {corner['name']}: {base['error']} - "
-                                 f"see {out_root / 'baseline'}")
-    else:
-        out_root = ws / OUT_SUBDIR / f"{tag}__worst"
-        shutil.rmtree(out_root, ignore_errors=True)
-        corner, base, bound = pick_corner(bench, sweep, sizing, out_root,
-                                          workers)
+    tag = bench.measure + (f"__{condition}" if condition else "")
+    corner, base, bound, out_root = _corner_and_base(
+        bench, ws, sweep, sizing, corner_name, tag, workers, measure)
     m0 = base["value"]
     edge = target_edge(m0, bound)
 
@@ -320,6 +341,307 @@ def analyse(ws: Path, measure: str, corner_name: str | None = None,
     }
 
 
+# --- mismatch ranking (#386) ------------------------------------------------
+# `--mismatch` ranks each device's share of the measure's random
+# part-to-part (Pelgrom) variance, so a fix for an mc gate failure
+# (yield_below_spec, sigma_above_spec) enlarges the device that matters
+# instead of guessing. GF180's MOS subckts (sm141064.spice, `.lib fets_mm`)
+# draw each device's mismatch as delvto='mis_vth*sw_stat_mismatch' and
+# mulu0='1-mis_k*sw_stat_mismatch', mis_* = agauss(0, var_*, 1) with
+# var_* = 0.7071*par_*/sqrt(area): a random draw per run, no knob to turn.
+# The copy of the netlist this writes replaces each draw with a parameter:
+# every MOS instance is retargeted to `<model>__mm`, a copy of the PDK's
+# subckt whose two lines read delvto='mm_zv*var_vth' and
+# mulu0='1-mm_zk*var_k', and the instance passes mm_zv/mm_zk from global
+# `.param`s - so z=+1 is the device's own 1-sigma shift. A RES_MISMATCH
+# resistor gets mis_r='mm_zr_K*(<check_mc's sigma>)'. Each device's two
+# terms run at z=+1 and z=-1 with every other z at 0, a central difference
+# d(measure)/dz; the device's variance is the sum of its squared terms, its
+# share that over the total, and sigma = sqrt(total) is the linear estimate
+# of the mc gate's mismatch-only sigma at that corner.
+MOS_MM_RE = re.compile(r"^[np]fet_0[356]v[03](?:_dss|_nvt)?$", re.IGNORECASE)
+MM_SUFFIX = "__mm"
+VTH_TERM = "delvto='mis_vth*sw_stat_mismatch'"
+K_TERM = "mulu0='1-mis_k*sw_stat_mismatch'"
+PDK_MOS_LIB = Path("libs.tech") / "ngspice" / "sm141064.spice"
+GLOBAL_NOTE = ("mismatch only: global (die-to-die) variation moves every "
+               "device together and is not in this ranking or its sigma")
+# a model whose PDK subckt draws its own mismatch under sw_stat_mismatch=1
+# when this does not parameterise it (a pnp; a MOS outside MOS_MM_RE)
+_LIVE_MISMATCH_RE = re.compile(r"^(?:pnp_|[np]fet_)", re.IGNORECASE)
+
+
+def mm_subckt(lib_text: str, model: str) -> str | None:
+    """The PDK's `.subckt <model>` renamed <model>__mm, its two mismatch
+    draws turned into mm_zv/mm_zk (header defaults 0), or None when the
+    library has no such subckt or its draws are not the expected two."""
+    name = re.escape(model.lower())
+    m = re.search(rf"^\.subckt\s+{name}\s.*?^\.ends\s+{name}\b[^\n]*",
+                  lib_text, re.IGNORECASE | re.MULTILINE | re.DOTALL)
+    if not m:
+        return None
+    block = m.group(0)
+    if VTH_TERM not in block or K_TERM not in block:
+        return None
+    block = block.replace(VTH_TERM, "delvto='mm_zv*var_vth'")
+    block = block.replace(K_TERM, "mulu0='1-mm_zk*var_k'")
+    head, rest = block.split("\n", 1)
+    words = head.split()
+    k = next((i for i, w in enumerate(words) if "=" in w), len(words))
+    words[1] = model.lower() + MM_SUFFIX
+    words[k:k] = ["mm_zv=0", "mm_zk=0"]
+    rest = re.sub(rf"^(\.ends\s+){name}\b", rf"\g<1>{model.lower()}{MM_SUFFIX}",
+                  rest, flags=re.IGNORECASE | re.MULTILINE)
+    return " ".join(words) + "\n" + rest
+
+
+def instance_counts(texts: list[str]) -> dict:
+    """{subckt: how many instance lines reach it from the top level}, over
+    every text of the deck. A subckt reached more than once holds devices
+    one parameter cannot move apart (an `m=N` instance is one line: its
+    copies are one device, par=N)."""
+    import check_mc
+    calls: list[tuple] = []
+    for text in texts:
+        lines = text.split("\n")
+        _, walk = check_mc._subckt_blocks(text)
+        for inside, group in walk:
+            inst = check_mc._instance(group, lines)
+            if inst is not None:
+                calls.append((inside, inst[1].lower()))
+    memo: dict = {}
+
+    def count(name, stack=()):
+        if name is None:
+            return 1
+        if name in memo:
+            return memo[name]
+        if name in stack:
+            return 0
+        n = sum(count(enc, (*stack, name)) for enc, model in calls
+                if model == name)
+        memo[name] = n
+        return n
+
+    return {model: count(model) for _, model in calls}
+
+
+def _retarget(lines: list[str], group: list[int], model: str) -> None:
+    pat = re.compile(rf"(\s){re.escape(model)}(?=\s|$)")
+    for i in group:
+        new, n = pat.subn(rf"\g<1>{model}{MM_SUFFIX}", lines[i], count=1)
+        if n:
+            lines[i] = new
+            return
+
+
+def mismatch_netlist(text: str, bench_text: str, lib_text: str
+                     ) -> tuple[str, list[dict], list[dict]]:
+    """The netlist copy for `--mismatch` (see above). Returns (new text,
+    [{device, instance, subckt, model, kind, params}] ranked devices with
+    their z parameter names, [{device, model, reason}] unranked ones). Every
+    MOS is retargeted, ranked or not: an unranked one passes z=0 and so
+    carries no mismatch at all (listed with its reason)."""
+    import check_mc
+    text, _ = check_mc.add_par_for_multiplier(text, [bench_text])
+    uses = instance_counts([text, bench_text])
+    lines = text.split("\n")
+    _, walk = check_mc._subckt_blocks(text)
+    subckts: dict[str, str | None] = {}
+    devices, unranked, resistors, live = [], [], [], []
+    for inside, group in walk:
+        inst = check_mc._instance(group, lines)
+        if inst is None or lines[group[0]].split()[0].lower() == ".subckt":
+            continue
+        name, model, _ = inst
+        dev = f"{inside}/{name}" if inside else name
+        base = {"device": dev, "instance": name, "subckt": inside,
+                "model": model}
+        n = uses.get(inside, 0) if inside else 1
+        many = (None if n == 1 else
+                f"its subckt {inside} is instantiated {n} times: one "
+                "parameter would move every copy together")
+        if MOS_MM_RE.match(model):
+            key = model.lower()
+            if key not in subckts:
+                subckts[key] = mm_subckt(lib_text, key)
+            if subckts[key] is None:
+                live.append(dev)
+                unranked.append({**base, "reason": "the PDK library has no "
+                                 f"{key} subckt with the two mismatch draws "
+                                 "this rewrites"})
+                continue
+            _retarget(lines, group, model)
+            if many:
+                unranked.append({**base, "reason": many + "; it carries no "
+                                 "mismatch in these runs"})
+                continue
+            k = len(devices)
+            zv, zk = f"mm_zv_{k}", f"mm_zk_{k}"
+            check_mc._append_param(lines, group,
+                                   f"mm_zv={{{zv}}} mm_zk={{{zk}}}")
+            devices.append({**base, "kind": "mos",
+                            "params": {"vth": zv, "k": zk}})
+        elif model.lower() in check_mc.RES_MISMATCH:
+            params = check_mc._all_params(group, lines)
+            if many:
+                unranked.append({**base, "reason": many})
+            elif "mis_r" in params:
+                unranked.append({**base, "reason": "writes its own mis_r"})
+            elif not {"r_length", "r_width"} <= params.keys():
+                unranked.append({**base, "reason": "no r_length/r_width on "
+                                 "the instance"})
+            else:
+                resistors.append((group, base, params))
+        elif _LIVE_MISMATCH_RE.match(model):
+            live.append(dev)
+            unranked.append({**base, "reason": "no parameterised mismatch "
+                             "for this model"})
+    for group, base, params in resistors:
+        if live:
+            unranked.append({**base, "reason": "a resistor's term needs "
+                             "sw_stat_mismatch=1, which would also draw "
+                             "random mismatch for " + live[0]})
+            continue
+        k = len(devices)
+        zr = f"mm_zr_{k}"
+        expr = check_mc.resistor_sigma_expr(base["model"], params)
+        sig = expr[len("'agauss(0,"):-len(",1)'")]
+        check_mc._append_param(lines, group, f"mis_r='{zr}*({sig})'")
+        devices.append({**base, "kind": "resistor", "params": {"r": zr}})
+    out = "\n".join(lines).rstrip("\n") + "\n"
+    blocks = [b for b in subckts.values() if b]
+    if blocks:
+        out += ("* --- sensitivity.py --mismatch: the PDK's MOS subckts with "
+                "their mismatch draws as parameters\n" + "\n".join(blocks)
+                + "\n")
+    return out, devices, unranked
+
+
+def _absolutize(text: str, base: Path) -> str:
+    import check_mc
+
+    def fix(m):
+        path = m.group(3)
+        if path.startswith(("/", "{{")):
+            return m.group(0)
+        return m.group(1) + m.group(2) + str(base / path) + m.group(4)
+
+    return check_mc._REL_INCLUDE_RE.sub(fix, text)
+
+
+def analyse_mismatch(ws: Path, measure: str, corner_name: str | None = None,
+                     condition: str | None = None, top: int = DEFAULT_TOP,
+                     timeout: float = DEFAULT_TIMEOUT, workers: int = 1,
+                     eda_bin: Path | None = None) -> dict:
+    import check_mc
+    workers = max(1, min(MAX_WORKERS, workers))
+    sizing = sim_run.load_sizing(ws)
+    bench = Bench(ws, measure, eda_bin, timeout, condition)
+    sweep, _ = sim_run.spec_sweep(ws)
+    tag = bench.measure + (f"__{condition}" if condition else "") + "__mm"
+    corner, base, bound, out_root = _corner_and_base(
+        bench, ws, sweep, sizing, corner_name, tag, workers, measure)
+    lib = sim_run.pdk_root(bench.t_root) / PDK_MOS_LIB
+    try:
+        lib_text = lib.read_text(encoding="utf-8", errors="replace")
+    except OSError as exc:
+        raise CheckError(f"cannot read the PDK's MOS library {lib}: "
+                         f"{exc}") from exc
+    text = bench.netlist.read_text(encoding="utf-8")
+    new_text, devices, unranked = mismatch_netlist(text, bench.text, lib_text)
+    if not devices:
+        raise CheckError("no device of the netlist has a mismatch term this "
+                         "can rank" + (": " + "; ".join(
+                             f"{u['device']}: {u['reason']}"
+                             for u in unranked) if unranked else ""))
+    out_root.mkdir(parents=True, exist_ok=True)
+    copy = out_root / f"{bench.netlist.stem}__mm{bench.netlist.suffix}"
+    copy.write_text(_absolutize(new_text, bench.netlist.resolve().parent),
+                    encoding="utf-8")
+    bench_text = bench.text
+    if any(d["kind"] == "resistor" for d in devices):
+        # the PDK's resistor body reads (1+mis_r*sw_stat_mismatch); every
+        # MOS is retargeted and nothing unranked draws (mismatch_netlist)
+        bench_text = check_mc._INCLUDE_DESIGN_RE.sub(
+            lambda m: m.group(1) + "\n.param sw_stat_mismatch=1",
+            bench_text, count=1)
+    zeros = {p: 0.0 for d in devices for p in d["params"].values()}
+
+    def with_z(param=None, z=0.0):
+        out = {**sizing, **zeros}
+        if param:
+            out[param] = z
+        return out
+
+    zero = bench.run(corner, with_z(), out_root / "mm_zero", copy, bench_text)
+    if zero["value"] is None:
+        raise CheckError(f"the mismatch copy at {corner['name']}: "
+                         f"{zero['error']} - see {out_root / 'mm_zero'}")
+    m0 = base["value"]
+    if abs(zero["value"] - m0) > 1e-6 * max(abs(m0), 1e-30):
+        raise CheckError(
+            f"the mismatch copy's nominal {zero['value']:.6g} differs from "
+            f"the block's {m0:.6g} at {corner['name']}: the rewrite moved "
+            f"the operating point - see {copy}")
+    jobs = [(d, term, p, s) for d in devices
+            for term, p in d["params"].items() for s in (+1, -1)]
+
+    def one(job):
+        d, term, p, s = job
+        return bench.run(corner, with_z(p, float(s)),
+                         out_root / f"{p}__{'up' if s > 0 else 'down'}",
+                         copy, bench_text)
+
+    with ThreadPoolExecutor(workers) as pool:
+        runs = list(pool.map(one, jobs))
+    by = {(j[2], j[3]): r for j, r in zip(jobs, runs)}
+    entries = []
+    for d in devices:
+        e = {k: d[k] for k in ("device", "instance", "subckt", "model",
+                               "kind")}
+        terms, errors = {}, []
+        for term, p in d["params"].items():
+            up, dn = by[(p, +1)], by[(p, -1)]
+            if up["value"] is None or dn["value"] is None:
+                errors.append((up if up["value"] is None else dn)["error"])
+                continue
+            terms[term] = (up["value"] - dn["value"]) / 2
+        e["per_sigma"] = terms
+        if errors:
+            e["error"] = "; ".join(errors)
+            e["variance"] = None
+        else:
+            e["variance"] = sum(v * v for v in terms.values())
+        entries.append(e)
+    total = sum(e["variance"] for e in entries if e["variance"] is not None)
+    for e in entries:
+        var = e["variance"]
+        e["share"] = var / total if var is not None and total else None
+        e["sigma_if_area_doubled"] = (
+            math.sqrt(max(total - var / 2, 0.0)) if var is not None else None)
+    ranked = sorted(entries, key=lambda e: (
+        e["variance"] is None, -(e["variance"] or 0.0), e["device"]))
+    sigma = math.sqrt(total)
+    lo, hi = bound.get("min"), bound.get("max")
+    k_sigma = {"min": (m0 - lo) / sigma if lo is not None and sigma else None,
+               "max": (hi - m0) / sigma if hi is not None and sigma else None}
+    return {
+        "script": SCRIPT, "status": "pass", "mode": "mismatch",
+        "workspace": str(ws), "measure": bench.measure,
+        "bench": bench.bench_path.name, "corner": corner["name"],
+        "condition": condition, "value": m0, "bound": {"min": lo, "max": hi},
+        "margin": measure_margin(m0, bound),
+        "passes": (lo is None or m0 >= lo) and (hi is None or m0 <= hi),
+        "sigma": sigma, "rel_sigma": sigma / abs(m0) if m0 else None,
+        "k_sigma": k_sigma, "devices": ranked,
+        "top": [e["device"] for e in ranked[:top]
+                if e["variance"] is not None],
+        "unranked": unranked, "global": GLOBAL_NOTE, "netlist": str(copy),
+        "decks": str(out_root),
+    }
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--workspace", required=True)
@@ -330,8 +652,15 @@ def main(argv=None) -> int:
     ap.add_argument("--top", type=int, default=DEFAULT_TOP)
     ap.add_argument("--timeout", type=float, default=DEFAULT_TIMEOUT)
     ap.add_argument("--workers", type=int, default=1)
+    ap.add_argument("--mismatch", action="store_true",
+                    help="rank the devices' shares of the measure's random "
+                         "mismatch variance instead of the sizing params")
     ap.add_argument("--out")
     args = ap.parse_args(argv)
+    if args.mismatch:
+        return checklib.cli_wrap(SCRIPT, lambda: (analyse_mismatch(
+            Path(args.workspace), args.measure, args.corner, args.condition,
+            args.top, args.timeout, args.workers), args.out))
     return checklib.cli_wrap(SCRIPT, lambda: (analyse(
         Path(args.workspace), args.measure, args.corner, args.condition,
         args.step, args.top, args.timeout, args.workers), args.out))

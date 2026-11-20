@@ -338,6 +338,9 @@ FIXER_HINTS: dict[str, str] = {
     # slower than its design equations said - sizing, not a wider window
     "sim_not_settled": "sizing",
     "yield_below_spec": "sizing",
+    # a sigma_max over spec is a matched pair too small (its remediation
+    # says sizing; #386 hands the fixer the mismatch ranking)
+    "sigma_above_spec": "sizing",
     "yield_all_failed": "sizing",
 
     # bench_strength (check_bench_strength.py, netlistlib.device_mutants)

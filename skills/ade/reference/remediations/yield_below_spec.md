@@ -11,5 +11,11 @@ samples: it points at the matched pair. A miss only at the worst corner
 wants margin there (the nominal value sits near a bound at that corner),
 not only less mismatch.
 
+**Which device:** the work order's `mismatch` block ranks each device by
+its share of the failing measure's mismatch variance at that corner, with
+`sigma_if_area_doubled` per device (`engine/scripts/sensitivity.py
+--workspace <ws> --measure <m> --corner <c> --mismatch` re-runs it). Enlarge
+the top device first, keeping its W/L.
+
 **Trap:** lowering `yield_min` or `runs` is a spec change for the person.
 A higher `runs` count does not raise yield; it only tightens the estimate.

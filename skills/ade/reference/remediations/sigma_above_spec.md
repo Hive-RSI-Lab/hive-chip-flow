@@ -10,7 +10,10 @@ devices (Pelgrom). Find the pair that sets the measure: for a StrongARM's
 offset that is the input pair first, then the latch NMOS. Scale its area by
 about (sigma / sigma_max)^2, with margin. The input pair's overdrive also
 matters: a lower Vgs - Vt gives less offset per mV of Vt mismatch. A miss
-only at a corner wants margin at that corner.
+only at a corner wants margin at that corner. The work order's `mismatch`
+block ranks the devices by their share of the measure's mismatch variance
+(`sensitivity.py --mismatch` re-runs it): start from its top device rather
+than from the textbook pair.
 
 **Trap:** raising `sigma_max` is a spec change for the person, and so is
 changing the topology (a preamp, offset storage). More `runs` do not lower
