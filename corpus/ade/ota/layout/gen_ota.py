@@ -7,12 +7,12 @@ centred on the same x. Every W, L and passive size comes from
 sizing/sizing.yaml (row_plan()), so a tuned sizing reaches the layout; at this
 rung's own sizing the rows are:
 
-  N1  nfet 4u  the bias mirror, one matched_row (spec.yaml `matching:`,
-               common_centroid): xmb 1 unit, xmt 2, xm7 20, the odd xmb in
-               the middle, a dummy at each end
-  N2  nfet 5u  the input pair, matched_row ABBA: xm1 2, xm2 2, dummies
-  P1  pfet 2u  the mirror load, matched_row ABBA: xm3 2, xm4 2, dummies
-  P2  pfet 8u  xm6, 10 units side by side (not matched: one device)
+  N1  nfet 3.945u  the bias mirror, one matched_row (spec.yaml `matching:`,
+                   common_centroid): xmb 1 unit, xmt 2, xm7 20, the odd xmb
+                   in the middle, a dummy at each end
+  N2  nfet 5u      the input pair, matched_row ABBA: xm1 2, xm2 2, dummies
+  P1  pfet 2.25u   the mirror load, matched_row ABBA: xm3 2, xm4 2, dummies
+  P2  pfet 8.935u  xm6, 10 units side by side (not matched: one device)
 
 netgen merges each device's parallel units back into the netlist's one
 device, and a dummy has every terminal on its row's rail (netlist/ota.cir

@@ -59,13 +59,13 @@ corner of docs/design.md section 5's default PVT set:
   noise integrated from 10 Hz to 1 MHz, is at most 60 uV rms. The bench
   prints each device's share after the measures, unscored.
 
-Simulated values at the committed sizing across the seven default corners,
-bare / through the pad: PM 87.4-104.2 / 75.3-92.6 deg, GM 22.5-28.2 /
-11.3-21.4 dB, UGF 11.8-23.5 / 5.9-10.3 MHz; in both, A0 88-91 dB, iq
-221-239 uA, vos -8 to -17 uV, PSRR 94.7-100.6 dB at 10 Hz and 40.8-46.7 dB
-at 100 kHz, noise 30-39 uV rms. GM through the pad is the bound with least
-room: tt_pff sets it (11.3 dB), and UGF through the pad at ss (5.9 MHz)
-is next.
+Simulated values at the committed sizing (the gm/Id one, sizing.yaml's
+`gmid:` records) across the seven default corners, bare / through the pad:
+PM 88.2-105.0 / 75.9-93.3 deg, GM 21.5-27.0 / 11.5-22.2 dB, UGF
+11.9-23.7 / 6.0-10.4 MHz; in both, A0 88.7-91.6 dB, iq 221-239 uA, vos
+-12 to -21 uV, PSRR 94.7-100.9 dB at 10 Hz and 40.8-46.7 dB at 100 kHz,
+noise 30-39 uV rms. GM through the pad is the bound with least room:
+tt_pff sets it (11.5 dB), and UGF through the pad at ss (6.0 MHz) is next.
 
 ## Compensation and its planted faults
 

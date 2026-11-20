@@ -24,10 +24,10 @@
 * W = 100 um and sizing.yaml lets w_2 and w_s reach 200 um, where a single
 * device has no model at all. LVS combines parallel units, so it compares
 * the same total width.
-.param w_b=4e-6 w_t=8e-6 l_b=1e-6
+.param w_b=3.945e-6 w_t=7.89e-6 l_b=1e-6
 .param w_in=10e-6 l_in=1e-6
-.param w_ld=4e-6 l_ld=1e-6
-.param w_2=80e-6 w_s=80e-6 l_2=1e-6
+.param w_ld=4.5e-6 l_ld=1e-6
+.param w_2=89.35e-6 w_s=78.9e-6 l_2=1e-6
 .param cc_w=26e-6 rz_w=2e-6 rz_l=25.5e-6
 .subckt two_stage_miller_ota inp inn out vdd vss ibias
 xmb  ibias ibias vss  vss nfet_03v3 w=w_b  l=l_b

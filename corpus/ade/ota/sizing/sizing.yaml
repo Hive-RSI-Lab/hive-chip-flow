@@ -8,13 +8,37 @@
 # candidate to them): every size on the 5 nm grid, w_in and w_ld as two
 # units and w_2 as ten, and w_t and w_s an even number of w_b-wide units in
 # the bias row's one matched row.
+#
+# The transistor widths come from gm/Id (#102), not hand numbers: each W
+# below is what `engine/scripts/gmid.py size` printed for the gm/Id, Id and
+# L in its `gmid:` record (tt, 27 C, the Vds/Vsb that device sits at in the
+# unity-gain bench), snapped to the grid above. The designer's path:
+#   - the input pair keeps gm1 = 135 uS, the gm the compensation (xcc, xrz;
+#     spec.md "Values chosen", #297) was set for, at 13.5 /V: mid-range of
+#     the topology header's 12-16, so Itail/2 = 10 uA;
+#   - the bias mirror xmb/xmt/xm7 at 9.5 /V (strong enough inversion to
+#     mirror well, short of the pair's), so the tail's 20 uA and stage 2's
+#     200 uA are w_b's 2 and 20 units (iq's 150-350 uA);
+#   - the mirror load at 5 /V: well into strong inversion, so its noise and
+#     its mismatch stay small next to the pair's;
+#   - xm6 at the load's 5 /V and L: d2 sits at xm4's VGS, so xm6 carries
+#     stage 2's 200 uA with no systematic offset only at the Id/W xm4 has.
+#     gmid.py at xm6's own Vds (1.65 V, not xm4's 1.18) gives that W.
+# `gmid.py size --gmid G --id I --l L --vds V [--vsb V] [--device D]`
+# reproduces each W; `w_printed` is its W_um (in m), `gm` its gm. At the tt
+# op point every device's gm/Id is within 1.3 % of its record, the pair's
+# gm is 136.1 uS against 135.0 and xm6's 1.02 mS against 1.0. A tuner
+# (optimise.py) that moves a value leaves its `gmid:` record behind: re-run
+# gmid.py for the new point, or drop the record.
 w_b:
-  value: 4.0e-6
+  gmid: {device: xmb, model: nfet_03v3, gm_id: 9.5, id: 10.0e-6, l: 1.0e-6, vds: 0.848, w_printed: 3.945e-6, gm: 95.0e-6}
+  value: 3.945e-6
   min: 1.0e-6
   max: 2.0e-5
   grid: 5.0e-9
 w_t:
-  value: 8.0e-6
+  gmid: {device: xmt, model: nfet_03v3, gm_id: 9.5, id: 20.0e-6, l: 1.0e-6, vds: 0.665, w_printed: 7.911e-6, gm: 190.0e-6}
+  value: 7.89e-6
   min: 2.0e-6
   max: 4.0e-5
   ratio_of: w_b
@@ -25,6 +49,7 @@ l_b:
   max: 4.0e-6
   grid: 5.0e-9
 w_in:
+  gmid: {device: [xm1, xm2], model: nfet_03v3, gm_id: 13.5, id: 10.0e-6, l: 1.0e-6, vds: 1.45, vsb: 0.665, w_printed: 9.996e-6, gm: 135.0e-6}
   value: 10.0e-6
   min: 2.0e-6
   max: 5.0e-5
@@ -35,7 +60,8 @@ l_in:
   max: 4.0e-6
   grid: 5.0e-9
 w_ld:
-  value: 4.0e-6
+  gmid: {device: [xm3, xm4], model: pfet_03v3, gm_id: 5.0, id: 10.0e-6, l: 1.0e-6, vds: 1.18, w_printed: 4.502e-6, gm: 50.0e-6}
+  value: 4.5e-6
   min: 1.0e-6
   max: 2.0e-5
   grid: 1.0e-8
@@ -45,12 +71,14 @@ l_ld:
   max: 4.0e-6
   grid: 5.0e-9
 w_2:
-  value: 80.0e-6
+  gmid: {device: xm6, model: pfet_03v3, gm_id: 5.0, id: 200.0e-6, l: 1.0e-6, vds: 1.65, w_printed: 89.33e-6, gm: 1.0e-3}
+  value: 89.35e-6
   min: 1.0e-5
   max: 2.0e-4
   grid: 5.0e-8
 w_s:
-  value: 80.0e-6
+  gmid: {device: xm7, model: nfet_03v3, gm_id: 9.5, id: 200.0e-6, l: 1.0e-6, vds: 1.65, w_printed: 78.50e-6, gm: 1.9e-3}
+  value: 78.9e-6
   min: 1.0e-5
   max: 2.0e-4
   ratio_of: w_b
