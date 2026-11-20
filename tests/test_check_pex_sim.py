@@ -1495,11 +1495,17 @@ XC_MAGIC = (".subckt blk a b vdd vss\nM1 a b vss vss nfet_03v3 L=1u W=1u\n"
             "C2 a b 0.2f\nC3 vdd vss 3f\n.ends\n")
 
 
-def _xc_kpex(kpex_caps):
+def _xc_kpex(kpex_caps, gate_pairs=()):
     def fake(work_dir, gds_path, topcell, timeout=None):
         work_dir = Path(work_dir)
         out = work_dir / "out" / f"{topcell}__{topcell}"
         out.mkdir(parents=True)
+        (work_dir / "deck").mkdir()
+        (work_dir / "deck" / "gate_poly_excluded.json").write_text(
+            json.dumps({"release": "0.6", "gate_layer": "Poly2", "rule": "r",
+                        "pairs": [{"nets": list(n), "ff": ff, "terms": {}}
+                                  for n, ff in gate_pairs]}),
+            encoding="utf-8")
         netlist = out / f"{topcell}_k25d_pex_netlist.spice"
         netlist.write_text(
             f".SUBCKT {topcell} a b vss\n"
@@ -1512,12 +1518,13 @@ def _xc_kpex(kpex_caps):
     return fake
 
 
-def _xc_run(tmp_path, monkeypatch, kpex_caps):
+def _xc_run(tmp_path, monkeypatch, kpex_caps, gate_pairs=()):
     ws = tmp_path / "ws"
     ws.mkdir()
     ext = tmp_path / "blk.ext"
     ext.write_text(XC_EXT, encoding="utf-8")
-    monkeypatch.setattr(check_pex_sim.kpexlib, "run_kpex", _xc_kpex(kpex_caps))
+    monkeypatch.setattr(check_pex_sim.kpexlib, "run_kpex",
+                        _xc_kpex(kpex_caps, gate_pairs))
     return REAL_CROSSCHECK(ws, tmp_path / "blk.gds", "blk", "layout/blk.gds",
                            XC_REF, ["a", "b", "vdd", "vss"], XC_BENCH,
                            XC_MAGIC, ext)
@@ -1549,6 +1556,51 @@ def test_crosscheck_a_net_past_tolerance_is_a_finding_with_both_values(
         ("pex_extractors_disagree", ["a"])]
     assert found[0]["magic_ff"] == pytest.approx(1.2)
     assert found[0]["kpex_ff"] == pytest.approx(1.71)
+
+
+def test_crosscheck_takes_off_the_gate_poly_share_and_reports_it(
+        tmp_path, monkeypatch):
+    # 0.35 fF a-b in kpex, 0.15 of it gate poly magic leaves out: 0.2 vs 0.2
+    found, report = _xc_run(tmp_path, monkeypatch,
+                            "Cext_1 a b 0.35f\nCext_2 VSUBS a 1.2f\n"
+                            "Cext_3 VSUBS b 1.15f\n",
+                            gate_pairs=[(("A", "b"), 0.15)])
+    assert found == []
+    (pair,) = report["couplings"]
+    assert pair["kpex_ff"] == pytest.approx(0.2)
+    assert pair["kpex_gate_poly_excluded_ff"] == pytest.approx(0.15)
+    assert report["gate_poly_excluded"]["per_net"] == {
+        "a": {"b": 0.15}, "b": {"a": 0.15}}
+    rows = {r["net"]: r for r in report["nets"]}
+    assert rows["a"]["kpex_gate_poly_excluded_ff"] == pytest.approx(0.15)
+
+
+def test_crosscheck_a_gap_past_the_gate_share_still_fails_and_says_so(
+        tmp_path, monkeypatch):
+    found, _ = _xc_run(tmp_path, monkeypatch,
+                       "Cext_1 a b 0.5f\nCext_2 VSUBS a 1.05f\n"
+                       "Cext_3 VSUBS b 1.0f\n",
+                       gate_pairs=[(("a", "b"), 0.15)])
+    assert [v["refs"] for v in found] == [["a", "b"]]
+    assert found[0]["kpex_ff"] == pytest.approx(0.35)
+    assert "0.15 fF of gate-poly C" in found[0]["msg"]
+
+
+def test_crosscheck_without_the_gate_share_file_is_a_refusal(
+        tmp_path, monkeypatch):
+    ext = tmp_path / "blk.ext"
+    ext.write_text(XC_EXT, encoding="utf-8")
+    fake = _xc_kpex("Cext_1 a b 0.21f\n")
+
+    def no_file(work_dir, *a, **k):
+        got = fake(work_dir, *a, **k)
+        (Path(work_dir) / "deck" / "gate_poly_excluded.json").unlink()
+        return got
+    monkeypatch.setattr(check_pex_sim.kpexlib, "run_kpex", no_file)
+    with pytest.raises(CheckError, match="gate-poly share"):
+        REAL_CROSSCHECK(tmp_path, tmp_path / "blk.gds", "blk", "layout/blk.gds",
+                        XC_REF, ["a", "b", "vdd", "vss"], XC_BENCH, XC_MAGIC,
+                        ext)
 
 
 def test_crosscheck_kpex_failing_is_a_refusal(tmp_path, monkeypatch):

@@ -340,3 +340,174 @@ def test_metal2_over_metal1_plate_matches_eps_a_over_t_in_both(tmp_path):
     for name, c in got.items():
         assert kpexlib._off(c, want) <= kpexlib.TOLERANCE, (name, c, want)
 
+
+
+# ---- kpex 0.6: the gate-poly share magic's tech leaves out -------------------
+def _cpx():
+    import check_pex_sim
+    return check_pex_sim
+
+
+def _pk(**c_to):
+    out = {}
+    for pair, ff in c_to.items():
+        a, b = pair.split("__")
+        for x, y in ((a, b), (b, a)):
+            out.setdefault(x, {"c_ff": 0.0, "c_to": {}})
+            out[x]["c_to"][y] = ff
+            out[x]["c_ff"] += ff
+    return out
+
+
+CLK_OUTN = {"pairs": [{"nets": ["clk", "outn"], "ff": 0.0305, "terms": {}}]}
+
+
+def test_clk_outn_agrees_once_the_gate_poly_share_is_off():
+    """The comparator's clk-outn: magic 0.068 fF, kpex 0.6 0.103 fF, of which
+    0.0305 fF is gate-poly sidewall and fringe magic's tech does not have."""
+    magic = _pk(clk__outn=0.068)
+    raw = kpexlib.compare(magic, _pk(clk__outn=0.103), [], ["clk", "outn"], {})
+    assert [r["nets"] for r in raw["disagree"]] == [["clk", "outn"]]
+    pk = _pk(clk__outn=0.103)
+    taken = _cpx().subtract_gate_poly(pk, CLK_OUTN, "vss")
+    assert taken == {"clk": {"outn": 0.0305}, "outn": {"clk": 0.0305}}
+    got = kpexlib.compare(magic, pk, [], ["clk", "outn"], {})
+    assert got["disagree"] == []
+    assert got["couplings"][0]["kpex_ff"] == pytest.approx(0.0725)
+
+
+def test_a_gap_in_a_counted_term_still_fails_after_the_gate_share():
+    # 0.05 fF more metal1-to-gate coupling (counted by both) in kpex
+    pk = _pk(clk__outn=0.153)
+    _cpx().subtract_gate_poly(pk, CLK_OUTN, "vss")
+    got = kpexlib.compare(_pk(clk__outn=0.068), pk, [], ["clk", "outn"], {})
+    assert [r["nets"] for r in got["disagree"]] == [["clk", "outn"]]
+
+
+def test_the_gate_share_to_vsubs_comes_off_the_substrate_net():
+    pk = _pk(a__vss=1.0)
+    _cpx().subtract_gate_poly(
+        pk, {"pairs": [{"nets": ["VSUBS", "A"], "ff": 0.1}]}, "vss")
+    assert pk["a"]["c_to"]["vss"] == pytest.approx(0.9)
+    assert pk["vss"]["c_ff"] == pytest.approx(0.9)
+
+
+def test_gate_poly_excluded_reads_the_file_and_refuses_without_one(tmp_path):
+    import json
+    with pytest.raises(kpexlib.KpexError, match="wrote no"):
+        kpexlib.gate_poly_excluded(tmp_path)
+    (tmp_path / "deck").mkdir()
+    f = tmp_path / "deck" / "gate_poly_excluded.json"
+    f.write_text("{not json", encoding="utf-8")
+    with pytest.raises(kpexlib.KpexError, match="unreadable"):
+        kpexlib.gate_poly_excluded(tmp_path)
+    f.write_text(json.dumps({"pairs": [{"nets": ["a"], "ff": 1}]}),
+                 encoding="utf-8")
+    with pytest.raises(kpexlib.KpexError, match="unreadable"):
+        kpexlib.gate_poly_excluded(tmp_path)
+    f.write_text(json.dumps(CLK_OUTN), encoding="utf-8")
+    assert kpexlib.gate_poly_excluded(tmp_path) == CLK_OUTN
+
+
+def _fake_kpex06(monkeypatch, drop=None):
+    """Stand-ins for kpex 0.6's two hooked classes, as small as the hooks
+    need: the cap adders keep what they get."""
+    import types
+    got = []
+
+    class CellExtractionResults:
+        def add_sidewall_cap(self, cap):
+            got.append(cap)
+
+        def add_sideoverlap_cap(self, cap):
+            got.append(cap)
+
+        def add_overlap_cap(self, cap):
+            got.append(cap)
+
+    class RCX25Extractor:
+        def __init__(self, channels):
+            self.pex_context = types.SimpleNamespace(mos_channels=channels)
+
+        def extract_cell(self, results, report):
+            return "extracted"
+    if drop:
+        delattr(CellExtractionResults, drop)
+    er = types.ModuleType("klayout_pex.rcx25.extraction_results")
+    er.CellExtractionResults = CellExtractionResults
+    ex = types.ModuleType("klayout_pex.rcx25.extractor")
+    ex.RCX25Extractor = RCX25Extractor
+    pkg = types.ModuleType("klayout_pex.rcx25")
+    pkg.extraction_results, pkg.extractor = er, ex
+    for name, mod in (("klayout_pex", types.ModuleType("klayout_pex")),
+                      ("klayout_pex.rcx25", pkg),
+                      ("klayout_pex.rcx25.extraction_results", er),
+                      ("klayout_pex.rcx25.extractor", ex)):
+        monkeypatch.setitem(sys.modules, name, mod)
+    return CellExtractionResults, RCX25Extractor, got
+
+
+def _cap(key, value, **geo):
+    import types
+    return types.SimpleNamespace(key=types.SimpleNamespace(**key),
+                                 cap_value=value, **geo)
+
+
+def test_kpex_runner_measures_the_gate_share_of_each_poly_cap(monkeypatch):
+    import klayout.db as kdb
+    import kpex_runner
+    Results, Extractor, got = _fake_kpex06(monkeypatch)
+    share = kpex_runner.GatePolyShare()
+    share.install()
+    # one channel, x 0..1000, y 0..2000 (DBU)
+    assert Extractor(kdb.Region(kdb.Box(0, 0, 1000, 2000))).extract_cell(
+        None, None) == "extracted"
+    r = Results()
+    E = kdb.Edge
+    # a gate edge half along the channel (y 1000..3000 on x=1000)
+    r.add_sideoverlap_cap(_cap(
+        {"layer_inside": "Poly2", "net_inside": "clk",
+         "layer_outside": "Metal1", "net_outside": "outn"}, 0.02,
+        inside_edge=E(1000, 1000, 1000, 3000), outside_edge=None))
+    # a sidewall whose far side runs the whole channel: all of it
+    r.add_sidewall_cap(_cap(
+        {"layer": "Poly2", "net1": "x", "net2": "clk"}, 0.01,
+        inside_edge=E(1500, 0, 1500, 2000), outside_edge=E(1000, 0, 1000, 2000)))
+    # metal1's fringe onto the gate below is counted by magic: not taken
+    r.add_sideoverlap_cap(_cap(
+        {"layer_inside": "Metal1", "net_inside": "outn",
+         "layer_outside": "Poly2", "net_outside": "clk"}, 0.05,
+        inside_edge=E(0, 0, 0, 2000), outside_edge=None))
+    # poly over the channel's well: a quarter of its area is channel
+    r.add_overlap_cap(_cap(
+        {"layer_top": "Poly2", "net_top": "clk", "layer_bot": "nwell",
+         "net_bot": "vdd"}, 0.04,
+        area=kdb.Region(kdb.Box(-1000, 0, 1000, 4000))))
+    assert len(got) == 4 and share.errors == []
+    rep = share.report("0.6")
+    by = {tuple(p["nets"]): p for p in rep["pairs"]}
+    assert by[("clk", "outn")]["ff"] == pytest.approx(0.01, rel=1e-2)
+    assert by[("clk", "x")]["ff"] == pytest.approx(0.01, rel=1e-2)
+    assert by[("clk", "vdd")]["ff"] == pytest.approx(0.01, rel=1e-2)
+    assert set(by) == {("clk", "outn"), ("clk", "x"), ("clk", "vdd")}
+
+
+def test_kpex_runner_records_a_cap_with_no_edge_as_an_error(monkeypatch):
+    import klayout.db as kdb
+    import kpex_runner
+    Results, Extractor, _ = _fake_kpex06(monkeypatch)
+    share = kpex_runner.GatePolyShare()
+    share.install()
+    Extractor(kdb.Region(kdb.Box(0, 0, 10, 10))).extract_cell(None, None)
+    Results().add_sideoverlap_cap(_cap(
+        {"layer_inside": "Poly2", "net_inside": "a", "layer_outside": "Metal1",
+         "net_outside": "b"}, 0.01, inside_edge=None, outside_edge=None))
+    assert share.errors and "no edge" in share.errors[0]
+
+
+def test_kpex_runner_refuses_a_kpex_without_its_hook_points(monkeypatch):
+    import kpex_runner
+    _fake_kpex06(monkeypatch, drop="add_overlap_cap")
+    with pytest.raises(SystemExit) as e:
+        kpex_runner.GatePolyShare().install()
+    assert e.value.code == 3

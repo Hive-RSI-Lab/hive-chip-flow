@@ -43,7 +43,25 @@ as metal5_ncap does on 0.4 (without it, 0.6 drops the MIM device from the
 netlist and counts its C as wiring instead). So 0.6 runs its own deck and
 tech with `--blackbox true`, and only 0.4 is patched. Which release is
 installed is read from marks in both files (`release`); a deck and tech
-that carry neither release's marks whole, or some of both, exit 3 too."""
+that carry neither release's marks whole, or some of both, exit 3 too.
+
+0.6 counts more of the gate poly than magic does. Its own channel cut
+(`mos_channels`) takes the channel off the substrate and drops a gate
+edge's fringe onto the substrate, but a gate poly edge still has its
+sidewall C to the poly beside it and its fringe up onto metal1 and the
+metals above. magic's gf180 tech has neither, because its fet types are
+never the edge of a `*poly` sidewall or poly sideoverlap. (Patched 0.4
+gives PolyGate none of either, the same as magic.) The C between metal1
+and the gate below, area and the metal edge's fringe, is kept: magic counts
+metal over allpolynonres, fets included. To compare like with like, 0.6
+runs with hooks on kpex's cap results. Each Poly2 sidewall or Poly2-inside
+sideoverlap is measured for the share of its edge (either side's, on a
+sidewall) along a channel, and each Poly2-top overlap for the share of its
+area on one. That share is written per net pair to
+DECK_DIR/gate_poly_excluded.json, and the crosscheck subtracts it from
+kpex's nets. kpex's own netlist is left as it is. A hook point that is
+missing, or a cap with no geometry to measure, exits 3, so the share is
+never quietly zero. 0.4 writes the same file with no pairs."""
 import copy
 import json
 import os
@@ -183,6 +201,165 @@ def patched_tech(tech: dict) -> dict:
     return t
 
 
+EXCLUDED = "gate_poly_excluded.json"
+GATE_LAYER = "Poly2"
+RULE = ("Poly2 sidewall and Poly2-inside sideoverlap along a MOS channel, "
+        "Poly2-top overlap on one (magic's gf180 fets: no *poly sidewall or "
+        "poly fringe)")
+
+
+def _edge_spans(edge, channels, kdb) -> list[tuple[float, float]]:
+    """The parts of EDGE along CHANNELS (within 1 DBU), as fractions of its
+    length from p1."""
+    n = edge.length()
+    if n == 0:
+        return []
+    d = edge.d()
+    out = []
+    for part in kdb.Edges([edge]).inside_part(channels).each():
+        t = sorted(((p.x - edge.p1.x) * d.x + (p.y - edge.p1.y) * d.y) / (n * n)
+                   for p in (part.p1, part.p2))
+        out.append((max(0.0, t[0]), min(1.0, t[1])))
+    return out
+
+
+def _union_share(spans: list[tuple[float, float]]) -> float:
+    got, end = 0.0, 0.0
+    for a, b in sorted(spans):
+        a = max(a, end)
+        if b > a:
+            got += b - a
+            end = b
+    return min(got, 1.0)
+
+
+class GatePolyShare:
+    """Hooks on kpex 0.6's cap results that measure the gate-poly C magic
+    leaves out (module docstring). Errors go to `errors`, not out of the
+    hook, since kpex runs some of these from KLayout's C++ callbacks."""
+
+    def __init__(self):
+        self.channels = None
+        self.cells = 0
+        self.errors: list[str] = []
+        self.pairs: dict[tuple[str, str], dict[str, float]] = {}
+
+    def add(self, a: str, b: str, term: str, ff: float) -> None:
+        if ff <= 0:
+            return
+        key = tuple(sorted((a, b)))
+        terms = self.pairs.setdefault(key, {})
+        terms[term] = terms.get(term, 0.0) + ff
+
+    def install(self) -> None:
+        try:
+            from klayout_pex.rcx25 import extraction_results as er
+            from klayout_pex.rcx25.extractor import RCX25Extractor
+            import klayout.db as kdb
+        except ImportError as exc:
+            fail(f"kpex 0.6 hook: {exc}")
+        want = [(er.CellExtractionResults, m) for m in (
+            "add_sidewall_cap", "add_sideoverlap_cap", "add_overlap_cap")]
+        want.append((RCX25Extractor, "extract_cell"))
+        for cls, name in want:
+            if not callable(getattr(cls, name, None)):
+                fail(f"kpex 0.6 hook: {cls.__name__}.{name} is gone - the "
+                     "installed kpex changed, so the gate-poly share magic "
+                     "leaves out cannot be measured")
+        share = self
+
+        orig_cell = RCX25Extractor.extract_cell
+
+        def extract_cell(self, *a, **k):
+            ch = getattr(getattr(self, "pex_context", None), "mos_channels",
+                         None)
+            if not isinstance(ch, kdb.Region):
+                share.errors.append("pex_context.mos_channels is not a "
+                                    "Region")
+            else:
+                share.channels = ch.merged().sized(1)
+            share.cells += 1
+            return orig_cell(self, *a, **k)
+        RCX25Extractor.extract_cell = extract_cell
+
+        def edges_share(cap, *edges) -> float | None:
+            if share.channels is None:
+                share.errors.append("a cap came before the channels were set")
+                return None
+            if any(e is None for e in edges):
+                share.errors.append(f"{type(cap).__name__} {cap.key} has no "
+                                    "edge to measure")
+                return None
+            spans = []
+            for e in edges:
+                spans += _edge_spans(e, share.channels, kdb)
+            return _union_share(spans)
+
+        def hook(name, measure):
+            orig = getattr(er.CellExtractionResults, name)
+
+            def f(self, cap, *a, **k):
+                try:
+                    measure(cap)
+                except Exception as exc:  # noqa: BLE001 - reported after kpex
+                    share.errors.append(f"{name}: {exc!r}")
+                return orig(self, cap, *a, **k)
+            setattr(er.CellExtractionResults, name, f)
+
+        def sidewall(cap):
+            k = cap.key
+            if k.layer != GATE_LAYER:
+                return
+            # either side on a channel: magic's fets are neither edge
+            frac = edges_share(cap, cap.inside_edge, cap.outside_edge)
+            if frac:
+                share.add(k.net1, k.net2, f"sidewall {k.layer}",
+                          cap.cap_value * frac)
+
+        def sideoverlap(cap):
+            k = cap.key
+            if k.layer_inside != GATE_LAYER:
+                return
+            frac = edges_share(cap, cap.inside_edge)
+            if frac:
+                share.add(k.net_inside, k.net_outside,
+                          f"sideoverlap {k.layer_inside}>{k.layer_outside}",
+                          cap.cap_value * frac)
+
+        def overlap(cap):
+            k = cap.key
+            if k.layer_top != GATE_LAYER:
+                return
+            if share.channels is None or cap.area is None:
+                share.errors.append(f"OverlapCap {k} has no area to measure")
+                return
+            whole = cap.area.area()
+            if whole:
+                frac = (cap.area & share.channels).area() / whole
+                share.add(k.net_top, k.net_bot,
+                          f"overlap {k.layer_top}>{k.layer_bot}",
+                          cap.cap_value * min(frac, 1.0))
+
+        hook("add_sidewall_cap", sidewall)
+        hook("add_sideoverlap_cap", sideoverlap)
+        hook("add_overlap_cap", overlap)
+
+    def report(self, rel: str) -> dict:
+        pairs = []
+        for (a, b), terms in sorted(self.pairs.items()):
+            pairs.append({"nets": [a, b], "ff": round(sum(terms.values()), 6),
+                          "terms": {t: round(v, 6)
+                                    for t, v in sorted(terms.items())}})
+        return {"release": rel, "gate_layer": GATE_LAYER, "rule": RULE,
+                "pairs": pairs}
+
+
+def write_excluded(work: str, data: dict) -> None:
+    os.makedirs(work, exist_ok=True)
+    with open(os.path.join(work, EXCLUDED), "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=1)
+
+
 def main() -> int:
     if len(sys.argv) < 2:
         fail("usage: kpex_runner.py DECK_DIR <kpex arguments...>")
@@ -200,7 +377,17 @@ def main() -> int:
     if release(lvs, tech) == "0.6":
         # upstream counts gate poly and files metal5 itself (docstring)
         sys.argv = ["kpex", *upstream_args(sys.argv[2:])]
-        return kpex_main()
+        shutil.rmtree(work, ignore_errors=True)
+        share = GatePolyShare()
+        share.install()
+        rc = kpex_main()
+        if share.errors:
+            fail("kpex 0.6 hook: " + "; ".join(share.errors[:5]))
+        if rc in (0, None) and share.cells == 0:
+            fail("kpex 0.6 hook: extract_cell never ran, so the gate-poly "
+                 "share magic leaves out was not measured")
+        write_excluded(work, share.report("0.6"))
+        return rc
     shutil.rmtree(work, ignore_errors=True)
     shutil.copytree(os.path.dirname(cfg.pex_lvs_script_path), work)
     patch(work, "rule_decks/general_derivations.lvs",
@@ -231,6 +418,11 @@ def main() -> int:
     cfg.tech_pb_json_path = tech_path
     cfg.pex_lvs_script_path = os.path.join(work, "gf180mcu.lvs")
 
+    # the patched tech already gives the gate poly none of what magic's
+    # leaves out
+    write_excluded(work, {"release": "0.4", "gate_layer": "PolyGate",
+                          "rule": "none: the patched tech's PolyGate",
+                          "pairs": []})
     sys.argv = ["kpex", *sys.argv[2:]]
     return kpex_main()
 
