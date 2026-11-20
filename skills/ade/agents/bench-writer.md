@@ -118,7 +118,7 @@ OPEN: <a measure the spec left ambiguous, or "none">
 
 ## PEX MODE (P5, before any layout exists)
 
-**Inputs:** `spec/spec.yaml` (its `post_layout_bounds` convention field, or
+**Inputs:** `spec/spec.yaml` (its `post_layout_bounds` field, or
 the same measures when the spec names none explicitly) only - not
 `layout/` (it does not exist yet).
 
@@ -134,7 +134,10 @@ the same measures when the spec names none explicitly) only - not
    none - say which you used in SUMMARY. Each bound is judged at every
    corner the gate runs: where a value rightly moves with the corner, read
    it against vdd, or scope the bound (`"corners": [...]`, or a list of
-   bounds for one measure).
+   bounds for one measure). spec_lint then fails unless `post_layout_bounds`
+   equals this map, measure for measure (scopes in any order): when you
+   add, scope or fall back on a bound the spec does not carry, say so in
+   OPEN so the spec-writer copies it into `post_layout_bounds`.
 3. `check_pex_sim.py` runs the bench positionally against the extracted
    cell in `netlist/<block>.cir`'s pin order - keep your instantiation in
    that same order.

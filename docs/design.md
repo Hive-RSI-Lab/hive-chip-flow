@@ -124,7 +124,7 @@ Analog (`/ade`):
 
 | gate | tool | passes when | planted fault it must catch |
 |---|---|---|---|
-| spec_lint | speclib | every measure has bounds and a corner set; supply and devices declared | a measure without bounds |
+| spec_lint | speclib | every measure has bounds and a corner set; supply and devices declared; once `layout_ref/<block>_pex_tb.bounds.json` exists, `post_layout_bounds` equals it measure for measure (the sidecar is read, not hashed: spec_lint's input stays `spec_yaml`) | a measure without bounds; a pex sidecar bound that differs from `post_layout_bounds` |
 | netlist_lint | ngspice dry run | every device uses a gf180mcu_fd_pr model, no floating node, subcircuit pins match the spec | a model not in the PDK |
 | sim_tt | sim_run at typical | every `.measure` inside its bound | W and L swapped on a mirror's output device |
 | sim_pvt | sim_run over the corner set | every measure inside its bound at every corner | meets at typical, loses headroom at slow and hot |

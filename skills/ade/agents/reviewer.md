@@ -41,9 +41,10 @@ $CFH/engine/scripts/<name>.py` (`$CFH` is
 3. Read the design against the spec: does every measure's bound actually
    match what the topology and sizing imply? Is a device unused, a pin
    mislabeled, a `bench_strength` margin suspiciously tight, a
-   `post_layout_bounds` entry (spec.yaml, convention only - nothing
-   cross-checks it, SKILL.md's Known limits) inconsistent with
-   `layout_ref/<block>_pex_tb.bounds.json`? This is the part only a fresh
+   `post_layout_bounds` entry that no longer fits what the pex bench
+   measures (spec_lint checks it equals
+   `layout_ref/<block>_pex_tb.bounds.json`, but does not hash that file:
+   re-run spec_lint, SKILL.md's Known limits)? This is the part only a fresh
    reader catches, not a gate's pass/fail.
 4. `attest.py disposition --workspace <ws>` for the current derived
    release state.
@@ -55,9 +56,10 @@ $CFH/engine/scripts/<name>.py` (`$CFH` is
 - Never edit any file. A reviewer that fixes what it finds stops being a
   second set of eyes for the next reviewer.
 - Never treat a stale gate's last recorded status as current - re-run it.
-- At H2, compare `spec.yaml`'s `post_layout_bounds` against
-  `layout_ref/<block>_pex_tb.bounds.json` by hand - this is the ONE
-  cross-check the engine does not run for you (SKILL.md's Known limits).
+- At H2, re-run `spec_lint` after the pex bench exists: it is the gate
+  that holds `spec.yaml`'s `post_layout_bounds` equal to
+  `layout_ref/<block>_pex_tb.bounds.json`, and a pass recorded before the
+  sidecar was written did not see it (SKILL.md's Known limits).
 
 ## Output contract (end your final message with exactly this block)
 FILES: <files you read, never files you changed - you change none>

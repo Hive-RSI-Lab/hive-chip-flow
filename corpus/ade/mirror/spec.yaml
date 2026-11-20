@@ -19,3 +19,9 @@ ir_drop_mv: 2
 # share one centroid, one size and one orientation, dummies at both ends.
 matching:
   - {devices: [xmref, xmout], style: common_centroid, tol_um: 0.05}
+
+# Post-layout bounds: the limits pex_sim scores. spec_lint holds
+# layout_ref/mirror_pex_tb.bounds.json to exactly these (#159).
+post_layout_bounds:
+  vdrop: {min: 0.3, max: 0.65}
+  f3db: {min: 500000000.0, max: 1000000000.0}

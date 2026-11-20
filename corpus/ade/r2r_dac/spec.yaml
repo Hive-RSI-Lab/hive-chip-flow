@@ -10,3 +10,10 @@ measures:
     bounds: {min: 2.3, max: 2.5}
   - name: vout_both
     bounds: {min: 2.9, max: 3.1}
+
+# Post-layout bounds: the limits pex_sim scores. spec_lint holds
+# layout_ref/r2r_dac_pex_tb.bounds.json to exactly these (#159).
+post_layout_bounds:
+  vout_lsb_frac: {min: 0.194, max: 0.206}
+  vout_msb_frac: {min: 0.582, max: 0.618}
+  vout_both_frac: {min: 0.776, max: 0.824}

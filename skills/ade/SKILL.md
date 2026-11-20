@@ -317,9 +317,14 @@ layout-fixer read `netlist/` and `sizing/` and edit only `layout/`.
   nothing and gates nothing. A difference is a question about the bench
   (an ngspice-only default, a time-step-sensitive measure), not a verdict.
   docs/xsim.md has the translation and results.
-- **Nothing cross-checks `post_layout_bounds`.** spec.yaml carries it by
-  convention; `pex_sim` reads only `layout_ref/<block>_pex_tb.bounds.json`.
-  The reviewer at H2 compares the two by hand.
+- **`spec_lint` checks `post_layout_bounds` against the pex sidecar, but
+  does not hash the sidecar.** Once `layout_ref/<block>_pex_tb.bounds.json`
+  exists, spec_lint fails a measure on one side only, a bound whose min,
+  max, pad or corner scope differs (`bench_bound_value_mismatch` and kin,
+  naming the measure), and a sidecar with no `post_layout_bounds` at all.
+  `pex_sim` still reads only the sidecar. spec_lint's only input stays
+  `spec_yaml`, so a sidecar edit stales `pex_sim` but not a recorded
+  spec_lint pass: re-run spec_lint after the bench-writer's PEX mode.
 - **`optimise` has one objective.** `optimise.py start` accepts
   `--objective margin` only; power needs a power measure no rung has yet.
   `numeric` scores trials at typical and reports the winner's full-corner
