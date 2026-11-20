@@ -125,3 +125,85 @@ def test_latch_fails_by_name(tmp_path):
     p = run(ws)
     assert p["status"] == "violations"
     assert "fpga_latch" in {v["kind"] for v in p["violations"]}
+
+
+# --- #378: the ice40 netlist proved equal to the RTL -----------------------
+
+def test_unproven_names_outputs_first():
+    log = ("  Unproven $equiv $auto$equiv_make.cc:295:x$1: "
+           "\\dut.count_gold [4] \\dut.count_gate [4]\n"
+           "  Unproven $equiv $auto$equiv_make.cc:258:x$2: "
+           "\\uo_out_gold [4] \\uo_out_gate [4]\n"
+           "  Unproven $equiv $auto$equiv_make.cc:258:x$3: "
+           "\\done_gold \\done_gate\n")
+    assert check_fpga.unproven(log) == ["done", "uo_out[4]", "dut.count[4]"]
+    assert check_fpga.unproven("Of those cells 9 are proven") == []
+
+
+BLOCK_COUNTER = REPO / "blocks" / "counter"
+
+
+def block_ws(tmp_path) -> Path:
+    ws = tmp_path / "bc"
+    (ws / "spec").mkdir(parents=True)
+    shutil.copytree(BLOCK_COUNTER / "rtl", ws / "rtl")
+    shutil.copy(BLOCK_COUNTER / "spec" / "spec.yaml", ws / "spec")
+    return ws
+
+
+def flip_lut(ws: Path) -> Path:
+    """The synthesised netlist with one LUT's init inverted: an edit made
+    after synth, which nothing in the flow would make."""
+    import json
+    out = ws / "log" / "fpga"
+    nl = json.loads((out / "fpga_top.json").read_text())
+    cells = nl["modules"]["fpga_top"]["cells"]
+    name = sorted(n for n, c in cells.items()
+                  if c["type"] == "SB_LUT4" and "count" in n)[0]
+    init = cells[name]["parameters"]["LUT_INIT"]
+    cells[name]["parameters"]["LUT_INIT"] = init.translate(
+        str.maketrans("01", "10"))
+    bad = out / "edited.json"
+    bad.write_text(json.dumps(nl))
+    return bad
+
+
+def reads_of(ws: Path) -> str:
+    ys = (ws / "log" / "fpga" / "synth_ice40.ys").read_text()
+    return ys.split("synth_ice40 -top")[0]
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("which", ["counter8", "blocks/counter"])
+def test_netlist_proves_equal_to_rtl(tmp_path, which):
+    ws = make_ws(tmp_path) if which == "counter8" else block_ws(tmp_path)
+    p = run(ws)
+    assert p["status"] == "pass", p["violations"]
+    assert p["equiv"]["verdict"] == "equal", p["equiv"]
+    assert p["equiv"]["seconds"] < p["equiv"]["budget_s"]
+    assert p["netlist_proof"].startswith("equal by ")
+
+
+@pytest.mark.slow
+def test_flipped_lut_init_fails_by_name(tmp_path):
+    ws = make_ws(tmp_path)
+    assert run(ws)["status"] == "pass"
+    bad = flip_lut(ws)
+    fact, found = check_fpga.prove_netlist(ws, ws / "log" / "fpga",
+                                           reads_of(ws), bad)
+    assert fact["verdict"] == "different"
+    assert [v["kind"] for v in found] == ["fpga_netlist_not_equal"]
+    assert any(r.startswith("uo_out[") for r in found[0]["refs"]), found
+    assert found[0]["refs"][0] in found[0]["msg"]
+
+
+@pytest.mark.slow
+def test_out_of_budget_is_unproven_never_a_pass(tmp_path):
+    ws = make_ws(tmp_path)
+    run(ws)
+    bad = flip_lut(ws)
+    fact, found = check_fpga.prove_netlist(
+        ws, ws / "log" / "fpga", reads_of(ws), bad,
+        budget=check_fpga.PDR_MIN_S / 2)
+    assert fact["verdict"] == "unproven"
+    assert [v["kind"] for v in found] == ["fpga_equiv_unproven"]

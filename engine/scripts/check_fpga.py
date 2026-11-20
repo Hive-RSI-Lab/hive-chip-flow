@@ -22,6 +22,18 @@ What it does, through `bin/eda`:
      target frequency, writing its timing and utilisation report;
   4. icepack, writing the bitstream to `log/fpga/<top>_<board>.bin`.
 
+Between 2 and 3 it proves the synth_ice40 netlist equal to the RTL (#378;
+prove_netlist()): the same reads elaborated as gold, the netlist read back
+from its JSON as gate, both with yosys's own ice40 cell models
+(`+/ice40/cells_sim.v`) mapped in, then `equiv_make` (signals matched by
+name), `equiv_simple` and `equiv_induct`. lec proves the GF180 netlist equal
+to the same RTL, so the two netlists agree by transitivity. Where the names
+do not all match (an FSM yosys recoded, say) the induction cannot close, so
+the outputs alone get one more proof: a miter of the two, both started from
+zero, under sby `abc pdr`. The proof has its own wall budget, --proof-budget
+(PROOF_BUDGET_S by default), shared by both steps, so the gate stays cheap;
+fact `equiv` records how it was proved and how long it took.
+
 Programming a board is the person's, never this gate's: nothing here
 touches a USB device.
 
@@ -36,6 +48,10 @@ Findings (gates.yaml `fpga` row):
                           big for the device, an unplaceable pin, ...)
   fpga_fmax_below_clock   nextpnr's achieved Fmax for the clock is below
                           the spec clock, named with both figures
+  fpga_netlist_not_equal  the ice40 netlist is not the RTL: the outputs
+                          (and internal signals) that differ are named
+  fpga_equiv_unproven     the proof ran out of budget or could not decide;
+                          not a pass
 
 The report carries the device, logic-cell (LUT) use, and per-clock Fmax
 next to the spec clock, so a passing block's numbers are on record too.
@@ -45,8 +61,10 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 SCRIPTS = Path(__file__).resolve().parent
@@ -62,6 +80,10 @@ SCRIPT = "check_fpga"
 GATE = "fpga"
 EDA_BIN = REPO / "bin" / "eda"
 TIMEOUT_S = 1200.0
+# The netlist proof's whole wall budget (#378): counter8 proves in under a
+# second; the pdr fallback gets what the induction leaves.
+PROOF_BUDGET_S = 120.0
+PDR_MIN_S = 10.0
 
 # One board so far. Pins are the iCEBreaker's (1BitSquared's published PCF):
 # the 12 MHz clock, the user button as the active-low reset, ui_in on
@@ -200,10 +222,158 @@ def parse_report(rpt: dict, clk_mhz: float) -> tuple[dict, dict]:
     return util, fmax
 
 
+UNPROVEN_RE = re.compile(r"Unproven \$equiv \S+: \\(\S+)_gold( \[\d+\])?")
+
+EQUIV_SCRIPT = """\
+{reads}
+read_verilog -lib +/ice40/cells_sim.v
+hierarchy -top fpga_top
+proc
+flatten
+memory_map
+opt_clean
+rename -top gold
+design -stash gold
+read_json {netlist}
+rename -top gate
+design -copy-from gold -as gold gold
+techmap -wb -D EQUIV -autoproc -map +/ice40/cells_sim.v
+opt_clean
+write_rtlil {work}/views.il
+equiv_make gold gate equiv
+hierarchy -top equiv
+async2sync
+equiv_simple -seq 5 equiv
+equiv_induct -seq 5 equiv
+equiv_status equiv
+"""
+
+PDR_SBY = """\
+[options]
+mode prove
+multiclock off
+timeout {timeout}
+
+[engines]
+abc pdr
+
+[script]
+read_rtlil views.il
+miter -equiv -flatten -make_assert gold gate miter
+hierarchy -top miter
+async2sync
+setundef -zero -init
+select -assert-min 1 miter/t:$assert
+prep -top miter
+
+[files]
+views.il
+"""
+
+
+def unproven(log: str) -> list[str]:
+    """The signals equiv_status left unproven, outputs (no `.` in the name,
+    so not inside the flattened design) first."""
+    names = []
+    for name, bit in UNPROVEN_RE.findall(log):
+        n = name + (f"[{bit.strip(' []')}]" if bit else "")
+        if n not in names:
+            names.append(n)
+    return sorted(names, key=lambda n: ("." in n, n))
+
+
+def prove_netlist(ws: Path, out: Path, reads: str, netlist: Path,
+                  budget: float = PROOF_BUDGET_S) -> tuple[dict, list]:
+    """(fact `equiv`, violations): the synth_ice40 netlist against the RTL
+    read by `reads` (paths relative to ws). Work files in out/equiv."""
+    start = time.monotonic()
+    work = out / "equiv"
+    work.mkdir(parents=True, exist_ok=True)
+    rel = lambda p: str(Path(p).resolve().relative_to(ws.resolve()))  # noqa: E731
+    script = work / "equiv.ys"
+    script.write_text(EQUIV_SCRIPT.format(
+        reads=reads, netlist=rel(netlist), work=rel(work)), encoding="utf-8")
+    log = work / "equiv.log"
+    try:
+        proc = checklib.run_tool(
+            [str(EDA_BIN), "yosys", "-q", "-l", rel(log), "-s", rel(script)],
+            wall=budget, cwd=str(ws), capture_output=True, text=True,
+            encoding="utf-8", errors="replace")
+    except subprocess.TimeoutExpired as exc:
+        return _unproven(f"the signal induction {checklib.timeout_why(exc)}",
+                         budget, start)
+    text = log.read_text(encoding="utf-8", errors="replace") \
+        if log.is_file() else ""
+    if proc.returncode != 0:
+        tail = (proc.stderr or proc.stdout or text).strip().splitlines()[-5:]
+        raise CheckError("yosys could not set up the ice40 netlist proof: "
+                         + " | ".join(tail))
+    differ = unproven(text)
+    if not differ:
+        return {"verdict": "equal", "by": "signal induction",
+                "seconds": round(time.monotonic() - start, 2),
+                "budget_s": budget}, []
+
+    left = budget - (time.monotonic() - start)
+    if left < PDR_MIN_S:
+        return _unproven("the budget ended before the pdr proof could "
+                         "start", budget, start, differ)
+    (work / "miter.sby").write_text(
+        PDR_SBY.format(timeout=max(1, int(left) - 5)), encoding="utf-8")
+    shutil.rmtree(work / "miter", ignore_errors=True)
+    try:
+        proc = checklib.run_group(
+            [str(EDA_BIN), "sby", "-f", "miter.sby"], cwd=str(work),
+            capture_output=True, text=True, encoding="utf-8",
+            errors="replace", timeout=left)
+    except subprocess.TimeoutExpired:
+        return _unproven(f"pdr ran out of the {budget:g} s budget", budget,
+                         start, differ)
+    sby = (proc.stdout or "") + (proc.stderr or "")
+    (work / "sby.log").write_text(sby, encoding="utf-8")
+    done = re.findall(r"DONE \((\w+), rc=(\d+)\)", sby)
+    verdict = done[-1][0] if done else None
+    if proc.returncode == 0 and verdict == "PASS":
+        return {"verdict": "equal", "by": "pdr",
+                "seconds": round(time.monotonic() - start, 2),
+                "budget_s": budget}, []
+    if verdict == "FAIL":
+        outs = [n for n in differ if "." not in n] or differ
+        return {"verdict": "different", "by": "pdr",
+                "seconds": round(time.monotonic() - start, 2),
+                "budget_s": budget, "unproven": differ}, [
+            checklib.violation(
+                GATE, "error", None, outs[0], "fpga_netlist_not_equal",
+                outs[:8],
+                "the synth_ice40 netlist is not the RTL: "
+                + ", ".join(outs[:8]) + (" ..." if len(outs) > 8 else "")
+                + " can differ from reset (pdr found a counterexample; see "
+                "log/fpga/equiv/)", "yosys equiv + sby pdr",
+                unproven=differ)]
+    return _unproven(f"pdr ended {verdict or f'with exit {proc.returncode}'}",
+                     budget, start, differ)
+
+
+def _unproven(why: str, budget: float, start: float,
+              differ: list | None = None) -> tuple[dict, list]:
+    fact = {"verdict": "unproven", "why": why,
+            "seconds": round(time.monotonic() - start, 2), "budget_s": budget}
+    if differ:
+        fact["unproven"] = differ
+    return fact, [checklib.violation(
+        GATE, "error", None, None, "fpga_equiv_unproven", differ or [],
+        f"the ice40 netlist could not be proved equal to the RTL: {why}. "
+        "Not a pass: rerun with a larger --proof-budget", "yosys equiv",
+        unproven=differ or [])]
+
+
 def run(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--workspace", required=True, help="block workspace")
     ap.add_argument("--out", help="write result JSON here instead of stdout")
+    ap.add_argument("--proof-budget", type=float, default=PROOF_BUDGET_S,
+                    help="wall seconds for the netlist-vs-RTL proof "
+                         "(default %(default)s)")
     args = ap.parse_args(argv)
 
     ws = Path(args.workspace)
@@ -288,6 +458,12 @@ stat
     if violations:
         return checklib.report(SCRIPT, ws / "rtl", violations, **facts), \
             args.out
+
+    facts["equiv"], found = prove_netlist(ws, out, reads, json_nl,
+                                          args.proof_budget)
+    violations.extend(found)
+    facts["netlist_proof"] = facts["equiv"]["verdict"] + (
+        f" by {facts['equiv']['by']}" if "by" in facts["equiv"] else "")
 
     rpt_path = out / "nextpnr_report.json"
     asc = out / "fpga_top.asc"
