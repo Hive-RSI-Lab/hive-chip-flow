@@ -28,3 +28,12 @@ boundary:
   d2a:
     bmsb: {observe: xdut.dm, ramp_ns: 1000}
     blsb: {observe: xdut.dl, ramp_ns: 1000}
+
+# Post-layout bounds: the limits pex_sim scores. spec_lint holds
+# layout_ref/dac_tile_analog_pex_tb.bounds.json to exactly these (#159).
+post_layout_bounds:
+  vout_00: {min: 2.45, max: 3.25}
+  vout_01: {min: 1.85, max: 2.52}
+  vout_10: {min: 0.48, max: 0.72}
+  vout_11: {max: 0.05}
+  t_settle: {max: 4.5e-08}

@@ -425,3 +425,127 @@ def test_pex_fill_field(tmp_path, capsys, field, ok):
         assert code == 0, out
     else:
         assert code == 1 and "bad_pex_fill" in out, out
+
+
+# ---- #159: post_layout_bounds against the pex_sim sidecar ------------------
+PLB_YAML = GOOD_YAML + """\
+post_layout_bounds:
+  iout_ua: {min: 1.8, max: 2.2}
+  tdelay:
+    - {min: 1.0e-10, max: 5.0e-10, corners: [tt, ff]}
+    - {min: 1.0e-10, max: 7.5e-10, corners: [ss]}
+"""
+PEX_MEASURES = {
+    "iout_ua": {"min": 1.8, "max": 2.2},
+    "tdelay": [
+        {"min": 1.0e-10, "max": 7.5e-10, "corners": ["ss"]},
+        {"min": 1.0e-10, "max": 5.0e-10, "corners": ["ff", "tt"]},
+    ],
+}
+
+
+def write_pex(ws: Path, measures: dict, base: str = "layout_ref",
+              stem: str = "mirror_pex_tb") -> None:
+    d = ws / base
+    d.mkdir(parents=True, exist_ok=True)
+    (d / f"{stem}.cir").write_text("* pex bench\n", encoding="utf-8")
+    (d / f"{stem}.bounds.json").write_text(
+        json.dumps({"measures": measures}), encoding="utf-8")
+
+
+def lint(ws: Path, capsys) -> tuple[int, list[dict]]:
+    code = check_spec_lint_ade.main(["--workspace", str(ws)])
+    return code, json.loads(capsys.readouterr().out).get("violations", [])
+
+
+def test_post_layout_bounds_equal_to_the_sidecar_pass(tmp_path, capsys):
+    # list order and corner order inside a bound do not matter
+    ws = make_ws(tmp_path, PLB_YAML)
+    write_pex(ws, PEX_MEASURES)
+    assert lint(ws, capsys) == (0, [])
+
+
+def test_spec_with_post_layout_bounds_and_no_pex_bench_yet_passes(
+        tmp_path, capsys):
+    assert lint(make_ws(tmp_path, PLB_YAML), capsys) == (0, [])
+
+
+def test_a_planted_floor_in_the_sidecar_fails_naming_the_measure(
+        tmp_path, capsys):
+    ws = make_ws(tmp_path, PLB_YAML)
+    write_pex(ws, {**PEX_MEASURES, "iout_ua": {"min": 1.5, "max": 2.2}})
+    code, vs = lint(ws, capsys)
+    assert code == 1
+    assert [(v["kind"], v["refs"]) for v in vs] == [
+        ("bench_bound_value_mismatch",
+         ["iout_ua", "layout_ref/mirror_pex_tb.bounds.json"])]
+    assert "min=1.8" in vs[0]["msg"] and "min=1.5" in vs[0]["msg"]
+
+
+def test_a_changed_per_corner_bound_fails(tmp_path, capsys):
+    ws = make_ws(tmp_path, PLB_YAML)
+    pex = json.loads(json.dumps(PEX_MEASURES))
+    pex["tdelay"][0]["max"] = 9.0e-10
+    write_pex(ws, pex)
+    code, vs = lint(ws, capsys)
+    assert code == 1
+    assert [v["kind"] for v in vs] == ["bench_bound_value_mismatch"]
+    assert "tdelay" in vs[0]["refs"]
+
+
+def test_a_moved_corner_scope_is_a_corner_mismatch(tmp_path, capsys):
+    ws = make_ws(tmp_path, PLB_YAML)
+    pex = json.loads(json.dumps(PEX_MEASURES))
+    pex["tdelay"][0]["corners"] = ["ss", "sf"]
+    write_pex(ws, pex)
+    code, vs = lint(ws, capsys)
+    assert [v["kind"] for v in vs] == ["bench_bound_corner_mismatch"]
+
+
+def test_a_pad_condition_that_differs_is_a_pad_mismatch(tmp_path, capsys):
+    ws = make_ws(tmp_path, PLB_YAML)
+    write_pex(ws, {**PEX_MEASURES,
+                   "iout_ua": {"min": 1.8, "max": 2.2, "pad": "pad"}})
+    code, vs = lint(ws, capsys)
+    assert [v["kind"] for v in vs] == ["bench_bound_pad_mismatch"]
+
+
+def test_a_key_on_one_side_only_fails_both_ways(tmp_path, capsys):
+    ws = make_ws(tmp_path, PLB_YAML)
+    pex = {k: v for k, v in PEX_MEASURES.items() if k != "tdelay"}
+    pex["vreset"] = {"min": 2.6}
+    write_pex(ws, pex)
+    code, vs = lint(ws, capsys)
+    assert code == 1
+    assert sorted((v["kind"], v["refs"][0]) for v in vs) == [
+        ("bench_bound_no_spec_measure", "layout_ref/mirror_pex_tb.bounds.json"),
+        ("measure_no_bench_bound", "layout_ref/mirror_pex_tb.bounds.json"),
+    ]
+    assert {r for v in vs for r in v["refs"]} >= {"tdelay", "vreset"}
+
+
+def test_a_pex_sidecar_with_no_post_layout_bounds_fails(tmp_path, capsys):
+    ws = make_ws(tmp_path)
+    write_pex(ws, PEX_MEASURES)
+    code, vs = lint(ws, capsys)
+    assert [v["kind"] for v in vs] == ["no_post_layout_bounds"]
+
+
+def test_a_string_bound_in_post_layout_bounds_is_refused(tmp_path, capsys):
+    # YAML 1.1 reads 52e-3 (no dot) as a string, not a number
+    ws = make_ws(tmp_path, GOOD_YAML + "post_layout_bounds:\n"
+                 "  iout_ua: {min: 1.8, max: 22e-1}\n")
+    write_pex(ws, {"iout_ua": {"min": 1.8, "max": 2.2}})
+    code, vs = lint(ws, capsys)
+    assert code == 1
+    assert "bad_post_layout_bounds" in [v["kind"] for v in vs]
+
+
+def test_the_block_in_state_json_picks_its_pex_bench(tmp_path, capsys):
+    ws = make_ws(tmp_path, PLB_YAML)
+    write_pex(ws, PEX_MEASURES, stem="mirror_pex_tb")
+    write_pex(ws, {"other": {"min": 0}}, stem="other_pex_tb")
+    (ws / "state.json").write_text(json.dumps({"block": "mirror"}),
+                                   encoding="utf-8")
+    assert lint(ws, capsys) == (0, [])
+

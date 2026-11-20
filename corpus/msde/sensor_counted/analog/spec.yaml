@@ -44,3 +44,12 @@ boundary:
   d2a:
     # the NAND's output follows osc_en while the ring is stopped
     osc_en: {observe: xdut.n0, ramp_ns: 2000}
+
+# Post-layout bounds: the limits pex_sim scores. spec_lint holds
+# layout_ref/sensor_counted_analog_pex_tb.bounds.json to exactly these (#159).
+post_layout_bounds:
+  f_osc:
+    - {min: 3800000.0, max: 5200000.0, corners: [tt]}
+    - {min: 2400000.0, max: 8000000.0, corners: [ss, ff, sf, fs]}
+  duty: {min: 0.4, max: 0.6}
+  vstop: {max: 0.3}

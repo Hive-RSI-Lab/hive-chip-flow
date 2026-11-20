@@ -53,10 +53,11 @@ split_devices: [{refdes, cell, why}]   # only when an /msde analog brief
                                     # as written, never add one yourself
 mc: {enabled: bool, runs?, yield_min?, global?, seed?}   # only when the
                                     # brief asks for a yield number
-# post_layout_bounds: convention only (Known limits, SKILL.md) - a measure
-# name -> {min,max} pex_sim should hold to post-layout; nothing cross-
-# checks it against layout_ref/<block>_pex_tb.bounds.json but the spec
-# should still carry it when the brief gives a post-layout tolerance
+# post_layout_bounds: a measure name -> {min,max[,pad]} or a list of
+# them with `corners: [...]`, the bounds pex_sim holds post-layout.
+# spec_lint fails it unless it equals layout_ref/<block>_pex_tb.bounds.json
+# once that exists (every measure, both ways); write numbers with a dot
+# (5.2e-2, not 52e-3, which YAML reads as a string)
 ```
 
 ## Protocol

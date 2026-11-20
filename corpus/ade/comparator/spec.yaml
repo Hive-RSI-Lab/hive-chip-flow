@@ -40,3 +40,13 @@ symmetric_nets:
     max_dc_pct: 5
     max_dr_pct: 5
     aggressors: [clk]
+
+# Post-layout bounds: the limits pex_sim scores. spec_lint holds
+# layout_ref/comparator_pex_tb.bounds.json to exactly these (#159).
+post_layout_bounds:
+  vdiff_pos: {min: 2.5}
+  vdiff_neg: {max: -2.5}
+  tdelay:
+    - {min: 1.0e-10, max: 5.0e-10, corners: [tt, ff, fs]}
+    - {min: 1.0e-10, max: 7.5e-10, corners: [ss, sf]}
+  vreset: {min: 2.6}

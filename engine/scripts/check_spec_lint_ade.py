@@ -66,6 +66,49 @@ def load_bench_bounds(ws: Path) -> dict[str, list[dict]]:
     return out
 
 
+def load_pex_bounds(ws: Path) -> dict | None:
+    """The post-layout bench's sidecar as speclib.lint_post_layout_vs_pex_
+    bounds takes it ({"bench": rel path, "measures": raw map}), or None
+    when none is written yet. Found as check_pex_sim.find_bench finds it:
+    `<block>_pex_tb.cir` with its `.bounds.json`, tb/ before layout_ref/,
+    the block from state.json; with no block there, the only `*_pex_tb`
+    pair in those dirs (more than one with no block to choose is refused).
+    An unreadable sidecar is pex_sim's to refuse, so it is skipped here."""
+    block = None
+    state = ws / "state.json"
+    if state.is_file():
+        try:
+            block = (checklib.load_json(state, "state.json") or {}).get("block")
+        except checklib.CheckError:
+            block = None
+    found = []
+    for base in ("tb", "layout_ref"):
+        d = ws / base
+        if not d.is_dir():
+            continue
+        for bounds in sorted(d.glob("*_pex_tb.bounds.json")):
+            stem = bounds.name[:-len(".bounds.json")]
+            if not (d / f"{stem}.cir").is_file():
+                continue
+            if block and stem != f"{block}_pex_tb":
+                continue
+            found.append(bounds)
+    if not found:
+        return None
+    if len(found) > 1 and not block:
+        raise checklib.CheckError(
+            "more than one post-layout bench and no block in state.json to "
+            f"choose: {[str(p.relative_to(ws)) for p in found]}")
+    path = found[0]
+    try:
+        data = checklib.load_json(path, "pex bounds sidecar")
+    except checklib.CheckError:
+        return None
+    return {"bench": str(path.relative_to(ws)),
+            "measures": data.get("measures") if isinstance(data, dict)
+            else None}
+
+
 def measure_corner_names(field) -> set[str]:
     """Every name a measure's `corners` list may use under the spec
     `corners` field `field`: each name (corners.names_of, so `tt_27c` names
@@ -186,6 +229,11 @@ def run(argv=None):
     bench_bounds = load_bench_bounds(ws)
     violations += speclib.lint_measures_vs_bench_bounds(
         spec, bench_bounds, rel_path=SPEC_REL)
+    # #159: post_layout_bounds against the sidecar pex_sim scores. Not an
+    # input in invalidation.yaml (spec_lint hashes spec_yaml only, as for
+    # the tb/ sidecars above), so an edited sidecar stales pex_sim, not this.
+    violations += speclib.lint_post_layout_vs_pex_bounds(
+        spec, load_pex_bounds(ws), rel_path=SPEC_REL)
     # stamp() hashes exactly this path as input_digest; gate.py's own
     # record_gate cross-checks that against invalidation.yaml's gate_inputs
     # kinds[0] for this gate ("spec_yaml" for ade's spec_lint too).

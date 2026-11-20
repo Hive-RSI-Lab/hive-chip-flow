@@ -57,3 +57,16 @@ pex_fill: all
 # xmb's diode sets its voltage: CVC models that node as at most one Vth.
 erc_nets:
   ibias: {min: 0, max: 0.6}
+
+# Post-layout bounds: the limits pex_sim scores. spec_lint holds
+# layout_ref/ota_pex_tb.bounds.json to exactly these (#159).
+post_layout_bounds:
+  pm_deg: {min: 60}
+  gm_db: {min: 10}
+  ugf_hz: {min: 5000000.0}
+  a0_db: {min: 80}
+  iq: {min: 0.00015, max: 0.00035}
+  vos: {min: -0.001, max: 0.001}
+  psrr_dc_db: {min: 80}
+  psrr_at_f_db: {min: 30}
+  onoise_rms_v: {max: 6.0e-05}

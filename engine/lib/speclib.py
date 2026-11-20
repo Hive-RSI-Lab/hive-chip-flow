@@ -912,6 +912,164 @@ def lint_measures_vs_bench_bounds(spec: dict, bench_bounds: dict[str, list[dict]
     return out
 
 
+PEX_BOUND_KEYS = ("min", "max")
+
+
+def _post_layout_entries(name: str, entry) -> list[dict] | None:
+    """One `post_layout_bounds` (or pex sidecar `measures`) value as a list of
+    bound mappings, or None when its shape is wrong: a {min?, max?,
+    corners?, pad?} mapping or a non-empty list of them, each with at least
+    one finite number bound."""
+    items = entry if isinstance(entry, list) else [entry]
+    if not items:
+        return None
+    out = []
+    for b in items:
+        if not isinstance(b, dict) or not any(k in b for k in PEX_BOUND_KEYS):
+            return None
+        for k in PEX_BOUND_KEYS:
+            v = b.get(k)
+            if k in b and (isinstance(v, bool)
+                           or not isinstance(v, (int, float))
+                           or not math.isfinite(v)):
+                return None
+        out.append(b)
+    return out
+
+
+def _bound_key(b: dict) -> tuple:
+    """What a post-layout bound scores: its corner scope ("all" when absent
+    or "all"), ua pad condition, min and max. sensitivity, severity and msg
+    are not compared (no pass bound, or not the limit itself)."""
+    corners = b.get("corners", "all")
+    scope = ("all",) if corners == "all" else tuple(sorted(corners or []))
+    return (scope, b.get("pad", "both"),
+            None if b.get("min") is None else float(b["min"]),
+            None if b.get("max") is None else float(b["max"]))
+
+
+def _keys_equal(a: list[tuple], b: list[tuple]) -> bool:
+    if len(a) != len(b):
+        return False
+    for x, y in zip(sorted(a, key=repr), sorted(b, key=repr)):
+        if x[:2] != y[:2]:
+            return False
+        for u, v in zip(x[2:], y[2:]):
+            if (u is None) != (v is None):
+                return False
+            if u is not None and not math.isclose(u, v, rel_tol=1e-9,
+                                                  abs_tol=1e-18):
+                return False
+    return True
+
+
+def lint_post_layout_vs_pex_bounds(spec: dict, pex: dict | None,
+                                   rel_path: str = "spec/spec.yaml"
+                                   ) -> list[dict]:
+    """Cross-check spec.yaml's `post_layout_bounds` against the post-layout
+    bench's sidecar, the only bounds pex_sim scores (#159). Each spec
+    measure needs the same bounds in the sidecar and each sidecar measure
+    a `post_layout_bounds` entry, so which file you read can never decide
+    pass or fail. A measure's value is one {min?, max?, corners?, pad?}
+    mapping or a list of them, one per corner scope, as the sidecar's
+    `measures` map holds them (check_pex_sim.bound_list); the two sides
+    must hold the same set of bounds, in any order.
+
+    `pex` is {"bench": its workspace-relative sidecar path, "measures": the
+    sidecar's raw `measures` map}, or None when no post-layout bench is
+    written yet (nothing to reconcile, not a violation). A sidecar with no
+    `post_layout_bounds` in the spec is `no_post_layout_bounds`: the bench
+    then scores limits no spec declares. Kinds otherwise follow
+    lint_measures_vs_bench_bounds: measure_no_bench_bound,
+    bench_bound_no_spec_measure, bench_bound_corner_mismatch,
+    bench_bound_pad_mismatch, bench_bound_value_mismatch, each naming the
+    measure and the sidecar."""
+    from checklib import violation
+
+    out: list[dict] = []
+    if pex is None:
+        return out
+
+    def bad(kind: str, msg: str, refs=None):
+        out.append(violation("spec_lint", "error", rel_path, None, kind,
+                             refs or [], msg, "speclib"))
+
+    bench = pex["bench"]
+    plb = spec.get("post_layout_bounds")
+    if plb is None:
+        bad("no_post_layout_bounds",
+            f"{bench} scores post-layout bounds but spec.yaml has no "
+            "'post_layout_bounds': declare each measure the bench scores "
+            "there, with the same bounds", refs=[bench])
+        return out
+    if not isinstance(plb, dict) or not plb:
+        bad("bad_post_layout_bounds",
+            "spec.yaml 'post_layout_bounds' must be a non-empty mapping of "
+            "measure name to {min?, max?, corners?, pad?} or a list of them",
+            refs=[])
+        return out
+    measures = pex.get("measures")
+    if not isinstance(measures, dict):
+        bad("bad_pex_bounds", f"{bench} has no 'measures' map", refs=[bench])
+        return out
+
+    spec_side: dict[str, list[tuple]] = {}
+    for name, entry in plb.items():
+        got = _post_layout_entries(name, entry)
+        if got is None:
+            bad("bad_post_layout_bounds",
+                f"post_layout_bounds {name!r} must be a {{min?, max?, "
+                "corners?, pad?}} mapping or a non-empty list of them, each "
+                "with a finite min or max", refs=[str(name)])
+            continue
+        spec_side[str(name)] = [_bound_key(b) for b in got]
+    bench_side: dict[str, list[tuple]] = {}
+    for name, entry in measures.items():
+        got = _post_layout_entries(name, entry)
+        if got is not None:  # pex_sim refuses a malformed sidecar itself
+            bench_side[str(name)] = [_bound_key(b) for b in got]
+
+    for name in sorted(spec_side.keys() - bench_side.keys()):
+        bad("measure_no_bench_bound",
+            f"post_layout_bounds {name!r} is declared in spec.yaml but "
+            f"{bench} never scores it - a post-layout limit nothing checks",
+            refs=[name, bench])
+    for name in sorted(bench_side.keys() - spec_side.keys()):
+        bad("bench_bound_no_spec_measure",
+            f"{bench} scores {name!r} but spec.yaml's post_layout_bounds "
+            "never declares it - an undeclared post-layout limit",
+            refs=[name, bench])
+
+    def show(keys: list[tuple]) -> str:
+        parts = []
+        for scope, pad, lo, hi in sorted(keys, key=repr):
+            s = ", ".join(f"{k}={v:g}" for k, v in (("min", lo), ("max", hi))
+                          if v is not None)
+            if scope != ("all",):
+                s += f" at {list(scope)}"
+            if pad != "both":
+                s += f" pad={pad}"
+            parts.append("{" + s + "}")
+        return " ".join(parts)
+
+    for name in sorted(spec_side.keys() & bench_side.keys()):
+        want, got = spec_side[name], bench_side[name]
+        if _keys_equal(want, got):
+            continue
+        if sorted(k[0] for k in want) != sorted(k[0] for k in got):
+            kind = "bench_bound_corner_mismatch"
+        elif sorted(k[:2] for k in want) != sorted(k[:2] for k in got):
+            kind = "bench_bound_pad_mismatch"
+        else:
+            kind = "bench_bound_value_mismatch"
+        bad(kind,
+            f"post_layout_bounds {name!r}: spec.yaml says {show(want)} but "
+            f"{bench} scores {show(got)} - pex_sim scores the sidecar, so a "
+            "looser one passes a layout that misses the spec and a tighter "
+            "one fails a layout that meets it", refs=[name, bench])
+    return out
+
+
 def load_spec(path: Path) -> dict:
     """Parse spec.yaml. Anything that is not a YAML mapping raises - a lint
     violation needs a dict to report fields against, so a malformed file is
