@@ -207,6 +207,10 @@ FIXER_HINTS: dict[str, str] = {
     "fpga_latch": "rtl",
     "fpga_place_route_failed": "rtl",
     "fpga_fmax_below_clock": "rtl",
+    # #378: the ice40 netlist against the RTL - a synthesis bug, an edited
+    # netlist, or a proof out of budget, each a person's look first.
+    "fpga_netlist_not_equal": "review",
+    "fpga_equiv_unproven": "review",
     # cdc: the RTL's to fix. A waiver is the person's, never a fixer's.
     "cdc_unsynchronized": "rtl",
     "cdc_multibit_unsafe": "rtl",
