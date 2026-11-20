@@ -73,6 +73,14 @@ m0 d g s b nfet_03v3 delvto='mis_vth*sw_stat_mismatch' l=l m=m mulu0='1-mis_k*sw
 .subckt pfet_03v3 d g s b w=1e-5 l=2.8e-7 m=1 par=1
 m0 d g s b pfet_03v3 delvto=0 l=l m=m w=w
 .ends pfet_03v3
+.subckt pnp_x c b e par=1 dtemp=0
+.param mis_is_pnp_x='agauss(0,0.00077,1)'
+.param mis_bf_pnp_x='agauss(0,0.0013,1)'
+q0 c b e pnp_x
+.model pnp_x pnp
++ bf='1.7*(1+mis_bf_pnp_x*sw_stat_mismatch/sqrt(par))'
++ is='1.2e-17*(1+mis_is_pnp_x*sw_stat_mismatch/sqrt(par))'
+.ends pnp_x
 """
 
 
@@ -396,7 +404,7 @@ def test_mismatch_netlist_parameterises_each_draw():
                                                      PDK_LIB)
     assert [d["device"] for d in devs] == ["widget/xm1", "widget/xm2"]
     why = {u["device"]: u["reason"] for u in unranked}
-    assert "no parameterised" in why["widget/xq1"]
+    assert "no pnp_10p00x10p00 subckt" in why["widget/xq1"]
     assert "widget/xq1" in why["widget/xr1"]
     # so does a MOS whose library subckt lacks the two draws
     _, devs, unranked = sensitivity.mismatch_netlist(MM_NETLIST, MM_BENCH,
@@ -404,6 +412,23 @@ def test_mismatch_netlist_parameterises_each_draw():
     why = {u["device"]: u["reason"] for u in unranked}
     assert "no pfet_03v3 subckt" in why["widget/xp1"]
     assert "widget/xr1" in why
+
+
+def test_mismatch_netlist_parameterises_pnp_draws():
+    netlist = MM_NETLIST.replace("xp1 b b vss vss pfet_03v3 w=1e-6 l=1e-6\n",
+                                 "xq1 vss vss a pnp_x\n")
+    new, devs, unranked = sensitivity.mismatch_netlist(netlist, MM_BENCH,
+                                                       PDK_LIB)
+    kinds = {d["device"]: d["kind"] for d in devs}
+    assert kinds["widget/xq1"] == "pnp" and "widget/xr1" in kinds
+    k = list(kinds).index("widget/xq1")
+    assert f"xq1 vss vss a pnp_x__mm mm_zis={{mm_zis_{k}}} " \
+        f"mm_zbf={{mm_zbf_{k}}}" in new
+    sub = new.split("* --- sensitivity.py")[1]
+    assert ".subckt pnp_x__mm c b e mm_zis=0 mm_zbf=0 par=1 dtemp=0" in sub
+    assert "mm_zis*0.00077/sqrt(par)" in sub and "mm_zbf*0.0013" in sub
+    assert "sw_stat_mismatch" not in sub
+    assert not [u for u in unranked if u["device"].startswith("widget/")]
 
 
 def test_fix_dispatch_attaches_mismatch_ranking(tmp_path, fake):
@@ -439,11 +464,12 @@ def test_fix_dispatch_attaches_mismatch_ranking(tmp_path, fake):
 
 # ---------------------------------------------------- mismatch (#386), slow
 
-def _mc_tt_sigma(ws: Path) -> float:
+def _mc_tt_sigma(ws: Path, measure: str = "iout_raw") -> float:
     import check_mc
     d, _ = check_mc.run(["--workspace", str(ws), "--jobs", "4"])
-    (g,) = [g for g in d["groups"] if g.get("role") == "tt"]
-    return g["stats"]["iout_raw"]["sigma"]
+    (g,) = [g for g in d["groups"]
+           if g.get("role") == "tt" and measure in g.get("stats", {})]
+    return g["stats"][measure]["sigma"]
 
 
 @pytest.mark.slow
@@ -454,6 +480,23 @@ def test_real_mirror_mismatch_sums_to_mc_sigma(tmp_path):
     assert rep["sigma"] == pytest.approx(mc, rel=0.15), (rep["sigma"], mc)
     assert rep["devices"][0]["device"].endswith("xmref"), rep["devices"]
     assert sum(d["share"] for d in rep["devices"]) == pytest.approx(1.0)
+
+
+@pytest.mark.slow
+def test_real_bandgap_mismatch_ranks_pnps_and_sums_to_mc_sigma(tmp_path):
+    # #389: the bandgap's pnps draw is/bf mismatch; with them parameterised
+    # nothing is left unranked and the sum matches the mc gate's sigma.
+    # (Its ppolyf_u_1k resistors have no PDK mismatch draw, so neither the
+    # mc gate nor this varies them.)
+    ws = tmp_path / "bg"
+    shutil.copytree(REPO / "corpus" / "ade" / "bandgap", ws)
+    (ws / "spec").mkdir(exist_ok=True)
+    shutil.move(str(ws / "spec.yaml"), ws / "spec" / "spec.yaml")
+    rep = sensitivity.analyse_mismatch(ws, "vref", corner_name="tt")
+    assert rep["unranked"] == [], rep["unranked"]
+    assert any(d["kind"] == "pnp" for d in rep["devices"]), rep["devices"]
+    mc = _mc_tt_sigma(ws, "vref")
+    assert rep["sigma"] == pytest.approx(mc, rel=0.15), (rep["sigma"], mc)
 
 
 @pytest.mark.slow

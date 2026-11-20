@@ -46,7 +46,8 @@ to log/sensitivity/<measure>__<corner>/, one subdirectory per run.
 Report status is "pass" whether or not the measure itself passes: the
 report is information for a fixer, not a gate.
 
---mismatch (#386) ranks devices instead of parameters: each device's share
+--mismatch (#386, pnps #389) ranks devices instead of parameters: each
+MOS, pnp and resistor's share
 of the measure's random part-to-part (Pelgrom) variance at the corner, from
 a netlist copy whose mismatch draws are parameters (see the mismatch
 section below). It reports `sigma` (the linear estimate of the mc gate's
@@ -354,8 +355,8 @@ def analyse(ws: Path, measure: str, corner_name: str | None = None,
 # subckt whose two lines read delvto='mm_zv*var_vth' and
 # mulu0='1-mm_zk*var_k', and the instance passes mm_zv/mm_zk from global
 # `.param`s - so z=+1 is the device's own 1-sigma shift. A RES_MISMATCH
-# resistor gets mis_r='mm_zr_K*(<check_mc's sigma>)'. Each device's two
-# terms run at z=+1 and z=-1 with every other z at 0, a central difference
+# resistor gets mis_r='mm_zr_K*(<check_mc's sigma>)', a pnp its is/bf
+# draws (#389, below). Each device's terms run at z=+1 and z=-1 with every other z at 0, a central difference
 # d(measure)/dz; the device's variance is the sum of its squared terms, its
 # share that over the total, and sigma = sqrt(total) is the linear estimate
 # of the mc gate's mismatch-only sigma at that corner.
@@ -366,33 +367,67 @@ K_TERM = "mulu0='1-mis_k*sw_stat_mismatch'"
 PDK_MOS_LIB = Path("libs.tech") / "ngspice" / "sm141064.spice"
 GLOBAL_NOTE = ("mismatch only: global (die-to-die) variation moves every "
                "device together and is not in this ranking or its sigma")
+# GF180's pnp_* subckts (`.lib bjt_mc`, #389) draw theirs as
+# `.param mis_<t>_<model>='agauss(0,S,1)'` (t = is, bf) used in their own
+# `.model` as mis_<t>_<model>*sw_stat_mismatch/sqrt(par); the copy reads
+# mm_z<t>*S there instead. The npn_* subckts draw no mismatch.
+PNP_MM_RE = re.compile(r"^pnp_\w+$", re.IGNORECASE)
 # a model whose PDK subckt draws its own mismatch under sw_stat_mismatch=1
-# when this does not parameterise it (a pnp; a MOS outside MOS_MM_RE)
+# when this does not parameterise it (a MOS outside MOS_MM_RE; a pnp whose
+# subckt is not the shape above)
 _LIVE_MISMATCH_RE = re.compile(r"^(?:pnp_|[np]fet_)", re.IGNORECASE)
 
 
-def mm_subckt(lib_text: str, model: str) -> str | None:
-    """The PDK's `.subckt <model>` renamed <model>__mm, its two mismatch
-    draws turned into mm_zv/mm_zk (header defaults 0), or None when the
-    library has no such subckt or its draws are not the expected two."""
+def _bjt_draws(block: str, model: str) -> tuple[str, list] | None:
+    """A pnp subckt with each `mis_<t>_<model>*sw_stat_mismatch` replaced
+    by mm_z<t>*S, and [(t, mm_z<t>)]; None when a draw is left over."""
+    m = re.escape(model)
+    draws = re.findall(rf"^\.param\s+mis_(\w+?)_{m}\s*=\s*"
+                       r"'agauss\(0,\s*([0-9.eE+-]+)\s*,\s*1\)'\s*$",
+                       block, re.IGNORECASE | re.MULTILINE)
+    out = []
+    for term, sig in draws:
+        z = f"mm_z{term.lower()}"
+        block, n = re.subn(rf"\bmis_{term}_{m}\*sw_stat_mismatch\b",
+                           f"{z}*{sig}", block, flags=re.IGNORECASE)
+        if n:
+            out.append((term.lower(), z))
+    if not out or "sw_stat_mismatch" in block:
+        return None
+    return block, out
+
+
+def mm_subckt(lib_text: str, model: str) -> tuple[str, list] | None:
+    """The PDK's `.subckt <model>` renamed <model>__mm with its mismatch
+    draws turned into parameters (header defaults 0), and the draws as
+    [(term, z parameter)]: a MOS's two (vth -> mm_zv, k -> mm_zk), a pnp's
+    (is -> mm_zis, bf -> mm_zbf). None when the library has no such subckt
+    or its draws are not the expected shape."""
     name = re.escape(model.lower())
     m = re.search(rf"^\.subckt\s+{name}\s.*?^\.ends\s+{name}\b[^\n]*",
                   lib_text, re.IGNORECASE | re.MULTILINE | re.DOTALL)
     if not m:
         return None
     block = m.group(0)
-    if VTH_TERM not in block or K_TERM not in block:
-        return None
-    block = block.replace(VTH_TERM, "delvto='mm_zv*var_vth'")
-    block = block.replace(K_TERM, "mulu0='1-mm_zk*var_k'")
+    if PNP_MM_RE.match(model):
+        got = _bjt_draws(block, model.lower())
+        if got is None:
+            return None
+        block, draws = got
+    else:
+        if VTH_TERM not in block or K_TERM not in block:
+            return None
+        block = block.replace(VTH_TERM, "delvto='mm_zv*var_vth'")
+        block = block.replace(K_TERM, "mulu0='1-mm_zk*var_k'")
+        draws = [("vth", "mm_zv"), ("k", "mm_zk")]
     head, rest = block.split("\n", 1)
     words = head.split()
     k = next((i for i, w in enumerate(words) if "=" in w), len(words))
     words[1] = model.lower() + MM_SUFFIX
-    words[k:k] = ["mm_zv=0", "mm_zk=0"]
+    words[k:k] = [f"{z}=0" for _, z in draws]
     rest = re.sub(rf"^(\.ends\s+){name}\b", rf"\g<1>{model.lower()}{MM_SUFFIX}",
                   rest, flags=re.IGNORECASE | re.MULTILINE)
-    return " ".join(words) + "\n" + rest
+    return " ".join(words) + "\n" + rest, draws
 
 
 def instance_counts(texts: list[str]) -> dict:
@@ -440,14 +475,14 @@ def mismatch_netlist(text: str, bench_text: str, lib_text: str
     """The netlist copy for `--mismatch` (see above). Returns (new text,
     [{device, instance, subckt, model, kind, params}] ranked devices with
     their z parameter names, [{device, model, reason}] unranked ones). Every
-    MOS is retargeted, ranked or not: an unranked one passes z=0 and so
+    MOS or pnp is retargeted, ranked or not: an unranked one passes z=0 and so
     carries no mismatch at all (listed with its reason)."""
     import check_mc
     text, _ = check_mc.add_par_for_multiplier(text, [bench_text])
     uses = instance_counts([text, bench_text])
     lines = text.split("\n")
     _, walk = check_mc._subckt_blocks(text)
-    subckts: dict[str, str | None] = {}
+    subckts: dict[str, tuple | None] = {}
     devices, unranked, resistors, live = [], [], [], []
     for inside, group in walk:
         inst = check_mc._instance(group, lines)
@@ -461,14 +496,14 @@ def mismatch_netlist(text: str, bench_text: str, lib_text: str
         many = (None if n == 1 else
                 f"its subckt {inside} is instantiated {n} times: one "
                 "parameter would move every copy together")
-        if MOS_MM_RE.match(model):
+        if MOS_MM_RE.match(model) or PNP_MM_RE.match(model):
             key = model.lower()
             if key not in subckts:
                 subckts[key] = mm_subckt(lib_text, key)
             if subckts[key] is None:
                 live.append(dev)
                 unranked.append({**base, "reason": "the PDK library has no "
-                                 f"{key} subckt with the two mismatch draws "
+                                 f"{key} subckt with the mismatch draws "
                                  "this rewrites"})
                 continue
             _retarget(lines, group, model)
@@ -477,11 +512,11 @@ def mismatch_netlist(text: str, bench_text: str, lib_text: str
                                  "mismatch in these runs"})
                 continue
             k = len(devices)
-            zv, zk = f"mm_zv_{k}", f"mm_zk_{k}"
-            check_mc._append_param(lines, group,
-                                   f"mm_zv={{{zv}}} mm_zk={{{zk}}}")
-            devices.append({**base, "kind": "mos",
-                            "params": {"vth": zv, "k": zk}})
+            params = {t: f"{z}_{k}" for t, z in subckts[key][1]}
+            check_mc._append_param(lines, group, " ".join(
+                f"{z}={{{z}_{k}}}" for _, z in subckts[key][1]))
+            devices.append({**base, "kind": ("pnp" if PNP_MM_RE.match(model)
+                                             else "mos"), "params": params})
         elif model.lower() in check_mc.RES_MISMATCH:
             params = check_mc._all_params(group, lines)
             if many:
@@ -510,10 +545,10 @@ def mismatch_netlist(text: str, bench_text: str, lib_text: str
         check_mc._append_param(lines, group, f"mis_r='{zr}*({sig})'")
         devices.append({**base, "kind": "resistor", "params": {"r": zr}})
     out = "\n".join(lines).rstrip("\n") + "\n"
-    blocks = [b for b in subckts.values() if b]
+    blocks = [b[0] for b in subckts.values() if b]
     if blocks:
-        out += ("* --- sensitivity.py --mismatch: the PDK's MOS subckts with "
-                "their mismatch draws as parameters\n" + "\n".join(blocks)
+        out += ("* --- sensitivity.py --mismatch: the PDK's MOS and pnp "
+                "subckts with their mismatch draws as parameters\n" + "\n".join(blocks)
                 + "\n")
     return out, devices, unranked
 
