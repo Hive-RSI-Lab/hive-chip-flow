@@ -1041,12 +1041,22 @@ def xcheck_inputs(config: dict, corner: str, pdk_root: Path):
 def pex_xcheck(r: dict, final_dir: Path, top: str, config: dict,
                pdk_root: Path, work_dir: Path) -> dict:
     """pexlib.compare() of magic against corner r's SPEF on the nets of
-    r's critical paths, with the corner named; no nets, no magic run."""
+    r's critical paths, with the corner named. No usable net is a refusal,
+    except on a corner no clock reaches: clock_unconstrained already fails
+    that one by name, and there is no path to pick nets from."""
     corner = r["corner"]
-    nets = pexlib.critical_nets(r["critical_paths"] or [])
+    paths = r["critical_paths"] or []
+    nets = pexlib.critical_nets(paths)
     out = {"corner": corner, "extractor": "magic"}
     if not nets:
-        return {**out, **pexlib.compare([], {}, {}, {}, {})}
+        if math.isinf(r["setup_ws"]) and math.isinf(r["hold_ws"]):
+            return {**out, **pexlib.compare([], {}, {}, {}, {}),
+                    "skipped": "no clock reaches any path in this corner"}
+        raise CheckError(
+            f"second-extractor cross-check (corner {corner}): OpenSTA "
+            f"listed {len(paths)} critical path(s) but none names a net "
+            "with a finite slack, so there is nothing to cross-check - "
+            f"see the corner's log in {work_dir}")
     bucket = corner.split("_", 1)[0]
     spef = final_dir / "spef" / bucket / f"{top}.{bucket}.spef"
     def_path = final_dir / "def" / f"{top}.def"
@@ -1059,7 +1069,9 @@ def pex_xcheck(r: dict, final_dir: Path, top: str, config: dict,
         via_r = pexlib.def_via_r(def_path.read_text(encoding="utf-8"),
                                  vias, cuts)
         rcx = pexlib.parse_spef(spef.read_text(encoding="utf-8"))
-    except (pexlib.PexError, OSError) as exc:
+    except (pexlib.PexError, OSError, ValueError) as exc:
+        # ValueError: a number pexlib cannot read (a min:typ:max
+        # triplet) or a file that is not UTF-8
         raise CheckError(f"second-extractor cross-check (corner {corner}): "
                          f"{exc}") from exc
     found = pexlib.compare(nets, rcx, caps, res, via_r)

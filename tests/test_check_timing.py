@@ -7,6 +7,7 @@ line is a refusal, a negative slack is a finding, never a silent pass.
 from __future__ import annotations
 
 import json
+import math
 import subprocess
 import sys
 from pathlib import Path
@@ -81,7 +82,18 @@ def make_ws_with_harden(tmp_path: Path, corners=("nom_tt_025C_3v30",)) -> Path:
     return ws
 
 
-def _patch_common(monkeypatch, tmp_path):
+def _no_xcheck(r, *args):
+    """pex_xcheck for a test about something else: the fixtures' STA output
+    lists no critical path, which the real cross-check refuses (#77's own
+    tests go through _xc_gate)."""
+    return {"corner": r["corner"], "extractor": "magic",
+            **pexlib.compare([], {}, {}, {}, {}),
+            "skipped": "not under test"}
+
+
+def _patch_common(monkeypatch, tmp_path, xcheck=False):
+    if not xcheck:
+        monkeypatch.setattr(check_timing, "pex_xcheck", _no_xcheck)
     # a fake, always-existing liberty file - the real one lives in the PDK,
     # outside anything this test controls or needs.
     fake_lib = tmp_path / "fake.lib"
@@ -1260,7 +1272,7 @@ def _xc_gate(tmp_path, monkeypatch, capsys, extract, halve=(),
                    "EXTRA_LEFS": None})
     config.update(config_extra or {})
     resolved.write_text(json.dumps(config), encoding="utf-8")
-    _patch_common(monkeypatch, tmp_path)
+    _patch_common(monkeypatch, tmp_path, xcheck=True)
     sta_out = _xc_sta_out(paths)
 
     def fake_run(cmd, **kwargs):
@@ -1294,9 +1306,10 @@ def test_the_critical_nets_cross_check_clean_with_per_net_ratios(
     assert x["severity"] == "warning" and x["corner"] == "nom_tt_025C_3v30"
     assert x["extractor"] == "magic" and x["unmatched"] == []
     rows = {r["net"]: r for r in x["nets"]}
-    # n3/n4/n5 on the 0.1 ns hold path come first; \n5 is unescaped
-    assert [r["net"] for r in x["nets"]] == ["n3", "n4", "n5", "n0", "n1",
-                                             "n2"]
+    # setup and hold taken in turn, each worst first; \n5 is unescaped
+    assert [r["net"] for r in x["nets"]] == ["n0", "n3", "n1", "n4", "n2",
+                                             "n5"]
+    assert rows["n0"]["side"] == "setup" and rows["n3"]["side"] == "hold"
     assert rows["n2"]["c_ratio"] == 1.0 and rows["n2"]["slack_ns"] == 0.8
     # n0's 4.5 ohm via, from the tech LEF, on top of 20 ohm of wire
     assert rows["n0"]["magic_r_ohm"] == 24.5 and rows["n0"]["r_ratio"] == 1.225
@@ -1364,11 +1377,51 @@ def test_no_tech_lef_for_the_corner_refuses(tmp_path, monkeypatch, capsys):
     assert calls == []
 
 
-def test_no_critical_path_runs_no_magic(tmp_path, monkeypatch, capsys):
-    code, out, calls = _xc_gate(tmp_path, monkeypatch, capsys, _magic_agrees,
-                                paths=())
-    assert code == 0 and calls == [], out
-    assert out["pex_xcheck"]["nets"] == [], out
+def test_no_usable_critical_net_refuses_not_passes(tmp_path, monkeypatch,
+                                                   capsys):
+    """A cross-check with nothing to check did not run: a refusal, whether
+    OpenSTA listed no path or only paths with no finite slack."""
+    for i, paths in enumerate(((), ("max INF n0", "min NaN n3"))):
+        code, out, calls = _xc_gate(tmp_path / str(i), monkeypatch, capsys,
+                                    _magic_agrees, paths=paths)
+        assert code == 2 and calls == [], out
+        assert "none names a net with a finite slack" in out["error"], out
+
+
+def test_an_unclocked_corner_skips_the_cross_check_by_name(tmp_path):
+    """No clock reaches the corner: clock_unconstrained fails it by name,
+    and the cross-check says why it has no nets instead of refusing."""
+    r = {"corner": "nom_tt_025C_3v30", "critical_paths": [],
+         "setup_ws": math.inf, "hold_ws": math.inf}
+    x = check_timing.pex_xcheck(r, tmp_path, "t", {}, tmp_path, tmp_path)
+    assert x["nets"] == [] and "no clock" in x["skipped"], x
+
+
+def test_magic_names_with_def_escapes_match_the_spef(tmp_path, monkeypatch,
+                                                     capsys):
+    """magic keeps a DEF name's backslashes (`n\\5`); OpenSTA and the
+    SPEF drop them - the two still meet."""
+    def magic_escaped(*args):
+        caps, res = _magic_agrees()
+        caps["n\\5"], res["n\\5"] = caps.pop("n5"), res.pop("n5")
+        return caps, res
+    code, out, _ = _xc_gate(tmp_path, monkeypatch, capsys, magic_escaped)
+    assert code == 0 and out["pex_xcheck"]["unmatched"] == [], out
+
+
+def test_a_spef_number_pexlib_cannot_read_refuses_with_the_corner(
+        tmp_path, monkeypatch, capsys):
+    def magic_then_triplet(*args):
+        spef = (tmp_path / "ws" / "harden" / "runs" / "run" / "final"
+                / "spef" / "nom" / "tt_um_counter8.nom.spef")
+        spef.write_text("*SPEF\n*D_NET n0 0.1:0.2:0.3\n*END\n",
+                        encoding="utf-8")
+        return _magic_agrees()
+    code, out, _ = _xc_gate(tmp_path, monkeypatch, capsys,
+                            magic_then_triplet)
+    assert code == 2, out
+    assert "second-extractor cross-check (corner nom_tt_025C_3v30)" in out[
+        "error"], out
 
 
 def test_xcheck_inputs_rebase_a_moved_pdk_root(tmp_path):

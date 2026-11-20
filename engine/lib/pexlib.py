@@ -107,18 +107,37 @@ def parse_critical_paths(output: str) -> list[tuple[str, float, list[str]]]:
     return out
 
 
-def critical_nets(paths, n: int = CRIT_NETS) -> list[tuple[str, float]]:
-    """The n nets on the worst paths: each net at the worst slack of any
-    path through it, setup and hold alike, worst first."""
-    best: dict[str, float] = {}
-    for _, slack, nets in paths:
-        if math.isinf(slack):
+def critical_nets(paths, n: int = CRIT_NETS) -> list[tuple[str, float, str]]:
+    """The n nets on the worst paths as (net, slack, side): setup and hold
+    ranked each against its own paths and taken in turn, so hold's small
+    slacks do not crowd every setup path out. A net is at the worst slack
+    of any path through it on its side, and named once."""
+    per: dict[str, dict[str, float]] = {"max": {}, "min": {}}
+    for side, slack, nets in paths:
+        if not math.isfinite(slack) or side not in per:
             continue
         for net in nets:
             net = unescape(net)
-            if slack < best.get(net, math.inf):
-                best[net] = slack
-    return sorted(best.items(), key=lambda kv: (kv[1], kv[0]))[:n]
+            if slack < per[side].get(net, math.inf):
+                per[side][net] = slack
+    ranked = {side: sorted(d.items(), key=lambda kv: (kv[1], kv[0]))
+              for side, d in per.items()}
+    out: list[tuple[str, float, str]] = []
+    seen: set[str] = set()
+    cursor = {"max": 0, "min": 0}
+    while len(out) < n and any(cursor[k] < len(ranked[k]) for k in cursor):
+        for side in ("max", "min"):
+            while cursor[side] < len(ranked[side]):
+                net, slack = ranked[side][cursor[side]]
+                cursor[side] += 1
+                if net not in seen:
+                    seen.add(net)
+                    out.append((net, slack,
+                                "setup" if side == "max" else "hold"))
+                    break
+            if len(out) >= n:
+                break
+    return out
 
 
 def unescape(name: str) -> str:
@@ -162,7 +181,11 @@ def parse_spef(text: str) -> dict[str, dict]:
             nets[cur] = {"c_ff": float(t[2]) * units["C"], "r_ohm": 0.0}
             section = None
             continue
-        if head in ("*CONN", "*CAP", "*RES", "*END"):
+        if head in ("*P", "*I", "*N"):
+            continue                    # a *CONN entry or a node position
+        if head.startswith("*") and not re.fullmatch(r"\*\d+", head):
+            # *CONN, *CAP, *RES, *INDUC, *END, *PORTS, a header keyword:
+            # only *RES lines are R, and any header closes the name map
             section = head
             if head == "*END":
                 cur = None
@@ -316,13 +339,26 @@ def _ratio(a: float, b: float) -> float | None:
     return round(a / b, 4) if b > 0 else None
 
 
-def compare(nets: list[tuple[str, float]], spef: dict[str, dict],
+def _off(ratio, a: float, b: float, tol: float, floor: float) -> bool:
+    """Past tolerance and floor both; a zero OpenRCX figure has no ratio,
+    so only the floor judges it."""
+    if abs(a - b) <= floor:
+        return False
+    return ratio is None or abs(ratio - 1) > tol
+
+
+def compare(nets, spef: dict[str, dict],
             magic_c: dict[str, float], magic_r: dict[str, float],
             via_r: dict[str, float]) -> dict:
-    """Per-net magic/OpenRCX ratios for the named nets and what is out of
-    tolerance. A net either extractor has no figure for is `unmatched`."""
+    """Per-net magic/OpenRCX ratios for the named nets ((net, slack) or
+    (net, slack, side)) and what is out of tolerance. A net either
+    extractor has no figure for is `unmatched`. magic keeps a DEF name's
+    escapes (`cnt\\[3\\]`); OpenSTA and the SPEF side drop them, so
+    magic's names are unescaped here."""
+    magic_c = {unescape(k): v for k, v in magic_c.items()}
+    magic_r = {unescape(k): v for k, v in magic_r.items()}
     rows, unmatched = [], []
-    for name, slack in nets:
+    for name, slack, *side in nets:
         s = spef.get(name)
         if s is None or name not in magic_c:
             unmatched.append(name)
@@ -334,12 +370,12 @@ def compare(nets: list[tuple[str, float]], spef: dict[str, dict],
                "c_ratio": _ratio(mc, s["c_ff"]),
                "rcx_r_ohm": round(s["r_ohm"], 3), "magic_r_ohm": round(mr, 3),
                "r_ratio": _ratio(mr, s["r_ohm"])}
-        row["c_mismatch"] = (row["c_ratio"] is not None
-                             and abs(row["c_ratio"] - 1) > C_TOL
-                             and abs(mc - s["c_ff"]) > C_FLOOR_FF)
-        row["r_mismatch"] = (row["r_ratio"] is not None
-                             and abs(row["r_ratio"] - 1) > R_TOL
-                             and abs(mr - s["r_ohm"]) > R_FLOOR_OHM)
+        if side:
+            row["side"] = side[0]
+        row["c_mismatch"] = _off(row["c_ratio"], mc, s["c_ff"], C_TOL,
+                                 C_FLOOR_FF)
+        row["r_mismatch"] = _off(row["r_ratio"], mr, s["r_ohm"], R_TOL,
+                                 R_FLOOR_OHM)
         rows.append(row)
     return {"nets": rows, "unmatched": unmatched,
             "c": _summary(rows, "c_ratio"), "r": _summary(rows, "r_ratio"),

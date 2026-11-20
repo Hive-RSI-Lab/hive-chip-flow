@@ -140,11 +140,31 @@ def test_critical_nets_take_each_net_at_its_worst_slack():
     paths = pexlib.parse_critical_paths(CRIT_OUT)
     assert paths[0] == ("max", 1.5, ["a", "b[0]", "\\c"])
     nets = pexlib.critical_nets(paths)
-    # e on the 0.1 hold path, then a/b[0]/c at 1.5 (a also on the 2.0
-    # path), then d; an unconstrained path names nothing
-    assert nets == [("e", 0.1), ("a", 1.5), ("b[0]", 1.5), ("c", 1.5),
-                    ("d", 2.0)]
-    assert pexlib.critical_nets(paths, 2) == [("e", 0.1), ("a", 1.5)]
+    # setup and hold in turn: a (1.5, also on the 2.0 path), then hold's
+    # e; hold has no more, so setup's b[0]/c at 1.5, then d. An
+    # unconstrained path names nothing
+    assert nets == [("a", 1.5, "setup"), ("e", 0.1, "hold"),
+                    ("b[0]", 1.5, "setup"), ("c", 1.5, "setup"),
+                    ("d", 2.0, "setup")]
+    assert pexlib.critical_nets(paths, 2) == [("a", 1.5, "setup"),
+                                              ("e", 0.1, "hold")]
+
+
+def test_hold_slacks_do_not_crowd_setup_nets_out():
+    """Hold slacks sit far below setup ones on a real design; ranked
+    together, every one of the 20 nets would come from hold paths."""
+    paths = ([("min", 0.5 + 0.01 * i, [f"h{i}"]) for i in range(30)]
+             + [("max", 9.8 + 0.1 * i, [f"s{i}"]) for i in range(30)])
+    nets = pexlib.critical_nets(paths)
+    assert len(nets) == pexlib.CRIT_NETS
+    assert [n for n, _, side in nets if side == "setup"] == [
+        f"s{i}" for i in range(10)]
+    assert [n for n, _, side in nets if side == "hold"] == [
+        f"h{i}" for i in range(10)]
+    # a net on both sides is taken once, at its first side's slack
+    both = pexlib.critical_nets([("max", 9.0, ["x", "y"]),
+                                 ("min", 0.2, ["x", "z"])])
+    assert [n for n, _, _ in both] == ["x", "z", "y"]
 
 
 def test_a_cut_short_critical_path_listing_refuses():
@@ -177,6 +197,32 @@ def test_compare_flags_only_past_both_tolerance_and_floor():
     assert out["unmatched"] == ["gone"]
     assert out["c"]["worst_net"] == "tiny" and out["c"]["worst"] == 1.9
     assert out["thresholds"]["c_tol"] == pexlib.C_TOL
+
+
+def test_a_zero_openrcx_figure_is_judged_by_the_floor():
+    sp = {"z": {"c_ff": 0.0, "r_ohm": 0.0}, "zt": {"c_ff": 0.0, "r_ohm": 0.0}}
+    out = pexlib.compare(_nets("z", "zt"), sp, {"z": 5.0, "zt": 0.5},
+                         {"z": 300.0, "zt": 4.0}, {})
+    rows = {r["net"]: r for r in out["nets"]}
+    assert rows["z"]["c_ratio"] is None
+    assert rows["z"]["c_mismatch"] and rows["z"]["r_mismatch"]
+    assert not rows["zt"]["c_mismatch"] and not rows["zt"]["r_mismatch"]
+
+
+def test_compare_unescapes_magic_names():
+    sp = {"cnt[3]": {"c_ff": 10.0, "r_ohm": 100.0}}
+    out = pexlib.compare([("cnt[3]", 0.5)], sp, {"cnt\\[3\\]": 10.0},
+                         {"cnt\\[3\\]": 100.0}, {})
+    assert out["unmatched"] == [] and out["nets"][0]["c_ratio"] == 1.0
+
+
+def test_parse_spef_keeps_ports_and_inductance_out():
+    text = (SPEF_HEAD + "\n*PORTS\n*1 I\n*2 O\n"
+            "\n*D_NET *1 0.01\n*CONN\n*P *1 I\n*I x:Z O\n*CAP\n"
+            "1 *1 0.01\n*RES\n1 *1 x:Z 0.02\n*INDUC\n1 *1 x:Z 5\n*END\n")
+    nets = pexlib.parse_spef(text)
+    assert set(nets) == {"a"}
+    assert nets["a"]["r_ohm"] == pytest.approx(20.0)
 
 
 def test_halving_one_nets_caps_in_the_spef_flags_it_by_name():

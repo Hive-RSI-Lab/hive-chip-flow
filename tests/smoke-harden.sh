@@ -39,15 +39,34 @@ fi
 
 PASS=0
 FAIL=0
+# A check's exit 1 is "findings", warnings included; gates.yaml fails a
+# gate on error-severity findings only (gate.py's fail_severities), so an
+# exit 1 whose findings are all warnings (timing's pex_mismatch, #77) passes
+# here as it does through gate.py - with the warnings named.
+warnings_only() {
+  "$EDA" python3 -c '
+import json, sys
+v = json.load(open(sys.argv[1])).get("violations") or []
+bad = [x for x in v if x.get("severity") == "error"]
+if bad or not v:
+    sys.exit(1)
+print(", ".join(sorted({x.get("kind", "?") for x in v})))
+' "$1"
+}
 run_gate() {
-  local gate="$1"
+  local gate="$1" out="$WORK/log/${1}_result.json" rc kinds
   echo "== $gate =="
-  if "$EDA" python "$REPO/engine/scripts/check_$gate.py" \
-      --workspace "$WORK" --out "$WORK/log/${gate}_result.json" < /dev/null; then
+  "$EDA" python "$REPO/engine/scripts/check_$gate.py" \
+      --workspace "$WORK" --out "$out" < /dev/null
+  rc=$?
+  if [ "$rc" -eq 0 ]; then
     echo "$gate: PASS"
     PASS=$((PASS + 1))
+  elif [ "$rc" -eq 1 ] && kinds="$(warnings_only "$out")"; then
+    echo "$gate: PASS (warnings only: $kinds)"
+    PASS=$((PASS + 1))
   else
-    echo "$gate: FAIL - see $WORK/log/${gate}_result.json"
+    echo "$gate: FAIL (exit $rc) - see $out"
     FAIL=$((FAIL + 1))
   fi
 }
