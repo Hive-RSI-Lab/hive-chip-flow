@@ -26,7 +26,10 @@ FIXTURES = REPO / "tests" / "fixtures" / "opensta"
 # CLOCK_UNCERTAINTY_CONSTRAINT's 0.25 ns on the one clock
 CLEAN_UNCERTAINTY = ("chipflow_clock_uncertainty_begin\nchipflow_clock clk\n"
                      "set_clock_uncertainty 0.2500 clk\n"
-                     "chipflow_clock_uncertainty_end\n")
+                     "chipflow_clock_uncertainty_end\n"
+                     # the crosstalk bound (#76), clean
+                     "chipflow_si_bound_begin\nworst slack max 7.50\n"
+                     "worst slack min 0.20\nchipflow_si_bound_end\n")
 # check_setup and the min pulse width/min period/clock gating sections as a
 # clean OpenSTA 3.1.0 run prints them (markers only, no findings).
 CLEAN_SIGNOFF = ("chipflow_check_setup_begin\n"
@@ -1019,3 +1022,184 @@ def test_real_opensta_reads_back_each_clocks_uncertainty(tmp_path, extra_sdc,
     assert r["pin_uncertainty"] == pins, r
     # with ps units the slack line must still read in ns
     assert 1.0 < r["setup_ws"] < 100.0, r
+
+
+# --- the crosstalk (Miller) bound, #76 ---------------------------------------
+
+def _si_section(setup, hold, paths=""):
+    return (f"chipflow_si_bound_begin\nworst slack max {setup}\n"
+            f"worst slack min {hold}\n{paths}chipflow_si_bound_end\n")
+
+
+# the clean signoff sections with a crosstalk bound of our own in place of
+# CLEAN_UNCERTAINTY's clean one
+SIGNOFF_NO_SI = CLEAN_COUNTS.partition("chipflow_si_bound_begin")[0]
+
+
+def test_parse_si_bound_reads_slacks_and_named_paths():
+    si = check_timing.parse_si_bound(_si_section(
+        -0.3, 0.84, "chipflow_si_path max -0.304469 b -> f2/D\n"
+                    "chipflow_si_path max -0.216769 f0/CLK -> f1/D\n"))
+    assert si["max"] == -0.3 and si["min"] == 0.84
+    assert si["paths"]["max"] == [(-0.304469, "b", "f2/D"),
+                                  (-0.216769, "f0/CLK", "f1/D")]
+    assert si["paths"]["min"] == []
+
+
+@pytest.mark.parametrize("text", [
+    "worst slack max 1\nworst slack min 1\n",              # no section
+    "chipflow_si_bound_begin\nworst slack max 1\n",         # died half-way
+    "chipflow_si_bound_begin\nchipflow_si_bound_end\n",     # no slack lines
+])
+def test_parse_si_bound_without_a_whole_section_refuses(text):
+    with pytest.raises(check_timing.CheckError):
+        check_timing.parse_si_bound(text)
+
+
+def test_the_bound_never_stands_in_for_the_plain_slack(tmp_path, monkeypatch,
+                                                      capsys):
+    # the bound's own worst-slack lines come after the plain ones: a
+    # negative bound is not a setup_violation, and the plain slack is the
+    # one recorded
+    code, out = _gate(tmp_path, monkeypatch, capsys,
+                      "worst slack max 1.90\nworst slack min 0.84\n"
+                      + SIGNOFF_NO_SI + _si_section(-0.30, 0.10, (
+                          "chipflow_si_path max -0.304469 b -> f2/D\n")))
+    corner = out["corners"]["nom_tt_025C_3v30"]
+    assert corner["setup_ws"] == 1.90 and corner["hold_ws"] == 0.84, corner
+    assert corner["si_bound_setup_ws"] == -0.30, corner
+    assert corner["si_bound_hold_ws"] == 0.10, corner
+    kinds = [v["kind"] for v in out["violations"]]
+    assert kinds == ["si_bound_violation"], out
+    v = out["violations"][0]
+    # warning by default (gates.yaml's si_bound): gate.py's fail_severities
+    # [error] does not count it
+    assert v["severity"] == "warning", v
+    assert v["refs"] == ["f2/D"] and "b -> f2/D" in v["msg"], v
+    assert "Miller factor 2" in v["msg"] and "1.9000ns" in v["msg"], v
+    assert out["si_bound"] == {"severity": "warning", "setup_factor": 2.0,
+                               "hold_factor": 0.0}, out
+    assert code == 1
+
+
+def _gates_with_si(tmp_path, value):
+    text = (check_timing.GATES_YAML.read_text(encoding="utf-8")
+            .replace("si_bound: warning", f"si_bound: {value}"))
+    path = tmp_path / "gates.yaml"
+    path.write_text(text, encoding="utf-8")
+    return path
+
+
+def test_the_shipped_gates_yaml_keeps_the_bound_a_warning():
+    assert check_timing.si_bound_severity() == "warning"
+
+
+def test_si_bound_error_in_gates_yaml_makes_a_negative_hold_bound_an_error(
+        tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(check_timing, "GATES_YAML",
+                        _gates_with_si(tmp_path, "error"))
+    code, out = _gate(tmp_path, monkeypatch, capsys,
+                      "worst slack max 1.90\nworst slack min 0.05\n"
+                      + SIGNOFF_NO_SI + _si_section(1.20, -0.02, (
+                          "chipflow_si_path min -0.02 f0/CLK -> f1/D\n")))
+    assert code == 1, out
+    [v] = out["violations"]
+    assert v["kind"] == "si_bound_violation" and v["severity"] == "error", v
+    assert "hold" in v["msg"] and "Miller factor 0" in v["msg"], v
+
+
+def test_a_bad_si_bound_value_refuses(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(check_timing, "GATES_YAML",
+                        _gates_with_si(tmp_path, "fatal"))
+    code, out = _gate(tmp_path, monkeypatch, capsys,
+                      "worst slack max 1\nworst slack min 1\n" + CLEAN_COUNTS)
+    assert code == 2 and "si_bound" in out["error"], out
+
+
+def test_a_missing_bound_section_refuses(tmp_path, monkeypatch, capsys):
+    code, out = _gate(tmp_path, monkeypatch, capsys,
+                      "worst slack max 1\nworst slack min 1\n" + SIGNOFF_NO_SI)
+    assert code == 2 and check_timing.SI_BEGIN in out["error"], out
+
+
+def test_each_corner_rereads_its_spef_at_the_miller_factors(
+        tmp_path, monkeypatch, capsys):
+    code, out = _gate(tmp_path, monkeypatch, capsys,
+                      "worst slack max 1\nworst slack min 1\n" + CLEAN_COUNTS)
+    assert code == 0, out
+    ws = tmp_path / "ws"
+    [tcl] = _sta_scripts(ws).values()
+    plain, _, si = tcl.partition(check_timing.SI_BEGIN)
+    spef = "tt_um_counter8.nom.spef"
+    assert f"read_spef {ws}" in plain and spef in plain
+    assert ("read_spef -max -keep_capacitive_coupling "
+            "-coupling_reduction_factor 2.0 ") in si
+    assert ("read_spef -min -keep_capacitive_coupling "
+            "-coupling_reduction_factor 0.0 ") in si
+
+
+# one victim (q0, f0 -> f1) and one aggressor (agg, b -> f2) coupled by
+# `cc` pF; each also has 1 fF to ground and 10 ohm of wire
+SI_NETLIST = """module tt_um_si(input clk, input a, input b, output y, output z);
+ wire q0, agg;
+ gf180mcu_fd_sc_mcu7t5v0__dffq_1 f0(.D(a), .CLK(clk), .Q(q0));
+ gf180mcu_fd_sc_mcu7t5v0__dffq_1 f1(.D(q0), .CLK(clk), .Q(y));
+ gf180mcu_fd_sc_mcu7t5v0__inv_1 i0(.I(b), .ZN(agg));
+ gf180mcu_fd_sc_mcu7t5v0__dffq_1 f2(.D(agg), .CLK(clk), .Q(z));
+endmodule
+"""
+
+
+def si_spef(cc):
+    head = TINY_SPEF.split("*D_NET")[0].replace("tt_um_tiny", "tt_um_si")
+    return head + "".join(
+        f"*D_NET {net} {0.001 + cc}\n*CONN\n*I {drv} O\n*I {load} I\n*CAP\n"
+        f"1 {drv} 0.001\n" + (f"2 {drv} {other} {cc}\n" if cc else "")
+        + f"*RES\n1 {drv} {load} 10\n*END\n\n"
+        for net, drv, load, other in (("q0", "f0:Q", "f1:D", "i0:ZN"),
+                                      ("agg", "i0:ZN", "f2:D", "f0:Q")))
+
+
+def _si_corner(tmp_path, cc, period, name, in_delay=1, out_delay=0):
+    final = tmp_path / name / "final"
+    for sub in ("nl", "sdc", "spef/nom"):
+        (final / sub).mkdir(parents=True)
+    (final / "nl" / "tt_um_si.nl.v").write_text(SI_NETLIST, encoding="utf-8")
+    (final / "sdc" / "t.sdc").write_text(
+        f"create_clock -name clk -period {period} [get_ports clk]\n"
+        f"set_input_delay {in_delay} -clock clk [get_ports {{a b}}]\n"
+        f"set_output_delay {out_delay} -clock clk [get_ports {{y z}}]\n"
+        "set_propagated_clock [all_clocks]\n", encoding="utf-8")
+    (final / "spef" / "nom" / "tt_um_si.nom.spef").write_text(
+        si_spef(cc), encoding="utf-8")
+    return check_timing.run_corner(final, "tt_um_si", "nom_tt_025C_3v30",
+                                   check_timing._pdk_root(), tmp_path / name,
+                                   final / "sdc" / "t.sdc", "")
+
+
+@pytest.mark.slow
+def test_real_opensta_bound_is_monotone_and_catches_a_planted_coupling(
+        tmp_path):
+    # no coupling cap at all: the bound is the plain slack
+    none = _si_corner(tmp_path, 0, 6.0, "none")
+    assert none["si_setup_ws"] == none["setup_ws"], none
+    assert none["si_hold_ws"] == none["hold_ws"], none
+    # 0.2 pF between victim and aggressor: plain setup slack positive, the
+    # factor-2 bound negative, the factor-0 hold bound no better than plain
+    r = _si_corner(tmp_path, 0.2, 6.0, "planted")
+    assert r["setup_ws"] > 0 and r["hold_ws"] > 0, r
+    assert r["si_setup_ws"] < 0 <= r["setup_ws"], r
+    assert r["si_hold_ws"] <= r["hold_ws"], r
+    ends = {end for _, _, end in r["si_paths"]["max"]}
+    assert "f1/D" in ends, r          # the planted victim, named
+    [v] = check_timing.si_bound_violations(r, "tt_um_si", "warning")
+    assert "f1/D" in v["msg"] and v["severity"] == "warning", v
+    # the hold side on its own: inputs arriving late and outputs with hold
+    # margin to spare, so f1/D (the coupled victim) is the worst hold path
+    # and dropping its coupling cap (factor 0) must lower the worst hold
+    # slack itself
+    late = _si_corner(tmp_path, 0.2, 20.0, "late", in_delay=5, out_delay=5)
+    assert late["si_hold_ws"] < late["hold_ws"], late
+    # monotone in the coupling: more cap, a lower bound
+    bigger = _si_corner(tmp_path, 0.4, 6.0, "bigger")
+    assert bigger["si_setup_ws"] < r["si_setup_ws"], (bigger, r)

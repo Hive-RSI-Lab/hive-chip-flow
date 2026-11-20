@@ -84,6 +84,19 @@ because a design can meet setup and hold everywhere and still fail them:
     not under the workspace is `clock_jitter_source_missing`. A clock with
     no budget keeps whatever the SDC sets; the read-back is in each
     corner's `clock_uncertainty_ns` either way.
+  - a crosstalk (Miller) bound (issue #76): OpenSTA has no SI engine, so
+    after the plain pass each corner re-reads its SPEF with
+    -keep_capacitive_coupling, the max (setup) side at coupling factor
+    2.0 (every aggressor switching against the victim) and the min (hold)
+    side at 0.0 (every aggressor switching with it), and takes the worst
+    setup and hold slack again. Both sides move the same way OCV does - a
+    setup check's launch reads the doubled caps and its capture clock the
+    vanished ones, a hold check the reverse - so the bound is pessimistic,
+    with no timing windows. Each corner's `si_bound_setup_ws` and
+    `si_bound_hold_ws` are facts; a negative one is `si_bound_violation`,
+    naming up to 20 failing startpoint -> endpoint paths, at the severity
+    gates.yaml's timing row sets in `si_bound` (`warning`, the default,
+    until the corpus has been timed with it; `error` fails the gate).
 
 Failure classification (the same three-way split check_harden.py uses):
   - no `harden/runs/run/final/` at all -> CheckError (harden has not run;
@@ -117,6 +130,7 @@ import checklib  # noqa: E402
 import clock_budget  # noqa: E402
 import speclib  # noqa: E402
 import ttlib  # noqa: E402
+import yaml  # noqa: E402
 from checklib import CheckError  # noqa: E402
 
 SCRIPT = "check_timing"
@@ -129,6 +143,84 @@ TIMEOUT_S = 1200.0
 # result, but an unconstrained one - run() turns it into a finding.
 SLACK_RE = re.compile(
     r"worst slack (max|min)\s+(-?(?:[0-9.]+(?:e-?[0-9]+)?|INF))\b")
+# The crosstalk bound (#76): its own section after every other one, so the
+# plain worst-slack lines are read from the output before SI_BEGIN only.
+# The factor is applied only with -keep_capacitive_coupling (a plain
+# read_spef grounds each coupling cap at 1.0 whatever the factor), and a
+# -max/-min read_spef replaces that side's parasitics from the plain pass.
+SI_BEGIN = "chipflow_si_bound_begin"
+SI_END = "chipflow_si_bound_end"
+SI_PATH_MARK = "chipflow_si_path"
+SI_SETUP_FACTOR = 2.0
+SI_HOLD_FACTOR = 0.0
+SI_MAX_PATHS = 20
+SI_PATH_RE = re.compile(
+    rf"^{SI_PATH_MARK} (max|min) (\S+) (.+?) -> (.+?)\s*$", re.MULTILINE)
+SI_SEVERITIES = ("warning", "error")
+GATES_YAML = ENGINE / "reference" / "gates.yaml"
+
+
+def si_bound_tcl(spef: Path) -> str:
+    q = tcl_escape(str(spef))
+    return (
+        f'puts "{SI_BEGIN}"\n'
+        "read_spef -max -keep_capacitive_coupling -coupling_reduction_factor "
+        f"{SI_SETUP_FACTOR} {q}\n"
+        "read_spef -min -keep_capacitive_coupling -coupling_reduction_factor "
+        f"{SI_HOLD_FACTOR} {q}\n"
+        + WORST_SLACK_TCL
+        + "set sta_recovery_removal_checks_enabled 0\n"
+        "foreach chipflow_si_side {max min} {\n"
+        "    foreach chipflow_pe [find_timing_paths -path_delay "
+        f"$chipflow_si_side -slack_max 0 -sort_by_slack "
+        f"-group_path_count {SI_MAX_PATHS} "
+        "-endpoint_path_count 1] {\n"
+        f'        puts "{SI_PATH_MARK} $chipflow_si_side '
+        "[get_property $chipflow_pe slack] "
+        "[get_full_name [get_property $chipflow_pe startpoint]] -> "
+        '[get_full_name [get_property $chipflow_pe endpoint]]"\n'
+        "    }\n"
+        "}\n"
+        "set sta_recovery_removal_checks_enabled 1\n"
+        f'puts "{SI_END}"\n')
+
+
+def parse_si_bound(output: str) -> dict:
+    """The crosstalk-bound section: worst setup/hold slack at the Miller
+    factors and the failing paths, {"max": ws, "min": ws, "paths":
+    {"max": [(slack, start, end)], "min": [...]}}."""
+    head, sep, rest = output.partition(SI_BEGIN)
+    body, end, _ = rest.partition(SI_END)
+    if not sep or not end:
+        raise CheckError(f"no {SI_BEGIN} ... {SI_END} section (the "
+                         "crosstalk-bound pass did not finish)")
+    slacks = {kind: float(val) for kind, val in SLACK_RE.findall(body)}
+    if "max" not in slacks or "min" not in slacks:
+        raise CheckError("the crosstalk-bound pass printed no parseable "
+                         "worst-slack line")
+    paths = {"max": [], "min": []}
+    for side, slack, start, endp in SI_PATH_RE.findall(body):
+        paths[side].append((float(slack), start, endp))
+    return {"max": slacks["max"], "min": slacks["min"], "paths": paths}
+
+
+def si_bound_severity(gates_path: Path | None = None) -> str:
+    """gates.yaml's timing row `si_bound`: the severity of a negative
+    crosstalk bound (default warning). Always the engine's own gates.yaml
+    (statelib reads strengths from it the same way): a `gate.py --gates`
+    file of another path does not reach this check."""
+    path = gates_path or GATES_YAML
+    data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    for table in (data.get("gates") or {}).values():
+        for row in (table or {}).values():
+            if isinstance(row, dict) and row.get("tool") == "timing":
+                sev = row.get("si_bound", "warning")
+                if sev not in SI_SEVERITIES:
+                    raise CheckError(
+                        f"{path.name}: timing row's si_bound is {sev!r}, "
+                        f"not one of {', '.join(SI_SEVERITIES)}")
+                return sev
+    return "warning"
 # OpenSTA 3.1.0's `report_check_types -violators` prints a bare section
 # header ("max slew", "max capacitance", "max fanout"), a column header and
 # a dashed rule, then one row per violating pin ending "(VIOLATED)" - never
@@ -697,6 +789,7 @@ def run_corner(final_dir: Path, top: str, corner: str, pdk_root: Path,
         + "report_check_types -max_slew -max_capacitance -max_fanout -violators\n"
         + COUNTS_TCL + SIGNOFF_TCL
         + uncertainty_tcl(work_dir / f".sta_{corner}.applied.sdc")
+        + si_bound_tcl(spef)
         + "exit\n", encoding="utf-8")
     try:
         proc = checklib.run_tool([str(EDA_BIN), "sta", str(tcl)],
@@ -707,7 +800,8 @@ def run_corner(final_dir: Path, top: str, corner: str, pdk_root: Path,
         raise CheckError(f"corner {corner!r}: eda sta "
                          f"{checklib.timeout_why(exc)}: {exc}") from exc
     output = (proc.stdout or "") + "\n" + (proc.stderr or "")
-    slacks = {kind: float(val) for kind, val in SLACK_RE.findall(output)}
+    plain = output.partition(SI_BEGIN)[0]
+    slacks = {kind: float(val) for kind, val in SLACK_RE.findall(plain)}
     if "max" not in slacks or "min" not in slacks:
         raise CheckError(
             f"corner {corner!r}: eda sta produced no parseable worst-slack "
@@ -722,6 +816,7 @@ def run_corner(final_dir: Path, top: str, corner: str, pdk_root: Path,
         signoff = parse_signoff_checks(output)
         ideal = parse_ideal_clocks(output)
         uncertainty, pin_uncertainty, via_inter = parse_clock_uncertainty(output)
+        si = parse_si_bound(output)
     except CheckError as exc:
         raise CheckError(f"corner {corner!r}: {exc} (exit {proc.returncode}): "
                          f"{output[-2000:]}") from exc
@@ -737,7 +832,9 @@ def run_corner(final_dir: Path, top: str, corner: str, pdk_root: Path,
            "signoff": signoff, "ideal_clocks": ideal,
            "clock_uncertainty": uncertainty,
            "pin_uncertainty": pin_uncertainty,
-           "uncertainty_via_inter": via_inter}
+           "uncertainty_via_inter": via_inter,
+           "si_setup_ws": si["max"], "si_hold_ws": si["min"],
+           "si_paths": si["paths"]}
 
 
 SIGNOFF_KINDS = {"min_pulse_width": "min_pulse_width_violation",
@@ -757,6 +854,10 @@ SETUP_WHY = {
     "combinational_loop": "combinational loop(s); OpenSTA cuts them, so "
         "the paths through them are not timed",
 }
+
+
+def _finite(x):
+    return None if x is None or math.isinf(x) else x
 
 
 def _shown(items: list[str]) -> str:
@@ -829,6 +930,35 @@ def jitter_source_violations(ws: Path, budgets: dict, top: str) -> list[dict]:
         "`source`", "opensta")]
 
 
+def si_bound_violations(r: dict, top: str, severity: str) -> list[dict]:
+    """A negative crosstalk bound on one corner's run_corner() result, one
+    finding per side, naming the failing paths."""
+    out = []
+    for side, key, plain_key, factor in (
+            ("setup", "si_setup_ws", "setup_ws", SI_SETUP_FACTOR),
+            ("hold", "si_hold_ws", "hold_ws", SI_HOLD_FACTOR)):
+        ws = r.get(key)
+        if ws is None or math.isinf(ws) or ws >= 0:
+            continue
+        # worst first and at most SI_MAX_PATHS: OpenSTA's -group_path_count
+        # is per path group, so a design with several clocks lists more,
+        # in group order
+        paths = sorted(r.get("si_paths", {}).get(
+            "max" if side == "setup" else "min", []))[:SI_MAX_PATHS]
+        named = [f"{start} -> {end} ({slack:.4f}ns)"
+                 for slack, start, end in paths]
+        out.append(checklib.violation(
+            "timing", severity, None, top, "si_bound_violation",
+            [end for _, _, end in paths],
+            f"corner {r['corner']}: worst {side} slack {ws:.4f}ns with "
+            f"coupling caps at Miller factor {factor:g} (plain "
+            f"{r[plain_key]:.4f}ns at 1.0) - crosstalk can break "
+            f"{len(paths)} path(s): {_shown(named)}; space or shield the "
+            "victim net, or upsize its driver", "opensta",
+            corner=r["corner"]))
+    return out
+
+
 def run(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--workspace", required=True, help="block workspace")
@@ -852,6 +982,7 @@ def run(argv=None):
         budgets = clock_budget.budgets(spec)
     except clock_budget.ClockBudgetError as exc:
         raise CheckError(f"spec.yaml {exc}; spec_lint names it too") from exc
+    si_severity = si_bound_severity()
     pdk_root = _pdk_root()
     sdc, env_tcl = signoff_sdc(ws, final_dir.parent, pdk_root)
     work_dir = ws / "log" / "timing_work"
@@ -891,6 +1022,7 @@ def run(argv=None):
                 [], f"corner {r['corner']}: {line}", "opensta",
                 corner=r["corner"]))
         violations.extend(signoff_violations(r, top, waived))
+        violations.extend(si_bound_violations(r, top, si_severity))
         violations.extend(uncertainty_violations(
             r["clock_uncertainty"], budgets, top, r["corner"],
             r.get("pin_uncertainty", ()), r.get("uncertainty_via_inter", ())))
@@ -898,10 +1030,14 @@ def run(argv=None):
             "setup_ws": None if "setup" in inf_sides else r["setup_ws"],
             "hold_ws": None if "hold" in inf_sides else r["hold_ws"],
             "multiple_clock": r["check_setup"].get("multiple_clock", []),
-            "clock_uncertainty_ns": r["clock_uncertainty"]}
+            "clock_uncertainty_ns": r["clock_uncertainty"],
+            "si_bound_setup_ws": _finite(r.get("si_setup_ws")),
+            "si_bound_hold_ws": _finite(r.get("si_hold_ws"))}
 
     violations.extend(jitter_source_violations(ws, budgets, top))
-    extra = {}
+    extra = {"si_bound": {"severity": si_severity,
+                          "setup_factor": SI_SETUP_FACTOR,
+                          "hold_factor": SI_HOLD_FACTOR}}
     if budgets:
         extra["clock_budgets"] = {
             n: {"ps_rms": b.ps_rms, "cycles": b.cycles,
