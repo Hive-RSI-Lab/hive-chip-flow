@@ -226,6 +226,10 @@ gates:
       # crosstalk (Miller) bound, #76: severity of a negative bound;
       # warning until the corpus has been timed with it, then error.
       si_bound: warning
+      # second-extractor cross-check, #77: severity of a pex_mismatch
+      # (magic against OpenRCX on the critical nets); warning until
+      # the thresholds are calibrated against a reference extraction.
+      pex_xcheck: warning
       description: >-
         Setup and hold slack at or above 0 at every corner; no fanout or
         slew violations; check_setup clean (no unclocked register,
@@ -237,6 +241,9 @@ gates:
         least the setup uncertainty its jitter asks for. The crosstalk
         bound (coupling caps at Miller factor 2 for setup, 0 for hold) is
         reported per corner and is a finding at si_bound's severity.
+        On the nominal corner the critical nets are extracted again
+        with magic; a net whose C or R is far from OpenRCX's is a
+        pex_mismatch at pex_xcheck's severity.
     drc:
       phase: P6
       tool: drc
