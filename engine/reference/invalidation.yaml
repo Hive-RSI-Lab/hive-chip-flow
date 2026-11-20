@@ -443,6 +443,26 @@ gate_writes:
     top_harden: [top_gds, top_spec, top_macros, top_pnl, top_lef, top_sdf,
                  top_spef]
 
+# Inputs a gate rebuilds itself before it reads them (#381): each ade layout
+# gate calls layout_gen.build(), which writes <block>.gds and
+# <block>.abstract.json into layout/ (top_harden into analog/layout/). The
+# hash taken at the gate's start can then predate the GDS the check read (a
+# fresh workspace has none; a sizing edit leaves the old one), and the gate
+# would read stale straight after its own pass. For a kind listed here,
+# gate.py records the hash at the end of the run instead, but only when the
+# files that moved during it are those outputs (statelib.REBUILT_OUTPUTS,
+# directly in the dir): a generator edited mid-run still leaves it stale.
+gate_rebuilds:
+  ade:
+    drc:          [layout]
+    lvs:          [layout]
+    erc:          [layout]
+    layout_match: [layout]
+    pex_sim:      [layout]
+    em_ir:        [layout]
+  msde:
+    top_harden:   [analog_layout]
+
 # Edit-class taxonomy -> what an edit of that class makes stale (docs/
 # design.md 1.6, one block per skill).
 #   mutates          artifacts the edit itself rewrites (the new truth - NOT

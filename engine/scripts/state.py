@@ -61,7 +61,9 @@ Schema (version 3):
     `inputs_at_start` (gate.py hashes the inputs before its check runs) is
     recorded against those, so an input edited while a long gate ran leaves
     the result stale, never fresh against a file the gate did not read; the
-    kinds that moved go in last.inputs_changed_during_run. The same goes for
+    kinds that moved go in last.inputs_changed_during_run (gate.py moves an
+    input the gate rebuilt itself, gate_rebuilds, to its end-of-run hash
+    first when only the gate's own outputs moved, #381). The same goes for
     `strength_at_start`: a bump landing during a long run leaves it stale.
 
 CLI (docs/design.md 1.1 script contract: argparse, JSON to stdout, exit 0 ok
