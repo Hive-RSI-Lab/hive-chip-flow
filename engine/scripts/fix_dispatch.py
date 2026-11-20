@@ -28,13 +28,18 @@ Work order shape (log/workorders/wo-<id>.json):
        (see run()'s failing_clusters/info_clusters split: an issue closes
        by re-running the gate, and a below-fail-severity finding never made
        it fail in the first place),
-     "artifacts": {name: path...}, "scope":
+     "artifacts": {name: path...},
+     "sensitivity": [{measure, corner, condition?, value, bound, top: [3
+       sensitivity.py entries], unranked, report} or {measure, corner,
+       error}] - sizing orders with sim_bound_fail findings and a
+       sizing/sizing.yaml only (#104; --no-sensitivity skips it), "scope":
      "fix ONLY the findings in `cluster`; do not touch unrelated files"}
 """
 from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 import time
 from pathlib import Path
@@ -360,6 +365,73 @@ def parallel_groups(orders: list[dict]) -> list[list[int]]:
     return [g["ids"] for g in groups]
 
 
+# #104: a sizing order for a measure out of its bound carries
+# sensitivity.py's ranking of the sizing parameters at that measure's
+# failing corner, so the fixer turns the knob that moves it first.
+SENSITIVITY_PAIRS = 2
+SENSITIVITY_TOP = 3
+SENSITIVITY_GUIDANCE = (
+    "`sensitivity` ranks the sizing.yaml parameters by how hard each moves "
+    "the failing measure at its corner (normalised = % change in the "
+    "measure per % change in the parameter; to_bound = the linear step "
+    "that reaches the bound, room = how far the parameter's own min/max "
+    "lets it go). Start with the top parameter that has room, re-run the "
+    "gate, and re-run engine/scripts/sensitivity.py if it moves less than "
+    "predicted - the estimate is linear.")
+BOUND_MSG_RE = re.compile(r"^(?:\[(\w+)\] )?(\S+) @ (\S+) = ")
+
+
+def bound_fail_pairs(violations: list[dict]) -> list[tuple]:
+    """The distinct (measure, corner, condition) of a cluster's
+    sim_bound_fail findings, in order. The refs are [measure, corner]; a
+    ua pad condition makes them a sorted set, so the message (simlib.
+    compare_bounds' "name @ corner = ...", run_bench_at_corner's "[cond] "
+    prefix) is what tells them apart."""
+    out = []
+    for v in violations:
+        if v.get("kind") != "sim_bound_fail":
+            continue
+        m = BOUND_MSG_RE.match(v.get("msg") or "")
+        if m:
+            pair = (m.group(2), m.group(3), m.group(1) or v.get("condition"))
+        elif len(v.get("refs") or []) == 2 and not v.get("condition"):
+            pair = (v["refs"][0], v["refs"][1], None)
+        else:
+            continue
+        if pair not in out:
+            out.append(pair)
+    return out
+
+
+def sensitivity_for(workspace: Path, violations: list[dict]) -> list[dict]:
+    """sensitivity.py's top parameters for the first SENSITIVITY_PAIRS
+    failing (measure, corner)s. A run that cannot finish is an `error`
+    entry on the order, never a failed dispatch: the order stands without
+    it."""
+    import sensitivity
+    out = []
+    for measure, corner, condition in bound_fail_pairs(
+            violations)[:SENSITIVITY_PAIRS]:
+        entry = {"measure": measure, "corner": corner}
+        if condition:
+            entry["condition"] = condition
+        try:
+            rep = sensitivity.analyse(workspace, measure, corner, condition,
+                                      top=SENSITIVITY_TOP)
+        except (CheckError, OSError, ValueError, KeyError) as exc:
+            entry["error"] = f"{type(exc).__name__}: {exc}"
+        else:
+            entry.update({
+                "value": rep["value"], "bound": rep["bound"],
+                "top": [p for p in rep["params"]
+                        if p["normalised"] is not None][:SENSITIVITY_TOP],
+                "unranked": [p["param"] for p in rep["params"]
+                             if p["normalised"] is None],
+                "report": rep["decks"]})
+        out.append(entry)
+    return out
+
+
 def run(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--input", required=True,
@@ -371,6 +443,8 @@ def run(argv=None):
     ap.add_argument("--state", help="state.json - register orders as open "
                                     "issues (ids allocated there)")
     ap.add_argument("--out", help="write summary JSON here instead of stdout")
+    ap.add_argument("--no-sensitivity", action="store_true",
+                    help="skip sensitivity.py on sizing orders (#104)")
     args = ap.parse_args(argv)
 
     workspace = Path(args.workspace)
@@ -475,6 +549,12 @@ def run(argv=None):
                          "not touch unrelated files; re-run the failed "
                          "gate when done",
             }
+            if (c["fixer"] == "sizing" and not args.no_sensitivity
+                    and (workspace / "sizing" / "sizing.yaml").is_file()):
+                sens = sensitivity_for(workspace, c["violations"])
+                if sens:
+                    order["sensitivity"] = sens
+                    order["guidance"].insert(0, SENSITIVITY_GUIDANCE)
             out_dir.mkdir(parents=True, exist_ok=True)
             wo_path = out_dir / f"wo-{oid}.json"
             wo_path.write_text(json.dumps(order, indent=1), encoding="utf-8")
