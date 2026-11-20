@@ -158,8 +158,11 @@ def flip_lut(ws: Path) -> Path:
     out = ws / "log" / "fpga"
     nl = json.loads((out / "fpga_top.json").read_text())
     cells = nl["modules"]["fpga_top"]["cells"]
-    name = sorted(n for n, c in cells.items()
-                  if c["type"] == "SB_LUT4" and "count" in n)[0]
+    # a LUT of the design's own logic: its src points into rtl/ (cell names
+    # change between yosys versions: 0.69 named them after `count`, 0.70
+    # after the flop they feed)
+    name = sorted(n for n, c in cells.items() if c["type"] == "SB_LUT4"
+                  and "rtl/" in c.get("attributes", {}).get("src", ""))[0]
     init = cells[name]["parameters"]["LUT_INIT"]
     cells[name]["parameters"]["LUT_INIT"] = init.translate(
         str.maketrans("01", "10"))
@@ -207,3 +210,23 @@ def test_out_of_budget_is_unproven_never_a_pass(tmp_path):
         budget=check_fpga.PDR_MIN_S / 2)
     assert fact["verdict"] == "unproven"
     assert [v["kind"] for v in found] == ["fpga_equiv_unproven"]
+
+
+# yosys's own latch lines, as 0.69 and 0.70 print them: 0.69 warns and goes
+# on, 0.70 stops synth_ice40 with an ERROR; both name the latch
+LATCH_069 = ("Warning: Latch inferred for signal `\\counter8.\\lq' from process "
+             "`\\counter8.$proc$rtl/counter8.v:13$3': "
+             "$auto$proc_dlatch.cc:547:proc_dlatch$404\n")
+LATCH_070 = ("ERROR: Latch inferred for signal `\\counter8.\\lq' from process "
+             "`\\counter8.$proc$rtl/counter8.v:13$3': "
+             "$auto$proc_dlatch.cc:559:proc_dlatch$404\n")
+
+
+@pytest.mark.parametrize("text", [LATCH_069, LATCH_070],
+                         ids=["yosys-0.69", "yosys-0.70"])
+def test_inferred_latches_reads_both_yosys_texts(text):
+    assert check_fpga.inferred_latches("noise\n" + text) == ["counter8.lq"]
+
+
+def test_inferred_latches_is_empty_on_a_clean_log():
+    assert check_fpga.inferred_latches("End of script.\n") == []

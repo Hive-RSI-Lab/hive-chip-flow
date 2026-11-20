@@ -246,6 +246,68 @@ def test_kpex_runner_refuses_a_tech_without_metal5_con():
     assert e.value.code == 3
 
 
+# each kpex release's marks, as its GF180 deck and tech carry them: 0.4
+# (IIC 2026.09) lists the deck's layer names and calls the poly poly_con on
+# MetalTop's metal5; 0.6 (IIC 2026.10) names them itself and calls it
+# poly2_con, with metal5 on Metal5
+LVS_04 = "  poly2_con pgate_lv_base\n  metal5_con via4_n_cap\n"
+LVS_06 = "# %include rule_decks/auto_name_layers.rb\nauto_name_layers!(binding)\n"
+
+
+def _tech06():
+    t = _tech("Metal5")
+    t["lvs_computed_layers"][0]["layer_info"]["name"] = "poly2_con"
+    return t
+
+
+@pytest.mark.parametrize("lvs,tech,want", [
+    (LVS_04, _tech(), "0.4"), (LVS_06, _tech06(), "0.6")],
+    ids=["kpex-0.4", "kpex-0.6"])
+def test_kpex_runner_tells_the_release(lvs, tech, want):
+    import kpex_runner
+    assert kpex_runner.release(lvs, tech) == want
+
+
+@pytest.mark.parametrize("lvs,tech", [
+    ("", _tech()),                # 0.4 tech, a deck of neither
+    (LVS_06, _tech()),            # 0.6 deck, 0.4 tech
+    (LVS_04 + LVS_06, _tech()),   # both decks' marks
+    (LVS_06, _tech("Metal5")),    # 0.6 deck, poly_con with Metal5
+    ("", {"lvs_computed_layers": []}),
+], ids=["no-deck-mark", "mixed", "both-deck-marks", "half-0.6", "empty"])
+def test_kpex_runner_refuses_a_deck_of_no_single_release(lvs, tech):
+    import kpex_runner
+    with pytest.raises(SystemExit) as e:
+        kpex_runner.release(lvs, tech)
+    assert e.value.code == 3
+
+
+def test_kpex_runner_patch_edits_its_anchor(tmp_path):
+    import kpex_runner
+    (tmp_path / "d.lvs").write_text("a\nold\nb\n")
+    kpex_runner.patch(str(tmp_path), "d.lvs", "old\n", "old\nnew\n")
+    assert (tmp_path / "d.lvs").read_text() == "a\nold\nnew\nb\n"
+
+
+@pytest.mark.parametrize("text", ["a\nb\n", "old\nold\n"],
+                         ids=["gone", "twice"])
+def test_kpex_runner_patch_refuses_an_anchor_not_there_once(tmp_path, text):
+    import kpex_runner
+    (tmp_path / "d.lvs").write_text(text)
+    with pytest.raises(SystemExit) as e:
+        kpex_runner.patch(str(tmp_path), "d.lvs", "old\n", "new\n")
+    assert e.value.code == 3
+    assert (tmp_path / "d.lvs").read_text() == text
+
+
+def test_kpex_runner_leaves_mim_c_to_the_device_on_0_6():
+    import kpex_runner
+    args = ["--pdk", "gf180mcuD", "--2.5D"]
+    assert kpex_runner.upstream_args(args) == [*args, "--blackbox", "true"]
+    chosen = [*args, "--blackbox", "false"]
+    assert kpex_runner.upstream_args(chosen) == chosen
+
+
 # ---- the known answer --------------------------------------------------------
 EPS_OVER_T = 0.05903  # fF/um^2: GF180 metal2 over metal1, eps*A/t
 
