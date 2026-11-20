@@ -6,7 +6,10 @@ so the ranking and the numbers are checked against exact values with no
 ngspice. The slow tests run the real gf180mcuD toolchain: an R2R ladder's
 dVout/dR_i against its nodal solve, the corpus mirror's d(iout)/d(iref)
 against ngspice's own `.sens`, and a planted short output L on the mirror
-ranked first."""
+ranked first. The mismatch tests (#386) give the fake two devices' z
+parameters with known per-sigma terms; the slow ones check the mirror's
+summed device variance against check_mc's MC sigma, and that enlarging the
+top-ranked device cuts that sigma more than enlarging the second."""
 from __future__ import annotations
 
 import json
@@ -49,15 +52,35 @@ if p.get("crash", 7.0) != 7.0 or p.get("edge", 1.0) < 1.0:
     sys.exit(0)
 y = (p["a"] ** 2 * p["b"] ** 0.5 * p.get("edge", 1.0) ** 3
      * (1.3 if corner == "ss" else 1.0))
+# #386: two devices' mismatch z parameters, known per-sigma terms
+y += (0.03 * p.get("mm_zv_0", 0) + 0.04 * p.get("mm_zk_0", 0)
+      + 0.01 * p.get("mm_zv_1", 0))
 print()
 print("  Measurements for Transient Analysis")
 print(f"y                     =  {y!r}")
 '''
 
 
+# the shape of the PDK's `.lib fets_mm` MOS subckts (sm141064.spice)
+PDK_LIB = """\
+.subckt nfet_03v3 d g s b w=1e-5 l=2.8e-7 m=1 par=1
+.param var_vth='0.7071*0.007*1e-06/sqrt(par*w*l)'
+.param mis_vth='agauss(0,var_vth,1)'
+.param var_k='0.7071*0.007*1e-06/sqrt(par*w*l)'
+.param mis_k='agauss(0,var_k,1)'
+m0 d g s b nfet_03v3 delvto='mis_vth*sw_stat_mismatch' l=l m=m mulu0='1-mis_k*sw_stat_mismatch' w=w
+.ends nfet_03v3
+.subckt pfet_03v3 d g s b w=1e-5 l=2.8e-7 m=1 par=1
+m0 d g s b pfet_03v3 delvto=0 l=l m=m w=w
+.ends pfet_03v3
+"""
+
+
 def make_fake_eda(tmp_path: Path) -> Path:
     root = tmp_path / "fake_toolchain"
-    (root / "foss" / "pdks" / "gf180mcuD").mkdir(parents=True)
+    lib = root / "foss" / "pdks" / "gf180mcuD" / "libs.tech" / "ngspice"
+    lib.mkdir(parents=True)
+    (lib / "sm141064.spice").write_text(PDK_LIB, encoding="utf-8")
     script = tmp_path / "fake_eda"
     script.write_text(f"#!{sys.executable}\nROOT = {str(root)!r}\n" + FAKE,
                       encoding="utf-8")
@@ -326,3 +349,122 @@ def test_real_mirror_planted_short_output_l_ranks_first(tmp_path):
     # 0.28u is the 3.3 V device's minimum L: the step down leaves the
     # models' range, so its derivative is the step up's, flagged
     assert rep["params"][0]["one_sided"] == "up"
+
+
+# ---------------------------------------------------- mismatch (#386), fast
+
+MM_NETLIST = """\
+.subckt widget a b vss
+xm1 a a vss vss nfet_03v3 w=4e-6 l=5e-7
+xm2 b a vss vss nfet_03v3 w=8e-6 l=5e-7 m=2
+xr1 a vss vss ppolyf_u r_length=1e-5 r_width=1e-6
+xp1 b b vss vss pfet_03v3 w=1e-6 l=1e-6
+xu1 a b vss unit
+xu2 a b vss unit
+.ends widget
+.subckt unit d g s
+xmu d g s s nfet_03v3 w=1e-6 l=1e-6
+.ends unit
+"""
+MM_BENCH = BENCH.replace("{{SIZING}}", "xdut a b 0 widget\n{{SIZING}}")
+
+
+def test_mismatch_netlist_parameterises_each_draw():
+    netlist = MM_NETLIST.replace("xp1 b b vss vss pfet_03v3 w=1e-6 l=1e-6\n",
+                                 "")
+    new, devs, unranked = sensitivity.mismatch_netlist(netlist, MM_BENCH,
+                                                       PDK_LIB)
+    assert [d["device"] for d in devs] == ["widget/xm1", "widget/xm2",
+                                           "widget/xr1"]
+    assert "xm1 a a vss vss nfet_03v3__mm w=4e-6 l=5e-7 " \
+        "mm_zv={mm_zv_0} mm_zk={mm_zk_0}" in new
+    assert "m=2 par=2 mm_zv={mm_zv_1}" in new          # par before z
+    assert "mis_r='mm_zr_2*(" in new
+    sub = new.split("* --- sensitivity.py")[1]
+    assert sub.count(".subckt nfet_03v3__mm d g s b mm_zv=0 mm_zk=0 ") == 1
+    assert "delvto='mm_zv*var_vth'" in sub and "mulu0='1-mm_zk*var_k'" in sub
+    assert "sw_stat_mismatch" not in sub and ".ends nfet_03v3__mm" in sub
+    why = {u["device"]: u["reason"] for u in unranked}
+    # unit is instantiated twice: retargeted with no z, so no mismatch
+    assert set(why) == {"unit/xmu"} and "2 times" in why["unit/xmu"]
+    assert "xmu d g s s nfet_03v3__mm w=1e-6 l=1e-6\n" in new
+    # with a device the rewrite cannot parameterise, sw_stat_mismatch=1
+    # would draw for it too, so the resistor is not ranked either
+    blocked = netlist.replace(".ends widget",
+                              "xq1 vss vss a pnp_10p00x10p00\n.ends widget")
+    _, devs, unranked = sensitivity.mismatch_netlist(blocked, MM_BENCH,
+                                                     PDK_LIB)
+    assert [d["device"] for d in devs] == ["widget/xm1", "widget/xm2"]
+    why = {u["device"]: u["reason"] for u in unranked}
+    assert "no parameterised" in why["widget/xq1"]
+    assert "widget/xq1" in why["widget/xr1"]
+    # so does a MOS whose library subckt lacks the two draws
+    _, devs, unranked = sensitivity.mismatch_netlist(MM_NETLIST, MM_BENCH,
+                                                     PDK_LIB)
+    why = {u["device"]: u["reason"] for u in unranked}
+    assert "no pfet_03v3 subckt" in why["widget/xp1"]
+    assert "widget/xr1" in why
+
+
+def test_fix_dispatch_attaches_mismatch_ranking(tmp_path, fake):
+    ws = make_ws(tmp_path, {"a": {"value": 1.0}, "b": {"value": 1.0}})
+    (ws / "netlist" / "widget.cir").write_text(
+        ".subckt widget a vss\nxm1 a a vss vss nfet_03v3 w=4e-6 l=5e-7\n"
+        "xm2 a a vss vss nfet_03v3 w=8e-6 l=5e-7\n.ends\n", encoding="utf-8")
+    (ws / "tb" / "widget_tb.cir").write_text(MM_BENCH, encoding="utf-8")
+    v = {"check": "mc", "severity": "error", "file": None, "module": None,
+         "line": None, "refs": ["widget_tb.cir@tt"], "source": "sim_run",
+         "msg": "Monte Carlo yield at the tt corner is 80.00%",
+         "kind": "yield_below_spec"}
+    inp = tmp_path / "mc.json"
+    inp.write_text(json.dumps({"gate": "mc", "violations": [v]}),
+                   encoding="utf-8")
+    payload, _ = fix_dispatch.run(["--input", str(inp),
+                                   "--workspace", str(ws)])
+    (order,) = payload["orders"]
+    wo = json.loads(Path(order["work_order"]).read_text(encoding="utf-8"))
+    (mm,) = wo["mismatch"]
+    assert (mm["measure"], mm["corner"]) == ("y", "tt")
+    # y moves 0.03 and 0.04 per sigma of xm1's vth and k, 0.01 of xm2's
+    assert mm["sigma"] == pytest.approx((0.03**2 + 0.04**2 + 0.01**2) ** 0.5)
+    top = mm["top"]
+    assert [d["device"] for d in top] == ["widget/xm1", "widget/xm2"]
+    assert top[0]["per_sigma"] == pytest.approx({"vth": 0.03, "k": 0.04})
+    assert top[0]["share"] == pytest.approx(0.0025 / 0.0026)
+    assert top[0]["sigma_if_area_doubled"] == pytest.approx(
+        (0.0026 - 0.0025 / 2) ** 0.5)
+    assert wo["guidance"][0] == fix_dispatch.MISMATCH_GUIDANCE
+    assert "sensitivity" not in wo       # no sim_bound_fail in the cluster
+
+
+# ---------------------------------------------------- mismatch (#386), slow
+
+def _mc_tt_sigma(ws: Path) -> float:
+    import check_mc
+    d, _ = check_mc.run(["--workspace", str(ws), "--jobs", "4"])
+    (g,) = [g for g in d["groups"] if g.get("role") == "tt"]
+    return g["stats"]["iout_raw"]["sigma"]
+
+
+@pytest.mark.slow
+def test_real_mirror_mismatch_sums_to_mc_sigma(tmp_path):
+    ws = mirror_ws(tmp_path, MIRROR_SIZING)
+    rep = sensitivity.analyse_mismatch(ws, "iout_raw", corner_name="tt")
+    mc = _mc_tt_sigma(ws)
+    assert rep["sigma"] == pytest.approx(mc, rel=0.15), (rep["sigma"], mc)
+    assert rep["devices"][0]["device"].endswith("xmref"), rep["devices"]
+    assert sum(d["share"] for d in rep["devices"]) == pytest.approx(1.0)
+
+
+@pytest.mark.slow
+def test_real_mirror_enlarging_top_device_cuts_mc_sigma_most(tmp_path):
+    ws = mirror_ws(tmp_path, MIRROR_SIZING)
+    rep = sensitivity.analyse_mismatch(ws, "iout_raw", corner_name="tt")
+    first, second = (d["device"].rsplit("/", 1)[-1][2:]
+                     for d in rep["devices"][:2])     # "ref", "out"
+    sig = {}
+    for dev in (first, second):
+        big = {**MIRROR_SIZING, f"w_{dev}": 2 * MIRROR_SIZING[f"w_{dev}"],
+               f"l_{dev}": 2 * MIRROR_SIZING[f"l_{dev}"]}
+        sig[dev] = _mc_tt_sigma(mirror_ws(tmp_path / dev, big))
+    assert sig[first] < sig[second], sig
