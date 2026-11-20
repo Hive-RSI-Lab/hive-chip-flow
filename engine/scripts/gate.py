@@ -50,7 +50,12 @@ record_gate records those, not the files as they stand
 when the run ends. An input edited while a long gate ran therefore leaves
 the result stale (its recorded hash no longer matches), never fresh against
 a file the check did not read, and the result's
-record_result.inputs_changed_during_run names the kinds that moved. A
+record_result.inputs_changed_during_run names the kinds that moved. The one
+exception is an input the gate rebuilds itself (invalidation.yaml
+gate_rebuilds: the ade layout gates write <block>.gds and its abstract into
+layout/ before they read it, #381): when only those outputs moved during
+the run, that kind is recorded at its end-of-run hash, the GDS the check
+read, and the result names it in `rebuilt_during_run`. A
 --report run has no start to hash at, so its inputs are hashed at record
 time as before. Pass AND fail are recorded (the fix loop wants every attempt). A
 scratch/corpus input with no workspace records nothing, and the result says
@@ -363,6 +368,47 @@ def hash_inputs_at_start(skill: str, gate_name: str,
     return statelib.gate_input_hashes(ws, skill, gate_name, imap, registry)
 
 
+def rebuild_snapshot_at_start(skill: str, gate_name: str,
+                              workspace: Path | None) -> dict | None:
+    """statelib.rebuild_snapshot of the inputs `gate_name` rebuilds itself
+    (invalidation.yaml gate_rebuilds), taken next to hash_inputs_at_start;
+    None when nothing would be recorded or the gate rebuilds nothing."""
+    try:
+        ws = find_workspace(None, str(workspace) if workspace else None)
+    except RuntimeError:
+        return None
+    if ws is None:
+        return None
+    imap = statelib.load_map()
+    registry = checklib.load_json(ws / "state.json",
+                                  "state.json").get("artifacts") or {}
+    snap = statelib.rebuild_snapshot(ws, skill, gate_name, imap, registry)
+    return snap or None
+
+
+def settle_rebuilt_inputs(skill: str, gate_name: str, workspace: Path,
+                          inputs_at_start: dict, snap: dict) -> list[str]:
+    """For each input the gate rebuilt itself (#381): when the only files
+    that moved during the run are its own outputs (the GDS and abstract
+    layout_gen.build() wrote), move inputs_at_start[kind] to the hash as the
+    run left it - the GDS the check read - and return those kinds. A kind
+    where anything else moved keeps its start hash, so it reads stale."""
+    ws = find_workspace(None, str(workspace))
+    imap = statelib.load_map()
+    registry = checklib.load_json(ws / "state.json",
+                                  "state.json").get("artifacts") or {}
+    after = statelib.rebuild_snapshot(ws, skill, gate_name, imap, registry)
+    settled = []
+    for kind, before in snap.items():
+        if kind not in inputs_at_start or before == after.get(kind, {}):
+            continue
+        if statelib.only_rebuilt_outputs_moved(before, after.get(kind, {})):
+            inputs_at_start[kind] = statelib.hash_kind(ws, kind, imap,
+                                                       registry)[1]
+            settled.append(kind)
+    return settled
+
+
 def mark_gate_error(gate_name: str, error: str,
                     workspace: Path | None) -> dict:
     """The check for `gate_name` ended in error: stale-mark the gate's
@@ -497,6 +543,7 @@ def main(argv: list[str] | None = None) -> int:
     error_mark = None
     inputs_at_start = None
     strength_at_start = None
+    rebuild_snap = None
     try:
         gates = load_gates(Path(args.gates))
         if args.list:
@@ -531,6 +578,8 @@ def main(argv: list[str] | None = None) -> int:
             if not args.no_record:
                 inputs_at_start = hash_inputs_at_start(
                     skill, args.gate, Path(args.workspace))
+                rebuild_snap = rebuild_snapshot_at_start(
+                    skill, args.gate, Path(args.workspace))
                 strength_at_start = statelib.gate_strength(skill, args.gate)
                 statelib.drop_harden_records(Path(args.workspace).resolve(), skill,
                                              args.gate, statelib.load_map())
@@ -559,6 +608,12 @@ def main(argv: list[str] | None = None) -> int:
             # relative to it, and holds nothing State.save would scrub
             result = checklib.record_safe(result, args.workspace)
         if inputs_at_start is not None:
+            if rebuild_snap:
+                rebuilt = settle_rebuilt_inputs(skill, args.gate,
+                                                Path(args.workspace),
+                                                inputs_at_start, rebuild_snap)
+                if rebuilt:
+                    result["rebuilt_during_run"] = rebuilt
             result["inputs_at_start"] = inputs_at_start
         if strength_at_start is not None:
             result["strength_at_start"] = strength_at_start

@@ -42,6 +42,7 @@ inputs (freshness "unknown", never "fresh"), a missing file hashes to None
 from __future__ import annotations
 
 import ast
+import fnmatch
 import hashlib
 import json
 import re
@@ -111,6 +112,7 @@ def load_map(path: Path | str | None = None) -> dict:
                 raise ValueError(f"{p}: {skill}.gate_writes[{gate!r}] names "
                                  f"unknown artifact kinds {unknown}")
         _check_gate_order(p, skill, data)
+    _check_gate_rebuilds(p, data)
     for skill in data["edit_classes"]:
         gate_inputs = data["gate_inputs"].get(skill, {})
         for cls, ec in data["edit_classes"][skill].items():
@@ -145,6 +147,66 @@ def _check_inputs_when(p: Path, data: dict) -> None:
                 if outside:
                     raise ValueError(f"{p}: gate_inputs_when[{skill}.{gate}] "
                                      f"names kinds not in its row: {outside}")
+
+
+def _check_gate_rebuilds(p: Path, data: dict) -> None:
+    """Raise when gate_rebuilds names an unknown skill or gate, or a kind
+    outside the gate's own input row: a gate can only keep the end-of-run
+    hash of an input it reads."""
+    rebuilds = data.get("gate_rebuilds") or {}
+    if not isinstance(rebuilds, dict):
+        raise ValueError(f"{p}: gate_rebuilds is not a mapping")
+    unknown_skills = set(rebuilds) - set(SKILLS)
+    if unknown_skills:
+        raise ValueError(f"{p}: gate_rebuilds names unknown skills "
+                         f"{sorted(unknown_skills)}")
+    for skill, rows in rebuilds.items():
+        for gate, kinds in (rows or {}).items():
+            row = (data["gate_inputs"].get(skill) or {}).get(gate)
+            if row is None:
+                raise ValueError(f"{p}: {skill}.gate_rebuilds names unknown "
+                                 f"gate {gate!r}")
+            outside = [k for k in kinds or [] if k not in row]
+            if outside:
+                raise ValueError(f"{p}: {skill}.gate_rebuilds[{gate!r}] names "
+                                 f"kinds not in its row: {outside}")
+
+
+# What layout_gen.build() writes into a layout dir: the GDS and its abstract,
+# directly in the dir. Nothing else a rebuilding gate leaves there counts as
+# its own output (gate_rebuilds).
+REBUILT_OUTPUTS = ("*.gds", "*.abstract.json")
+
+
+def rebuild_snapshot(ws: Path, skill: str, gate: str, imap: dict,
+                     registry: dict | None = None) -> dict[str, dict]:
+    """{kind: {rel: sha256}} of the files under each input `gate` rebuilds
+    (gate_rebuilds), skipping what dir_text skips (__pycache__, .pyc/.pyo);
+    {} for a gate that rebuilds none. Raw bytes: this only tells which files
+    moved during a run, never what a design hashes to."""
+    out: dict[str, dict] = {}
+    for kind in (imap.get("gate_rebuilds", {}).get(skill) or {}).get(gate) or []:
+        root = ws / kind_path(kind, imap, registry)
+        files: dict[str, str] = {}
+        if root.is_dir():
+            for f in sorted(root.rglob("*")):
+                if (f.is_file() and "__pycache__" not in f.parts
+                        and f.suffix not in (".pyc", ".pyo")):
+                    files[f.relative_to(root).as_posix()] = \
+                        hashlib.sha256(f.read_bytes()).hexdigest()
+        out[kind] = files
+    return out
+
+
+def only_rebuilt_outputs_moved(before: dict, after: dict) -> bool:
+    """True when every file that differs between two rebuild_snapshot views
+    of one dir (added, removed or changed) is a REBUILT_OUTPUTS file directly
+    in it: the generator, and anything else in the dir, is as it was."""
+    moved = {rel for rel in set(before) | set(after)
+             if before.get(rel) != after.get(rel)}
+    return all("/" not in rel and any(fnmatch.fnmatch(rel, pat)
+                                      for pat in REBUILT_OUTPUTS)
+               for rel in moved)
 
 
 def _check_gate_order(p: Path, skill: str, data: dict) -> None:
